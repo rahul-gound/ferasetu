@@ -79,7 +79,10 @@ export default function OrdersPage() {
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ['orders'],
-    queryFn: async () => (await api.get('/orders')).data,
+    queryFn: async () => {
+      const res = await api.get('/orders');
+      return res.data.orders || res.data;
+    },
   });
 
   const updateMutation = useMutation({

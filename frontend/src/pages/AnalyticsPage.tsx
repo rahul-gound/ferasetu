@@ -66,7 +66,19 @@ export default function AnalyticsPage() {
 
   const { data, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', period],
-    queryFn: async () => (await api.get(`/analytics?period=${period}`)).data,
+    queryFn: async () => {
+      const [dashboard, sales] = await Promise.all([
+        api.get('/analytics/dashboard'),
+        api.get(`/analytics/sales?period=${period}`)
+      ]);
+      return {
+        summary: dashboard.data.summary,
+        revenueChart: dashboard.data.revenueChart,
+        topProducts: dashboard.data.topProducts,
+        sales: sales.data.sales,
+        categoryBreakdown: sales.data.categoryBreakdown
+      };
+    },
     retry: 1,
   });
 

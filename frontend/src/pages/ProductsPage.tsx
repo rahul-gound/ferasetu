@@ -69,7 +69,10 @@ export default function ProductsPage() {
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products'],
-    queryFn: async () => (await api.get('/products')).data,
+    queryFn: async () => {
+      const res = await api.get('/products');
+      return res.data.products || res.data;
+    },
   });
 
   const deleteMutation = useMutation({
