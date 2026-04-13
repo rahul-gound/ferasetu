@@ -22,6 +22,7 @@ interface Order {
   total: number;
   delivery_type: 'delivery' | 'pickup';
   status: string;
+  payment_status?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -44,6 +45,12 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: 'Delivered', cancelled: 'Cancelled',
 };
 
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  paid:      { label: '💳 Paid',      bg: 'rgba(16,185,129,0.15)', color: '#059669' },
+  unpaid:    { label: '💸 Unpaid',    bg: 'rgba(239,68,68,0.15)',  color: '#DC2626' },
+  pay_later: { label: '⏳ Pay Later', bg: 'rgba(245,158,11,0.15)', color: '#D97706' },
+};
+
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_COLORS[status] || { bg: '#f0f0f0', color: '#888' };
   return (
@@ -52,6 +59,19 @@ function StatusBadge({ status }: { status: string }) {
       background: s.bg, color: s.color,
     }}>
       {STATUS_LABELS[status] || status}
+    </span>
+  );
+}
+
+function PaymentBadge({ status }: { status?: string }) {
+  const key = status || 'unpaid';
+  const cfg = PAYMENT_STATUS_CONFIG[key] || PAYMENT_STATUS_CONFIG.unpaid;
+  return (
+    <span style={{
+      padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+      background: cfg.bg, color: cfg.color,
+    }}>
+      {cfg.label}
     </span>
   );
 }
@@ -70,12 +90,163 @@ function Shimmer() {
   );
 }
 
+function InvoiceModal({ order, onClose, onPaymentUpdate }: {
+  order: Order;
+  onClose: () => void;
+  onPaymentUpdate: (id: string, status: string) => void;
+}) {
+  const invoiceNum = `INV-${order.id.slice(-8).toUpperCase()}`;
+  const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+
+  return (
+    <div className="no-print" style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '620px',
+        maxHeight: '92vh', overflowY: 'auto', color: '#1E293B',
+      }}>
+        {/* Invoice header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+          borderRadius: '16px 16px 0 0', padding: '28px 32px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        }}>
+          <div>
+            <div style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '0.05em' }}>
+              TAX INVOICE
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: '6px' }}>
+              {invoiceNum} · {invoiceDate}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="no-print"
+            style={{
+              background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer',
+              color: '#fff', borderRadius: '8px', padding: '8px',
+              display: 'flex', alignItems: 'center',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: '28px 32px' }}>
+          {/* Shop & Customer info */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+            <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>From</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>Your Shop Name</div>
+              <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
+                Your Address, City, State
+              </div>
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>Bill To</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>{order.customer_name}</div>
+              <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
+                {order.customer_phone}
+                {order.customer_address && <><br />{order.customer_address}</>}
+              </div>
+            </div>
+          </div>
+
+          {/* Items table */}
+          <div style={{ marginBottom: '20px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ background: '#F1F5F9', borderRadius: '6px' }}>
+                  {['Product', 'Qty', 'Unit Price', 'Total'].map(h => (
+                    <th key={h} style={{
+                      padding: '10px 12px', textAlign: h === 'Product' ? 'left' : 'right',
+                      fontSize: '12px', fontWeight: 700, color: '#64748B',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {order.items?.map((item, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '12px', fontWeight: 500 }}>{item.product_name}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#64748B' }}>{item.quantity}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#64748B' }}>₹{item.price.toLocaleString('en-IN')}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>₹{(item.quantity * item.price).toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Totals */}
+          <div style={{
+            background: '#F8FAFC', borderRadius: '10px', padding: '16px',
+            marginBottom: '20px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
+              <span>Subtotal</span>
+              <span>₹{order.total.toLocaleString('en-IN')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
+              <span>Delivery Fee</span>
+              <span>{order.delivery_type === 'pickup' ? 'Free' : '₹0'}</span>
+            </div>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', paddingTop: '12px',
+              borderTop: '2px solid #E2E8F0', fontWeight: 800, fontSize: '18px',
+            }}>
+              <span>Grand Total</span>
+              <span style={{ color: '#FF6B35' }}>₹{order.total.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          {/* Payment status */}
+          <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Payment Status:</span>
+            <PaymentBadge status={order.payment_status} />
+          </div>
+
+          {/* Action buttons */}
+          <div className="no-print" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => onPaymentUpdate(order.id, 'paid')}
+              style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            >
+              ✅ Mark as Paid
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => onPaymentUpdate(order.id, 'pay_later')}
+              style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            >
+              ⏳ Pay Later
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => window.print()}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              🖨️ Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrdersPage() {
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ['orders'],
@@ -99,9 +270,26 @@ export default function OrdersPage() {
     },
   });
 
+  const paymentMutation = useMutation({
+    mutationFn: ({ id, payment_status }: { id: string; payment_status: string }) =>
+      api.patch(`/orders/${id}/payment`, { payment_status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast.success('Payment status updated!');
+    },
+    onError: () => toast.error('Failed to update payment status'),
+  });
+
   const handleStatusChange = (id: string, status: string) => {
     setUpdatingId(id);
     updateMutation.mutate({ id, status });
+  };
+
+  const handlePaymentUpdate = (id: string, payment_status: string) => {
+    paymentMutation.mutate({ id, payment_status });
+    if (invoiceOrder?.id === id) {
+      setInvoiceOrder(prev => prev ? { ...prev, payment_status } : null);
+    }
   };
 
   const filtered = activeTab === 'all'
@@ -110,6 +298,11 @@ export default function OrdersPage() {
 
   return (
     <div>
+      <style>{`
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @media print { .no-print { display: none !important; } }
+      `}</style>
+
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>{translate('orders')}</h1>
@@ -161,7 +354,7 @@ export default function OrdersPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                  {['Customer', 'Phone', 'Items', 'Total', 'Type', 'Status', 'Date', 'Update'].map(h => (
+                  {['Customer', 'Phone', 'Items', 'Total', 'Type', 'Status', 'Payment', 'Date', 'Update', ''].map(h => (
                     <th key={h} style={{
                       padding: '12px 16px', textAlign: 'left',
                       fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
@@ -208,6 +401,9 @@ export default function OrdersPage() {
                     <td style={{ padding: '14px 16px' }}>
                       <StatusBadge status={order.status} />
                     </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <PaymentBadge status={order.payment_status} />
+                    </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: '12px' }}>
                       {new Date(order.created_at).toLocaleDateString('en-IN', {
                         day: '2-digit', month: 'short', year: 'numeric',
@@ -236,6 +432,15 @@ export default function OrdersPage() {
                           transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)',
                         }} />
                       </div>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
+                        style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                      >
+                        🧾 Invoice
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -369,7 +574,14 @@ export default function OrdersPage() {
         </div>
       )}
 
-      <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+      {/* Invoice Modal */}
+      {invoiceOrder && (
+        <InvoiceModal
+          order={invoiceOrder}
+          onClose={() => setInvoiceOrder(null)}
+          onPaymentUpdate={handlePaymentUpdate}
+        />
+      )}
     </div>
   );
 }

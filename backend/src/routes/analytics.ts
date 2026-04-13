@@ -6,7 +6,7 @@ import { predictSales } from '../services/sarvamAI';
 const router = Router();
 router.use(authenticate);
 
-// Get dashboard summary
+// Get dashboard summary — shape matches DashboardPage expectations
 router.get('/dashboard', (req: AuthenticatedRequest, res: Response): void => {
   const db = getDatabase();
   const userId = req.user!.id;
@@ -23,44 +23,71 @@ router.get('/dashboard', (req: AuthenticatedRequest, res: Response): void => {
     "SELECT COUNT(*) as count FROM orders WHERE user_id = ? AND status = 'pending'"
   ).get(userId) as { count: number }).count;
 
-  const totalProducts = (db.prepare(
-    'SELECT COUNT(*) as count FROM products WHERE user_id = ?'
-  ).get(userId) as { count: number }).count;
-
-  const lowStockProducts = (db.prepare(
+  const lowStockCount = (db.prepare(
     'SELECT COUNT(*) as count FROM products WHERE user_id = ? AND stock_quantity < 5 AND is_active = 1'
   ).get(userId) as { count: number }).count;
 
-  // Revenue last 7 days
-  const last7Days = db.prepare(`
-    SELECT DATE(created_at) as date, SUM(total) as revenue, COUNT(*) as orders
+  // Revenue last 30 days (for chart)
+  const revenueChart = db.prepare(`
+    SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders
     FROM orders
-    WHERE user_id = ? AND created_at >= datetime('now', '-7 days') AND status != 'cancelled'
+    WHERE user_id = ? AND created_at >= datetime('now', '-30 days') AND status != 'cancelled'
     GROUP BY DATE(created_at)
     ORDER BY date ASC
-  `).all(userId);
+  `).all(userId) as { date: string; revenue: number; orders: number }[];
 
-  // Top products by revenue
-  const topProducts = db.prepare(`
-    SELECT p.name, SUM(o.total) as revenue, COUNT(o.id) as orders
-    FROM orders o
-    JOIN products p ON p.user_id = o.user_id
-    WHERE o.user_id = ? AND o.status != 'cancelled'
-    GROUP BY p.id
-    ORDER BY revenue DESC
-    LIMIT 5
-  `).all(userId);
+  // Revenue last month for change calculation
+  const prevMonthRevenue = (db.prepare(`
+    SELECT COALESCE(SUM(total), 0) as revenue FROM orders
+    WHERE user_id = ? AND status != 'cancelled'
+      AND created_at >= datetime('now', '-60 days')
+      AND created_at < datetime('now', '-30 days')
+  `).get(userId) as { revenue: number }).revenue;
+
+  const thisMonthRevenue = (db.prepare(`
+    SELECT COALESCE(SUM(total), 0) as revenue FROM orders
+    WHERE user_id = ? AND status != 'cancelled'
+      AND created_at >= datetime('now', '-30 days')
+  `).get(userId) as { revenue: number }).revenue;
+
+  const prevMonthOrders = (db.prepare(`
+    SELECT COUNT(*) as count FROM orders
+    WHERE user_id = ?
+      AND created_at >= datetime('now', '-60 days')
+      AND created_at < datetime('now', '-30 days')
+  `).get(userId) as { count: number }).count;
+
+  const thisMonthOrders = (db.prepare(`
+    SELECT COUNT(*) as count FROM orders
+    WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+  `).get(userId) as { count: number }).count;
+
+  const revenueChange = prevMonthRevenue > 0
+    ? Math.round(((thisMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100)
+    : 0;
+  const ordersChange = prevMonthOrders > 0
+    ? Math.round(((thisMonthOrders - prevMonthOrders) / prevMonthOrders) * 100)
+    : 0;
+
+  // Recent orders (last 5)
+  const recentOrders = db.prepare(`
+    SELECT id, customer_name, total, status, created_at,
+           json_array_length(items) as items_count
+    FROM orders WHERE user_id = ?
+    ORDER BY created_at DESC LIMIT 5
+  `).all(userId) as { id: string; customer_name: string; total: number; status: string; created_at: string; items_count: number }[];
 
   res.json({
-    summary: {
-      totalRevenue,
-      totalOrders,
-      pendingOrders,
-      totalProducts,
-      lowStockProducts
+    stats: {
+      total_revenue: totalRevenue,
+      total_orders: totalOrders,
+      pending_orders: pendingOrders,
+      low_stock_count: lowStockCount,
+      revenue_change: revenueChange,
+      orders_change: ordersChange,
     },
-    revenueChart: last7Days,
-    topProducts
+    revenue_chart: revenueChart,
+    recent_orders: recentOrders,
   });
 });
 

@@ -141,15 +141,55 @@ router.patch('/:id/status',
   }
 );
 
+// Update order payment status
+router.patch('/:id/payment',
+  body('payment_status').isIn(['unpaid', 'paid', 'pay_later']),
+  (req: AuthenticatedRequest, res: Response): void => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const db = getDatabase();
+    const result = db.prepare(
+      "UPDATE orders SET payment_status = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?"
+    ).run(req.body.payment_status, req.params.id, req.user!.id);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+
+    // Also sync invoice status
+    const invoiceStatus = req.body.payment_status === 'paid' ? 'paid' : 'unpaid';
+    db.prepare(
+      "UPDATE invoices SET status = ? WHERE order_id = ?"
+    ).run(invoiceStatus, req.params.id);
+
+    res.json({ success: true, payment_status: req.body.payment_status });
+  }
+);
+
 // Get invoice for order
 router.get('/:id/invoice', (req: AuthenticatedRequest, res: Response): void => {
   const db = getDatabase();
-  const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ? AND user_id = ?').get(req.params.id, req.user!.id);
-  if (!invoice) {
-    res.status(404).json({ error: 'Invoice not found' });
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user!.id) as Record<string, unknown> | undefined;
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
     return;
   }
-  res.json(invoice);
+  const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ? AND user_id = ?').get(req.params.id, req.user!.id) as Record<string, unknown> | undefined;
+  res.json({
+    order: {
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items as string) : order.items,
+    },
+    invoice: invoice ? {
+      ...invoice,
+      items: typeof invoice.items === 'string' ? JSON.parse(invoice.items as string) : invoice.items,
+    } : null,
+  });
 });
 
 export default router;

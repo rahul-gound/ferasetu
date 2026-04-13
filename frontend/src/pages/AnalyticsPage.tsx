@@ -73,11 +73,9 @@ export default function AnalyticsPage() {
       ]);
       return {
         summary: dashboard.data.summary,
-        revenueChart: dashboard.data.revenueChart,
-        topProducts: dashboard.data.topProducts,
-        sales: sales.data.sales,
-        categoryBreakdown: sales.data.categoryBreakdown
-      };
+        revenue_chart: dashboard.data.revenueChart || sales.data.revenue_chart || [],
+        category_breakdown: sales.data.categoryBreakdown || sales.data.category_breakdown || [],
+      } satisfies AnalyticsData;
     },
     retry: 1,
   });
@@ -209,7 +207,7 @@ export default function AnalyticsPage() {
                     innerRadius={55} outerRadius={85}
                     paddingAngle={3} dataKey="value"
                   >
-                    {data.category_breakdown.map((_, index) => (
+                    {data.category_breakdown.map((_: unknown, index: number) => (
                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>

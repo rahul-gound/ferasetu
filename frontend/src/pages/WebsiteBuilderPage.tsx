@@ -1,145 +1,229 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
-  Globe, Sparkles, ExternalLink, Eye, EyeOff,
-  CheckCircle, Clock, Palette, ChevronRight,
+  Globe, Eye, EyeOff, Sparkles, Plus, Trash2, Save,
+  ExternalLink, Layers, Settings, ChevronDown, GripVertical,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import TemplateRenderer from '../components/shop/TemplateRenderer';
+import type { TemplateSection, ShopTemplate } from '../types/template';
 
-interface WebsiteConfig {
-  id: string;
-  business_name: string;
-  description: string;
-  business_type: string;
-  color_scheme: string;
-  template_id?: string;
-  is_published: boolean;
-  subdomain: string;
-  custom_domain?: string;
-  generated_at?: string;
-  banner_text?: string;
-  theme?: {
-    primary: string;
-    secondary: string;
-    font: string;
+const SECTION_META: Record<TemplateSection['type'], { emoji: string; label: string }> = {
+  navbar:      { emoji: '🧭', label: 'Navbar' },
+  hero:        { emoji: '🦸', label: 'Hero' },
+  banner:      { emoji: '📢', label: 'Banner' },
+  productGrid: { emoji: '🛍️', label: 'Products' },
+  contact:     { emoji: '📍', label: 'Contact' },
+  footer:      { emoji: '🦶', label: 'Footer' },
+};
+
+const SECTION_TYPES = Object.keys(SECTION_META) as TemplateSection['type'][];
+
+function makeDefaultSection(type: TemplateSection['type'], shopName: string): TemplateSection {
+  const defaults: Record<TemplateSection['type'], TemplateSection['config']> = {
+    navbar: { shopName, primaryColor: '#FF6B35', accentColor: '#004E89', links: [] },
+    hero: { headline: 'Welcome to our store', subheadline: 'Shop the best products', ctaText: 'Shop Now', ctaHref: '#products', bgColor: '#FF6B35' },
+    banner: { text: '🎉 Special offers available!', bgColor: '#F59E0B', textColor: '#fff' },
+    productGrid: { title: 'Our Products', accentColor: '#FF6B35', showStock: false },
+    contact: { title: 'Find Us', address: '', phone: '', email: '', hours: '' },
+    footer: { shopName, tagline: 'Powered by Fera Shopkeeper AI', primaryColor: '#1E293B', social: {} },
   };
+  return { id: `${type}-${Date.now()}`, type, config: defaults[type] };
 }
 
-interface Template {
+const MOCK_PRODUCTS = [
+  { id: '1', name: 'Sample Product 1', price: 299, stock_quantity: 10, is_active: 1 as const },
+  { id: '2', name: 'Sample Product 2', price: 599, stock_quantity: 5, is_active: 1 as const },
+  { id: '3', name: 'Sample Product 3', price: 149, stock_quantity: 0, is_active: 1 as const },
+];
+
+interface WebsiteData {
   id: string;
   name: string;
-  business_type: string;
-  preview_url?: string;
-  thumbnail?: string;
-  description: string;
-  colors: string[];
+  template: string;
+  sections: TemplateSection[];
+  is_published: number;
 }
 
-const BUSINESS_TYPES = [
-  { id: 'grocery', label: '🛒 Grocery', desc: 'General provisions & daily essentials' },
-  { id: 'fashion', label: '👗 Fashion', desc: 'Clothes, accessories & lifestyle' },
-  { id: 'restaurant', label: '🍽️ Restaurant', desc: 'Food, meals & beverages' },
-  { id: 'electronics', label: '📱 Electronics', desc: 'Gadgets, repairs & appliances' },
-  { id: 'medical', label: '💊 Medical', desc: 'Pharmacy & healthcare products' },
-  { id: 'general', label: '🏪 General', desc: 'Multi-category store' },
-];
-
-const COLOR_THEMES = [
-  { id: 'orange', label: 'Energetic', colors: ['#FF6B35', '#FFF0E8'], preview: '#FF6B35' },
-  { id: 'blue', label: 'Professional', colors: ['#004E89', '#E8F4FF'], preview: '#004E89' },
-  { id: 'green', label: 'Natural', colors: ['#1A936F', '#E8FFF7'], preview: '#1A936F' },
-  { id: 'purple', label: 'Premium', colors: ['#7C3AED', '#F3EEFF'], preview: '#7C3AED' },
-  { id: 'red', label: 'Bold', colors: ['#EF4444', '#FFF0F0'], preview: '#EF4444' },
-];
-
-function WebsitePreview({ config }: { config: Partial<WebsiteConfig> & { color?: string } }) {
-  const primaryColor = config.color || '#FF6B35';
-  const bgColor = `${primaryColor}15`;
-
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{
-      border: '2px solid var(--border)', borderRadius: '12px',
-      overflow: 'hidden', fontFamily: 'system-ui, sans-serif',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-    }}>
-      {/* Browser chrome */}
-      <div style={{
-        background: '#f5f5f5', padding: '8px 12px',
-        borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', gap: '8px',
-      }}>
-        <div style={{ display: 'flex', gap: '5px' }}>
-          {['#FF5F57', '#FEBC2E', '#28C840'].map(c => (
-            <div key={c} style={{ width: '10px', height: '10px', borderRadius: '50%', background: c }} />
-          ))}
-        </div>
-        <div style={{
-          flex: 1, background: '#fff', borderRadius: '6px',
-          padding: '3px 10px', fontSize: '11px', color: '#666',
-        }}>
-          {config.subdomain || 'yourstore'}.fera-shop.fera-seach.tech
-        </div>
-      </div>
-
-      {/* Store preview */}
-      <div style={{ background: '#fff' }}>
-        {/* Header */}
-        <div style={{ background: primaryColor, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ color: '#fff', fontWeight: 800, fontSize: '16px' }}>
-            {config.business_name || 'Your Store Name'}
-          </div>
-          <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>
-            <span>Home</span><span>Products</span><span>Cart</span>
-          </div>
-        </div>
-
-        {/* Hero */}
-        <div style={{
-          background: bgColor, padding: '24px 20px', textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '18px', fontWeight: 800, color: primaryColor, marginBottom: '6px' }}>
-            {config.banner_text || `Welcome to ${config.business_name || 'Our Store'}!`}
-          </div>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', maxWidth: '300px', margin: '0 auto 12px' }}>
-            {config.description || 'Quality products at the best prices'}
-          </div>
-          <div style={{
-            display: 'inline-block', padding: '6px 16px', borderRadius: '20px',
-            background: primaryColor, color: '#fff', fontSize: '12px', fontWeight: 700,
-          }}>
-            Shop Now →
-          </div>
-        </div>
-
-        {/* Product grid mock */}
-        <div style={{ padding: '16px 20px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#333', marginBottom: '10px' }}>Featured Products</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-            {[1, 2, 3].map(i => (
-              <div key={i} style={{
-                border: '1px solid #f0f0f0', borderRadius: '8px', overflow: 'hidden',
-              }}>
-                <div style={{ height: '60px', background: `${primaryColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-                  {config.business_type === 'grocery' ? '🥑' : config.business_type === 'fashion' ? '👕' : config.business_type === 'restaurant' ? '🍕' : '📦'}
-                </div>
-                <div style={{ padding: '6px 8px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#333' }}>Product {i}</div>
-                  <div style={{ fontSize: '11px', color: primaryColor, fontWeight: 700 }}>₹99</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ background: '#333', padding: '10px 20px', textAlign: 'center', fontSize: '10px', color: '#aaa' }}>
-          Powered by Fera · Built with AI
-        </div>
-      </div>
+    <div style={{ marginBottom: '14px' }}>
+      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748B', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label}
+      </label>
+      {children}
     </div>
   );
+}
+
+function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      className="input"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder || ''}
+      style={{ width: '100%', boxSizing: 'border-box' }}
+    />
+  );
+}
+
+function ColorInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <input
+        type="color"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        aria-label={label}
+        style={{ width: '40px', height: '36px', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: 0 }}
+      />
+      <input
+        className="input"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{ flex: 1 }}
+      />
+    </div>
+  );
+}
+
+function SectionConfigEditor({ section, onChange }: {
+  section: TemplateSection;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const cfg = section.config;
+  const str = (v: unknown, fallback = '') => (v as string) || fallback;
+
+  switch (section.type) {
+    case 'navbar':
+      return (
+        <>
+          <FieldRow label="Shop Name">
+            <TextInput value={str(cfg.shopName)} onChange={v => onChange('shopName', v)} placeholder="My Store" />
+          </FieldRow>
+          <FieldRow label="Primary Color">
+            <ColorInput value={str(cfg.primaryColor, '#FF6B35')} onChange={v => onChange('primaryColor', v)} label="Primary color" />
+          </FieldRow>
+          <FieldRow label="Accent Color">
+            <ColorInput value={str(cfg.accentColor, '#004E89')} onChange={v => onChange('accentColor', v)} label="Accent color" />
+          </FieldRow>
+        </>
+      );
+    case 'hero':
+      return (
+        <>
+          <FieldRow label="Headline">
+            <TextInput value={str(cfg.headline)} onChange={v => onChange('headline', v)} placeholder="Welcome to our store" />
+          </FieldRow>
+          <FieldRow label="Subheadline">
+            <TextInput value={str(cfg.subheadline)} onChange={v => onChange('subheadline', v)} placeholder="Shop the best products" />
+          </FieldRow>
+          <FieldRow label="CTA Button Text">
+            <TextInput value={str(cfg.ctaText)} onChange={v => onChange('ctaText', v)} placeholder="Shop Now" />
+          </FieldRow>
+          <FieldRow label="CTA Button Link">
+            <TextInput value={str(cfg.ctaHref)} onChange={v => onChange('ctaHref', v)} placeholder="#products" />
+          </FieldRow>
+          <FieldRow label="Background Color">
+            <ColorInput value={str(cfg.bgColor, '#FF6B35')} onChange={v => onChange('bgColor', v)} label="Background color" />
+          </FieldRow>
+        </>
+      );
+    case 'banner':
+      return (
+        <>
+          <FieldRow label="Banner Text">
+            <TextInput value={str(cfg.text)} onChange={v => onChange('text', v)} placeholder="🎉 Special offers available!" />
+          </FieldRow>
+          <FieldRow label="Background Color">
+            <ColorInput value={str(cfg.bgColor, '#F59E0B')} onChange={v => onChange('bgColor', v)} label="Background color" />
+          </FieldRow>
+          <FieldRow label="Text Color">
+            <ColorInput value={str(cfg.textColor, '#ffffff')} onChange={v => onChange('textColor', v)} label="Text color" />
+          </FieldRow>
+        </>
+      );
+    case 'productGrid':
+      return (
+        <>
+          <FieldRow label="Section Title">
+            <TextInput value={str(cfg.title)} onChange={v => onChange('title', v)} placeholder="Our Products" />
+          </FieldRow>
+          <FieldRow label="Accent Color">
+            <ColorInput value={str(cfg.accentColor, '#FF6B35')} onChange={v => onChange('accentColor', v)} label="Accent color" />
+          </FieldRow>
+          <FieldRow label="Options">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!(cfg.showStock as boolean | undefined)}
+                onChange={e => onChange('showStock', e.target.checked)}
+              />
+              Show Stock Quantity
+            </label>
+          </FieldRow>
+        </>
+      );
+    case 'contact':
+      return (
+        <>
+          <FieldRow label="Section Title">
+            <TextInput value={str(cfg.title)} onChange={v => onChange('title', v)} placeholder="Find Us" />
+          </FieldRow>
+          <FieldRow label="Address">
+            <TextInput value={str(cfg.address)} onChange={v => onChange('address', v)} placeholder="123 Main Street, City" />
+          </FieldRow>
+          <FieldRow label="Phone">
+            <TextInput value={str(cfg.phone)} onChange={v => onChange('phone', v)} placeholder="+91 9999999999" />
+          </FieldRow>
+          <FieldRow label="Email">
+            <TextInput value={str(cfg.email)} onChange={v => onChange('email', v)} placeholder="hello@mystore.com" />
+          </FieldRow>
+          <FieldRow label="Business Hours">
+            <TextInput value={str(cfg.hours)} onChange={v => onChange('hours', v)} placeholder="Mon–Sat: 9am – 8pm" />
+          </FieldRow>
+        </>
+      );
+    case 'footer':
+      return (
+        <>
+          <FieldRow label="Shop Name">
+            <TextInput value={str(cfg.shopName)} onChange={v => onChange('shopName', v)} placeholder="My Store" />
+          </FieldRow>
+          <FieldRow label="Tagline">
+            <TextInput value={str(cfg.tagline)} onChange={v => onChange('tagline', v)} placeholder="Your best shopping destination" />
+          </FieldRow>
+          <FieldRow label="Background Color">
+            <ColorInput value={str(cfg.primaryColor, '#1E293B')} onChange={v => onChange('primaryColor', v)} label="Background color" />
+          </FieldRow>
+          <FieldRow label="WhatsApp Link">
+            <TextInput
+              value={str((cfg.social as Record<string, string> | undefined)?.whatsapp)}
+              onChange={v => onChange('social', { ...(cfg.social as Record<string, string> || {}), whatsapp: v })}
+              placeholder="https://wa.me/91XXXXXXXXXX"
+            />
+          </FieldRow>
+          <FieldRow label="Instagram Link">
+            <TextInput
+              value={str((cfg.social as Record<string, string> | undefined)?.instagram)}
+              onChange={v => onChange('social', { ...(cfg.social as Record<string, string> || {}), instagram: v })}
+              placeholder="https://instagram.com/mystore"
+            />
+          </FieldRow>
+          <FieldRow label="Facebook Link">
+            <TextInput
+              value={str((cfg.social as Record<string, string> | undefined)?.facebook)}
+              onChange={v => onChange('social', { ...(cfg.social as Record<string, string> || {}), facebook: v })}
+              placeholder="https://facebook.com/mystore"
+            />
+          </FieldRow>
+        </>
+      );
+  }
 }
 
 export default function WebsiteBuilderPage() {
@@ -147,378 +231,521 @@ export default function WebsiteBuilderPage() {
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
 
-  const [businessType, setBusinessType] = useState('general');
-  const [businessName, setBusinessName] = useState(user?.business_name || '');
-  const [description, setDescription] = useState('');
-  const [colorTheme, setColorTheme] = useState('orange');
-  const [generating, setGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'builder' | 'templates'>('builder');
+  const [activeTab, setActiveTab] = useState<'gallery' | 'editor' | 'preview'>('gallery');
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [sections, setSections] = useState<TemplateSection[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [isPublished, setIsPublished] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResponse, setAiResponse] = useState('');
+  const [shopName, setShopName] = useState('');
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
 
-  const { data: websiteConfig, refetch: refetchConfig } = useQuery<WebsiteConfig>({
+  const { data: websiteData } = useQuery<WebsiteData | null>({
     queryKey: ['website'],
-    queryFn: async () => (await api.get('/website')).data,
-    retry: false,
+    queryFn: async () => {
+      try {
+        const res = await api.get('/website');
+        return res.data as WebsiteData;
+      } catch {
+        return null;
+      }
+    },
   });
 
-  const { data: templates = [] } = useQuery<Template[]>({
-    queryKey: ['website-templates'],
-    queryFn: async () => (await api.get('/website/templates')).data,
-    retry: false,
+  const { data: templates = [] } = useQuery<ShopTemplate[]>({
+    queryKey: ['templates'],
+    queryFn: async () => {
+      const res = await api.get('/website/templates');
+      return (res.data.templates || res.data) as ShopTemplate[];
+    },
+  });
+
+  useEffect(() => {
+    if (websiteData) {
+      setShopName(websiteData.name || user?.business_name || '');
+      if (websiteData.sections?.length) setSections(websiteData.sections);
+      if (websiteData.template) setSelectedTemplate(websiteData.template);
+      setIsPublished(websiteData.is_published === 1);
+    } else if (user?.business_name) {
+      setShopName(user.business_name);
+    }
+  }, [websiteData, user]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.post('/website', { name: shopName, template: selectedTemplate, sections }),
+    onSuccess: () => {
+      toast.success(translate('saved') || 'Website saved!');
+      queryClient.invalidateQueries({ queryKey: ['website'] });
+      setSaving(false);
+    },
+    onError: () => {
+      toast.error('Failed to save. Please try again.');
+      setSaving(false);
+    },
   });
 
   const publishMutation = useMutation({
-    mutationFn: async (publish: boolean) =>
-      api.patch('/website/publish', { is_published: publish }),
-    onSuccess: (_, publish) => {
-      queryClient.invalidateQueries({ queryKey: ['website'] });
-      toast.success(publish ? '🎉 Website published!' : 'Website unpublished');
+    mutationFn: () => api.patch('/website/publish', { publish: !isPublished }),
+    onSuccess: (res) => {
+      const published = (res.data as { is_published?: number }).is_published === 1;
+      setIsPublished(published);
+      toast.success(published ? '🌐 Website published!' : '🔒 Website unpublished');
     },
     onError: () => toast.error('Failed to update publish status'),
   });
 
-  const applyTemplateMutation = useMutation({
-    mutationFn: (templateId: string) =>
-      api.post('/website/apply-template', { template_id: templateId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['website'] });
-      toast.success('Template applied!');
-    },
-    onError: () => toast.error('Failed to apply template'),
-  });
+  const handleSave = () => {
+    if (!shopName.trim()) { toast.error('Please enter a shop name'); return; }
+    setSaving(true);
+    saveMutation.mutate();
+  };
 
-  const handleGenerate = async () => {
-    if (!businessName.trim()) { toast.error('Please enter your business name'); return; }
+  const updateSectionConfig = (sectionId: string, key: string, value: unknown) => {
+    setSections(prev => prev.map(s =>
+      s.id === sectionId ? { ...s, config: { ...s.config, [key]: value } } : s
+    ));
+  };
 
-    setGenerating(true);
+  const deleteSection = (id: string) => {
+    setSections(prev => prev.filter(s => s.id !== id));
+    if (selectedSectionId === id) setSelectedSectionId(null);
+  };
+
+  const addSection = (type: TemplateSection['type']) => {
+    const newSection = makeDefaultSection(type, shopName || 'My Store');
+    setSections(prev => [...prev, newSection]);
+    setSelectedSectionId(newSection.id);
+    setAddSectionOpen(false);
+    setActiveTab('editor');
+  };
+
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiResponse('');
     try {
-      await api.post('/website/generate', {
-        business_name: businessName,
-        description,
-        business_type: businessType,
-        color_theme: colorTheme,
+      const res = await api.post('/ai/chat', {
+        message: `Generate website sections JSON for: ${aiPrompt}`,
+        language: 'en',
       });
-      await refetchConfig();
-      toast.success('🎉 Website generated with AI!');
+      const data = res.data as { response?: string; message?: string };
+      setAiResponse(data.response || data.message || 'AI response received');
     } catch {
-      toast.error('Failed to generate website. Please try again.');
+      toast.error('AI generation failed');
     } finally {
-      setGenerating(false);
+      setAiGenerating(false);
     }
   };
 
-  const selectedColorTheme = COLOR_THEMES.find(c => c.id === colorTheme);
-  const previewColor = selectedColorTheme?.preview || '#FF6B35';
+  const selectedSection = sections.find(s => s.id === selectedSectionId) || null;
 
-  const storeUrl = websiteConfig
-    ? `https://${websiteConfig.subdomain}.fera-shop.fera-seach.tech`
-    : user?.subdomain
-    ? `https://${user.subdomain}.fera-shop.fera-seach.tech`
-    : null;
+  const panelBase: React.CSSProperties = {
+    background: 'var(--surface)', borderRadius: '12px',
+    border: '1px solid var(--border)', overflow: 'hidden',
+    display: 'flex', flexDirection: 'column',
+  };
+
+  const liveUrl = `https://${shopName.toLowerCase().replace(/\s+/g, '-')}.fera-shop.fera-seach.tech`;
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>{translate('websiteBuilder')}</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Build your online storefront with AI in seconds
-          </p>
-        </div>
-
-        {websiteConfig && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Published status */}
-            <span style={{
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+      {/* Top bar */}
+      <div style={{
+        background: 'var(--surface)', borderRadius: '12px',
+        border: '1px solid var(--border)', padding: '14px 20px',
+        display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+      }}>
+        <Globe size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+        <h1 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', marginRight: '4px' }}>
+          Website Builder
+        </h1>
+        <input
+          className="input"
+          value={shopName}
+          onChange={e => setShopName(e.target.value)}
+          placeholder="Your shop name..."
+          style={{ flex: 1, minWidth: '160px', maxWidth: '260px' }}
+        />
+        {isPublished && shopName && (
+          <a
+            href={liveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: 600,
-              background: websiteConfig.is_published ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-              color: websiteConfig.is_published ? '#059669' : '#DC2626',
-              border: `1px solid ${websiteConfig.is_published ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
-            }}>
-              {websiteConfig.is_published ? <CheckCircle size={13} /> : <Clock size={13} />}
-              {websiteConfig.is_published ? 'Published' : 'Unpublished'}
-            </span>
-
-            {/* Publish/Unpublish */}
-            <button
-              onClick={() => publishMutation.mutate(!websiteConfig.is_published)}
-              disabled={publishMutation.isPending}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: publishMutation.isPending ? 0.7 : 1 }}
-            >
-              {websiteConfig.is_published ? <EyeOff size={16} /> : <Eye size={16} />}
-              {websiteConfig.is_published ? translate('unpublishWebsite') : translate('publishWebsite')}
-            </button>
-          </div>
+              fontSize: '13px', color: '#059669', fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <ExternalLink size={13} /> View Live
+          </a>
         )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleSave}
+            disabled={saving}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Save size={15} />
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => publishMutation.mutate()}
+            disabled={publishMutation.isPending}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            {isPublished ? <EyeOff size={15} /> : <Eye size={15} />}
+            {isPublished ? 'Unpublish' : 'Publish'}
+          </button>
+        </div>
       </div>
 
-      {/* Store URL banner */}
-      {storeUrl && (
-        <div style={{
-          marginBottom: '20px', padding: '14px 18px', borderRadius: '10px',
-          background: 'linear-gradient(135deg, rgba(0,78,137,0.08), rgba(255,107,53,0.08))',
-          border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px',
-        }}>
-          <Globe size={18} color="var(--primary)" />
-          <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{translate('yourSubdomain')}</div>
-            <a href={storeUrl} target="_blank" rel="noopener noreferrer" style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              color: 'var(--primary)', fontWeight: 600, fontSize: '14px', textDecoration: 'none',
-            }}>
-              {storeUrl} <ExternalLink size={13} />
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '20px', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', width: 'fit-content' }}>
-        {(['builder', 'templates'] as const).map(tab => (
+      {/* Mobile tab switcher */}
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {(['gallery', 'editor', 'preview'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              padding: '10px 20px', border: 'none', cursor: 'pointer',
-              fontWeight: 600, fontSize: '14px',
+              padding: '8px 16px', borderRadius: '8px', border: 'none',
+              cursor: 'pointer', fontWeight: 600, fontSize: '13px',
               background: activeTab === tab ? 'var(--primary)' : 'var(--surface)',
               color: activeTab === tab ? '#fff' : 'var(--text-muted)',
-              transition: 'all 0.15s',
+              display: 'flex', alignItems: 'center', gap: '6px',
             }}
           >
-            {tab === 'builder' ? '🤖 AI Builder' : '🎨 Templates'}
+            {tab === 'gallery' && <Layers size={14} />}
+            {tab === 'editor' && <Settings size={14} />}
+            {tab === 'preview' && <Eye size={14} />}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
 
-      {activeTab === 'builder' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '24px', alignItems: 'start' }}>
-          {/* Left Panel: Builder form */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Business Type */}
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px' }}>
-                Business Type
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {BUSINESS_TYPES.map(bt => (
+      {/* 3-panel body */}
+      <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
+
+        {/* LEFT PANEL */}
+        <div style={{
+          ...panelBase,
+          width: '300px', flexShrink: 0,
+          display: activeTab === 'preview' ? 'none' : 'flex',
+        }}>
+          {/* Sub-tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+            {(['gallery', 'editor'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                style={{
+                  flex: 1, padding: '12px', border: 'none', cursor: 'pointer',
+                  fontWeight: 600, fontSize: '13px',
+                  background: activeTab === t ? 'var(--bg)' : 'var(--surface)',
+                  color: activeTab === t ? 'var(--primary)' : 'var(--text-muted)',
+                  borderBottom: activeTab === t ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
+              >
+                {t === 'gallery' ? '🎨 Templates' : '📝 Sections'}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            {/* GALLERY TAB */}
+            {activeTab === 'gallery' && (
+              <div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Choose a template to get started quickly
+                </p>
+                {templates.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>⏳</div>
+                    <p style={{ fontSize: '13px' }}>Loading templates…</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {templates.map(t => (
+                      <div
+                        key={t.id}
+                        style={{
+                          borderRadius: '10px', overflow: 'hidden',
+                          border: selectedTemplate === t.id
+                            ? `2px solid ${t.primaryColor}`
+                            : '2px solid var(--border)',
+                          cursor: 'pointer', transition: 'border-color 0.15s',
+                        }}
+                        onClick={() => {
+                          setSections(t.defaultSections);
+                          setSelectedTemplate(t.id);
+                          setActiveTab('editor');
+                        }}
+                      >
+                        <div style={{
+                          background: t.primaryColor, padding: '16px',
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                        }}>
+                          <span style={{ fontSize: '28px' }}>{t.emoji}</span>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#fff', fontSize: '14px' }}>{t.name}</div>
+                            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '11px' }}>{t.category}</div>
+                          </div>
+                        </div>
+                        <div style={{ padding: '12px', background: 'var(--bg)' }}>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.5 }}>
+                            {t.description}
+                          </p>
+                          <button
+                            className="btn btn-primary"
+                            style={{ width: '100%', fontSize: '13px', padding: '8px' }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setSections(t.defaultSections);
+                              setSelectedTemplate(t.id);
+                              setActiveTab('editor');
+                            }}
+                          >
+                            Use Template
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SECTIONS EDITOR TAB */}
+            {activeTab === 'editor' && (
+              <div>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                    {sections.length} section{sections.length !== 1 ? 's' : ''}
+                    {selectedTemplate && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> · {selectedTemplate}</span>
+                    )}
+                  </div>
+                </div>
+
+                {sections.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
+                    <Layers size={32} style={{ marginBottom: '8px', opacity: 0.3 }} />
+                    <p style={{ fontSize: '13px' }}>No sections yet.<br />Add one below or pick a template.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                    {sections.map(section => {
+                      const meta = SECTION_META[section.type];
+                      const isSelected = selectedSectionId === section.id;
+                      return (
+                        <div
+                          key={section.id}
+                          onClick={() => setSelectedSectionId(section.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '10px 12px', borderRadius: '8px', cursor: 'pointer',
+                            background: isSelected ? 'rgba(255,107,53,0.08)' : 'var(--bg)',
+                            border: isSelected ? '1px solid rgba(255,107,53,0.3)' : '1px solid var(--border)',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <GripVertical size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '16px' }}>{meta.emoji}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', flex: 1 }}>
+                            {meta.label}
+                          </span>
+                          <button
+                            onClick={e => { e.stopPropagation(); deleteSection(section.id); }}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', padding: '2px',
+                              display: 'flex', alignItems: 'center',
+                            }}
+                            aria-label="Delete section"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add Section dropdown */}
+                <div style={{ position: 'relative' }}>
                   <button
-                    key={bt.id}
-                    onClick={() => setBusinessType(bt.id)}
+                    className="btn btn-secondary"
+                    onClick={() => setAddSectionOpen(o => !o)}
                     style={{
-                      padding: '10px 12px', borderRadius: '8px', border: '2px solid',
-                      borderColor: businessType === bt.id ? 'var(--primary)' : 'var(--border)',
-                      background: businessType === bt.id ? 'rgba(255,107,53,0.08)' : 'var(--bg)',
-                      cursor: 'pointer', textAlign: 'left',
+                      width: '100%', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', gap: '6px',
                     }}
                   >
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: businessType === bt.id ? 'var(--primary)' : 'var(--text)' }}>
-                      {bt.label}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{bt.desc}</div>
+                    <Plus size={15} /> Add Section <ChevronDown size={13} />
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Store details */}
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px' }}>
-                Store Details
-              </h3>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
-                  Business Name *
-                </label>
-                <input
-                  className="input"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                  placeholder="e.g. Sharma General Store"
-                  value={businessName}
-                  onChange={e => setBusinessName(e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
-                  Description
-                </label>
-                <textarea
-                  className="input"
-                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: '90px' }}
-                  placeholder="Tell AI about your business, what you sell, who your customers are..."
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Color theme */}
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Palette size={16} /> Color Theme
-              </h3>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {COLOR_THEMES.map(theme => (
-                  <button
-                    key={theme.id}
-                    onClick={() => setColorTheme(theme.id)}
-                    title={theme.label}
-                    style={{
-                      width: '40px', height: '40px', borderRadius: '50%',
-                      background: theme.preview, border: '3px solid',
-                      borderColor: colorTheme === theme.id ? '#1a1a2e' : 'transparent',
-                      cursor: 'pointer', boxShadow: colorTheme === theme.id ? `0 0 0 3px ${theme.preview}50` : 'none',
-                      transition: 'all 0.15s',
-                    }}
-                  />
-                ))}
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                Selected: {selectedColorTheme?.label}
-              </p>
-            </div>
-
-            {/* Generate button */}
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              style={{
-                padding: '14px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                background: generating ? 'var(--border)' : 'linear-gradient(135deg, #FF6B35, #004E89)',
-                color: generating ? 'var(--text-muted)' : '#fff',
-                fontWeight: 700, fontSize: '15px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                boxShadow: generating ? 'none' : '0 4px 20px rgba(255,107,53,0.35)',
-                transition: 'all 0.2s',
-              }}
-            >
-              {generating ? (
-                <>
-                  <span style={{
-                    width: '18px', height: '18px', border: '2px solid rgba(0,0,0,0.2)',
-                    borderTopColor: 'var(--text-muted)', borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite', display: 'inline-block',
-                  }} />
-                  {translate('generating')}
-                </>
-              ) : (
-                <>
-                  <Sparkles size={18} /> Generate with AI (Sarvam 105B)
-                </>
-              )}
-            </button>
-
-            {websiteConfig && (
-              <div style={{
-                padding: '12px 16px', borderRadius: '10px',
-                background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)',
-                fontSize: '13px', color: '#059669', display: 'flex', alignItems: 'center', gap: '8px',
-              }}>
-                <CheckCircle size={14} /> Website generated! Customize and publish above.
+                  {addSectionOpen && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      overflow: 'hidden', marginTop: '4px',
+                    }}>
+                      {SECTION_TYPES.map(type => {
+                        const meta = SECTION_META[type];
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => addSection(type)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '10px',
+                              width: '100%', padding: '10px 14px',
+                              border: 'none', background: 'none', cursor: 'pointer',
+                              fontSize: '14px', color: 'var(--text)', textAlign: 'left',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                          >
+                            <span>{meta.emoji}</span>
+                            <span style={{ fontWeight: 500 }}>{meta.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Right Panel: Preview */}
-          <div style={{ position: 'sticky', top: '24px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px' }}>
-              Live Preview
-            </h3>
-            <WebsitePreview
-              config={{
-                business_name: businessName || websiteConfig?.business_name,
-                description: description || websiteConfig?.description,
-                business_type: businessType || websiteConfig?.business_type,
-                subdomain: user?.subdomain,
-                color: previewColor,
-                is_published: websiteConfig?.is_published,
-              }}
-            />
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '10px' }}>
-              Preview updates as you fill the form
-            </p>
+          {/* AI Generate strip */}
+          <div style={{
+            borderTop: '1px solid var(--border)', padding: '14px',
+            background: 'var(--bg)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <Sparkles size={14} style={{ color: '#7C3AED' }} />
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>AI Generate</span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                className="input"
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                placeholder="Describe your business..."
+                style={{ flex: 1, fontSize: '12px' }}
+                onKeyDown={e => { if (e.key === 'Enter') handleAiGenerate(); }}
+              />
+              <button
+                onClick={handleAiGenerate}
+                disabled={aiGenerating}
+                style={{
+                  background: '#7C3AED', color: '#fff', border: 'none',
+                  borderRadius: '8px', padding: '8px 10px', cursor: 'pointer',
+                  fontSize: '13px', flexShrink: 0,
+                }}
+                aria-label="Generate with AI"
+              >
+                {aiGenerating ? '⏳' : '✨'}
+              </button>
+            </div>
+            {aiResponse && (
+              <div style={{
+                marginTop: '8px', padding: '10px', background: 'rgba(124,58,237,0.08)',
+                borderRadius: '6px', fontSize: '12px', color: 'var(--text)',
+                lineHeight: 1.5, maxHeight: '80px', overflowY: 'auto',
+              }}>
+                {aiResponse}
+              </div>
+            )}
           </div>
         </div>
-      ) : (
-        /* Templates Tab */
-        <div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
-            Choose from AI-designed templates for your business type
-          </p>
 
-          {templates.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-              <Globe size={48} style={{ marginBottom: '12px', opacity: 0.3 }} />
-              <p style={{ fontSize: '16px', fontWeight: 600 }}>Templates coming soon</p>
-              <p style={{ fontSize: '14px', marginTop: '4px' }}>Use the AI Builder to create your custom store</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-              {templates.map(template => (
-                <div key={template.id} className="card" style={{ overflow: 'hidden', padding: 0 }}>
-                  {/* Template thumbnail */}
-                  <div style={{
-                    height: '160px', background: template.colors?.[1] || '#f5f5f5',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative',
-                  }}>
-                    {template.thumbnail ? (
-                      <img src={template.thumbnail} alt={template.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{
-                        width: '80%', padding: '12px', background: '#fff',
-                        borderRadius: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-                      }}>
-                        <div style={{ height: '8px', background: template.colors?.[0] || '#FF6B35', borderRadius: '4px', marginBottom: '6px', width: '60%' }} />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
-                          {[1, 2, 3].map(i => (
-                            <div key={i} style={{ height: '30px', background: `${template.colors?.[0] || '#FF6B35'}20`, borderRadius: '4px' }} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div style={{
-                      position: 'absolute', top: '8px', left: '8px',
-                      background: 'rgba(0,0,0,0.6)', color: '#fff',
-                      padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600,
-                    }}>
-                      {template.business_type}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: '16px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text)', marginBottom: '6px' }}>
-                      {template.name}
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
-                      {template.description}
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
-                      {template.colors?.map((c, i) => (
-                        <div key={i} style={{ width: '20px', height: '20px', borderRadius: '50%', background: c }} />
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => applyTemplateMutation.mutate(template.id)}
-                      disabled={applyTemplateMutation.isPending}
-                      className="btn btn-primary"
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    >
-                      Apply Template <ChevronRight size={16} />
-                    </button>
-                  </div>
+        {/* CENTER PANEL — Live Preview */}
+        <div style={{
+          ...panelBase, flex: 1, minWidth: 0,
+          display: activeTab === 'editor' ? 'none' : 'flex',
+        }}>
+          <div style={{
+            padding: '10px 16px', borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: 'var(--bg)',
+          }}>
+            <Eye size={14} style={{ color: 'var(--text-muted)' }} />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>Live Preview</span>
+            <span style={{
+              marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)',
+              background: 'var(--surface)', padding: '2px 8px', borderRadius: '10px',
+            }}>60% zoom</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', background: '#e2e8f0', padding: '16px' }}>
+            <div style={{
+              width: '166.67%',
+              transformOrigin: 'top left',
+              transform: 'scale(0.6)',
+              background: '#fff',
+              minHeight: '800px',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+            }}>
+              {sections.length === 0 ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: '600px', color: '#94A3B8', flexDirection: 'column', gap: '16px',
+                }}>
+                  <Globe size={48} style={{ opacity: 0.3 }} />
+                  <p style={{ fontSize: '20px', fontWeight: 600 }}>Your website preview will appear here</p>
+                  <p style={{ fontSize: '14px' }}>Select a template or add sections to get started</p>
                 </div>
-              ))}
+              ) : (
+                <TemplateRenderer
+                  sections={sections}
+                  products={MOCK_PRODUCTS}
+                  shopName={shopName || 'My Store'}
+                  isPreview={true}
+                />
+              )}
             </div>
-          )}
+          </div>
         </div>
-      )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        {/* RIGHT PANEL — Section Config */}
+        <div style={{
+          ...panelBase, width: '280px', flexShrink: 0,
+          display: activeTab === 'gallery' ? 'none' : 'flex',
+        }}>
+          <div style={{
+            padding: '12px 16px', borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)',
+          }}>
+            <Settings size={14} style={{ color: 'var(--text-muted)' }} />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>
+              {selectedSection
+                ? `${SECTION_META[selectedSection.type].emoji} ${SECTION_META[selectedSection.type].label} Settings`
+                : 'Section Settings'}
+            </span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            {selectedSection ? (
+              <SectionConfigEditor
+                section={selectedSection}
+                onChange={(key, value) => updateSectionConfig(selectedSection.id, key, value)}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                <Settings size={32} style={{ marginBottom: '12px', opacity: 0.3 }} />
+                <p style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                  Select a section from the editor panel to configure its settings
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

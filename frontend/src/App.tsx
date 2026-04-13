@@ -13,6 +13,7 @@ import OrdersPage from './pages/OrdersPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import WebsiteBuilderPage from './pages/WebsiteBuilderPage';
+import ShopPage from './pages/ShopPage';
 import Layout from './components/Layout';
 
 const queryClient = new QueryClient({
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+      <Route path="/shop/:shopName" element={<ShopPage />} />
       <Route path="/*" element={
         <ProtectedRoute>
           <LanguageProvider>
