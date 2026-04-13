@@ -1,166 +1,445 @@
-# Fera Shopkeeper — AI-Powered E-Commerce Platform
+# Fera Shopkeeper — AI-Powered E-Commerce SaaS
 
-> Build your online store in minutes with the power of AI. Designed for small retailers, kirana stores, and local businesses across India.
+> Build your online store in minutes with AI. Designed for small retailers, kirana stores, and local businesses across India.
 
-## 🌟 Features
+---
 
-### Free Tier
-- **AI Website Builder** — Generate a complete store website from voice/text prompt
-- **Free Subdomain** — `businessname.fera-shop.fera-seach.tech`
-- **50 Products** — Upload photos, set prices, manage inventory
-- **Order Management** — One-click ordering with local delivery options
-- **Basic AI Assistant** — Powered by **Sarvam-30B** for routine queries
-- **Basic Invoice Generation** & **500 MB storage**
-
-### Premium Tier
-- **Custom Domain** (`yourshop.com`) & **Unlimited Products**
-- **Advanced AI** — Powered by **Sarvam-105B** for complex tasks
-- **AI Sales Prediction** — Next-year forecasting with AI analytics
-- **Customer Behavior Insights** & **Professional Templates**
-
-## 🤖 AI Integration
-
-| Model | Use Case |
-|-------|----------|
-| **Sarvam-30B** | General queries, minor edits, Q&A, customer support, voice commands |
-| **Sarvam-105B** | Complete website creation, major structural changes, analytics predictions |
-
-## 🗣️ Language Support
-
-Supports all **22 official Indian languages** + English:
-Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu, Sanskrit, Maithili, Konkani, Manipuri, Bodo, Dogri, Kashmiri, Nepali, Sindhi, Santali, English
-
-## 🏗️ Architecture
+## 📐 Architecture Overview
 
 ```
 fera-shopkeeper/
-├── frontend/           # React + Vite + TypeScript
-│   ├── src/
-│   │   ├── pages/      # Dashboard, Products, Orders, Analytics, AI, Builder
-│   │   ├── components/ # Layout, shared UI components
-│   │   ├── contexts/   # Auth, Language contexts
-│   │   ├── services/   # Axios API client
-│   │   └── utils/      # Language translations
-│   └── dist/           # Production build output
+├── frontend/                  # React 19 + Vite + TypeScript
+│   └── src/
+│       ├── types/
+│       │   └── template.ts    # TemplateSection, ShopTemplate, PublicShopData
+│       ├── components/
+│       │   ├── Layout.tsx     # Sidebar + top bar shell
+│       │   └── shop/
+│       │       ├── TemplateRenderer.tsx        # Dynamic render engine
+│       │       └── sections/
+│       │           ├── NavbarSection.tsx
+│       │           ├── HeroSection.tsx
+│       │           ├── BannerSection.tsx
+│       │           ├── ProductGridSection.tsx
+│       │           ├── ContactSection.tsx
+│       │           └── FooterSection.tsx
+│       ├── pages/
+│       │   ├── LandingPage.tsx        # Public marketing page
+│       │   ├── LoginPage.tsx
+│       │   ├── RegisterPage.tsx
+│       │   ├── DashboardPage.tsx      # Stats, revenue chart, recent orders
+│       │   ├── ProductsPage.tsx       # CRUD with image upload
+│       │   ├── OrdersPage.tsx         # Orders + invoice system
+│       │   ├── AnalyticsPage.tsx      # Charts + AI predictions
+│       │   ├── AIAssistantPage.tsx    # Chat with voice I/O
+│       │   ├── WebsiteBuilderPage.tsx # 3-panel SaaS builder
+│       │   └── ShopPage.tsx           # Public /shop/:shopName
+│       ├── contexts/
+│       │   ├── AuthContext.tsx
+│       │   └── LanguageContext.tsx
+│       └── services/
+│           └── api.ts                 # Axios instance (JWT attached)
 │
-└── backend/            # Node.js + Express + TypeScript
-    ├── src/
-    │   ├── routes/     # Auth, AI, Products, Orders, Analytics, Website, Voice
-    │   ├── services/   # Sarvam AI, Auth
-    │   ├── models/     # SQLite database (sql.js)
-    │   └── middleware/ # Auth, Rate limiting, Error handling
-    └── data/           # SQLite database file
+└── backend/                   # Node.js + Express + TypeScript
+    └── src/
+        ├── routes/
+        │   ├── auth.ts
+        │   ├── products.ts
+        │   ├── orders.ts      # + PATCH /:id/payment, GET /:id/invoice
+        │   ├── analytics.ts   # dashboard, sales, predict (premium)
+        │   ├── website.ts     # template CRUD + GET /public/:shopName
+        │   ├── ai.ts
+        │   └── voice.ts
+        ├── services/
+        │   └── sarvamAI.ts    # Sarvam-30B & 105B clients
+        ├── models/
+        │   └── database.ts    # sql.js SQLite wrapper
+        └── middleware/
+            ├── auth.ts        # JWT verify + requirePremium
+            └── rateLimiter.ts
 ```
 
-## 🚀 Quick Start
+---
+
+## 🧩 Template System
+
+The platform uses a **JSON-based template system** where every shop's appearance is defined as an ordered array of sections.
+
+### Template Section Shape
+
+```typescript
+interface TemplateSection {
+  id: string;                    // unique section ID
+  type: 'navbar' | 'hero' | 'banner' | 'productGrid' | 'contact' | 'footer';
+  config: Record<string, unknown>; // section-specific settings
+}
+```
+
+### Stored in DB
+
+```sql
+websites (
+  id, user_id, name,
+  template TEXT,     -- template ID (grocery, fashion, ...)
+  sections JSON,     -- TemplateSection[] array
+  config   JSON,     -- global config / theme overrides
+  is_published INTEGER
+)
+```
+
+### Example Template JSON
+
+```json
+[
+  {
+    "id": "navbar-1",
+    "type": "navbar",
+    "config": {
+      "shopName": "Sharma Kirana",
+      "primaryColor": "#2E7D32",
+      "links": [
+        { "label": "Home",     "href": "#" },
+        { "label": "Products", "href": "#products" },
+        { "label": "Contact",  "href": "#contact" }
+      ]
+    }
+  },
+  {
+    "id": "hero-1",
+    "type": "hero",
+    "config": {
+      "headline": "Fresh Groceries, Delivered Fast",
+      "subheadline": "Your trusted neighbourhood kirana — now online.",
+      "ctaText": "Shop Now",
+      "ctaHref": "#products",
+      "bgColor": "#2E7D32"
+    }
+  },
+  {
+    "id": "banner-1",
+    "type": "banner",
+    "config": {
+      "text": "🎉 Free delivery on orders above ₹299",
+      "bgColor": "#FF6B35"
+    }
+  },
+  {
+    "id": "products-1",
+    "type": "productGrid",
+    "config": { "title": "Our Products", "columns": 3 }
+  },
+  {
+    "id": "contact-1",
+    "type": "contact",
+    "config": {
+      "address": "Shop No. 1, Main Bazaar",
+      "phone": "+91 98765 43210",
+      "hours": "Mon–Sat: 9am–9pm"
+    }
+  },
+  {
+    "id": "footer-1",
+    "type": "footer",
+    "config": {
+      "shopName": "Sharma Kirana",
+      "tagline": "Serving with love ❤️"
+    }
+  }
+]
+```
+
+### Dynamic Render Engine
+
+`TemplateRenderer.tsx` maps each section `type` to its React component:
+
+```tsx
+// Simplified
+function TemplateRenderer({ sections, products, shopName }) {
+  return sections.map(section => {
+    switch (section.type) {
+      case 'navbar':      return <NavbarSection      config={section.config} shopName={shopName} />;
+      case 'hero':        return <HeroSection         config={section.config} shopName={shopName} />;
+      case 'banner':      return <BannerSection       config={section.config} />;
+      case 'productGrid': return <ProductGridSection  config={section.config} products={products} />;
+      case 'contact':     return <ContactSection      config={section.config} />;
+      case 'footer':      return <FooterSection       config={section.config} />;
+    }
+  });
+}
+```
+
+---
+
+## 🤖 AI System Design
+
+### Two-Model Strategy
+
+| Model | API Key Env Var | Use Cases |
+|-------|----------------|-----------|
+| **Sarvam-30B** | `SARVAM_30B_API_KEY` | General queries, quick answers, minor edits, translation, customer support chat |
+| **Sarvam-105B** | `SARVAM_105B_API_KEY` | Full website generation, major restructuring, AI sales predictions |
+
+The frontend switches models based on message intent — website creation commands automatically route to 105B.
+
+### AI-Powered Website Generation
+
+```
+User: "Build me a grocery store"
+  ↓
+POST /api/website/generate
+  { businessType: "grocery", businessName: "My Shop", description: "..." }
+  ↓
+Backend: buildDefaultSections("grocery", ...)
+  → Returns TemplateSection[] with pre-filled hero text, palette, etc.
+  ↓
+AI adds product suggestions, tagline tweaks
+  ↓
+Sections saved to DB, user can fine-tune in builder
+```
+
+### Voice Flow
+
+```
+Mic → Browser MediaRecorder API → PCM blob
+  ↓
+POST /api/voice/speech-to-text (Sarvam STT API)
+  ↓
+Transcribed text fed into AI chat
+  ↓
+AI response → POST /api/voice/text-to-speech → audio blob played back
+```
+
+### Supported Languages (22 + English)
+
+Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu, Sanskrit, Maithili, Konkani, Manipuri, Bodo, Dogri, Kashmiri, Nepali, Sindhi, Santali
+
+---
+
+## 🏗️ Key Features
+
+### Free Tier
+- Free subdomain: `businessname.fera-shop.fera-seach.tech`
+- Up to **50 products**
+- Basic AI (Sarvam-30B)
+- Order management + basic invoices
+- 500 MB storage
+
+### Premium Tier (₹499/month)
+- **Custom domain**
+- Unlimited products
+- Advanced AI (Sarvam-105B) with sales predictions
+- Next-year revenue forecast
+- Customer behavior insights
+
+### Website Builder (3-Panel SaaS UI)
+- **Left:** Template gallery (6 templates) + section editor (add/remove/reorder)
+- **Center:** Live preview at 60% zoom scale
+- **Right:** Section config form (color pickers, text inputs)
+- AI prompt bar: describe your business → auto-generate sections
+- One-click publish → live at `/shop/:shopName`
+
+### Invoice System
+- Every order auto-generates a tax invoice
+- Shopkeeper can mark: **Paid / Unpaid / Pay Later**
+- Printable invoice modal in orders page
+
+### Public Shop Page
+- Route: `/shop/:shopName`
+- No auth required
+- Backend endpoint: `GET /api/website/public/:shopName`
+- Renders dynamically from stored `sections` JSON
+
+---
+
+## 🚀 Setup & Running
 
 ### Prerequisites
-- Node.js 18+
-- npm 9+
+- Node.js 18+ and npm 9+
 
-### 1. Backend Setup
-
-```bash
-cd backend
-cp .env.example .env
-# Edit .env and add your Sarvam AI API keys
-npm install
-npm run dev
-```
-
-### 2. Frontend Setup
+### 1. Clone & Install
 
 ```bash
-cd frontend
-cp .env.example .env
-npm install
-npm run dev
+git clone <repo-url>
+cd fera-shopkeeeper-web-testing-
+
+# Backend
+cd backend && npm install
+
+# Frontend
+cd ../frontend && npm install
 ```
 
-The app will be available at:
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000
+### 2. Environment Variables
 
-## ⚙️ Environment Variables
-
-### Backend (`backend/.env`)
+**Backend** — create `backend/.env`:
 ```env
 PORT=5000
-JWT_SECRET=your-super-secret-jwt-key
-SARVAM_30B_API_KEY=your_sarvam_30b_api_key
-SARVAM_105B_API_KEY=your_sarvam_105b_api_key
+NODE_ENV=development
+JWT_SECRET=change-this-to-a-long-random-string
+SARVAM_30B_API_KEY=your_sarvam_30b_key
+SARVAM_105B_API_KEY=your_sarvam_105b_key
 SARVAM_API_BASE_URL=https://api.sarvam.ai/v1
 DATABASE_PATH=./data/fera_shopkeeper.db
 FRONTEND_URL=http://localhost:5173
 FREE_TIER_MAX_PRODUCTS=50
-FREE_TIER_STORAGE_MB=500
 BASE_DOMAIN=fera-shop.fera-seach.tech
 ```
 
-> ⚠️ **Security**: Never commit `.env` files with real API keys. Always use `.env.example` as a template.
+**Frontend** — create `frontend/.env`:
+```env
+VITE_API_URL=http://localhost:5000/api
+```
 
-## 📱 Key Pages
+### 3. Start Development Servers
 
-| Page | Description |
-|------|-------------|
-| `/` | Marketing landing page |
-| `/dashboard` | Business overview with stats & charts |
-| `/products` | Product catalog management |
-| `/orders` | Order tracking & management |
-| `/analytics` | Sales analytics & AI predictions |
-| `/ai-assistant` | AI chat with voice support |
-| `/website-builder` | AI website generator & publisher |
+```bash
+# Terminal 1 — Backend
+cd backend
+npm run build && node dist/index.js
+# OR for hot-reload:
+npm run dev
 
-## 🎤 Voice Commands
+# Terminal 2 — Frontend
+cd frontend
+npm run dev
+```
 
-Users can speak commands in any supported language:
-- *"Build me a grocery store website"* → AI creates complete website (Sarvam-105B)
-- *"What are my best selling products?"* → AI analyzes and responds
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000
 
-## 🚚 Delivery Options
+### 4. Build for Production
 
-- **Pickup** — Customer picks up from store
-- **Walking Distance** — Local delivery on foot  
-- **Bicycle Delivery** — Wider local radius
-- **Standard Delivery** — ₹30 delivery fee
+```bash
+# Backend
+cd backend && npm run build
 
-## 📊 API Endpoints
+# Frontend
+cd frontend && npm run build
+# Output in frontend/dist/
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login |
-| GET | `/api/auth/me` | Get current user |
-| POST | `/api/ai/chat` | Chat with AI assistant |
-| POST | `/api/ai/generate-website` | Generate website with AI |
-| GET | `/api/products` | List products |
-| POST | `/api/products` | Create product |
-| PUT | `/api/products/:id` | Update product |
-| DELETE | `/api/products/:id` | Delete product |
-| GET | `/api/orders` | List orders |
-| POST | `/api/orders/create` | Create order |
-| PATCH | `/api/orders/:id/status` | Update order status |
-| GET | `/api/analytics/dashboard` | Dashboard metrics |
-| GET | `/api/analytics/predict` | AI sales prediction (Premium) |
-| GET | `/api/website/generate` | AI generate website |
-| POST | `/api/voice/speech-to-text` | Voice to text |
-| POST | `/api/voice/text-to-speech` | Text to voice |
+---
 
-## 🛠️ Tech Stack
+## 🌐 Deployment Guide
 
-**Frontend:** React 18, TypeScript, Vite, React Router v6, TanStack Query, Recharts, Lucide React
+### Option A: Single VPS (recommended for MVP)
 
-**Backend:** Node.js, Express, TypeScript, sql.js (SQLite), JWT, bcryptjs, multer, axios
+```
+VPS (DigitalOcean / AWS EC2 / Hetzner)
+├── nginx (reverse proxy)
+│   ├── / → frontend static files (frontend/dist)
+│   ├── /api → backend :5000
+│   └── Wildcard SSL (*.fera-shop.fera-seach.tech)
+└── PM2 → backend process management
+```
 
-**AI:** Sarvam-30B (routine tasks), Sarvam-105B (complex generation), Sarvam Speech API
+**nginx config snippet:**
+```nginx
+server {
+  server_name *.fera-shop.fera-seach.tech;
+  location /api { proxy_pass http://localhost:5000; }
+  location / { root /var/www/fera/frontend/dist; try_files $uri $uri/ /index.html; }
+}
+```
 
-## 💰 Monetization
+### Option B: Serverless
 
-1. **Freemium** — Free tier converts to Premium (₹299/month or ₹2,999/year)
-2. **Transaction fees** — 0.5% Premium, 1% Free tier
-3. **Premium templates** — ₹99-₹499 one-time
-4. **WhatsApp Business** add-on — ₹199/month
+- Frontend → Vercel / Cloudflare Pages (set `VITE_API_URL` to your API URL)
+- Backend → Railway / Render / Fly.io
+- DB → Turso (LibSQL cloud) or PostgreSQL
+
+### Wildcard Subdomain Setup
+
+1. Add `A` record: `*.fera-shop.fera-seach.tech → your-server-IP`
+2. Generate wildcard SSL: `certbot --nginx -d *.fera-shop.fera-seach.tech`
+
+---
+
+## 📊 API Reference
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/register` | — | Register + auto-create subdomain |
+| POST | `/api/auth/login` | — | Get JWT token |
+| GET | `/api/auth/me` | ✅ | Current user profile |
+| GET | `/api/products` | ✅ | List products (paginated) |
+| POST | `/api/products` | ✅ | Create product |
+| PUT | `/api/products/:id` | ✅ | Update product |
+| DELETE | `/api/products/:id` | ✅ | Delete product |
+| GET | `/api/orders` | ✅ | List orders (filtered, paginated) |
+| POST | `/api/orders/create` | ✅ | Create order + auto-invoice |
+| PATCH | `/api/orders/:id/status` | ✅ | Update order status |
+| PATCH | `/api/orders/:id/payment` | ✅ | Update payment status (paid/unpaid/pay_later) |
+| GET | `/api/orders/:id/invoice` | ✅ | Get order + invoice |
+| GET | `/api/analytics/dashboard` | ✅ | Stats, chart, recent orders |
+| GET | `/api/analytics/sales` | ✅ | Revenue & category breakdown |
+| GET | `/api/analytics/predict` | ✅ Premium | AI sales forecast |
+| GET | `/api/website` | ✅ | Get own website config |
+| POST | `/api/website` | ✅ | Save website (sections + config) |
+| POST | `/api/website/generate` | ✅ | AI-generate website sections |
+| PATCH | `/api/website/publish` | ✅ | Publish / unpublish |
+| GET | `/api/website/templates` | ✅ | List 6 templates with default sections |
+| GET | `/api/website/public/:shopName` | — | **Public** — render shop |
+| POST | `/api/ai/chat` | ✅ | Chat (auto-selects 30B or 105B) |
+| POST | `/api/voice/speech-to-text` | ✅ | Audio → text |
+| POST | `/api/voice/text-to-speech` | ✅ | Text → audio |
+
+---
+
+## 🔮 Future Scaling Plan
+
+### Phase 1 — Performance (Month 1–2)
+- Migrate from sql.js to PostgreSQL (Prisma ORM)
+- Add Redis for session caching + rate limiting
+- CDN for product images (Cloudflare R2 / S3)
+
+### Phase 2 — Marketplace (Month 3–4)
+- Multi-vendor marketplace mode
+- Integrated payment gateway (Razorpay / PhonePe)
+- WhatsApp Business API for order notifications
+- GST invoice generation
+
+### Phase 3 — AI Enhancement (Month 5–6)
+- Fine-tuned model on Indian retail data
+- Automated social media post generation (product launch posts)
+- QR code store sharing
+- Offline-first PWA with background sync
+
+### Phase 4 — Scale (Month 7–12)
+- Kubernetes / container orchestration
+- Multi-region deployment (Mumbai + Bangalore)
+- Analytics data warehouse (ClickHouse)
+- A/B testing engine for shop templates
+
+---
+
+## 💰 Monetization Strategy
+
+1. **Freemium conversion** — Free tier is useful but Premium unlocks AI predictions, custom domain, unlimited products → target ₹499/month
+2. **Annual plan** — ₹3,999/year (33% saving) — improves LTV
+3. **Transaction fee** — 0.5% on Premium orders, 1% on Free
+4. **Premium templates** — ₹199–₹999 one-time purchase
+5. **WhatsApp Business** add-on — ₹199/month
+6. **B2B reseller** — White-label for distributors/wholesalers
+
+**User Acquisition for Indian Retail:**
+- Partner with local CA/GST consultants (they reach shopkeepers)
+- YouTube tutorials in regional languages
+- WhatsApp group marketing in trade associations
+- Google My Business integration referral
+
+---
+
+## ⚠️ Security Notes
+
+- Never commit `.env` files with real API keys
+- JWT secret must be at least 32 characters
+- Rate limiting: 100 req/15 min per IP on all `/api/` routes
+- All user data is scoped by `user_id` in every query
+- SQL injection protection via parameterized queries throughout
+
+---
 
 ## 📄 License
 
-MIT License
+MIT © Fera Shopkeeper

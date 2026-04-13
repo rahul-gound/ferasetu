@@ -72,8 +72,8 @@ export default function AnalyticsPage() {
         api.get(`/analytics/sales?period=${period}`)
       ]);
       return {
-        summary: dashboard.data.summary,
-        revenue_chart: dashboard.data.revenueChart || sales.data.revenue_chart || [],
+        summary: dashboard.data.summary || dashboard.data.stats,
+        revenue_chart: dashboard.data.revenue_chart || sales.data.sales || [],
         category_breakdown: sales.data.categoryBreakdown || sales.data.category_breakdown || [],
       } satisfies AnalyticsData;
     },
