@@ -35,6 +35,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user } = useAuth();
+  const hostname = window.location.hostname;
+  
+  // Detect if we are on a shop subdomain (not localhost, not the main platform)
+  const isShopSubdomain = hostname.endsWith('.fera-shop.fera-seach.tech') || 
+                          (hostname !== 'localhost' && 
+                           hostname !== 'fera-shop.fera-seach.tech' && 
+                           !hostname.includes('app.github.dev'));
+
+  if (isShopSubdomain) {
+    return (
+      <Routes>
+        <Route path="*" element={<ShopPage />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />

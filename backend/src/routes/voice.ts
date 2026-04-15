@@ -42,14 +42,33 @@ router.post('/speech-to-text',
     }
 
     const { language = 'en' } = req.body;
+    // Map simple language codes to Sarvam regional codes
+    const sarvamLanguageMap: Record<string, string> = {
+      'en': 'en-IN',
+      'hi': 'hi-IN',
+      'bn': 'bn-IN',
+      'kn': 'kn-IN',
+      'ml': 'ml-IN',
+      'mr': 'mr-IN',
+      'or': 'or-IN',
+      'pa': 'pa-IN',
+      'ta': 'ta-IN',
+      'te': 'te-IN',
+      'gu': 'gu-IN'
+    };
+    const sarvamLang = sarvamLanguageMap[language] || 'en-IN';
 
     try {
       // Use Sarvam Speech-to-Text API
-      const formData = new FormData();
+      // Note: Node.js 18+ has native FormData/Blob, but axios might need specific handling
       const fileBuffer = fs.readFileSync(req.file.path);
-      const blob = new Blob([fileBuffer], { type: 'audio/wav' });
-      formData.append('file', blob, 'audio.wav');
-      formData.append('language_code', language);
+      
+      const formData = new (require('form-data'))();
+      formData.append('file', fileBuffer, {
+        filename: 'audio.wav',
+        contentType: req.file.mimetype
+      });
+      formData.append('language_code', sarvamLang);
       formData.append('model', 'saarika:v2');
 
       const response = await axios.post(
@@ -58,7 +77,7 @@ router.post('/speech-to-text',
         {
           headers: {
             'api-subscription-key': process.env.SARVAM_30B_API_KEY || '',
-            'Content-Type': 'multipart/form-data'
+            ...formData.getHeaders()
           },
           timeout: 30000
         }
@@ -101,13 +120,29 @@ router.post('/text-to-speech',
     }
 
     const { text, language = 'en' } = req.body;
+    
+    // Map simple language codes to Sarvam regional codes
+    const sarvamLanguageMap: Record<string, string> = {
+      'en': 'en-IN',
+      'hi': 'hi-IN',
+      'bn': 'bn-IN',
+      'kn': 'kn-IN',
+      'ml': 'ml-IN',
+      'mr': 'mr-IN',
+      'or': 'or-IN',
+      'pa': 'pa-IN',
+      'ta': 'ta-IN',
+      'te': 'te-IN',
+      'gu': 'gu-IN'
+    };
+    const sarvamLang = sarvamLanguageMap[language] || 'hi-IN'; // Default to hi-IN for TTS if unknown
 
     try {
       const response = await axios.post(
         'https://api.sarvam.ai/text-to-speech',
         {
           inputs: [text],
-          target_language_code: language,
+          target_language_code: sarvamLang,
           speaker: 'meera',
           model: 'bulbul:v1'
         },

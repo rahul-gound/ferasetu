@@ -1,9 +1,11 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
-import path from 'path';
 import { initializeDatabase } from './models/database';
 import authRoutes from './routes/auth';
 import aiRoutes from './routes/ai';
@@ -15,10 +17,15 @@ import voiceRoutes from './routes/voice';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+console.log(`📊 Loaded FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+
+// Trust proxy for rate limiting (needed in GitHub Codespaces)
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet({
@@ -26,11 +33,26 @@ app.use(helmet({
 }));
 
 // CORS
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches FRONTEND_URL or is a GitHub Codespaces URL
+    if (origin === frontendUrl || 
+        origin.endsWith('.app.github.dev') || 
+        origin.includes('localhost') || 
+        origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
+      return callback(null, true); // Temporarily allow for debugging
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
 // Logging
@@ -39,6 +61,11 @@ app.use(morgan('dev'));
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Fera Shopkeeper API is running', env: process.env.NODE_ENV });
+});
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

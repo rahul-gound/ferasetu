@@ -109,12 +109,12 @@ export async function updateUserPlan(userId: string, plan: 'free' | 'premium'): 
 }
 
 function generateSubdomain(name: string): string {
-  const base = name
+  return name
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 30);
-
-  return `${base}-${Math.random().toString(36).substring(2, 6)}`;
+    .replace(/\(/g, '-')  // Replace ( with -
+    .replace(/\)/g, '')   // Remove )
+    .replace(/[^a-z0-9]/g, '-') // Replace other non-alphanumeric with -
+    .replace(/-+/g, '-')  // Remove double dashes
+    .replace(/^-|-$/g, '') // Trim dashes from ends
+    .substring(0, 60);
 }

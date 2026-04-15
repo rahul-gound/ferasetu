@@ -103,12 +103,12 @@ router.post('/',
     const id = uuidv4();
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-    const { name, description, price, sale_price, category, stock_quantity = 0 } = req.body;
+    const { name, description, price, sale_price, category, stock_quantity = 0, is_active = 1 } = req.body;
 
     db.prepare(`
-      INSERT INTO products (id, user_id, name, description, price, sale_price, category, stock_quantity, image_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, req.user!.id, name, description || null, parseFloat(price), sale_price ? parseFloat(sale_price) : null, category || null, parseInt(stock_quantity), imageUrl);
+      INSERT INTO products (id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, req.user!.id, name, description || null, parseFloat(price), sale_price ? parseFloat(sale_price) : null, category || null, parseInt(stock_quantity), imageUrl, is_active ? 1 : 0);
 
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
     res.status(201).json(product);
@@ -133,7 +133,9 @@ router.put('/:id',
     for (const field of updatable) {
       if (req.body[field] !== undefined) {
         fields.push(`${field} = ?`);
-        values.push(req.body[field]);
+        let value = req.body[field];
+        if (field === 'is_active') value = value ? 1 : 0;
+        values.push(value);
       }
     }
 
@@ -159,8 +161,13 @@ router.put('/:id',
 // Delete product
 router.delete('/:id', (req: AuthenticatedRequest, res: Response): void => {
   const db = getDatabase();
+  console.log(`🗑️ Attempting to delete product ${req.params.id} for user ${req.user!.id}`);
+  
   const result = db.prepare('DELETE FROM products WHERE id = ? AND user_id = ?').run(req.params.id, req.user!.id);
+  console.log(`📊 Delete result:`, result);
+
   if (result.changes === 0) {
+    console.warn(`⚠️ Product ${req.params.id} not found or doesn't belong to user ${req.user!.id}`);
     res.status(404).json({ error: 'Product not found' });
     return;
   }

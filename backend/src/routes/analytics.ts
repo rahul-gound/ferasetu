@@ -110,14 +110,35 @@ router.get('/sales', (req: AuthenticatedRequest, res: Response): void => {
     ORDER BY date ASC
   `).all(req.user!.id);
 
-  const categoryBreakdown = db.prepare(`
-    SELECT p.category, COUNT(o.id) as orders, SUM(o.total) as revenue
-    FROM orders o
-    JOIN products p ON p.user_id = o.user_id
-    WHERE o.user_id = ? AND o.status != 'cancelled'
-    GROUP BY p.category
-    ORDER BY revenue DESC
-  `).all(req.user!.id);
+  // Accurate category breakdown by parsing order items
+  const allOrders = db.prepare('SELECT items, total FROM orders WHERE user_id = ? AND status != \'cancelled\'').all(req.user!.id) as { items: string, total: number }[];
+  const allProducts = db.prepare('SELECT id, category FROM products WHERE user_id = ?').all(req.user!.id) as { id: string, category: string }[];
+  
+  const productCategoryMap: Record<string, string> = {};
+  allProducts.forEach(p => { productCategoryMap[p.id] = p.category || 'Uncategorized'; });
+
+  const breakdownMap: Record<string, { category: string, orders: number, revenue: number }> = {};
+  
+  allOrders.forEach(order => {
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    const orderCategories = new Set<string>();
+    
+    (items || []).forEach((item: any) => {
+      const category = productCategoryMap[item.productId] || 'Uncategorized';
+      orderCategories.add(category);
+      
+      if (!breakdownMap[category]) {
+        breakdownMap[category] = { category, orders: 0, revenue: 0 };
+      }
+      breakdownMap[category].revenue += (item.total || 0);
+    });
+    
+    orderCategories.forEach(cat => {
+      if (breakdownMap[cat]) breakdownMap[cat].orders += 1;
+    });
+  });
+
+  const categoryBreakdown = Object.values(breakdownMap).sort((a, b) => b.revenue - a.revenue);
 
   res.json({ sales, categoryBreakdown, period });
 });

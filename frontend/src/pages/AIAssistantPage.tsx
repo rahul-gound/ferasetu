@@ -33,6 +33,8 @@ function formatContent(text: string): React.ReactNode {
 
 function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === 'user';
+  const isWebsiteOnboarding = message.content.includes('designed your website');
+
   return (
     <div style={{
       display: 'flex',
@@ -66,6 +68,20 @@ function ChatMessage({ message }: { message: Message }) {
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}>
           {formatContent(message.content)}
+          
+          {isWebsiteOnboarding && (
+            <button 
+              onClick={() => window.location.href = '/website-builder'}
+              style={{
+                marginTop: '12px', width: '100%', padding: '10px',
+                background: 'var(--primary)', color: '#fff', border: 'none',
+                borderRadius: '8px', fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}
+            >
+              <Globe size={16} /> Open Website Builder
+            </button>
+          )}
         </div>
 
         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -137,28 +153,111 @@ export default function AIAssistantPage() {
   ]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const speakText = async (text: string, lang: string) => {
+    if (!text) return;
+    setIsSpeaking(true);
+    try {
+      const res = await api.post('/voice/text-to-speech', { text, language: lang });
+      if (res.data.audio) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        const audio = new Audio(`data:audio/wav;base64,${res.data.audio}`);
+        audioRef.current = audio;
+        audio.onended = () => setIsSpeaking(false);
+        audio.play();
+      }
+    } catch (err) {
+      console.error('TTS failed:', err);
+      setIsSpeaking(false);
+    }
+  };
+
   const sendMutation = useMutation({
     mutationFn: async (payload: { message: string; language: string }) => {
       const res = await api.post('/ai/chat', payload);
-      return res.data as { reply: string; model: string };
+      return res.data as { content: string; model: string };
     },
     onSuccess: (data) => {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: data.reply,
+        content: data.content,
         timestamp: new Date(),
         model: data.model || 'Sarvam 30B',
       }]);
+      
+      if (autoPlay) {
+        // Remove markdown formatting for better TTS
+        const cleanText = data.content.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/#/g, '');
+        speakText(cleanText, language);
+      }
+
+      // Check if this response contains a website configuration
+      const hasJson = data.content.includes('[') || data.content.includes('{');
+      if (hasJson && (data.content.toLowerCase().includes('website') || data.content.toLowerCase().includes('section'))) {
+        try {
+          const jsonMatch = data.content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || data.content.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+            const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
+            if (newSections.length > 0) {
+              // Store in session storage for the Website Builder to pick up
+              sessionStorage.setItem('pending_ai_sections', JSON.stringify(newSections));
+              
+              // Add a system message to the chat so the user can't miss it
+              setTimeout(() => {
+                setMessages(prev => [...prev, {
+                  id: 'onboarding-' + Date.now(),
+                  role: 'assistant',
+                  content: '✨ **I have designed your website!** Click the button below to see it and publish it.',
+                  timestamp: new Date(),
+                  model: 'System'
+                }]);
+              }, 1000);
+
+              toast(
+                (t) => (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>✨</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '14px' }}>Website Ready!</div>
+                      <button 
+                        onClick={() => {
+                          toast.dismiss(t.id);
+                          window.location.href = '/website-builder';
+                        }}
+                        style={{ 
+                          background: 'var(--primary)', color: '#fff', border: 'none', 
+                          padding: '4px 10px', borderRadius: '4px', marginTop: '6px',
+                          fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                        }}
+                      >
+                        Go to Builder →
+                      </button>
+                    </div>
+                  </div>
+                ),
+                { duration: 8000, position: 'bottom-center' }
+              );
+            }
+          }
+        } catch (e) {
+          // Ignore parsing errors here
+        }
+      }
     },
     onError: () => {
       toast.error('Failed to get AI response. Please try again.');
@@ -279,8 +378,26 @@ export default function AIAssistantPage() {
             border: '1px solid rgba(139,92,246,0.2)',
             fontSize: '12px', fontWeight: 600, color: '#7C3AED',
           }}>
-            <Sparkles size={12} /> Sarvam 30B
+            <Sparkles size={12} className={isSpeaking ? 'pulse-icon' : ''} />
+            {isSpeaking ? 'Speaking...' : 'Sarvam 30B'}
           </div>
+
+          {/* Auto-play toggle */}
+          <button
+            onClick={() => setAutoPlay(!autoPlay)}
+            title="Toggle Auto-play Voice"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '6px 12px', borderRadius: '8px',
+              border: '1px solid var(--border)', 
+              background: autoPlay ? 'rgba(16,185,129,0.1)' : 'var(--bg)',
+              cursor: 'pointer', fontSize: '13px', 
+              color: autoPlay ? '#10B981' : 'var(--text-muted)',
+            }}
+          >
+            {autoPlay ? <Mic size={14} /> : <MicOff size={14} />}
+            Voice: {autoPlay ? 'On' : 'Off'}
+          </button>
 
           {/* Language selector */}
           <div style={{ position: 'relative' }}>
@@ -444,6 +561,13 @@ export default function AIAssistantPage() {
         @keyframes pulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
           50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+        }
+        @keyframes pulse-icon {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        .pulse-icon {
+          animation: pulse-icon 1s infinite;
         }
       `}</style>
     </div>

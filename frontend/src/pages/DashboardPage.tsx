@@ -57,34 +57,35 @@ function StatCard({
   color: string; change?: number; loading: boolean;
 }) {
   return (
-    <div className="card" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
-      <div style={{
-        position: 'absolute', top: 0, right: 0, width: '80px', height: '80px',
-        borderRadius: '0 12px 0 80px', opacity: 0.08, background: color,
-      }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-        <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>
+    <div className="card" style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div style={{
-          width: '36px', height: '36px', borderRadius: '10px',
-          background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: '40px', height: '40px', borderRadius: '10px',
+          background: '#F8FAFC', border: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: color,
         }}>
           {icon}
         </div>
+        {change !== undefined && !loading && (
+          <div style={{
+            fontSize: '12px',
+            color: change >= 0 ? '#10B981' : '#EF4444',
+            fontWeight: 700,
+            background: change >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            padding: '2px 8px', borderRadius: '20px'
+          }}>
+            {change >= 0 ? '+' : ''}{change}%
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
+        {label}
       </div>
       {loading ? (
         <Shimmer h="32px" w="60%" />
       ) : (
-        <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{value}</div>
-      )}
-      {change !== undefined && !loading && (
-        <div style={{
-          marginTop: '8px', fontSize: '12px',
-          color: change >= 0 ? '#10B981' : '#EF4444',
-          fontWeight: 600,
-        }}>
-          {change >= 0 ? '↑' : '↓'} {Math.abs(change)}% vs last month
-        </div>
+        <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{value}</div>
       )}
     </div>
   );
@@ -112,60 +113,65 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>
-          Good morning, {user?.name?.split(' ')[0]} 👋
+      <div style={{ marginBottom: '32px' }}>
+        <h1 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>
+          Overview
         </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '14px' }}>
-          Here's what's happening with your store today
+        <p style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '15px' }}>
+          Real-time performance metrics for {user?.business_name || 'your store'}.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '20px', marginBottom: '28px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gap: '24px', marginBottom: '32px',
       }}>
         <StatCard
           label={translate('totalRevenue')}
           value={stats ? `₹${stats.total_revenue.toLocaleString('en-IN')}` : '—'}
-          icon={<TrendingUp size={18} />}
-          color="#FF6B35"
+          icon={<TrendingUp size={20} />}
+          color="#3B82F6"
           change={stats?.revenue_change}
           loading={isLoading}
         />
         <StatCard
           label={translate('totalOrders')}
           value={stats ? String(stats.total_orders) : '—'}
-          icon={<ShoppingCart size={18} />}
-          color="#004E89"
+          icon={<ShoppingCart size={20} />}
+          color="#8B5CF6"
           change={stats?.orders_change}
           loading={isLoading}
         />
         <StatCard
           label={translate('pendingOrders')}
           value={stats ? String(stats.pending_orders) : '—'}
-          icon={<Clock size={18} />}
+          icon={<Clock size={20} />}
           color="#F59E0B"
           loading={isLoading}
         />
         <StatCard
           label={translate('lowStock')}
           value={stats ? String(stats.low_stock_count) : '—'}
-          icon={<AlertTriangle size={18} />}
+          icon={<AlertTriangle size={20} />}
           color="#EF4444"
           loading={isLoading}
         />
       </div>
 
       {/* Charts + Orders Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '20px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', marginBottom: '32px' }}>
         {/* Revenue Chart */}
         <div className="card" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px', color: 'var(--text)' }}>
-            Revenue (Last 30 Days)
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>
+              Revenue Performance
+            </h2>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px' }}>
+              Last 30 Days
+            </div>
+          </div>
           {isLoading ? (
             <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Shimmer h="220px" />
@@ -173,16 +179,16 @@ export default function DashboardPage() {
           ) : data?.revenue_chart && data.revenue_chart.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={data.revenue_chart} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={v => `₹${v}`} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={v => `₹${v}`} />
                 <Tooltip
-                  formatter={(v: unknown) => [`₹${(v as number).toLocaleString('en-IN')}`, 'Revenue']}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}
+                  cursor={{ stroke: '#CBD5E1', strokeWidth: 1 }}
+                  contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', padding: '12px' }}
                 />
                 <Line
-                  type="monotone" dataKey="revenue" stroke="#FF6B35" strokeWidth={2.5}
-                  dot={false} activeDot={{ r: 5, fill: '#FF6B35' }}
+                  type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3}
+                  dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -191,32 +197,41 @@ export default function DashboardPage() {
               height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--text-muted)', fontSize: '14px',
             }}>
-              No revenue data yet
+              No performance data available
             </div>
           )}
         </div>
 
         {/* Quick Actions */}
         <div className="card" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px', color: 'var(--text)' }}>
-            Quick Actions
+          <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: 'var(--text)' }}>
+            Actions
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
-              { label: translate('addProduct'), icon: <Plus size={18} />, to: '/products', color: '#FF6B35', bg: 'rgba(255,107,53,0.1)' },
-              { label: 'New Order', icon: <ShoppingCart size={18} />, to: '/orders', color: '#004E89', bg: 'rgba(0,78,137,0.1)' },
-              { label: translate('aiAssistant'), icon: <Bot size={18} />, to: '/ai-assistant', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
-              { label: translate('analytics'), icon: <TrendingUp size={18} />, to: '/analytics', color: '#1A936F', bg: 'rgba(26,147,111,0.1)' },
+              { label: translate('addProduct'), icon: <Plus size={18} />, to: '/products', color: '#0F172A', bg: '#F8FAFC' },
+              { label: 'Manage Orders', icon: <ShoppingCart size={18} />, to: '/orders', color: '#0F172A', bg: '#F8FAFC' },
+              { label: translate('aiAssistant'), icon: <Bot size={18} />, to: '/ai-assistant', color: '#3B82F6', bg: 'rgba(59,130,246,0.05)' },
+              { label: 'View Analytics', icon: <TrendingUp size={18} />, to: '/analytics', color: '#0F172A', bg: '#F8FAFC' },
             ].map(action => (
               <Link
                 key={action.label}
                 to={action.to}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '14px 16px', borderRadius: '10px',
+                  padding: '12px 16px', borderRadius: 'var(--radius)',
                   background: action.bg, textDecoration: 'none',
                   color: action.color, fontWeight: 600, fontSize: '14px',
-                  transition: 'transform 0.15s',
+                  border: '1px solid var(--border)',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#CBD5E1';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 {action.icon}

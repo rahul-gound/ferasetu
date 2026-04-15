@@ -12,6 +12,9 @@ const sarvam30BClient: AxiosInstance = axios.create({
   timeout: 30000
 });
 
+console.log('🔑 Sarvam 30B API Key exists:', !!process.env.SARVAM_30B_API_KEY);
+console.log('🔑 Sarvam 105B API Key exists:', !!process.env.SARVAM_105B_API_KEY);
+
 // Sarvam-105B: For complete website creation and major structural changes
 const sarvam105BClient: AxiosInstance = axios.create({
   baseURL: SARVAM_BASE_URL,
@@ -56,23 +59,48 @@ export interface WebsiteGenerationRequest {
 }
 
 const SYSTEM_PROMPTS: Record<string, string> = {
-  general: `You are Fera AI, an intelligent assistant for the Fera Shopkeeper platform — designed to help small retailers and local business owners in India build and manage their online stores. You help with:
-- Building and customizing websites
-- Managing products and inventory
+  general: `You are Fera AI, an intelligent assistant for the Fera Shopkeeper platform — designed to help small retailers (especially Kirana stores) in India build and manage their online stores. You help with:
+- Building and customizing websites simply
+- Managing products and inventory in local languages
 - Processing orders and deliveries
-- Understanding sales analytics
-- Marketing suggestions
+- Understanding sales analytics in a simple way
+- Marketing suggestions for local neighborhoods
 
-Be friendly, simple, and practical. Use the user's preferred language when possible. For technical tasks, provide step-by-step guidance.`,
+Be friendly, simple, and practical. Use a helpful "Elder Brother" or "Friend" tone. Use the user's preferred language when possible. Avoid technical jargon.`,
 
-  websiteBuilder: `You are Fera AI Website Builder, an expert at creating beautiful, functional e-commerce websites for Indian small businesses. When given a business type and details, you generate complete website configurations including:
-- Page structure (homepage, products, about, contact)
-- Color themes appropriate for the business type
-- Content suggestions
-- Product category recommendations
-- SEO-friendly descriptions
-
-Always return valid JSON configurations.`,
+  websiteBuilder: `You are Fera AI Website Builder. 
+When given business details, you MUST generate a JSON configuration that follows this EXACT structure:
+{
+  "sections": [
+    {
+      "id": "unique-id",
+      "type": "navbar",
+      "config": { "shopName": "Name", "primaryColor": "#hex", "accentColor": "#hex" }
+    },
+    {
+      "id": "unique-id",
+      "type": "hero",
+      "config": { "headline": "Text", "subheadline": "Text", "ctaText": "Button", "bgColor": "#hex" }
+    },
+    {
+      "id": "unique-id",
+      "type": "productGrid",
+      "config": { "title": "Products", "accentColor": "#hex", "showStock": true }
+    },
+    {
+      "id": "unique-id",
+      "type": "contact",
+      "config": { "title": "Find Us", "address": "...", "phone": "..." }
+    },
+    {
+      "id": "unique-id",
+      "type": "footer",
+      "config": { "shopName": "Name", "tagline": "..." }
+    }
+  ]
+}
+Allowed types: navbar, hero, banner, productGrid, contact, footer.
+Use Indian business context. Return ONLY the JSON object.`,
 
   analytics: `You are Fera AI Analytics, specializing in business insights for Indian small retailers. You analyze sales data, identify trends, and provide actionable recommendations. You help predict future sales using historical data patterns.`
 };
@@ -91,9 +119,18 @@ export async function chatWithSarvam(
   model: SarvamModel = '30b'
 ): Promise<SarvamChatResponse> {
   const client = model === '105b' ? sarvam105BClient : sarvam30BClient;
-  const modelName = model === '105b' ? 'sarvam-2-large' : 'sarvam-2-small';
+  const modelName = model === '105b' ? 'sarvam-105b' : 'sarvam-30b';
+
+  const apiKey = model === '105b' ? process.env.SARVAM_105B_API_KEY : process.env.SARVAM_30B_API_KEY;
+
+  console.log(`🤖 AI Request to model: ${modelName} (using key: ${apiKey?.substring(0, 8)}...)`);
 
   try {
+    if (!apiKey || apiKey === 'undefined' || apiKey.length < 5) {
+       console.warn(`⚠️ API Key for ${modelName} is missing or invalid. Using fallback.`);
+       throw new Error(`API Key for ${modelName} is missing`);
+    }
+
     const response = await client.post('/chat/completions', {
       model: modelName,
       messages: request.messages,
@@ -101,14 +138,20 @@ export async function chatWithSarvam(
       max_tokens: request.max_tokens ?? 2048
     });
 
+    console.log(`✅ AI Response received from ${modelName}`);
+
     return {
       content: response.data.choices[0].message.content,
       model: modelName,
       usage: response.data.usage
     };
   } catch (error: any) {
-    // Fallback response for development/testing when API is unavailable
-    if (process.env.NODE_ENV === 'development' || !process.env.SARVAM_30B_API_KEY) {
+    const errorData = error.response?.data;
+    console.error(`❌ Sarvam AI API Error (${modelName}):`, JSON.stringify(errorData || error.message));
+
+    // Fallback response for development/testing when API is unavailable or errors
+    if (process.env.NODE_ENV === 'development' || !apiKey || apiKey === 'undefined' || apiKey.length < 5) {
+      console.log(`ℹ️ Returning fallback response for ${modelName}`);
       return {
         content: generateFallbackResponse(request.messages, model),
         model: `${modelName}-fallback`,
@@ -160,16 +203,18 @@ export async function generateAIResponse(
   userMessage: string,
   conversationHistory: ChatMessage[],
   language: string = 'en',
-  taskType: 'simple' | 'complex' = 'simple'
+  taskType: 'simple' | 'complex' = 'simple',
+  systemPromptKey: string = 'general'
 ): Promise<SarvamChatResponse> {
   const model = selectModel(taskType);
+  const systemPrompt = SYSTEM_PROMPTS[systemPromptKey] || SYSTEM_PROMPTS.general;
   const messages: ChatMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPTS.general },
+    { role: 'system', content: systemPrompt },
     ...conversationHistory.slice(-10), // Keep last 10 messages for context
     { role: 'user', content: userMessage }
   ];
 
-  return chatWithSarvam({ messages, language }, model);
+  return chatWithSarvam({ messages, language, max_tokens: taskType === 'complex' ? 4096 : 2048 }, model);
 }
 
 export async function translateToLanguage(
@@ -232,18 +277,18 @@ function generateFallbackResponse(messages: ChatMessage[], _model: SarvamModel):
   const content = lastUserMessage?.content?.toLowerCase() || '';
 
   if (content.includes('website') || content.includes('create') || content.includes('build')) {
-    return "I'll help you create your website! Please provide your business name, type of products you sell, and any specific preferences for colors or style. I'll generate a complete website for you right away.";
+    return "Namaste! I'll help you build your Kirana store website in 1 minute. Just tell me your shop's name and what you sell (like groceries, milk, or snacks). I'll create a beautiful site where your customers can see products and order on WhatsApp! 🛒✨";
   }
   if (content.includes('product') || content.includes('inventory')) {
-    return "I can help you manage your products! You can add products with photos, prices, and track inventory. Would you like me to guide you through adding your first product?";
+    return "Managing products is very easy! You can just take a photo of your items, add the price, and they will appear on your website. Do you want me to show you how to add your first 5 products? 📦";
   }
   if (content.includes('order')) {
-    return "Your orders are managed in the Orders section. You can track status, manage deliveries, and generate invoices for each order. Is there a specific order you need help with?";
+    return "All your customer orders will show up in the 'Orders' section. You will also get a notification. You can then pack the items and mark them as 'Ready for Delivery'. Need help with a specific order? 📋";
   }
   if (content.includes('analytics') || content.includes('sales')) {
-    return "Based on your business data, I can help predict future sales trends and provide recommendations. Check your Analytics dashboard for detailed insights!";
+    return "I can show you which items (like bread or sugar) are selling most in your shop. This will help you stock the right items. Check your 'Analytics' page for simple charts! 📊";
   }
-  return "I'm Fera AI, your business assistant! I can help you build your website, manage products, handle orders, and grow your business. What would you like to do today?";
+  return "Namaste! I'm Fera AI, your shop's digital friend. I can help you take your Kirana store online. Just tell me what you need—like building a website, adding products, or checking orders. How can I help you today? 🙏";
 }
 
 function getDefaultWebsiteConfig(request: WebsiteGenerationRequest): Record<string, unknown> {

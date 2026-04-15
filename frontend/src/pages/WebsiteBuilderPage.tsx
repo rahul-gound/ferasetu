@@ -27,7 +27,7 @@ function makeDefaultSection(type: TemplateSection['type'], shopName: string): Te
     navbar: { shopName, primaryColor: '#FF6B35', accentColor: '#004E89', links: [] },
     hero: { headline: 'Welcome to our store', subheadline: 'Shop the best products', ctaText: 'Shop Now', ctaHref: '#products', bgColor: '#FF6B35' },
     banner: { text: '🎉 Special offers available!', bgColor: '#F59E0B', textColor: '#fff' },
-    productGrid: { title: 'Our Products', accentColor: '#FF6B35', showStock: false },
+    productGrid: { title: 'Our Products', accentColor: '#FF6B35', showStock: true },
     contact: { title: 'Find Us', address: '', phone: '', email: '', hours: '' },
     footer: { shopName, tagline: 'Powered by Fera Shopkeeper AI', primaryColor: '#1E293B', social: {} },
   };
@@ -272,6 +272,22 @@ export default function WebsiteBuilderPage() {
     } else if (user?.business_name) {
       setShopName(user.business_name);
     }
+
+    // Check for pending AI sections from AI Assistant
+    const pending = sessionStorage.getItem('pending_ai_sections');
+    if (pending) {
+      try {
+        const parsed = JSON.parse(pending);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSections(parsed);
+          toast.success('✨ AI-generated design applied!', { icon: '✨', duration: 5000 });
+          setActiveTab('preview'); // Show the preview of the new design
+          sessionStorage.removeItem('pending_ai_sections'); // Clear it so it doesn't apply again
+        }
+      } catch (e) {
+        console.error('Failed to apply pending AI sections:', e);
+      }
+    }
   }, [websiteData, user]);
 
   const saveMutation = useMutation({
@@ -288,9 +304,9 @@ export default function WebsiteBuilderPage() {
   });
 
   const publishMutation = useMutation({
-    mutationFn: () => api.patch('/website/publish', { publish: !isPublished }),
+    mutationFn: () => api.patch('/website/publish', { published: !isPublished }),
     onSuccess: (res) => {
-      const published = (res.data as { is_published?: number }).is_published === 1;
+      const published = (res.data as { published: boolean }).published;
       setIsPublished(published);
       toast.success(published ? '🌐 Website published!' : '🔒 Website unpublished');
     },
@@ -331,8 +347,8 @@ export default function WebsiteBuilderPage() {
         message: `Generate website sections JSON for: ${aiPrompt}`,
         language: 'en',
       });
-      const data = res.data as { response?: string; message?: string };
-      setAiResponse(data.response || data.message || 'AI response received');
+      const data = res.data as { content?: string };
+      setAiResponse(data.content || 'AI response received');
     } catch {
       toast.error('AI generation failed');
     } finally {
@@ -348,7 +364,8 @@ export default function WebsiteBuilderPage() {
     display: 'flex', flexDirection: 'column',
   };
 
-  const liveUrl = `https://${shopName.toLowerCase().replace(/\s+/g, '-')}.fera-shop.fera-seach.tech`;
+  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'fera-search.tech';
+  const liveUrl = `https://${user?.subdomain || shopName.toLowerCase().replace(/\s+/g, '-')}.${baseDomain}`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
@@ -391,19 +408,64 @@ export default function WebsiteBuilderPage() {
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Save size={15} />
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : 'Save Changes'}
           </button>
           <button
             className="btn btn-primary"
             onClick={() => publishMutation.mutate()}
             disabled={publishMutation.isPending}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: isPublished ? '#EF4444' : '#10B981',
+              borderColor: isPublished ? '#EF4444' : '#10B981',
+            }}
           >
-            {isPublished ? <EyeOff size={15} /> : <Eye size={15} />}
-            {isPublished ? 'Unpublish' : 'Publish'}
+            {isPublished ? <EyeOff size={15} /> : <Globe size={15} />}
+            {isPublished ? 'Take Offline' : 'Deploy Website'}
           </button>
         </div>
       </div>
+
+      {isPublished && user?.subdomain && (
+        <div style={{
+          background: '#ECFDF5', border: '1px solid #10B981',
+          padding: '12px 20px', borderRadius: '12px',
+          display: 'flex', alignItems: 'center', gap: '12px',
+        }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '50%',
+            background: '#10B981', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: '#fff'
+          }}>
+            <Globe size={20} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#065F46' }}>
+              Your shop is LIVE!
+            </div>
+            <div style={{ fontSize: '13px', color: '#047857' }}>
+              Anyone can visit at: <a 
+                href={`https://${user.subdomain}.${baseDomain}`} 
+                target="_blank" 
+                rel="noreferrer"
+                style={{ fontWeight: 800, textDecoration: 'underline', color: 'inherit' }}
+              >
+                {user.subdomain}.{baseDomain}
+              </a>
+            </div>
+          </div>
+          <button 
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '12px' }}
+            onClick={() => {
+              navigator.clipboard.writeText(`https://${user.subdomain}.${baseDomain}`);
+              toast.success('Link copied to clipboard!');
+            }}
+          >
+            Copy Link
+          </button>
+        </div>
+      )}
 
       {/* Mobile tab switcher */}
       <div style={{ display: 'flex', gap: '4px' }}>
@@ -422,7 +484,7 @@ export default function WebsiteBuilderPage() {
             {tab === 'gallery' && <Layers size={14} />}
             {tab === 'editor' && <Settings size={14} />}
             {tab === 'preview' && <Eye size={14} />}
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'gallery' ? 'Design' : tab === 'editor' ? 'Edit Content' : 'Preview'}
           </button>
         ))}
       </div>
@@ -450,7 +512,7 @@ export default function WebsiteBuilderPage() {
                   borderBottom: activeTab === t ? '2px solid var(--primary)' : '2px solid transparent',
                 }}
               >
-                {t === 'gallery' ? '🎨 Templates' : '📝 Sections'}
+                {t === 'gallery' ? '🎨 Choose Design' : '📝 Manage Sections'}
               </button>
             ))}
           </div>
@@ -460,7 +522,7 @@ export default function WebsiteBuilderPage() {
             {activeTab === 'gallery' && (
               <div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Choose a template to get started quickly
+                  Choose a look for your shop
                 </p>
                 {templates.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
@@ -621,21 +683,21 @@ export default function WebsiteBuilderPage() {
             )}
           </div>
 
-          {/* AI Generate strip */}
+          {/* AI Helper strip */}
           <div style={{
             borderTop: '1px solid var(--border)', padding: '14px',
             background: 'var(--bg)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <Sparkles size={14} style={{ color: '#7C3AED' }} />
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>AI Generate</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>Fera AI Helper</span>
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
               <input
                 className="input"
                 value={aiPrompt}
                 onChange={e => setAiPrompt(e.target.value)}
-                placeholder="Describe your business..."
+                placeholder="Ask AI to write for you..."
                 style={{ flex: 1, fontSize: '12px' }}
                 onKeyDown={e => { if (e.key === 'Enter') handleAiGenerate(); }}
               />
@@ -647,18 +709,59 @@ export default function WebsiteBuilderPage() {
                   borderRadius: '8px', padding: '8px 10px', cursor: 'pointer',
                   fontSize: '13px', flexShrink: 0,
                 }}
-                aria-label="Generate with AI"
               >
-                {aiGenerating ? '⏳' : '✨'}
+                {aiGenerating ? '⏳' : 'Create'}
               </button>
             </div>
             {aiResponse && (
-              <div style={{
-                marginTop: '8px', padding: '10px', background: 'rgba(124,58,237,0.08)',
-                borderRadius: '6px', fontSize: '12px', color: 'var(--text)',
-                lineHeight: 1.5, maxHeight: '80px', overflowY: 'auto',
-              }}>
-                {aiResponse}
+              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{
+                  padding: '10px', background: 'rgba(124,58,237,0.08)',
+                  borderRadius: '6px', fontSize: '12px', color: 'var(--text)',
+                  lineHeight: 1.5, maxHeight: '80px', overflowY: 'auto',
+                }}>
+                  {aiResponse}
+                </div>
+                {(aiResponse.includes('[') || aiResponse.includes('{')) && (
+                  <button
+                    onClick={() => {
+                      try {
+                        let jsonStr = aiResponse;
+                        const codeBlockMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                        if (codeBlockMatch) {
+                           jsonStr = codeBlockMatch[1];
+                        }
+                        const jsonMatch = jsonStr.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
+                        if (!jsonMatch) throw new Error('No JSON found');
+                        
+                        let parsed;
+                        try {
+                           parsed = JSON.parse(jsonMatch[0]);
+                        } catch (parseError) {
+                           // If it fails to parse, it might be truncated.
+                           throw new Error('JSON is incomplete or invalid. Please ask the AI to "continue" or generate a shorter version.');
+                        }
+
+                        const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
+                        if (newSections.length > 0) {
+                          setSections(newSections);
+                          toast.success('✨ AI Sections applied to your website!');
+                        } else {
+                          throw new Error('No sections found in JSON.');
+                        }
+                      } catch (err: any) {
+                        toast.error(err.message || 'Could not parse AI response into website sections.');
+                      }
+                    }}
+                    style={{
+                      background: '#10B981', color: '#fff', border: 'none',
+                      borderRadius: '6px', padding: '6px 12px', cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 700, width: '100%',
+                    }}
+                  >
+                    🪄 Apply these sections to my site
+                  </button>
+                )}
               </div>
             )}
           </div>

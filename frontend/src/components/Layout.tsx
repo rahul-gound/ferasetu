@@ -41,21 +41,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
       <div style={{
-        padding: '24px 20px',
-        borderBottom: '1px solid var(--border)',
+        padding: '32px 24px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px'
+        gap: '12px'
       }}>
-        <span style={{ fontSize: '28px' }}>🛒</span>
+        <div style={{
+          width: '32px', height: '32px', borderRadius: '8px',
+          background: 'var(--primary-accent)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', color: '#fff',
+          fontWeight: 800, fontSize: '18px'
+        }}>F</div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '18px', color: 'var(--primary)' }}>Fera</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Shopkeeper AI</div>
+          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)', letterSpacing: '-0.03em' }}>Fera</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shopkeeper AI</div>
         </div>
       </div>
 
       {/* Nav Items */}
-      <nav style={{ padding: '16px 12px', flex: 1 }}>
+      <nav style={{ padding: '12px', flex: 1 }}>
         {NAV_ITEMS.map(item => (
           <NavLink
             key={item.path}
@@ -65,15 +69,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              padding: '11px 12px',
-              borderRadius: '8px',
-              marginBottom: '4px',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius)',
+              marginBottom: '2px',
               textDecoration: 'none',
-              fontWeight: isActive ? 600 : 400,
+              fontWeight: 500,
               fontSize: '14px',
-              color: isActive ? 'var(--primary)' : 'var(--text)',
-              background: isActive ? 'rgba(255,107,53,0.1)' : 'transparent',
-              transition: 'all 0.15s ease',
+              color: isActive ? 'var(--primary-accent)' : 'var(--text-muted)',
+              background: isActive ? '#F1F5F9' : 'transparent',
+              transition: 'all 0.2s ease',
             })}
           >
             {item.icon}

@@ -7,7 +7,27 @@ import TemplateRenderer from '../components/shop/TemplateRenderer';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function ShopPage() {
-  const { shopName } = useParams<{ shopName: string }>();
+  const params = useParams<{ shopName: string }>();
+  
+  // Logic to determine shop name:
+  // 1. From URL params (e.g., /shop/my-kirana)
+  // 2. From window.location.hostname (if it's not localhost or the main platform domain)
+  const [shopName, setShopName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const isMainPlatform = hostname.includes('fera-shop.fera-seach.tech') || 
+                           hostname.includes('app.github.dev') ||
+                           hostname.includes('localhost');
+
+    if (params.shopName) {
+      setShopName(params.shopName);
+    } else if (!isMainPlatform) {
+      // If we are on a custom domain like mykiranastore.com
+      setShopName(hostname);
+    }
+  }, [params.shopName]);
+
   const [data, setData] = useState<PublicShopData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

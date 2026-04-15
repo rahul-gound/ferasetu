@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { t } from '../utils/languages';
 import { useAuth } from './AuthContext';
 
@@ -13,8 +13,15 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [language, setLanguageState] = useState(
-    user?.preferred_language || localStorage.getItem('fera_language') || 'en'
+    localStorage.getItem('fera_language') || 'en'
   );
+
+  // Sync language when user logs in or profile changes
+  useEffect(() => {
+    if (user?.preferred_language && user.preferred_language !== language) {
+      setLanguageState(user.preferred_language);
+    }
+  }, [user?.preferred_language]);
 
   const setLanguage = (lang: string) => {
     setLanguageState(lang);

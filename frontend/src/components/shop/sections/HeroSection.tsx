@@ -8,64 +8,95 @@ interface HeroSectionProps {
 export default function HeroSection({ config, shopName }: HeroSectionProps) {
   const bgColor = (config.bgColor as string) || '#FF6B35';
   const headline = (config.headline as string) || `Welcome to ${shopName}`;
-  const subheadline = config.subheadline as string | undefined;
+  const subheadline = (config.subheadline as string) || 'Your neighborhood shop, now online with quality and trust.';
   const ctaText = (config.ctaText as string) || 'Shop Now';
   const ctaHref = (config.ctaHref as string) || '#products';
+  const accentColor = (config.accentColor as string) || '#004E89';
+  const imageUrl = (config.imageUrl as string) || '';
 
   return (
     <>
       <style>{`
         .fera-hero-inner {
           display: flex; align-items: center; justify-content: space-between;
-          max-width: 1100px; margin: 0 auto; gap: 48px;
+          max-width: 1200px; margin: 0 auto; gap: 64px;
+          position: relative; z-index: 10;
         }
-        .fera-hero-content { flex: 1; }
-        .fera-hero-decor {
-          width: 200px; height: 200px; border-radius: 50%;
-          background: rgba(255,255,255,0.15); display: flex;
-          align-items: center; justify-content: center; font-size: 80px;
-          flex-shrink: 0;
+        .fera-hero-content { flex: 1.2; }
+        .fera-hero-media {
+          flex: 1; display: flex; align-items: center; justify-content: center;
+          position: relative;
         }
-        @media (max-width: 768px) {
-          .fera-hero-inner { flex-direction: column; text-align: center; gap: 24px; }
-          .fera-hero-decor { width: 120px; height: 120px; font-size: 48px; }
+        .fera-hero-image-wrap {
+          width: 100%; aspect-ratio: 1/1; max-width: 480px;
+          background: rgba(255,255,255,0.1); border-radius: 40px;
+          display: flex; align-items: center; justify-content: center;
+          position: relative; overflow: hidden;
+          box-shadow: 20px 20px 60px rgba(0,0,0,0.15);
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+        .fera-hero-image-wrap span { font-size: 160px; filter: drop-shadow(0 10px 30px rgba(0,0,0,0.2)); }
+        .fera-hero-blob {
+          position: absolute; top: -10%; right: -10%; width: 120%; height: 120%;
+          background: radial-gradient(circle, ${accentColor} 0%, transparent 70%);
+          opacity: 0.3; filter: blur(40px); z-index: -1;
+        }
+        .fera-cta-btn {
+          display: inline-flex; align-items: center; gap: 10px;
+          background: #fff; color: ${bgColor}; padding: 18px 40px;
+          border-radius: 50px; text-decoration: none;
+          fontWeight: 800; fontSize: 18px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .fera-cta-btn:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 15px 40px rgba(0,0,0,0.3); }
+        
+        @media (max-width: 968px) {
+          .fera-hero-inner { flex-direction: column-reverse; text-align: center; gap: 40px; }
+          .fera-hero-content { display: flex; flexDirection: column; alignItems: center; }
         }
       `}</style>
       <section style={{
-        background: bgColor, padding: '80px 24px', color: '#fff', minHeight: '400px',
-        display: 'flex', alignItems: 'center',
+        background: `linear-gradient(135deg, ${bgColor} 0%, ${accentColor} 100%)`,
+        padding: '100px 24px', color: '#fff', minHeight: '600px',
+        display: 'flex', alignItems: 'center', position: 'relative', overflow: 'hidden'
       }}>
+        <div className="fera-hero-blob" />
         <div className="fera-hero-inner">
           <div className="fera-hero-content">
+            <div style={{ display: 'inline-block', padding: '6px 16px', background: 'rgba(255,255,255,0.15)', borderRadius: '20px', fontSize: '14px', fontWeight: 700, marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              🏪 Serving Your Neighborhood
+            </div>
             <h1 style={{
-              fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 900,
-              lineHeight: 1.1, marginBottom: '16px', color: '#fff',
+              fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 900,
+              lineHeight: 1.05, marginBottom: '24px', color: '#fff',
+              textShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
               {headline}
             </h1>
-            {subheadline && (
-              <p style={{
-                fontSize: '18px', opacity: 0.9, marginBottom: '32px',
-                lineHeight: 1.6, maxWidth: '500px',
-              }}>
-                {subheadline}
-              </p>
-            )}
-            <a
-              href={ctaHref}
-              style={{
-                display: 'inline-block', background: '#fff',
-                color: bgColor, padding: '14px 32px',
-                borderRadius: '30px', textDecoration: 'none',
-                fontWeight: 700, fontSize: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-                transition: 'transform 0.15s',
-              }}
-            >
-              {ctaText} →
+            <p style={{
+              fontSize: 'clamp(18px, 2vw, 22px)', opacity: 0.95, marginBottom: '40px',
+              lineHeight: 1.6, maxWidth: '600px',
+            }}>
+              {subheadline}
+            </p>
+            <a href={ctaHref} className="fera-cta-btn">
+              {ctaText} 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
             </a>
           </div>
-          <div className="fera-hero-decor">🛒</div>
+          <div className="fera-hero-media">
+             <div className="fera-hero-image-wrap">
+               {imageUrl ? (
+                 <img src={imageUrl} alt={shopName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+               ) : (
+                 <span role="img" aria-label="shop-emoji">🛒</span>
+               )}
+             </div>
+          </div>
         </div>
       </section>
     </>

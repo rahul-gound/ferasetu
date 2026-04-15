@@ -39,14 +39,16 @@ router.post('/chat',
     }
 
     // Detect if this is a complex task (website creation, major changes)
-    const isComplexTask = /create|build|generate|make.*website|redesign|restructure/i.test(message);
+    const isWebsiteJsonRequest = /Generate website sections JSON for:/i.test(message) || /json/i.test(message);
+    const isComplexTask = /create|build|generate|make.*website|redesign|restructure/i.test(message) || isWebsiteJsonRequest;
 
     try {
       const response = await generateAIResponse(
         message,
         history,
         language,
-        isComplexTask ? 'complex' : 'simple'
+        isComplexTask ? 'complex' : 'simple',
+        isWebsiteJsonRequest ? 'websiteBuilder' : 'general'
       );
 
       // Save conversation

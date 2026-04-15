@@ -12,11 +12,33 @@ const router = Router();
 router.get('/public/:shopName', (req: Request, res: Response): void => {
   const db = getDatabase();
   const { shopName } = req.params;
+  const host = (req.get('host') || '').toLowerCase();
+  const baseDomain = (process.env.BASE_DOMAIN || 'fera-search.tech').toLowerCase();
 
-  // Find user by subdomain
-  const user = db.prepare(
-    'SELECT id, name, business_name, subdomain FROM users WHERE subdomain = ?'
-  ).get(shopName) as { id: string; name: string; business_name: string; subdomain: string } | undefined;
+  let user;
+
+  // 1. If shopName is provided as a parameter (slug)
+  if (shopName && shopName !== 'undefined' && shopName !== 'null' && shopName !== 'me') {
+    user = db.prepare(
+      'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE subdomain = ? OR custom_domain = ?'
+    ).get(shopName, shopName) as any;
+  }
+
+  // 2. If not found by slug, or if accessed via a subdomain/custom domain directly
+  if (!user && host && host !== baseDomain && !host.includes('localhost') && !host.includes('github.dev')) {
+    // Try matching the whole host as a custom domain
+    user = db.prepare(
+      'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE custom_domain = ?'
+    ).get(host) as any;
+
+    // 3. Try matching as a subdomain (e.g. user.fera-search.tech)
+    if (!user && host.endsWith('.' + baseDomain)) {
+      const subdomain = host.replace('.' + baseDomain, '');
+      user = db.prepare(
+        'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE subdomain = ?'
+      ).get(subdomain) as any;
+    }
+  }
 
   if (!user) {
     res.status(404).json({ error: 'Shop not found' });
@@ -38,6 +60,7 @@ router.get('/public/:shopName', (req: Request, res: Response): void => {
 
   res.json({
     shop: {
+      id: user.id,
       name: user.business_name || user.name,
       subdomain: user.subdomain,
     },
@@ -305,7 +328,7 @@ function buildDefaultSections(businessType: string, businessName: string, config
         title: 'Our Products',
         columns: 3,
         showPrice: true,
-        showStock: false,
+        showStock: true,
         accentColor: palette.primary,
       },
     },
