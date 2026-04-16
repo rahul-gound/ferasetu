@@ -5,7 +5,9 @@ const USE_LOCAL_STORAGE_API = import.meta.env.VITE_USE_LOCAL_STORAGE !== 'false'
 interface LocalUser {
   id: string;
   email: string;
-  password: string;
+  password?: string;
+  password_hash?: string;
+  password_salt?: string;
   name: string;
   phone?: string;
   business_name?: string;
@@ -67,6 +69,7 @@ interface LocalDb {
 }
 
 const LOCAL_DB_KEY = 'fera_local_db_v1';
+const MAX_MESSAGE_PREVIEW_LENGTH = 120;
 
 const now = () => new Date().toISOString();
 const createId = () => {
@@ -135,7 +138,7 @@ function getCurrentUserId(): string | null {
 }
 
 function userPublicData(user: LocalUser) {
-  const { password, ...safeUser } = user;
+  const { password, password_hash, password_salt, ...safeUser } = user;
   return safeUser;
 }
 
@@ -149,14 +152,21 @@ function generateSubdomain(value: string): string {
     .slice(0, 60);
 }
 
-async function hashPassword(password: string): Promise<string> {
+async function hashPassword(password: string, salt: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
+  const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({
+    name: 'PBKDF2',
+    salt: encoder.encode(salt),
+    iterations: 100000,
+    hash: 'SHA-256',
+  }, keyMaterial, 256);
+  return Array.from(new Uint8Array(bits))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+const createSalt = () => createId().slice(0, 32);
 
 function splitUrl(url: string): { path: string; query: URLSearchParams } {
   const parsed = new URL(url, 'http://local.test');
@@ -374,7 +384,7 @@ async function localPost(url: string, payload: Record<string, unknown>) {
     const user: LocalUser = {
       id: createId(),
       email,
-      password: await hashPassword(password),
+      password_salt: createSalt(),
       name,
       phone: payload.phone ? String(payload.phone) : undefined,
       business_name: businessName || undefined,
@@ -384,6 +394,7 @@ async function localPost(url: string, payload: Record<string, unknown>) {
       custom_domain: undefined,
       created_at: now(),
     };
+    user.password_hash = await hashPassword(password, user.password_salt);
 
     db.users.push(user);
     saveDb(db);
@@ -393,9 +404,19 @@ async function localPost(url: string, payload: Record<string, unknown>) {
   if (path === '/auth/login') {
     const email = String(payload.email || '').trim().toLowerCase();
     const password = String(payload.password || '');
-    const hashedPassword = await hashPassword(password);
-    const user = db.users.find(u => u.email === email && u.password === hashedPassword);
+    const user = db.users.find(u => u.email === email);
     if (!user) throw createHttpError(401, 'Invalid email or password');
+    if (user.password_hash && user.password_salt) {
+      const hashedPassword = await hashPassword(password, user.password_salt);
+      if (user.password_hash !== hashedPassword) throw createHttpError(401, 'Invalid email or password');
+    } else if (user.password !== password) {
+      throw createHttpError(401, 'Invalid email or password');
+    } else {
+      user.password_salt = createSalt();
+      user.password_hash = await hashPassword(password, user.password_salt);
+      delete user.password;
+      saveDb(db);
+    }
     return createResponse({ user: userPublicData(user), token: `local-${user.id}` });
   }
 
@@ -451,7 +472,7 @@ async function localPost(url: string, payload: Record<string, unknown>) {
   if (path === '/ai/chat') {
     const message = String(payload.message || '');
     return createResponse({
-      content: `Local mode is enabled. I saved your message locally: "${message.slice(0, 120)}"`,
+      content: `Local mode is enabled. I saved your message locally: "${message.slice(0, MAX_MESSAGE_PREVIEW_LENGTH)}"`,
       model: 'Local Mock AI',
     });
   }
@@ -476,11 +497,11 @@ function localPut(url: string, payload: Record<string, unknown>) {
       name: String(payload.name ?? product.name),
       description: payload.description === undefined ? product.description : String(payload.description),
       price: Number(payload.price ?? product.price),
-      sale_price: parseSalePrice(payload.sale_price),
+      sale_price: payload.sale_price === undefined ? product.sale_price : parseSalePrice(payload.sale_price),
       category: String(payload.category ?? product.category),
       stock_quantity: Number(payload.stock_quantity ?? product.stock_quantity),
       image_url: payload.image_url === undefined ? product.image_url : String(payload.image_url),
-      is_active: payload.is_active !== false,
+      is_active: Boolean(payload.is_active ?? product.is_active),
       updated_at: now(),
     });
     saveDb(db);
@@ -518,7 +539,7 @@ function localPatch(url: string, payload: Record<string, unknown>) {
     const id = path.split('/')[2];
     const order = db.orders.find(o => o.id === id && o.user_id === userId);
     if (!order) throw createHttpError(404, 'Order not found');
-    order.payment_status = String(payload.payment_status ?? order.payment_status ?? 'unpaid');
+    order.payment_status = String(payload.payment_status ?? order.payment_status);
     order.updated_at = now();
     saveDb(db);
     return Promise.resolve(createResponse(order));
@@ -570,11 +591,11 @@ remoteApi.interceptors.response.use(
 );
 
 interface ApiClient {
-  get: (url: string) => Promise<{ data: unknown }>;
-  post: (url: string, payload: Record<string, unknown>) => Promise<{ data: unknown }>;
-  put: (url: string, payload: Record<string, unknown>) => Promise<{ data: unknown }>;
-  patch: (url: string, payload: Record<string, unknown>) => Promise<{ data: unknown }>;
-  delete: (url: string) => Promise<{ data: unknown }>;
+  get: <T = unknown>(url: string) => Promise<{ data: T }>;
+  post: <T = unknown>(url: string, payload: Record<string, unknown>) => Promise<{ data: T }>;
+  put: <T = unknown>(url: string, payload: Record<string, unknown>) => Promise<{ data: T }>;
+  patch: <T = unknown>(url: string, payload: Record<string, unknown>) => Promise<{ data: T }>;
+  delete: <T = unknown>(url: string) => Promise<{ data: T }>;
 }
 
 const localApi: ApiClient = {
