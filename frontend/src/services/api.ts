@@ -69,10 +69,17 @@ interface LocalDb {
 const LOCAL_DB_KEY = 'fera_local_db_v1';
 
 const now = () => new Date().toISOString();
-const createId = () =>
-  (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const createId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const parseSalePrice = (value: unknown): number | null =>
+  value === null || value === undefined || value === '' ? null : Number(value);
 
 const createResponse = <T>(data: T, status = 200) => ({
   data,
@@ -386,7 +393,7 @@ async function localPost(url: string, payload: Record<string, unknown>) {
       name: String(payload.name || ''),
       description: payload.description ? String(payload.description) : undefined,
       price: Number(payload.price || 0),
-      sale_price: payload.sale_price === null || payload.sale_price === undefined ? null : Number(payload.sale_price),
+      sale_price: parseSalePrice(payload.sale_price),
       category: String(payload.category || 'Other'),
       stock_quantity: Number(payload.stock_quantity || 0),
       image_url: payload.image_url ? String(payload.image_url) : undefined,
@@ -452,11 +459,11 @@ function localPut(url: string, payload: Record<string, unknown>) {
     const product = db.products.find(p => p.id === id && p.user_id === userId);
     if (!product) throw createHttpError(404, 'Product not found');
     Object.assign(product, {
-      name: String(payload.name || product.name),
+      name: String(payload.name ?? product.name),
       description: payload.description === undefined ? product.description : String(payload.description),
       price: Number(payload.price ?? product.price),
-      sale_price: payload.sale_price === null || payload.sale_price === undefined ? null : Number(payload.sale_price),
-      category: String(payload.category || product.category || 'Other'),
+      sale_price: parseSalePrice(payload.sale_price),
+      category: String(payload.category ?? product.category ?? 'Other'),
       stock_quantity: Number(payload.stock_quantity ?? product.stock_quantity),
       image_url: payload.image_url === undefined ? product.image_url : String(payload.image_url),
       is_active: payload.is_active !== false,
