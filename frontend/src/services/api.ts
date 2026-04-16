@@ -139,6 +139,15 @@ function generateSubdomain(value: string): string {
     .slice(0, 60);
 }
 
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 function splitUrl(url: string): { path: string; query: URLSearchParams } {
   const parsed = new URL(url, 'http://local.test');
   return { path: parsed.pathname, query: parsed.searchParams };
@@ -313,7 +322,6 @@ function localGet(url: string) {
     return Promise.resolve(createResponse({
       sales: buildRevenueChart(recentOrders, days),
       category_breakdown: Array.from(categoryMap.values()),
-      categoryBreakdown: Array.from(categoryMap.values()),
     }));
   }
 
@@ -330,7 +338,7 @@ function localGet(url: string) {
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
-function localPost(url: string, payload: Record<string, unknown>) {
+async function localPost(url: string, payload: Record<string, unknown>) {
   const { path } = splitUrl(url);
   const db = loadDb();
 
@@ -345,7 +353,7 @@ function localPost(url: string, payload: Record<string, unknown>) {
     const user: LocalUser = {
       id: createId(),
       email,
-      password,
+      password: await hashPassword(password),
       name,
       phone: payload.phone ? String(payload.phone) : undefined,
       business_name: businessName || undefined,
@@ -358,15 +366,16 @@ function localPost(url: string, payload: Record<string, unknown>) {
 
     db.users.push(user);
     saveDb(db);
-    return Promise.resolve(createResponse({ user: userPublicData(user), token: `local-${user.id}` }, 201));
+    return createResponse({ user: userPublicData(user), token: `local-${user.id}` }, 201);
   }
 
   if (path === '/auth/login') {
     const email = String(payload.email || '').trim().toLowerCase();
     const password = String(payload.password || '');
-    const user = db.users.find(u => u.email === email && u.password === password);
+    const hashedPassword = await hashPassword(password);
+    const user = db.users.find(u => u.email === email && u.password === hashedPassword);
     if (!user) throw createHttpError(401, 'Invalid email or password');
-    return Promise.resolve(createResponse({ user: userPublicData(user), token: `local-${user.id}` }));
+    return createResponse({ user: userPublicData(user), token: `local-${user.id}` });
   }
 
   if (path === '/products') {
@@ -387,7 +396,7 @@ function localPost(url: string, payload: Record<string, unknown>) {
     };
     db.products.push(product);
     saveDb(db);
-    return Promise.resolve(createResponse(product, 201));
+    return createResponse(product, 201);
   }
 
   if (path === '/website') {
@@ -399,7 +408,7 @@ function localPost(url: string, payload: Record<string, unknown>) {
       existing.sections = Array.isArray(payload.sections) ? payload.sections : existing.sections;
       existing.updated_at = now();
       saveDb(db);
-      return Promise.resolve(createResponse(existing));
+      return createResponse(existing);
     }
 
     const website: LocalWebsite = {
@@ -415,19 +424,19 @@ function localPost(url: string, payload: Record<string, unknown>) {
     };
     db.websites.push(website);
     saveDb(db);
-    return Promise.resolve(createResponse(website, 201));
+    return createResponse(website, 201);
   }
 
   if (path === '/ai/chat') {
     const message = String(payload.message || '');
-    return Promise.resolve(createResponse({
+    return createResponse({
       content: `Local mode is enabled. I saved your message locally: "${message.slice(0, 120)}"`,
       model: 'Local Mock AI',
-    }));
+    });
   }
 
   if (path === '/voice/text-to-speech') {
-    return Promise.resolve(createResponse({ audio: null }));
+    return createResponse({ audio: null });
   }
 
   throw createHttpError(404, `Unknown POST endpoint: ${path}`);
@@ -444,12 +453,12 @@ function localPut(url: string, payload: Record<string, unknown>) {
     if (!product) throw createHttpError(404, 'Product not found');
     Object.assign(product, {
       name: String(payload.name || product.name),
-      description: payload.description ? String(payload.description) : '',
+      description: payload.description === undefined ? product.description : String(payload.description),
       price: Number(payload.price ?? product.price),
       sale_price: payload.sale_price === null || payload.sale_price === undefined ? null : Number(payload.sale_price),
       category: String(payload.category || product.category || 'Other'),
       stock_quantity: Number(payload.stock_quantity ?? product.stock_quantity),
-      image_url: payload.image_url ? String(payload.image_url) : '',
+      image_url: payload.image_url === undefined ? product.image_url : String(payload.image_url),
       is_active: payload.is_active !== false,
       updated_at: now(),
     });
@@ -540,11 +549,11 @@ remoteApi.interceptors.response.use(
 );
 
 const localApi = {
-  get: (url: string) => Promise.resolve().then(() => localGet(url)),
-  post: (url: string, payload: Record<string, unknown>) => Promise.resolve().then(() => localPost(url, payload)),
-  put: (url: string, payload: Record<string, unknown>) => Promise.resolve().then(() => localPut(url, payload)),
-  patch: (url: string, payload: Record<string, unknown>) => Promise.resolve().then(() => localPatch(url, payload)),
-  delete: (url: string) => Promise.resolve().then(() => localDelete(url)),
+  get: (url: string) => localGet(url),
+  post: (url: string, payload: Record<string, unknown>) => localPost(url, payload),
+  put: (url: string, payload: Record<string, unknown>) => localPut(url, payload),
+  patch: (url: string, payload: Record<string, unknown>) => localPatch(url, payload),
+  delete: (url: string) => localDelete(url),
 };
 
 const api = USE_LOCAL_STORAGE_API ? localApi : remoteApi;
