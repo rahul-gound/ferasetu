@@ -73,9 +73,12 @@ const createId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 };
 
 const parseSalePrice = (value: unknown): number | null =>
@@ -270,12 +273,23 @@ function localGet(url: string) {
     const totalOrders = orders.length;
     const pendingOrders = orders.filter(o => ['pending', 'confirmed', 'preparing', 'out_for_delivery'].includes(o.status)).length;
     const lowStockCount = products.filter(p => p.stock_quantity <= 5).length;
+    const productSales = new Map<string, number>();
+
+    orders.forEach(order => {
+      (order.items || []).forEach(item => {
+        const current = productSales.get(item.product_name) || 0;
+        productSales.set(item.product_name, current + (item.quantity || 0));
+      });
+    });
+
+    const topProduct = [...productSales.entries()]
+      .sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
 
     const summary = {
       total_revenue: totalRevenue,
       total_orders: totalOrders,
       avg_order_value: totalOrders ? Number((totalRevenue / totalOrders).toFixed(2)) : 0,
-      top_product: products[0]?.name || '—',
+      top_product: topProduct,
       conversion_rate: 0,
     };
 
@@ -463,7 +477,7 @@ function localPut(url: string, payload: Record<string, unknown>) {
       description: payload.description === undefined ? product.description : String(payload.description),
       price: Number(payload.price ?? product.price),
       sale_price: parseSalePrice(payload.sale_price),
-      category: String(payload.category ?? product.category ?? 'Other'),
+      category: String(payload.category ?? product.category),
       stock_quantity: Number(payload.stock_quantity ?? product.stock_quantity),
       image_url: payload.image_url === undefined ? product.image_url : String(payload.image_url),
       is_active: payload.is_active !== false,
@@ -504,7 +518,7 @@ function localPatch(url: string, payload: Record<string, unknown>) {
     const id = path.split('/')[2];
     const order = db.orders.find(o => o.id === id && o.user_id === userId);
     if (!order) throw createHttpError(404, 'Order not found');
-    order.payment_status = String(payload.payment_status || order.payment_status || 'unpaid');
+    order.payment_status = String(payload.payment_status ?? order.payment_status ?? 'unpaid');
     order.updated_at = now();
     saveDb(db);
     return Promise.resolve(createResponse(order));
@@ -555,7 +569,15 @@ remoteApi.interceptors.response.use(
   }
 );
 
-const localApi = {
+interface ApiClient {
+  get: (url: string) => Promise<{ data: unknown }>;
+  post: (url: string, payload: Record<string, unknown>) => Promise<{ data: unknown }>;
+  put: (url: string, payload: Record<string, unknown>) => Promise<{ data: unknown }>;
+  patch: (url: string, payload: Record<string, unknown>) => Promise<{ data: unknown }>;
+  delete: (url: string) => Promise<{ data: unknown }>;
+}
+
+const localApi: ApiClient = {
   get: (url: string) => localGet(url),
   post: (url: string, payload: Record<string, unknown>) => localPost(url, payload),
   put: (url: string, payload: Record<string, unknown>) => localPut(url, payload),
@@ -563,6 +585,14 @@ const localApi = {
   delete: (url: string) => localDelete(url),
 };
 
-const api = USE_LOCAL_STORAGE_API ? localApi : remoteApi;
+const remoteApiAdapter: ApiClient = {
+  get: (url) => remoteApi.get(url),
+  post: (url, payload) => remoteApi.post(url, payload),
+  put: (url, payload) => remoteApi.put(url, payload),
+  patch: (url, payload) => remoteApi.patch(url, payload),
+  delete: (url) => remoteApi.delete(url),
+};
+
+const api: ApiClient = USE_LOCAL_STORAGE_API ? localApi : remoteApiAdapter;
 
 export default api;
