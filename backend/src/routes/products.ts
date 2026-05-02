@@ -75,43 +75,59 @@ router.get('/:id', (req: AuthenticatedRequest, res: Response): void => {
 // Create product
 router.post('/',
   upload.single('image'),
-  body('name').trim().notEmpty(),
-  body('price').isFloat({ min: 0 }),
+  body('name').trim().notEmpty().withMessage('Product name is required'),
+  body('price').isFloat({ min: 0 }).withMessage('Valid price is required'),
+  body('cost_price').optional().isFloat({ min: 0 }),
+  body('sale_price').optional().isFloat({ min: 0 }),
   body('stock_quantity').optional().isInt({ min: 0 }),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ errors: errors.array() });
-      return;
-    }
-
-    const db = getDatabase();
-
-    // Check free tier product limit
-    if (req.user!.plan === 'free') {
-      const maxProducts = parseInt(process.env.FREE_TIER_MAX_PRODUCTS || '50');
-      const count = (db.prepare('SELECT COUNT(*) as count FROM products WHERE user_id = ?').get(req.user!.id) as { count: number }).count;
-      if (count >= maxProducts) {
-        res.status(403).json({
-          error: `Free plan allows up to ${maxProducts} products. Upgrade to Premium for unlimited products.`,
-          upgradeRequired: true
-        });
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
         return;
       }
+
+      const db = getDatabase();
+
+      // Check product limits based on plan
+      const planLimits: Record<string, number> = {
+        'trial': parseInt(process.env.FREE_TIER_MAX_PRODUCTS || '50'),
+        'basic': 100,
+        'standard': 1000,
+        'pro': Infinity
+      };
+
+      const userPlan = req.user!.plan;
+      const limit = planLimits[userPlan] || 50;
+
+      if (limit !== Infinity) {
+        const count = (db.prepare('SELECT COUNT(*) as count FROM products WHERE user_id = ?').get(req.user!.id) as { count: number }).count;
+        if (count >= limit) {
+          res.status(403).json({
+            error: `${userPlan.charAt(0).toUpperCase() + userPlan.slice(1)} plan allows up to ${limit} products. Upgrade your plan for more.`,
+            upgradeRequired: true
+          });
+          return;
+        }
+      }
+
+      const id = uuidv4();
+      const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+      const { name, description, cost_price, price, sale_price, category, stock_quantity = 0, is_active = 1 } = req.body;
+
+      db.prepare(`
+        INSERT INTO products (id, user_id, name, description, cost_price, price, sale_price, category, stock_quantity, image_url, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `).run(id, req.user!.id, name, description || null, cost_price ? parseFloat(cost_price) : null, parseFloat(price), sale_price ? parseFloat(sale_price) : null, category || null, parseInt(stock_quantity), imageUrl, is_active ? 1 : 0);
+
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+      res.status(201).json(product);
+    } catch (error: any) {
+      console.error('Product creation error:', error);
+      res.status(500).json({ error: error.message || 'Failed to create product' });
     }
-
-    const id = uuidv4();
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
-    const { name, description, price, sale_price, category, stock_quantity = 0, is_active = 1 } = req.body;
-
-    db.prepare(`
-      INSERT INTO products (id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, req.user!.id, name, description || null, parseFloat(price), sale_price ? parseFloat(sale_price) : null, category || null, parseInt(stock_quantity), imageUrl, is_active ? 1 : 0);
-
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
-    res.status(201).json(product);
   }
 );
 
@@ -119,42 +135,50 @@ router.post('/',
 router.put('/:id',
   upload.single('image'),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const db = getDatabase();
-    const existing = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(req.params.id, req.user!.id);
-    if (!existing) {
-      res.status(404).json({ error: 'Product not found' });
-      return;
-    }
-
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    const updatable = ['name', 'description', 'price', 'sale_price', 'category', 'stock_quantity', 'is_active'];
-    for (const field of updatable) {
-      if (req.body[field] !== undefined) {
-        fields.push(`${field} = ?`);
-        let value = req.body[field];
-        if (field === 'is_active') value = value ? 1 : 0;
-        values.push(value);
+    try {
+      const db = getDatabase();
+      const existing = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(req.params.id, req.user!.id);
+      if (!existing) {
+        res.status(404).json({ error: 'Product not found' });
+        return;
       }
+
+      const fields: string[] = [];
+      const values: unknown[] = [];
+
+      const updatable = ['name', 'description', 'cost_price', 'price', 'sale_price', 'category', 'stock_quantity', 'is_active'];
+      for (const field of updatable) {
+        if (req.body[field] !== undefined) {
+          fields.push(`${field} = ?`);
+          let value = req.body[field];
+          if (field === 'is_active') value = value ? 1 : 0;
+          if (field === 'cost_price' && value !== null) value = parseFloat(value);
+          if (field === 'price' && value !== null) value = parseFloat(value);
+          if (field === 'sale_price' && value !== null) value = parseFloat(value);
+          values.push(value);
+        }
+      }
+
+      if (req.file) {
+        fields.push('image_url = ?');
+        values.push(`/uploads/${req.file.filename}`);
+      }
+
+      if (fields.length === 0) {
+        res.status(400).json({ error: 'No fields to update' });
+        return;
+      }
+
+      fields.push("updated_at = datetime('now')");
+      values.push(req.params.id, req.user!.id);
+
+      db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+      res.json(product);
+    } catch (error: any) {
+      console.error('Product update error:', error);
+      res.status(500).json({ error: error.message || 'Failed to update product' });
     }
-
-    if (req.file) {
-      fields.push('image_url = ?');
-      values.push(`/uploads/${req.file.filename}`);
-    }
-
-    if (fields.length === 0) {
-      res.status(400).json({ error: 'No fields to update' });
-      return;
-    }
-
-    fields.push("updated_at = datetime('now')");
-    values.push(req.params.id, req.user!.id);
-
-    db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
-    res.json(product);
   }
 );
 

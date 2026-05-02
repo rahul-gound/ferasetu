@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -57,7 +58,7 @@ function StatCard({
   color: string; change?: number; loading: boolean;
 }) {
   return (
-    <div className="card" style={{ padding: '24px' }}>
+    <div className="card dashboard-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div style={{
           width: '40px', height: '40px', borderRadius: '10px',
@@ -104,30 +105,71 @@ export default function DashboardPage() {
     retry: 1,
   });
 
-  if (error) {
-    toast.error('Failed to load dashboard data');
-  }
+  useEffect(() => {
+    if (error) {
+      toast.error('Failed to load dashboard data');
+    }
+  }, [error]);
 
   const stats = data?.stats;
+  const isNewUser = !data || data?.stats?.total_orders === 0;
 
   return (
-    <div>
+    <div className="dashboard-wrapper">
+      {/* Getting Started Banner for New Users */}
+      {isNewUser && (
+        <div style={{
+          marginBottom: '24px',
+          padding: '20px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '14px',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '20px',
+        }}>
+          <div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700 }}>
+              🎉 Welcome to Fera, {user?.name}!
+            </h3>
+            <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+              Let's get your online store set up in just a few minutes
+            </p>
+          </div>
+          <Link
+            to="/get-started"
+            style={{
+              padding: '10px 20px',
+              background: '#fff',
+              color: '#667eea',
+              textDecoration: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '14px',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            Get Started →
+          </Link>
+        </div>
+      )}
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>
+      <div className="dashboard-header">
+        <h1 className="dashboard-title">
           Overview
         </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '15px' }}>
+        <p className="dashboard-subtitle">
           Real-time performance metrics for {user?.business_name || 'your store'}.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: '24px', marginBottom: '32px',
-      }}>
+      <div className="stats-grid">
         <StatCard
           label={translate('totalRevenue')}
           value={stats ? `₹${stats.total_revenue.toLocaleString('en-IN')}` : '—'}
@@ -160,10 +202,24 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts + Orders Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', marginBottom: '32px' }}>
+      {/* Platform Health Notification */}
+      {!isLoading && !error && (
+        <div style={{
+          marginTop: '24px', padding: '12px 20px', borderRadius: '12px',
+          background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.1)',
+          display: 'flex', alignItems: 'center', gap: '10px'
+        }}>
+           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 0 3px rgba(16,185,129,0.1)' }} />
+           <span style={{ fontSize: '13px', fontWeight: 600, color: '#059669' }}>
+              Your website is up and running. Synced with database.
+           </span>
+        </div>
+      )}
+
+      {/* Charts + Actions Row */}
+      <div className="main-content-grid">
         {/* Revenue Chart */}
-        <div className="card" style={{ padding: '24px' }}>
+        <div className="card dashboard-card chart-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>
               Revenue Performance
@@ -172,38 +228,40 @@ export default function DashboardPage() {
               Last 30 Days
             </div>
           </div>
-          {isLoading ? (
-            <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shimmer h="220px" />
-            </div>
-          ) : data?.revenue_chart && data.revenue_chart.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={data.revenue_chart} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={v => `₹${v}`} />
-                <Tooltip
-                  cursor={{ stroke: '#CBD5E1', strokeWidth: 1 }}
-                  contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', padding: '12px' }}
-                />
-                <Line
-                  type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3}
-                  dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{
-              height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)', fontSize: '14px',
-            }}>
-              No performance data available
-            </div>
-          )}
+          <div className="chart-container">
+            {isLoading ? (
+              <div style={{ height: '100%', minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Shimmer h="220px" />
+              </div>
+            ) : data?.revenue_chart && data.revenue_chart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={data.revenue_chart} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={v => `₹${v}`} />
+                  <Tooltip
+                    cursor={{ stroke: '#CBD5E1', strokeWidth: 1 }}
+                    contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', padding: '12px' }}
+                  />
+                  <Line
+                    isAnimationActive={false} type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3}
+                    dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{
+                height: '100%', minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--text-muted)', fontSize: '14px',
+              }}>
+                No performance data available
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="card" style={{ padding: '24px' }}>
+        <div className="card dashboard-card">
           <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: 'var(--text)' }}>
             Actions
           </h2>
@@ -248,10 +306,10 @@ export default function DashboardPage() {
               border: '1px solid rgba(255,107,53,0.2)',
             }}>
               <p style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 600, marginBottom: '6px' }}>
-                ⭐ Upgrade to Premium
+                🚀 Scale Your Business
               </p>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                Unlimited products, custom domain & AI predictions
+                Unlock AI predictions, Custom Domains & Unlimited Products
               </p>
               <Link
                 to="/upgrade"
@@ -263,7 +321,7 @@ export default function DashboardPage() {
                   fontSize: '12px', fontWeight: 700,
                 }}
               >
-                Upgrade for ₹499/mo →
+                View Upgrade Plans →
               </Link>
             </div>
           )}
@@ -271,7 +329,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Orders */}
-      <div className="card" style={{ padding: '24px' }}>
+      <div className="card dashboard-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Recent Orders</h2>
           <Link to="/orders" style={{ fontSize: '13px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
@@ -284,16 +342,15 @@ export default function DashboardPage() {
             {[1, 2, 3].map(i => <Shimmer key={i} h="48px" />)}
           </div>
         ) : data?.recent_orders && data.recent_orders.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <div style={{ overflowX: 'auto', margin: '0 -12px', padding: '0 12px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '500px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Customer', 'Items', 'Total', 'Status', 'Date'].map(h => (
-                    <th key={h} style={{
-                      textAlign: 'left', padding: '8px 12px',
-                      fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
-                    }}>{h}</th>
-                  ))}
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Customer</th>
+                  <th className="hide-mobile" style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Items</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Total</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Status</th>
+                  <th className="hide-tablet" style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,7 +359,7 @@ export default function DashboardPage() {
                     <td style={{ padding: '12px 12px', fontWeight: 500, color: 'var(--text)' }}>
                       {order.customer_name}
                     </td>
-                    <td style={{ padding: '12px 12px', color: 'var(--text-muted)' }}>
+                    <td className="hide-mobile" style={{ padding: '12px 12px', color: 'var(--text-muted)' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Package size={13} /> {order.items_count}
                       </span>
@@ -319,7 +376,7 @@ export default function DashboardPage() {
                         {order.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 12px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    <td className="hide-tablet" style={{ padding: '12px 12px', color: 'var(--text-muted)', fontSize: '12px' }}>
                       {new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                     </td>
                   </tr>
@@ -337,7 +394,97 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+      <style>{`
+        .dashboard-wrapper {
+          padding-bottom: 32px;
+        }
+        .dashboard-header {
+          margin-bottom: 32px;
+        }
+        .dashboard-title {
+          font-size: 30px;
+          font-weight: 800;
+          color: var(--text);
+          letter-spacing: -0.03em;
+        }
+        .dashboard-subtitle {
+          color: var(--text-muted);
+          margin-top: 4px;
+          font-size: 15px;
+        }
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 24px;
+          margin-bottom: 32px;
+        }
+        .main-content-grid {
+          display: grid;
+          grid-template-columns: 1fr 340px;
+          gap: 24px;
+          margin-bottom: 32px;
+        }
+        .dashboard-card {
+          padding: 24px;
+        }
+        .chart-card {
+          display: flex;
+          flex-direction: column;
+        }
+        .chart-container {
+          flex: 1;
+          min-height: 240px;
+          min-width: 0;
+        }
+
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        @media (max-width: 1024px) {
+          .main-content-grid {
+            grid-template-columns: 1fr;
+          }
+          .hide-tablet {
+            display: none;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .dashboard-header {
+            margin-bottom: 24px;
+          }
+          .dashboard-title {
+            font-size: 24px;
+          }
+          .dashboard-subtitle {
+            font-size: 14px;
+          }
+          .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+          .main-content-grid {
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+          .dashboard-card {
+            padding: 16px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .stats-grid {
+            grid-template-columns: 1fr;
+          }
+          .hide-mobile {
+            display: none;
+          }
+          .chart-container {
+            min-height: 200px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
+

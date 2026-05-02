@@ -34,7 +34,7 @@ export default function ContactSection({ config }: ContactSectionProps) {
   const waNumber = phone ? phone.replace(/\D/g, '') : '';
 
   return (
-    <section style={{ background: '#F8FAFC', padding: '60px 24px' }}>
+    <section style={{ background: '#F8FAFC', padding: 'clamp(40px, 8vw, 80px) 24px' }}>
       <h2 style={{
         textAlign: 'center', fontSize: '32px', fontWeight: 800,
         color: '#1E293B', marginBottom: '40px',

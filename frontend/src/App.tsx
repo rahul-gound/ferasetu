@@ -7,13 +7,24 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import GetStartedPage from './pages/GetStartedPage';
 import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/ProductsPage';
 import OrdersPage from './pages/OrdersPage';
+import SupportPage from './pages/SupportPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import WebsiteBuilderPage from './pages/WebsiteBuilderPage';
+import UpgradePage from './pages/UpgradePage';
 import ShopPage from './pages/ShopPage';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminShopsPage from './pages/AdminShopsPage';
+import AdminOrdersPage from './pages/AdminOrdersPage';
+import AdminTicketsPage from './pages/AdminTicketsPage';
+import AdminSystemPage from './pages/AdminSystemPage';
+import AdminProtectedRoute from './components/admin/AdminProtectedRoute';
 import Layout from './components/Layout';
 
 const queryClient = new QueryClient({
@@ -38,9 +49,10 @@ function AppRoutes() {
   const hostname = window.location.hostname;
   
   // Detect if we are on a shop subdomain (not localhost, not the main platform)
-  const isShopSubdomain = hostname.endsWith('.fera-shop.fera-seach.tech') || 
+  const isShopSubdomain = hostname.endsWith('.fera-shop.fera-search.tech') || 
                           (hostname !== 'localhost' && 
-                           hostname !== 'fera-shop.fera-seach.tech' && 
+                           hostname !== 'fera-shop.fera-search.tech' && 
+                           hostname !== 'fera-search.tech' &&
                            !hostname.includes('app.github.dev'));
 
   if (isShopSubdomain) {
@@ -57,17 +69,38 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       <Route path="/shop/:shopName" element={<ShopPage />} />
+      
+      {/* Admin Routes */}
+      <Route path="/admin" element={<AdminLogin />} />
+      <Route path="/admin/*" element={
+        <AdminProtectedRoute>
+          <Routes>
+            <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="shops" element={<AdminShopsPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="tickets" element={<AdminTicketsPage />} />
+            <Route path="system" element={<AdminSystemPage />} />
+            {/* Fallback for admin */}
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+          </Routes>
+        </AdminProtectedRoute>
+      } />
+
       <Route path="/*" element={
         <ProtectedRoute>
           <LanguageProvider>
             <Layout>
               <Routes>
+                <Route path="/get-started" element={<GetStartedPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/ai-assistant" element={<AIAssistantPage />} />
                 <Route path="/website-builder" element={<WebsiteBuilderPage />} />
+                <Route path="/upgrade" element={<UpgradePage />} />
+                <Route path="/support" element={<SupportPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Layout>

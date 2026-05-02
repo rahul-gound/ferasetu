@@ -7,7 +7,7 @@ interface User {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium';
+  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -18,6 +18,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  sendOtp: (email: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -30,6 +31,7 @@ interface RegisterData {
   phone?: string;
   businessName?: string;
   preferredLanguage?: string;
+  otp: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,13 +42,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('fera_token');
-    const savedUser = localStorage.getItem('fera_user');
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    const initAuth = async () => {
+      const savedToken = localStorage.getItem('fera_token');
+      const savedUser = localStorage.getItem('fera_user');
+      
+      if (savedToken) {
+        setToken(savedToken);
+        // Even if we have a saved user, fetch fresh data to sync plans/blocks
+        try {
+          const res = await api.get('/auth/me');
+          setUser(res.data);
+          localStorage.setItem('fera_user', JSON.stringify(res.data));
+        } catch (err) {
+          console.error('Failed to sync profile:', err);
+          if (savedUser) setUser(JSON.parse(savedUser));
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -56,6 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(t);
     localStorage.setItem('fera_token', t);
     localStorage.setItem('fera_user', JSON.stringify(u));
+  };
+
+  const sendOtp = async (email: string) => {
+    await api.post('/auth/send-otp', { email });
   };
 
   const register = async (data: RegisterData) => {
@@ -83,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, sendOtp, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

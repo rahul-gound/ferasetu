@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
-  Bot, Globe, LogOut, Menu, X, ChevronDown
+  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/analytics', icon: <BarChart3 size={20} />, labelKey: 'analytics' },
   { path: '/ai-assistant', icon: <Bot size={20} />, labelKey: 'aiAssistant' },
   { path: '/website-builder', icon: <Globe size={20} />, labelKey: 'websiteBuilder' },
+  { path: '/support', icon: <LifeBuoy size={20} />, labelKey: 'support' },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -47,14 +48,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         gap: '12px'
       }}>
         <div style={{
-          width: '32px', height: '32px', borderRadius: '8px',
-          background: 'var(--primary-accent)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', color: '#fff',
-          fontWeight: 800, fontSize: '18px'
-        }}>F</div>
+          width: '40px', height: '40px', borderRadius: '12px',
+          background: 'var(--primary)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+          boxShadow: '0 4px 12px rgba(255, 107, 53, 0.2)'
+        }}>
+          <img 
+            src="/logo_v1.png" 
+            alt="Fera" 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              const parent = (e.target as HTMLImageElement).parentElement;
+              if (parent) {
+                const fallback = document.createElement('span');
+                fallback.innerText = 'F';
+                fallback.style.color = '#fff';
+                fallback.style.fontWeight = '900';
+                fallback.style.fontSize = '20px';
+                parent.appendChild(fallback);
+              }
+            }}
+          />
+        </div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)', letterSpacing: '-0.03em' }}>Fera</div>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shopkeeper AI</div>
+          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>Fera</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Shopkeeper AI</div>
         </div>
       </div>
 

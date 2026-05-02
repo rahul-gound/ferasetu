@@ -16,7 +16,8 @@ export default function ShopPage() {
 
   useEffect(() => {
     const hostname = window.location.hostname;
-    const isMainPlatform = hostname.includes('fera-shop.fera-seach.tech') || 
+    const isMainPlatform = hostname.includes('fera-shop.fera-search.tech') || 
+                           hostname.includes('fera-search.tech') ||
                            hostname.includes('app.github.dev') ||
                            hostname.includes('localhost');
 
@@ -126,6 +127,7 @@ export default function ShopPage() {
       sections={data.website.sections}
       products={data.products}
       shopName={data.shop.name}
+      shopId={data.shop.id}
     />
   );
 }

@@ -218,7 +218,7 @@ Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, O
 ## 🏗️ Key Features
 
 ### Free Tier
-- Free subdomain: `businessname.fera-shop.fera-seach.tech`
+- Free subdomain: `businessname.fera-shop.fera-search.tech`
 - Up to **50 products**
 - Basic AI (Sarvam-30B)
 - Order management + basic invoices
@@ -282,7 +282,7 @@ SARVAM_API_BASE_URL=https://api.sarvam.ai/v1
 DATABASE_PATH=./data/fera_shopkeeper.db
 FRONTEND_URL=http://localhost:5173
 FREE_TIER_MAX_PRODUCTS=50
-BASE_DOMAIN=fera-shop.fera-seach.tech
+BASE_DOMAIN=fera-shop.fera-search.tech
 ```
 
 **Frontend** — create `frontend/.env`:
@@ -329,14 +329,14 @@ VPS (DigitalOcean / AWS EC2 / Hetzner)
 ├── nginx (reverse proxy)
 │   ├── / → frontend static files (frontend/dist)
 │   ├── /api → backend :5000
-│   └── Wildcard SSL (*.fera-shop.fera-seach.tech)
+│   └── Wildcard SSL (*.fera-shop.fera-search.tech)
 └── PM2 → backend process management
 ```
 
 **nginx config snippet:**
 ```nginx
 server {
-  server_name *.fera-shop.fera-seach.tech;
+  server_name *.fera-shop.fera-search.tech;
   location /api { proxy_pass http://localhost:5000; }
   location / { root /var/www/fera/frontend/dist; try_files $uri $uri/ /index.html; }
 }
@@ -350,8 +350,8 @@ server {
 
 ### Wildcard Subdomain Setup
 
-1. Add `A` record: `*.fera-shop.fera-seach.tech → your-server-IP`
-2. Generate wildcard SSL: `certbot --nginx -d *.fera-shop.fera-seach.tech`
+1. Add `A` record: `*.fera-shop.fera-search.tech → your-server-IP`
+2. Generate wildcard SSL: `certbot --nginx -d *.fera-shop.fera-search.tech`
 
 ---
 

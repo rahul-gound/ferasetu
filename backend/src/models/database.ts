@@ -20,8 +20,14 @@ class SqlJsDb {
   }
 
   exec(sql: string): void {
-    this._db.run(sql);
-    this._persist();
+    try {
+      this._db.exec(sql);
+      this._persist();
+    } catch (err: any) {
+      console.error('SQL Execution Error:', err);
+      console.error('SQL Statement:', sql.substring(0, 500) + (sql.length > 500 ? '...' : ''));
+      throw err;
+    }
   }
 
   prepare(sql: string): PreparedStatement {
@@ -127,25 +133,26 @@ export async function initializeDatabase(): Promise<void> {
 
   db.pragma('foreign_keys = ON');
 
-  db.exec(`
-    -- Users table
-    CREATE TABLE IF NOT EXISTS users (
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       name TEXT NOT NULL,
       phone TEXT,
       business_name TEXT,
-      plan TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'premium')),
+      logo_url TEXT,
+      plan TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'premium', 'trial', 'basic', 'standard', 'pro')),
+      plan_expires_at TEXT,
       preferred_language TEXT NOT NULL DEFAULT 'en',
       subdomain TEXT UNIQUE,
       custom_domain TEXT UNIQUE,
+      is_blocked INTEGER NOT NULL DEFAULT 0,
+      is_verified INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Website configurations
-    CREATE TABLE IF NOT EXISTS websites (
+    )`,
+    `CREATE TABLE IF NOT EXISTS websites (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
@@ -156,14 +163,13 @@ export async function initializeDatabase(): Promise<void> {
       theme JSON NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Products table
-    CREATE TABLE IF NOT EXISTS products (
+    )`,
+    `CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       description TEXT,
+      cost_price REAL,
       price REAL NOT NULL,
       sale_price REAL,
       category TEXT,
@@ -173,10 +179,8 @@ export async function initializeDatabase(): Promise<void> {
       metadata JSON DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Orders table
-    CREATE TABLE IF NOT EXISTS orders (
+    )`,
+    `CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       customer_name TEXT NOT NULL,
@@ -193,10 +197,8 @@ export async function initializeDatabase(): Promise<void> {
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- AI conversation history
-    CREATE TABLE IF NOT EXISTS ai_conversations (
+    )`,
+    `CREATE TABLE IF NOT EXISTS ai_conversations (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
@@ -204,19 +206,15 @@ export async function initializeDatabase(): Promise<void> {
       language TEXT NOT NULL DEFAULT 'en',
       model_used TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Analytics events
-    CREATE TABLE IF NOT EXISTS analytics_events (
+    )`,
+    `CREATE TABLE IF NOT EXISTS analytics_events (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       event_type TEXT NOT NULL,
       event_data JSON DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    -- Invoices table
-    CREATE TABLE IF NOT EXISTS invoices (
+    )`,
+    `CREATE TABLE IF NOT EXISTS invoices (
       id TEXT PRIMARY KEY,
       order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -227,14 +225,133 @@ export async function initializeDatabase(): Promise<void> {
       total REAL NOT NULL,
       status TEXT NOT NULL DEFAULT 'unpaid' CHECK(status IN ('unpaid', 'paid', 'cancelled')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+    )`,
+    `CREATE TABLE IF NOT EXISTS transactions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider_order_id TEXT UNIQUE,
+      provider_payment_id TEXT UNIQUE,
+      amount REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'INR',
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'completed', 'failed')),
+      plan TEXT NOT NULL CHECK(plan IN ('trial', 'basic', 'standard', 'pro')),
+      metadata JSON DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS tickets (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'in_progress', 'resolved')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS ticket_replies (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+      sender_role TEXT NOT NULL CHECK(sender_role IN ('admin', 'user')),
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS otp_codes (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      otp_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS announcements (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      target_plan TEXT NOT NULL DEFAULT 'all',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      expires_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS feature_flags (
+      id TEXT PRIMARY KEY,
+      flag_key TEXT UNIQUE NOT NULL,
+      description TEXT,
+      is_enabled INTEGER NOT NULL DEFAULT 0,
+      rules_json JSON NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS ai_usage_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      model TEXT NOT NULL,
+      prompt_tokens INTEGER NOT NULL DEFAULT 0,
+      completion_tokens INTEGER NOT NULL DEFAULT 0,
+      cost REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_ai_conversations_user ON ai_conversations(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_events(user_id, created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes(email)`
+  ];
 
-    -- Indexes
-    CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id);
-    CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
-    CREATE INDEX IF NOT EXISTS idx_ai_conversations_user ON ai_conversations(user_id);
-    CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_events(user_id, created_at);
-  `);
+  for (const sql of statements) {
+    try {
+      db.exec(sql);
+    } catch (err: any) {
+      console.warn(`⚠️ Statement failed (might already exist or be slightly different): ${err.message}`);
+    }
+  }
+
+  // Migration: Add is_blocked if it doesn't exist AND Fix Plan Constraints
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(users)").all() as any[];
+    const hasBlocked = tableInfo.some(col => col.name === 'is_blocked');
+    const hasPlanExpires = tableInfo.some(col => col.name === 'plan_expires_at');
+    const hasVerified = tableInfo.some(col => col.name === 'is_verified');
+    
+    // Run migration if we are missing any of the new columns
+    if (!hasBlocked || !hasPlanExpires || !hasVerified) {
+      console.log('🔄 Migrating database: Adding new columns to users table...');
+      
+      if (!hasBlocked) {
+        try { db.exec("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0"); } catch(e) {}
+      }
+      if (!hasPlanExpires) {
+        try { db.exec("ALTER TABLE users ADD COLUMN plan_expires_at TEXT"); } catch(e) {}
+      }
+      if (!hasVerified) {
+        try { db.exec("ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"); } catch(e) {}
+      }
+      
+      console.log('✅ Migration complete.');
+    }
+  } catch (e) {
+    console.error("Migration check skipped (table might not exist yet):", e);
+  }
+
+  // Migration: Add missing columns to products table
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(products)").all() as any[];
+    const hasCostPrice = tableInfo.some(col => col.name === 'cost_price');
+    const hasSalePrice = tableInfo.some(col => col.name === 'sale_price');
+    
+    if (!hasCostPrice || !hasSalePrice) {
+      console.log('🔄 Migrating database: Adding new columns to products table...');
+      if (!hasCostPrice) {
+        try { db.exec("ALTER TABLE products ADD COLUMN cost_price REAL"); } catch(e) {}
+      }
+      if (!hasSalePrice) {
+        try { db.exec("ALTER TABLE products ADD COLUMN sale_price REAL"); } catch(e) {}
+      }
+      console.log('✅ Products table migration complete.');
+    }
+  } catch (e) {
+    console.error("Products migration check skipped:", e);
+  }
 
   console.log('✅ Database initialized successfully');
 }

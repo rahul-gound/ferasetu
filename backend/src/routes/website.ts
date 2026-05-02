@@ -1,7 +1,7 @@
 import { Router, Response, Request } from 'express';
 import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, validatePublicShop } from '../middleware/auth';
 import { getDatabase } from '../models/database';
 import { generateWebsiteConfig } from '../services/sarvamAI';
 
@@ -9,7 +9,7 @@ const router = Router();
 
 // ── Public shop endpoint (no auth) ──────────────────────────────────────────
 // GET /api/website/public/:shopName
-router.get('/public/:shopName', (req: Request, res: Response): void => {
+router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response): void => {
   const db = getDatabase();
   const { shopName } = req.params;
   const host = (req.get('host') || '').toLowerCase();
@@ -55,7 +55,7 @@ router.get('/public/:shopName', (req: Request, res: Response): void => {
   }
 
   const products = db.prepare(
-    'SELECT * FROM products WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC'
+    'SELECT id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active, created_at FROM products WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC'
   ).all(user.id);
 
   res.json({

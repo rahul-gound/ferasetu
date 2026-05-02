@@ -11,7 +11,7 @@ interface LocalUser {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium';
+  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -23,6 +23,7 @@ interface LocalProduct {
   user_id: string;
   name: string;
   description?: string;
+  cost_price?: number;
   price: number;
   sale_price?: number | null;
   category: string;
@@ -73,12 +74,12 @@ const MAX_MESSAGE_PREVIEW_LENGTH = 120;
 
 const now = () => new Date().toISOString();
 const createId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && 'randomUUID' in (crypto as any)) {
+    return (crypto as any).randomUUID();
   }
-  if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
+  if (typeof crypto !== 'undefined' && 'getRandomValues' in (crypto as any)) {
     const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
+    (crypto as any).getRandomValues(bytes);
     return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
@@ -210,7 +211,7 @@ function buildRevenueChart(orders: LocalOrder[], days = 30): Array<{ date: strin
   return Array.from(buckets.values());
 }
 
-function localGet(url: string) {
+async function localGet(url: string) {
   const { path, query } = splitUrl(url);
   const db = loadDb();
 
@@ -267,6 +268,108 @@ function localGet(url: string) {
           { id: 'hero-1', type: 'hero', config: { headline: 'Everything you need in one place' } },
           { id: 'banner-1', type: 'banner', config: { text: 'Best quality, best service' } },
           { id: 'products-1', type: 'productGrid', config: { title: 'Featured Products', columns: 3 } },
+          { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
+        ],
+      },
+      {
+        id: 'fashion',
+        name: 'Fashion Boutique',
+        description: 'Modern design for clothing and fashion stores.',
+        category: 'Retail',
+        primaryColor: '#8B5CF6',
+        accentColor: '#EC4899',
+        emoji: '👗',
+        defaultSections: [
+          { id: 'navbar-1', type: 'navbar', config: { shopName: 'My Store' } },
+          { id: 'hero-1', type: 'hero', config: { headline: 'Discover Your Style' } },
+          { id: 'products-1', type: 'productGrid', config: { title: 'Latest Collection', columns: 4 } },
+          { id: 'banner-1', type: 'banner', config: { text: 'Exclusive Offers Now Live!' } },
+          { id: 'contact-1', type: 'contact', config: { phone: '+91 98765 43210' } },
+          { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
+        ],
+      },
+      {
+        id: 'electronics',
+        name: 'Electronics Store',
+        description: 'Professional layout for tech and gadget retailers.',
+        category: 'Tech',
+        primaryColor: '#1F2937',
+        accentColor: '#3B82F6',
+        emoji: '📱',
+        defaultSections: [
+          { id: 'navbar-1', type: 'navbar', config: { shopName: 'My Store' } },
+          { id: 'hero-1', type: 'hero', config: { headline: 'Latest Tech at Best Prices' } },
+          { id: 'products-1', type: 'productGrid', config: { title: 'Featured Tech', columns: 3 } },
+          { id: 'banner-1', type: 'banner', config: { text: 'Fast Delivery & Warranty' } },
+          { id: 'contact-1', type: 'contact', config: { phone: '+91 98765 43210' } },
+          { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
+        ],
+      },
+      {
+        id: 'restaurant',
+        name: 'Restaurant & Food',
+        description: 'Appetizing design for food businesses and restaurants.',
+        category: 'Food & Beverage',
+        primaryColor: '#DC2626',
+        accentColor: '#F59E0B',
+        emoji: '🍕',
+        defaultSections: [
+          { id: 'navbar-1', type: 'navbar', config: { shopName: 'My Store' } },
+          { id: 'hero-1', type: 'hero', config: { headline: 'Delicious Food Delivered' } },
+          { id: 'products-1', type: 'productGrid', config: { title: 'Our Specialties', columns: 3 } },
+          { id: 'banner-1', type: 'banner', config: { text: 'Order Now, Enjoy Later!' } },
+          { id: 'contact-1', type: 'contact', config: { phone: '+91 98765 43210' } },
+          { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
+        ],
+      },
+      {
+        id: 'services',
+        name: 'Services & Salon',
+        description: 'Elegant design for service-based businesses.',
+        category: 'Services',
+        primaryColor: '#E91E63',
+        accentColor: '#673AB7',
+        emoji: '✂️',
+        defaultSections: [
+          { id: 'navbar-1', type: 'navbar', config: { shopName: 'My Store' } },
+          { id: 'hero-1', type: 'hero', config: { headline: 'Your Trusted Service Partner' } },
+          { id: 'products-1', type: 'productGrid', config: { title: 'Our Services', columns: 3 } },
+          { id: 'banner-1', type: 'banner', config: { text: 'Book Your Appointment Today' } },
+          { id: 'contact-1', type: 'contact', config: { phone: '+91 98765 43210' } },
+          { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
+        ],
+      },
+      {
+        id: 'photography',
+        name: 'Photography Portfolio',
+        description: 'Showcase design for photographers and creative studios.',
+        category: 'Creative',
+        primaryColor: '#1A1A1A',
+        accentColor: '#FFD700',
+        emoji: '📸',
+        defaultSections: [
+          { id: 'navbar-1', type: 'navbar', config: { shopName: 'My Store' } },
+          { id: 'hero-1', type: 'hero', config: { headline: 'Capturing Life\'s Beautiful Moments' } },
+          { id: 'products-1', type: 'productGrid', config: { title: 'Portfolio', columns: 4 } },
+          { id: 'banner-1', type: 'banner', config: { text: 'Professional Photography Services' } },
+          { id: 'contact-1', type: 'contact', config: { phone: '+91 98765 43210' } },
+          { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
+        ],
+      },
+      {
+        id: 'blog',
+        name: 'Blog & Magazine',
+        description: 'Content-focused design for blogs and digital publications.',
+        category: 'Content',
+        primaryColor: '#5B21B6',
+        accentColor: '#06B6D4',
+        emoji: '📰',
+        defaultSections: [
+          { id: 'navbar-1', type: 'navbar', config: { shopName: 'My Store' } },
+          { id: 'hero-1', type: 'hero', config: { headline: 'Read Our Latest Stories' } },
+          { id: 'products-1', type: 'productGrid', config: { title: 'Featured Articles', columns: 2 } },
+          { id: 'banner-1', type: 'banner', config: { text: 'Subscribe for Updates' } },
+          { id: 'contact-1', type: 'contact', config: { phone: '+91 98765 43210' } },
           { id: 'footer-1', type: 'footer', config: { shopName: 'My Store' } },
         ],
       },
@@ -369,7 +472,7 @@ function localGet(url: string) {
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
-async function localPost(url: string, payload: Record<string, unknown>) {
+async function localPost(url: string, payload: Record<string, any>) {
   const { path } = splitUrl(url);
   const db = loadDb();
 
@@ -394,7 +497,7 @@ async function localPost(url: string, payload: Record<string, unknown>) {
       custom_domain: undefined,
       created_at: now(),
     };
-    user.password_hash = await hashPassword(password, user.password_salt);
+    user.password_hash = await hashPassword(password, user.password_salt || '');
 
     db.users.push(user);
     saveDb(db);
@@ -427,6 +530,7 @@ async function localPost(url: string, payload: Record<string, unknown>) {
       user_id: userId,
       name: String(payload.name || ''),
       description: payload.description ? String(payload.description) : undefined,
+      cost_price: payload.cost_price ? Number(payload.cost_price) : undefined,
       price: Number(payload.price || 0),
       sale_price: parseSalePrice(payload.sale_price),
       category: String(payload.category || 'Other'),
@@ -477,6 +581,28 @@ async function localPost(url: string, payload: Record<string, unknown>) {
     });
   }
 
+  if (path === '/payment/initialize') {
+    return createResponse({
+      id: createId(),
+      providerOrderId: `order_${createId().substring(0, 14)}`,
+      amount: Number(payload.amount || 0),
+      currency: 'INR',
+      key: 'rzp_test_local_mock'
+    }, 201);
+  }
+
+  if (path === '/payment/verify') {
+    const userId = getCurrentUserId();
+    if (userId) {
+      const user = db.users.find(u => u.id === userId);
+      if (user) {
+        user.plan = 'premium';
+        saveDb(db);
+      }
+    }
+    return createResponse({ success: true, message: 'Plan upgraded successfully' });
+  }
+
   if (path === '/voice/text-to-speech') {
     return createResponse({ audio: null });
   }
@@ -484,10 +610,22 @@ async function localPost(url: string, payload: Record<string, unknown>) {
   throw createHttpError(404, `Unknown POST endpoint: ${path}`);
 }
 
-function localPut(url: string, payload: Record<string, unknown>) {
+async function localPut(url: string, payload: Record<string, any>) {
   const { path } = splitUrl(url);
   const db = loadDb();
   const userId = requireAuth();
+
+  if (path === '/users/profile') {
+    const user = db.users.find(u => u.id === userId);
+    if (!user) throw createHttpError(404, 'User not found');
+    Object.assign(user, {
+      business_name: payload.business_name ?? user.business_name,
+      preferred_language: payload.preferredLanguage ?? user.preferred_language,
+      phone: payload.phone ?? user.phone,
+    });
+    saveDb(db);
+    return Promise.resolve(createResponse(userPublicData(user)));
+  }
 
   if (path.startsWith('/products/')) {
     const id = path.split('/')[2];
@@ -496,6 +634,7 @@ function localPut(url: string, payload: Record<string, unknown>) {
     Object.assign(product, {
       name: String(payload.name ?? product.name),
       description: payload.description === undefined ? product.description : String(payload.description),
+      cost_price: payload.cost_price === undefined ? product.cost_price : (payload.cost_price ? Number(payload.cost_price) : undefined),
       price: Number(payload.price ?? product.price),
       sale_price: payload.sale_price === undefined ? product.sale_price : parseSalePrice(payload.sale_price),
       category: String(payload.category ?? product.category),
@@ -511,7 +650,7 @@ function localPut(url: string, payload: Record<string, unknown>) {
   throw createHttpError(404, `Unknown PUT endpoint: ${path}`);
 }
 
-function localPatch(url: string, payload: Record<string, unknown>) {
+async function localPatch(url: string, payload: Record<string, any>) {
   const { path } = splitUrl(url);
   const db = loadDb();
   const userId = requireAuth();
@@ -548,7 +687,7 @@ function localPatch(url: string, payload: Record<string, unknown>) {
   throw createHttpError(404, `Unknown PATCH endpoint: ${path}`);
 }
 
-function localDelete(url: string) {
+async function localDelete(url: string) {
   const { path } = splitUrl(url);
   const db = loadDb();
   const userId = requireAuth();
@@ -591,19 +730,19 @@ remoteApi.interceptors.response.use(
 );
 
 interface ApiClient {
-  get: <T = unknown>(url: string) => Promise<{ data: T }>;
-  post: <T = unknown>(url: string, payload: Record<string, unknown>) => Promise<{ data: T }>;
-  put: <T = unknown>(url: string, payload: Record<string, unknown>) => Promise<{ data: T }>;
-  patch: <T = unknown>(url: string, payload: Record<string, unknown>) => Promise<{ data: T }>;
-  delete: <T = unknown>(url: string) => Promise<{ data: T }>;
+  get: <T = any>(url: string) => Promise<{ data: T }>;
+  post: <T = any>(url: string, payload: Record<string, any>) => Promise<{ data: T }>;
+  put: <T = any>(url: string, payload: Record<string, any>) => Promise<{ data: T }>;
+  patch: <T = any>(url: string, payload: Record<string, any>) => Promise<{ data: T }>;
+  delete: <T = any>(url: string) => Promise<{ data: T }>;
 }
 
 const localApi: ApiClient = {
-  get: (url: string) => localGet(url),
-  post: (url: string, payload: Record<string, unknown>) => localPost(url, payload),
-  put: (url: string, payload: Record<string, unknown>) => localPut(url, payload),
-  patch: (url: string, payload: Record<string, unknown>) => localPatch(url, payload),
-  delete: (url: string) => localDelete(url),
+  get: (url: string) => localGet(url) as any,
+  post: (url: string, payload: Record<string, any>) => localPost(url, payload) as any,
+  put: (url: string, payload: Record<string, any>) => localPut(url, payload) as any,
+  patch: (url: string, payload: Record<string, any>) => localPatch(url, payload) as any,
+  delete: (url: string) => localDelete(url) as any,
 };
 
 const remoteApiAdapter: ApiClient = {

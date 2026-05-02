@@ -7,6 +7,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { initializeDatabase } from './models/database';
+import { verifyMailService } from './services/mailService';
 import authRoutes from './routes/auth';
 import aiRoutes from './routes/ai';
 import productRoutes from './routes/products';
@@ -14,8 +15,20 @@ import orderRoutes from './routes/orders';
 import analyticsRoutes from './routes/analytics';
 import websiteRoutes from './routes/website';
 import voiceRoutes from './routes/voice';
+import paymentRoutes from './routes/payment';
+import adminRoutes from './routes/admin';
+import ticketRoutes from './routes/tickets';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
+
+process.on('uncaughtException', (err) => {
+  console.error('🔥 FATAL UNCAUGHT EXCEPTION:', err);
+  // Keep process alive if possible or exit after logging
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 UNHANDLED REJECTION at:', promise, 'reason:', reason);
+});
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -58,6 +71,12 @@ app.use(cors({
 // Logging
 app.use(morgan('dev'));
 
+// Debug logger
+app.use((req, res, next) => {
+  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -81,6 +100,9 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/website', websiteRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -91,9 +113,12 @@ app.get('/health', (_req, res) => {
 app.use(errorHandler);
 
 // Initialize database then start server
-initializeDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Fera Shopkeeper Backend running on port ${PORT}`);
+initializeDatabase().then(async () => {
+  // Verify mail service on startup
+  await verifyMailService();
+  
+  app.listen(Number(PORT), '127.0.0.1', () => {
+    console.log(`🚀 Fera Shopkeeper Backend running on http://127.0.0.1:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }).catch(err => {

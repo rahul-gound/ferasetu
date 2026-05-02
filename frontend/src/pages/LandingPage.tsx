@@ -1,348 +1,392 @@
-
-import { Link } from 'react-router-dom';
-import { Bot, Globe, Mic, Package, CheckCircle, Star, Zap, ShoppingBag } from 'lucide-react';
-
-const FEATURES = [
-  {
-    icon: <Bot size={32} color="#FF6B35" />,
-    title: 'AI Website Builder',
-    desc: 'Describe your business in any Indian language and our AI builds your complete online store in seconds.',
-  },
-  {
-    icon: <Globe size={32} color="#004E89" />,
-    title: 'Multi-language Support',
-    desc: 'Sell in all 22 scheduled Indian languages. Reach customers in their mother tongue.',
-  },
-  {
-    icon: <Mic size={32} color="#1A936F" />,
-    title: 'Voice Commands',
-    desc: 'Add products, check orders, and manage your store using just your voice — no typing needed.',
-  },
-  {
-    icon: <Package size={32} color="#F59E0B" />,
-    title: 'Free to Start',
-    desc: 'List up to 50 products for free. No credit card required. Upgrade anytime for unlimited access.',
-  },
-];
-
-const FREE_FEATURES = [
-  '50 products',
-  'Free subdomain (yourstore.fera-shop.fera-seach.tech)',
-  'Basic AI Assistant (Sarvam 30B)',
-  'Multi-language storefront',
-  'Order management',
-  'Basic analytics',
-];
-
-const PREMIUM_FEATURES = [
-  'Unlimited products',
-  'Custom domain support',
-  'Advanced AI (Sarvam 105B)',
-  'AI sales predictions',
-  'Priority support',
-  'Advanced analytics & reports',
-  'Voice commerce',
-  'Bulk product import',
-];
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { 
+  ShoppingBag, Zap, ShieldCheck, TrendingUp, 
+  ChevronRight, Star, ArrowRight, Smartphone, 
+  Store, MessageCircle, BarChart3, Globe
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+    if (user) navigate('/dashboard');
+  }, [user, navigate]);
+
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a2e', background: '#fff' }}>
-      {/* Nav */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 40px', borderBottom: '1px solid #f0f0f0',
-        position: 'sticky', top: 0, background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(8px)', zIndex: 100,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '28px' }}>🛒</span>
-          <span style={{ fontWeight: 800, fontSize: '20px', color: '#FF6B35' }}>Fera</span>
-          <span style={{ fontSize: '13px', color: '#666', marginLeft: '4px' }}>Shopkeeper AI</span>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <Link to="/login" style={{
-            padding: '8px 20px', borderRadius: '8px', border: '1px solid #FF6B35',
-            color: '#FF6B35', textDecoration: 'none', fontWeight: 600, fontSize: '14px',
-            transition: 'all 0.15s',
-          }}>
-            Login
-          </Link>
-          <Link to="/register" style={{
-            padding: '8px 20px', borderRadius: '8px',
-            background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-            color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '14px',
-          }}>
-            Start Free
-          </Link>
+    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-orange-100 selection:text-orange-600">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .hero-gradient {
+          background: radial-gradient(circle at 50% -20%, rgba(255, 107, 53, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
+        }
+        .animate-fade-up {
+          animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .feature-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px -8px rgba(0,0,0,0.08);
+        }
+        .commercial-orb {
+          animation: floatOrb 7s ease-in-out infinite;
+        }
+        .commercial-shine {
+          position: relative;
+          overflow: hidden;
+        }
+        .commercial-shine::after {
+          content: '';
+          position: absolute;
+          inset: -120% auto auto -60%;
+          width: 60%;
+          height: 300%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.42), transparent);
+          transform: rotate(18deg);
+          animation: shineSweep 4.2s ease-in-out infinite;
+        }
+        @keyframes floatOrb {
+          0%, 100% { transform: translate3d(0,0,0) scale(1); }
+          50% { transform: translate3d(12px,-18px,0) scale(1.04); }
+        }
+        @keyframes shineSweep {
+          0%, 55% { left: -70%; }
+          100% { left: 140%; }
+        }
+      `}</style>
+
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <span className="text-white font-black text-xl italic">F</span>
+            </div>
+            <span className="text-xl font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">AI</span></span>
+          </div>
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#how-it-works" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
+            <a href="#benefits" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Benefits</a>
+            <a href="#pricing" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
+            <Link to="/login" className="text-sm font-semibold text-slate-900">Sign in</Link>
+            <Link to="/register" className="px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-full hover:bg-slate-800 transition-all shadow-md active:scale-95">
+              Start Your Shop
+            </Link>
+          </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section style={{
-        padding: '80px 40px 60px',
-        background: 'linear-gradient(135deg, #fff7f3 0%, #f0f7ff 50%, #f0fff8 100%)',
-        textAlign: 'center',
-      }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '8px',
-          background: 'rgba(255,107,53,0.1)', borderRadius: '20px',
-          padding: '6px 16px', marginBottom: '24px', fontSize: '13px', fontWeight: 600,
-          color: '#FF6B35',
-        }}>
-          <Zap size={14} /> Powered by Sarvam AI · Made for Bharat
-        </div>
-
-        <h1 style={{
-          fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1,
-          marginBottom: '20px', maxWidth: '800px', margin: '0 auto 20px',
-        }}>
-          <span style={{ color: '#1a1a2e' }}>Build Your </span>
-          <span style={{
-            background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>Online Store</span>
-          <br />
-          <span style={{ color: '#1a1a2e' }}>with </span>
-          <span style={{
-            background: 'linear-gradient(135deg, #004E89, #0070c0)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>AI</span>
-        </h1>
-
-        <p style={{
-          fontSize: '18px', color: '#555', maxWidth: '600px', margin: '20px auto 40px',
-          lineHeight: 1.7,
-        }}>
-          The smart platform for India's small retailers. Launch your store in minutes,
-          manage orders effortlessly, and grow your business — in your own language.
-        </p>
-
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/register" style={{
-            padding: '14px 32px', borderRadius: '10px',
-            background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-            color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: '16px',
-            boxShadow: '0 4px 20px rgba(255,107,53,0.35)',
-            display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
-            <ShoppingBag size={18} /> Start for Free
-          </Link>
-          <Link to="/login" style={{
-            padding: '14px 32px', borderRadius: '10px',
-            border: '2px solid #004E89',
-            color: '#004E89', textDecoration: 'none', fontWeight: 700, fontSize: '16px',
-          }}>
-            Sign In →
-          </Link>
-        </div>
-
-        <p style={{ marginTop: '16px', fontSize: '13px', color: '#999' }}>
-          No credit card required · Free forever plan available
-        </p>
-
-        {/* Stats bar */}
-        <div style={{
-          display: 'flex', gap: '40px', justifyContent: 'center', flexWrap: 'wrap',
-          marginTop: '60px', padding: '24px 40px',
-          background: '#fff', borderRadius: '16px', boxShadow: '0 2px 20px rgba(0,0,0,0.06)',
-          maxWidth: '700px', margin: '60px auto 0',
-        }}>
-          {[['10,000+', 'Active Stores'], ['22', 'Indian Languages'], ['₹50Cr+', 'GMV Processed'], ['4.8★', 'App Rating']].map(([v, l]) => (
-            <div key={l} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#FF6B35' }}>{v}</div>
-              <div style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features */}
-      <section style={{ padding: '80px 40px', background: '#fff' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '36px', fontWeight: 800, color: '#1a1a2e' }}>
-            Everything you need to sell online
-          </h2>
-          <p style={{ color: '#666', fontSize: '16px', marginTop: '12px' }}>
-            Built specifically for Indian small businesses and street vendors
-          </p>
-        </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '24px', maxWidth: '1100px', margin: '0 auto',
-        }}>
-          {FEATURES.map(f => (
-            <div key={f.title} style={{
-              padding: '32px 28px', borderRadius: '16px',
-              border: '1px solid #f0f0f0', background: '#fafafa',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              cursor: 'default',
-            }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
-                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 40px rgba(0,0,0,0.1)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLDivElement).style.transform = 'none';
-                (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-              }}
-            >
-              <div style={{ marginBottom: '16px' }}>{f.icon}</div>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: '#1a1a2e' }}>
-                {f.title}
-              </h3>
-              <p style={{ color: '#666', lineHeight: 1.7, fontSize: '14px' }}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section style={{ padding: '80px 40px', background: 'linear-gradient(135deg, #fff7f3, #f0f7ff)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '36px', fontWeight: 800 }}>Get your store live in 3 steps</h2>
-        </div>
-        <div style={{
-          display: 'flex', gap: '24px', justifyContent: 'center',
-          flexWrap: 'wrap', maxWidth: '900px', margin: '0 auto',
-        }}>
-          {[
-            { step: '1', title: 'Tell AI about your business', desc: 'In your language, describe what you sell' },
-            { step: '2', title: 'AI builds your store', desc: 'Products, design, and layout — done instantly' },
-            { step: '3', title: 'Start selling', desc: 'Share your store link and accept orders' },
-          ].map(s => (
-            <div key={s.step} style={{
-              flex: '1', minWidth: '240px', textAlign: 'center',
-              padding: '32px 24px', background: '#fff', borderRadius: '16px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            }}>
-              <div style={{
-                width: '48px', height: '48px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-                color: '#fff', fontSize: '20px', fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}>{s.step}</div>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>{s.title}</h3>
-              <p style={{ color: '#666', fontSize: '14px' }}>{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section style={{ padding: '80px 40px', background: '#fff' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '36px', fontWeight: 800 }}>Simple, transparent pricing</h2>
-          <p style={{ color: '#666', marginTop: '12px', fontSize: '16px' }}>
-            Start free, scale as you grow
-          </p>
-        </div>
-        <div style={{
-          display: 'flex', gap: '24px', justifyContent: 'center',
-          flexWrap: 'wrap', maxWidth: '820px', margin: '0 auto',
-        }}>
-          {/* Free */}
-          <div style={{
-            flex: 1, minWidth: '300px', padding: '36px 32px',
-            border: '2px solid #e5e7eb', borderRadius: '20px', background: '#fafafa',
-          }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#666', marginBottom: '8px' }}>FREE</div>
-            <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a1a2e' }}>₹0<span style={{ fontSize: '16px', fontWeight: 400, color: '#999' }}>/mo</span></div>
-            <p style={{ color: '#666', margin: '12px 0 24px', fontSize: '14px' }}>Perfect to get started</p>
-            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
-              {FREE_FEATURES.map(f => (
-                <div key={f} style={{ display: 'flex', gap: '10px', marginBottom: '12px', fontSize: '14px', color: '#444' }}>
-                  <CheckCircle size={16} color="#1A936F" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  {f}
+      <main className="pt-20">
+        {/* Hero Section */}
+        <section className="hero-gradient relative overflow-hidden pt-20 pb-32">
+          <div className="commercial-orb absolute top-28 left-6 w-24 h-24 rounded-full bg-orange-200/50 blur-2xl" />
+          <div className="commercial-orb absolute bottom-24 right-10 w-32 h-32 rounded-full bg-blue-200/40 blur-3xl" style={{ animationDelay: '1.5s' }} />
+          <div className="max-w-7xl mx-auto px-6 text-center">
+            <div className={`transition-all duration-1000 ${isVisible ? 'animate-fade-up' : 'opacity-0'}`}>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 mb-8">
+                <div className="flex -space-x-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
+                      <img src={`https://i.pravatar.cc/100?u=${i}`} alt="user" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Link to="/register" style={{
-              display: 'block', textAlign: 'center', marginTop: '24px',
-              padding: '12px', borderRadius: '10px', border: '2px solid #FF6B35',
-              color: '#FF6B35', textDecoration: 'none', fontWeight: 700,
-            }}>
-              Get Started Free
-            </Link>
-          </div>
+                <span className="text-[13px] font-bold text-orange-600">10,000+ Indian shopkeepers joined</span>
+              </div>
+              
+              <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 mb-6 leading-[1.1]">
+                Grow your business <br className="hidden md:block" />
+                <span className="text-orange-500">online in 2 minutes.</span>
+              </h1>
+              
+              <p className="max-w-2xl mx-auto text-lg md:text-xl text-slate-500 font-medium mb-12 leading-relaxed">
+                Add products on WhatsApp, get your own professional shop link, and start selling today. <span className="text-slate-900 font-bold">Apni dukaan, apni pehchan.</span>
+              </p>
 
-          {/* Premium */}
-          <div style={{
-            flex: 1, minWidth: '300px', padding: '36px 32px',
-            border: '2px solid #FF6B35', borderRadius: '20px',
-            background: 'linear-gradient(135deg, #fff7f3, #fff)',
-            position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute', top: '16px', right: '16px',
-              background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-              color: '#fff', fontSize: '11px', fontWeight: 700,
-              padding: '4px 10px', borderRadius: '12px',
-            }}>
-              POPULAR
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <Star size={14} color="#F59E0B" fill="#F59E0B" />
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#FF6B35' }}>PREMIUM</span>
-            </div>
-            <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a1a2e' }}>₹499<span style={{ fontSize: '16px', fontWeight: 400, color: '#999' }}>/mo</span></div>
-            <p style={{ color: '#666', margin: '12px 0 24px', fontSize: '14px' }}>For growing businesses</p>
-            <div style={{ borderTop: '1px solid #ffd6c0', paddingTop: '20px' }}>
-              {PREMIUM_FEATURES.map(f => (
-                <div key={f} style={{ display: 'flex', gap: '10px', marginBottom: '12px', fontSize: '14px', color: '#444' }}>
-                  <CheckCircle size={16} color="#FF6B35" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  {f}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+                <Link to="/register" className="commercial-shine w-full sm:w-auto px-10 py-5 bg-orange-500 text-white text-lg font-black rounded-2xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/25 active:scale-95 flex items-center justify-center gap-3">
+                  Start Your Shop Now <ChevronRight size={20} strokeWidth={3} />
+                </Link>
+                <div className="flex items-center gap-3 px-6 py-4">
+                  <div className="flex text-orange-400">
+                    {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                  </div>
+                  <span className="text-sm font-bold text-slate-600">4.9/5 Rating</span>
                 </div>
-              ))}
+              </div>
+
+              {/* Product Mockup */}
+              <div className="relative max-w-5xl mx-auto rounded-[2.5rem] p-4 bg-slate-100/50 border border-slate-200 shadow-2xl overflow-hidden group">
+                <div className="bg-white rounded-[1.8rem] border border-slate-200 shadow-inner overflow-hidden aspect-[16/10] md:aspect-[16/8]">
+                  <img 
+                    src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000" 
+                    className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-1000"
+                    alt="Fera Dashboard"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/5 group-hover:bg-transparent transition-colors">
+                    <div className="px-6 py-3 bg-white/90 backdrop-blur rounded-2xl border border-white shadow-xl flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-sm font-black text-slate-900">Your store is live & ready to sell</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <Link to="/register" style={{
-              display: 'block', textAlign: 'center', marginTop: '24px',
-              padding: '12px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-              color: '#fff', textDecoration: 'none', fontWeight: 700,
-              boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
-            }}>
-              Start Premium Trial
-            </Link>
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section id="how-it-works" className="py-32 bg-slate-50">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-20">
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mb-4">Start selling in 3 simple steps</h2>
+              <p className="text-lg text-slate-500 font-medium">No technical skills needed. Bilkul aasan.</p>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-12">
+              <StepCard 
+                number="01"
+                title="Create Shop"
+                desc="Apni shop ka naam daalein aur mobile number se verify karein."
+                icon={<Store className="text-orange-500" size={32} />}
+              />
+              <StepCard 
+                number="02"
+                title="Add Products"
+                desc="Products ki photos kheinchein aur price set karein instantly."
+                icon={<ShoppingBag className="text-blue-500" size={32} />}
+              />
+              <StepCard 
+                number="03"
+                title="Share & Sell"
+                desc="Link ko WhatsApp pe share karein aur orders lena shuru karein."
+                icon={<Zap className="text-purple-500" size={32} />}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Benefits Section */}
+        <section id="benefits" className="py-32 bg-white">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <div>
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 mb-8 leading-[1.2]">
+                  Designed for the <br />
+                  <span className="text-orange-500">modern shopkeeper.</span>
+                </h2>
+                
+                <div className="space-y-8">
+                  <BenefitItem 
+                    title="Know your profit instantly"
+                    desc="Calculation ki tension khatam. Har order pe apna profit dekhein."
+                    icon={<TrendingUp size={24} />}
+                  />
+                  <BenefitItem 
+                    title="Sell on WhatsApp effortlessly"
+                    desc="Customers ko professional link bhejein, purane tarike chhodein."
+                    icon={<MessageCircle size={24} />}
+                  />
+                  <BenefitItem 
+                    title="Safe & Secure"
+                    desc="Aapka data hamesha secure rehta hai. Trust of 10k+ users."
+                    icon={<ShieldCheck size={24} />}
+                  />
+                </div>
+              </div>
+              
+              <div className="relative">
+                <div className="bg-slate-900 rounded-[3rem] p-12 overflow-hidden shadow-2xl aspect-square flex flex-col justify-end">
+                  <div className="absolute top-0 right-0 p-12 opacity-10">
+                    <Globe size={400} />
+                  </div>
+                  <div className="relative z-10">
+                    <div className="text-6xl font-black text-white mb-6">40%</div>
+                    <div className="text-2xl font-bold text-slate-400 mb-8 leading-snug">Average sales increase for <br /> shopkeepers using Fera AI.</div>
+                    <Link to="/register" className="inline-flex items-center gap-2 text-orange-500 font-black text-lg group">
+                      Grow your business today <ArrowRight className="group-hover:translate-x-2 transition-transform" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonial */}
+        <section className="py-32 bg-slate-900 text-white overflow-hidden relative">
+           <div className="max-w-7xl mx-auto px-6 relative z-10">
+              <div className="max-w-3xl">
+                <div className="flex gap-1 text-orange-400 mb-8">
+                  {[1,2,3,4,5].map(i => <Star key={i} size={24} fill="currentColor" />)}
+                </div>
+                <h3 className="text-3xl md:text-5xl font-bold leading-tight mb-12 italic">
+                  "Pehle register maintain karna mushkil tha. Ab Fera AI se sab phone pe hai. Sales bhi badhi hai aur tension bhi kam hui hai."
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-2xl">RK</div>
+                  <div>
+                    <div className="text-xl font-black">Rajesh Kumar</div>
+                    <div className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Kirana Store Owner, Delhi</div>
+                  </div>
+                </div>
+              </div>
+           </div>
+        </section>
+
+        {/* Pricing Preview */}
+        <section id="pricing" className="py-32 bg-slate-50">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-orange-100 text-orange-600 text-xs font-black uppercase tracking-widest mb-6 shadow-sm">
+                <ShieldCheck size={14} /> Simple pricing
+              </div>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
+                Start small. Upgrade when orders grow.
+              </h2>
+              <p className="text-lg text-slate-500 font-semibold leading-relaxed">
+                Pricing is designed to feel safe for small shops and powerful when you are ready to scale.
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-6 items-stretch">
+              <PricingTeaser
+                icon={<Smartphone size={24} />}
+                name="Starter"
+                price="199"
+                desc="Launch your online catalog and accept local orders."
+                features={["100 products", "Fera shop link", "Basic AI help"]}
+              />
+              <div className="relative rounded-[2rem] p-8 bg-white border-2 border-orange-500 shadow-2xl shadow-orange-500/15 lg:-translate-y-4">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-2 rounded-full bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-lg">
+                  Best Value
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-6">
+                  <TrendingUp size={24} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">Growth</h3>
+                <p className="text-slate-500 font-semibold min-h-[48px]">Custom domain, premium templates, and growth analytics.</p>
+                <div className="my-8 flex items-end gap-1">
+                  <span className="text-xl font-black text-slate-400">₹</span>
+                  <span className="text-6xl font-black tracking-tighter text-slate-900">499</span>
+                  <span className="text-slate-400 font-bold mb-2">/mo</span>
+                </div>
+                <div className="space-y-3 mb-8">
+                  {["1,000 products", "Custom domain support", "Advanced AI and analytics"].map(item => (
+                    <div key={item} className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                      <CheckMark /> {item}
+                    </div>
+                  ))}
+                </div>
+                <Link to="/upgrade" className="commercial-shine flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-orange-500 text-white font-black shadow-xl shadow-orange-500/25 hover:bg-orange-600 transition-all">
+                  See plans <ArrowRight size={18} />
+                </Link>
+              </div>
+              <PricingTeaser
+                icon={<BarChart3 size={24} />}
+                name="Scale"
+                price="999"
+                desc="For serious retailers with more products and staff."
+                features={["Unlimited products", "Sales prediction", "Onboarding help"]}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="py-32 bg-white">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="bg-orange-500 rounded-[3rem] p-12 md:p-24 text-center relative overflow-hidden">
+               <div className="absolute inset-0 opacity-10 pointer-events-none">
+                 <Store size={400} className="absolute -bottom-20 -right-20" />
+               </div>
+               <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight">Ab aapki baari hai.</h2>
+               <p className="text-xl text-orange-100 font-bold mb-12 max-w-xl mx-auto leading-relaxed">Join 10,000+ smart shopkeepers. Bilkul free se shuru karein.</p>
+               <Link to="/register" className="inline-flex px-12 py-6 bg-white text-orange-600 text-xl font-black rounded-2xl hover:shadow-2xl transition-all shadow-xl active:scale-95">
+                 Create Your Store
+               </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="py-12 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+              <span className="text-white font-black text-sm italic">F</span>
+            </div>
+            <span className="text-lg font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">AI</span></span>
+          </div>
+          <div className="text-sm font-bold text-slate-400">
+            © {new Date().getFullYear()} Fera AI. Digitizing Bharat, one shop at a time.
           </div>
         </div>
-      </section>
-
-      {/* CTA Banner */}
-      <section style={{
-        padding: '80px 40px',
-        background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-        textAlign: 'center',
-        color: '#fff',
-      }}>
-        <h2 style={{ fontSize: '36px', fontWeight: 800, marginBottom: '16px' }}>
-          Ready to grow your business?
-        </h2>
-        <p style={{ fontSize: '16px', opacity: 0.9, marginBottom: '32px', maxWidth: '500px', margin: '0 auto 32px' }}>
-          Join thousands of Indian shopkeepers who use Fera to sell online every day.
-        </p>
-        <Link to="/register" style={{
-          display: 'inline-block', padding: '14px 40px', borderRadius: '10px',
-          background: '#fff', color: '#FF6B35', textDecoration: 'none',
-          fontWeight: 800, fontSize: '16px',
-        }}>
-          Create Your Free Store →
-        </Link>
-      </section>
-
-      {/* Footer */}
-      <footer style={{
-        padding: '32px 40px', background: '#1a1a2e', color: '#aaa',
-        textAlign: 'center', fontSize: '13px',
-      }}>
-        <div style={{ marginBottom: '8px' }}>
-          <span style={{ color: '#FF6B35', fontWeight: 700 }}>🛒 Fera Shopkeeper AI</span>
-          {' · '}Made with ❤️ for Bharat
-        </div>
-        <div>© 2025 Fera · Built on Sarvam AI · Supporting all 22 Indian languages</div>
       </footer>
     </div>
   );
+}
+
+function StepCard({ number, title, desc, icon }: any) {
+  return (
+    <div className="feature-card p-10 bg-white rounded-[2.5rem] border border-slate-100 transition-all">
+      <div className="text-sm font-black text-slate-400 mb-6 tracking-widest">{number}</div>
+      <div className="mb-8">{icon}</div>
+      <h3 className="text-2xl font-black text-slate-900 mb-4">{title}</h3>
+      <p className="text-slate-500 font-medium leading-relaxed">{desc}</p>
+    </div>
+  );
+}
+
+function BenefitItem({ title, desc, icon }: any) {
+  return (
+    <div className="flex gap-6">
+      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
+        {icon}
+      </div>
+      <div>
+        <h4 className="text-xl font-black text-slate-900 mb-1">{title}</h4>
+        <p className="text-slate-500 font-medium leading-relaxed">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function PricingTeaser({ icon, name, price, desc, features }: any) {
+  return (
+    <div className="rounded-[2rem] p-8 bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
+      <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center mb-6 border border-slate-100">
+        {icon}
+      </div>
+      <h3 className="text-2xl font-black text-slate-900 mb-2">{name}</h3>
+      <p className="text-slate-500 font-semibold min-h-[48px]">{desc}</p>
+      <div className="my-8 flex items-end gap-1">
+        <span className="text-xl font-black text-slate-400">₹</span>
+        <span className="text-5xl font-black tracking-tighter text-slate-900">{price}</span>
+        <span className="text-slate-400 font-bold mb-1">/mo</span>
+      </div>
+      <div className="space-y-3 mb-8">
+        {features.map((item: string) => (
+          <div key={item} className="flex items-center gap-3 text-sm font-bold text-slate-700">
+            <CheckMark /> {item}
+          </div>
+        ))}
+      </div>
+      <Link to="/upgrade" className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-slate-900 text-white font-black hover:bg-slate-800 transition-all">
+        View details <ArrowRight size={18} />
+      </Link>
+    </div>
+  );
+}
+
+function CheckMark() {
+  return <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">✓</span>;
 }

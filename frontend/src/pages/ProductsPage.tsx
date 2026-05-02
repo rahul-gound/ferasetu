@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Plus, Search, Edit2, Trash2, X, Upload, Package,
@@ -13,6 +14,7 @@ interface Product {
   id: string;
   name: string;
   description?: string;
+  cost_price?: number;
   price: number;
   sale_price?: number;
   category: string;
@@ -25,6 +27,7 @@ interface Product {
 interface ProductForm {
   name: string;
   description: string;
+  cost_price: string;
   price: string;
   sale_price: string;
   category: string;
@@ -61,7 +64,7 @@ export default function ProductsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const emptyForm: ProductForm = {
-    name: '', description: '', price: '', sale_price: '',
+    name: '', description: '', cost_price: '', price: '', sale_price: '',
     category: '', stock_quantity: '', image_url: '', is_active: true,
   };
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -106,6 +109,7 @@ export default function ProductsPage() {
     setEditProduct(p);
     setForm({
       name: p.name, description: p.description || '',
+      cost_price: p.cost_price ? String(p.cost_price) : '',
       price: String(p.price), sale_price: p.sale_price ? String(p.sale_price) : '',
       category: p.category, stock_quantity: String(p.stock_quantity),
       image_url: p.image_url || '', is_active: p.is_active,
@@ -137,6 +141,7 @@ export default function ProductsPage() {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
+        cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
         price: parseFloat(form.price),
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         category: form.category,
@@ -155,8 +160,10 @@ export default function ProductsPage() {
 
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setShowModal(false);
-    } catch {
-      toast.error('Failed to save product');
+    } catch (error: any) {
+      console.error('Save error:', error);
+      const msg = error.response?.data?.error || error.message || 'Failed to save product';
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -188,7 +195,7 @@ export default function ProductsPage() {
           <AlertTriangle size={18} color="#F59E0B" />
           <span style={{ fontSize: '13px', color: 'var(--text)' }}>
             You're using <strong>{products.length}/{FREE_LIMIT}</strong> products on the free plan.
-            <a href="#" style={{ color: 'var(--primary)', fontWeight: 600, marginLeft: '6px' }}>Upgrade to Premium →</a>
+            <Link to="/upgrade" style={{ color: 'var(--primary)', fontWeight: 600, marginLeft: '6px' }}>Upgrade to Premium →</Link>
           </span>
         </div>
       )}
@@ -383,21 +390,40 @@ export default function ProductsPage() {
                   value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
               </div>
 
-              {/* Price + Sale Price */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              {/* Cost Price + Selling Price + MRP */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>Price (₹) *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>Cost Price (₹)</label>
+                  <input className="input" type="number" style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="0.00" min="0" step="0.01"
+                    value={form.cost_price} onChange={e => setForm(f => ({ ...f, cost_price: e.target.value }))} />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>Only visible to you</span>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>Selling Price (₹) *</label>
                   <input className="input" type="number" style={{ width: '100%', boxSizing: 'border-box' }}
                     placeholder="0.00" min="0" step="0.01"
                     value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>Sale Price (₹)</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>MRP (₹)</label>
                   <input className="input" type="number" style={{ width: '100%', boxSizing: 'border-box' }}
                     placeholder="Optional" min="0" step="0.01"
                     value={form.sale_price} onChange={e => setForm(f => ({ ...f, sale_price: e.target.value }))} />
                 </div>
               </div>
+
+              {form.cost_price && form.price && parseFloat(form.cost_price) > 0 && (
+                <div style={{
+                  padding: '12px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)', marginBottom: '16px',
+                }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Profit Margin</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#22C55E' }}>
+                    {((((parseFloat(form.price) - parseFloat(form.cost_price)) / parseFloat(form.cost_price)) * 100) || 0).toFixed(2)}%
+                  </div>
+                </div>
+              )}
 
               {/* Category + Stock */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>

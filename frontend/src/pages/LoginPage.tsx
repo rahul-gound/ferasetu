@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { LogIn, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginForm {
-  email: string;
+  emailOrUsername: string;
   password: string;
 }
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/dashboard';
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -21,9 +23,9 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      await login(data.email, data.password);
-      toast.success('Welcome back! 🎉');
-      navigate('/dashboard');
+      await login(data.emailOrUsername, data.password);
+      toast.success('Logged in successfully!');
+      navigate(redirect);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         || 'Login failed. Please check your credentials.';
@@ -32,6 +34,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div style={{
@@ -63,23 +66,22 @@ export default function LoginPage() {
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)}>
-            {/* Email */}
+            {/* Email or Username */}
             <div style={{ marginBottom: '18px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#444', marginBottom: '6px' }}>
-                Email address
+                Email or Username
               </label>
               <input
-                type="email"
+                type="text"
                 className="input"
-                placeholder="you@example.com"
+                placeholder="you@example.com or username"
                 style={{ width: '100%', boxSizing: 'border-box' }}
-                {...register('email', {
-                  required: 'Email is required',
-                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Invalid email' },
+                {...register('emailOrUsername', {
+                  required: 'Email or username is required',
                 })}
               />
-              {errors.email && (
-                <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.email.message}</p>
+              {errors.emailOrUsername && (
+                <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.emailOrUsername.message}</p>
               )}
             </div>
 

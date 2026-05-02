@@ -12,10 +12,11 @@ export interface User {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium';
+  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
+  plan_expires_at?: string;
   created_at: string;
 }
 
@@ -37,27 +38,49 @@ export async function registerUser(data: {
 
   const passwordHash = await bcrypt.hash(data.password, 12);
   const userId = uuidv4();
-  const subdomain = generateSubdomain(data.businessName || data.name);
+  
+  let subdomain = generateSubdomain(data.businessName || data.name);
+  
+  // Ensure subdomain uniqueness
+  const existingSubdomain = db.prepare('SELECT id FROM users WHERE subdomain = ?').get(subdomain);
+  if (existingSubdomain) {
+    subdomain = `${subdomain}-${Math.random().toString(36).substring(2, 6)}`;
+  }
 
-  db.prepare(`
-    INSERT INTO users (id, email, password_hash, name, phone, business_name, preferred_language, subdomain)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    userId,
-    data.email,
-    passwordHash,
-    data.name,
-    data.phone || null,
-    data.businessName || null,
-    data.preferredLanguage || 'en',
-    subdomain
-  );
+  // Set initial trial expiration (7 days from now)
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+  const expiresAtStr = expiresAt.toISOString();
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User & { password_hash: string };
+  try {
+    db.prepare(`
+      INSERT INTO users (id, email, password_hash, name, phone, business_name, preferred_language, subdomain, plan, plan_expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'free', ?)
+    `).run(
+      userId,
+      data.email,
+      passwordHash,
+      data.name,
+      data.phone || null,
+      data.businessName || null,
+      data.preferredLanguage || 'en',
+      subdomain,
+      expiresAtStr
+    );
+  } catch (err: any) {
+    console.error('Database INSERT error:', err);
+    throw new Error(`Failed to create user: ${err.message}`);
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+  if (!user) {
+    throw new Error('Failed to retrieve user after registration');
+  }
+
   const { password_hash: _ph, ...safeUser } = user;
 
   const token = jwt.sign(
-    { id: userId, email: data.email, plan: 'free', businessName: data.businessName },
+    { id: userId, email: data.email, plan: 'free', businessName: data.businessName || data.name },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
@@ -65,23 +88,33 @@ export async function registerUser(data: {
   return { user: safeUser as User, token };
 }
 
-export async function loginUser(email: string, password: string): Promise<{ user: User; token: string }> {
+export async function loginUser(emailOrUsername: string, password: string): Promise<{ user: User; token: string }> {
   const db = getDatabase();
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as (User & { password_hash: string }) | undefined;
+  
+  console.log(`🔐 Attempting login for: ${emailOrUsername}`);
+  
+  // Search by email OR name OR subdomain
+  const user = db.prepare(`
+    SELECT * FROM users 
+    WHERE email = ? OR name = ? OR subdomain = ?
+  `).get(emailOrUsername, emailOrUsername, emailOrUsername) as (User & { password_hash: string }) | undefined;
 
   if (!user) {
-    throw Object.assign(new Error('Invalid email or password'), { status: 401 });
+    console.warn(`❌ User not found: ${emailOrUsername}`);
+    throw Object.assign(new Error('Invalid email/username or password'), { status: 401 });
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
+    console.warn(`❌ Invalid password for user: ${emailOrUsername}`);
     throw Object.assign(new Error('Invalid email or password'), { status: 401 });
   }
 
+  console.log(`✅ Login successful: ${user.email} (Plan: ${user.plan})`);
   const { password_hash: _ph, ...safeUser } = user;
 
   const token = jwt.sign(
-    { id: user.id, email: user.email, plan: user.plan, businessName: user.business_name },
+    { id: user.id, email: user.email, plan: user.plan, businessName: user.business_name || user.name },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
@@ -103,7 +136,7 @@ export function getUserById(userId: string): User | null {
   return user || null;
 }
 
-export async function updateUserPlan(userId: string, plan: 'free' | 'premium'): Promise<void> {
+export async function updateUserPlan(userId: string, plan: 'trial' | 'basic' | 'standard' | 'pro'): Promise<void> {
   const db = getDatabase();
   db.prepare('UPDATE users SET plan = ?, updated_at = datetime(\'now\') WHERE id = ?').run(plan, userId);
 }

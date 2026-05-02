@@ -2,8 +2,8 @@ import axios, { AxiosInstance } from 'axios';
 
 const SARVAM_BASE_URL = process.env.SARVAM_API_BASE_URL || 'https://api.sarvam.ai/v1';
 
-// Sarvam-30B: For general queries, minor modifications, routine assistance
-const sarvam30BClient: AxiosInstance = axios.create({
+// sarvam-m: For general queries, minor modifications, routine assistance
+const sarvamMClient: AxiosInstance = axios.create({
   baseURL: SARVAM_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -12,10 +12,10 @@ const sarvam30BClient: AxiosInstance = axios.create({
   timeout: 30000
 });
 
-console.log('🔑 Sarvam 30B API Key exists:', !!process.env.SARVAM_30B_API_KEY);
-console.log('🔑 Sarvam 105B API Key exists:', !!process.env.SARVAM_105B_API_KEY);
+console.log('🔑 sarvam-m API Key exists:', !!process.env.SARVAM_30B_API_KEY);
+console.log('🔑 sarvam-105b API Key exists:', !!process.env.SARVAM_105B_API_KEY);
 
-// Sarvam-105B: For complete website creation and major structural changes
+// sarvam-105b: For complete website creation and major structural changes
 const sarvam105BClient: AxiosInstance = axios.create({
   baseURL: SARVAM_BASE_URL,
   headers: {
@@ -25,7 +25,7 @@ const sarvam105BClient: AxiosInstance = axios.create({
   timeout: 120000
 });
 
-export type SarvamModel = '30b' | '105b';
+export type SarvamModel = 'm' | '105b';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -59,14 +59,17 @@ export interface WebsiteGenerationRequest {
 }
 
 const SYSTEM_PROMPTS: Record<string, string> = {
-  general: `You are Fera AI, an intelligent assistant for the Fera Shopkeeper platform — designed to help small retailers (especially Kirana stores) in India build and manage their online stores. You help with:
+  general: `You are Fera AI (powered by Sarvam AI). You are an intelligent assistant for the Fera Shopkeeper platform — designed to help small retailers (especially Kirana stores) in India build and manage their online stores. You help with:
 - Building and customizing websites simply
 - Managing products and inventory in local languages
 - Processing orders and deliveries
 - Understanding sales analytics in a simple way
 - Marketing suggestions for local neighborhoods
 
-Be friendly, simple, and practical. Use a helpful "Elder Brother" or "Friend" tone. Use the user's preferred language when possible. Avoid technical jargon.`,
+IMPORTANT: Fera offers a 7-day trial of all premium features, after which users can upgrade to the Premium plan for ₹499/month.
+
+Be friendly, simple, and practical. Use a helpful "Elder Brother" or "Friend" tone. Use the user's preferred language when possible. Avoid technical jargon.
+Always try to respond in the user's preferred language if it is one of the 22 Indian languages.`,
 
   websiteBuilder: `You are Fera AI Website Builder. 
 When given business details, you MUST generate a JSON configuration that follows this EXACT structure:
@@ -107,19 +110,19 @@ Use Indian business context. Return ONLY the JSON object.`,
 
 /**
  * Select the appropriate model based on task complexity:
- * - 30B: General queries, minor changes, Q&A, customer support
- * - 105B: Website creation, major restructuring, complex analysis
+ * - m: General queries, minor changes, Q&A, customer support
+ * - 105b: Website creation, major restructuring, complex analysis
  */
 function selectModel(taskType: 'simple' | 'complex'): SarvamModel {
-  return taskType === 'complex' ? '105b' : '30b';
+  return taskType === 'complex' ? '105b' : 'm';
 }
 
 export async function chatWithSarvam(
   request: SarvamChatRequest,
-  model: SarvamModel = '30b'
+  model: SarvamModel = 'm'
 ): Promise<SarvamChatResponse> {
-  const client = model === '105b' ? sarvam105BClient : sarvam30BClient;
-  const modelName = model === '105b' ? 'sarvam-105b' : 'sarvam-30b';
+  const client = model === '105b' ? sarvam105BClient : sarvamMClient;
+  const modelName = model === '105b' ? 'sarvam-2-105b' : 'sarvam-m';
 
   const apiKey = model === '105b' ? process.env.SARVAM_105B_API_KEY : process.env.SARVAM_30B_API_KEY;
 
@@ -217,25 +220,54 @@ export async function generateAIResponse(
   return chatWithSarvam({ messages, language, max_tokens: taskType === 'complex' ? 4096 : 2048 }, model);
 }
 
+// Map standard language codes to Sarvam/Full names
+export const LANGUAGE_MAP: Record<string, string> = {
+  en: 'English',
+  hi: 'Hindi',
+  bn: 'Bengali',
+  te: 'Telugu',
+  mr: 'Marathi',
+  ta: 'Tamil',
+  gu: 'Gujarati',
+  kn: 'Kannada',
+  ml: 'Malayalam',
+  pa: 'Punjabi',
+  or: 'Odia',
+  as: 'Assamese',
+  ur: 'Urdu',
+  sa: 'Sanskrit',
+  mai: 'Maithili',
+  kok: 'Konkani',
+  mni: 'Manipuri',
+  brx: 'Bodo',
+  doi: 'Dogri',
+  ks: 'Kashmiri',
+  ne: 'Nepali',
+  sd: 'Sindhi',
+  sat: 'Santali'
+};
+
 export async function translateToLanguage(
   text: string,
   targetLanguage: string
 ): Promise<string> {
   if (targetLanguage === 'en') return text;
 
+  const languageName = LANGUAGE_MAP[targetLanguage] || targetLanguage;
+
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content: 'You are a translation assistant. Translate the given text to the specified language accurately and naturally. Return only the translated text.'
+      content: `You are a professional translation assistant. Translate the given text to ${languageName} accurately, naturally, and culturally appropriate for an Indian shopkeeper context. Return ONLY the translated text without any explanations or extra characters.`
     },
     {
       role: 'user',
-      content: `Translate to ${LANGUAGE_NAMES[targetLanguage] || targetLanguage}: ${text}`
+      content: text
     }
   ];
 
-  const response = await chatWithSarvam({ messages, temperature: 0.3 }, '30b');
-  return response.content;
+  const response = await chatWithSarvam({ messages, temperature: 0.2 }, 'm');
+  return response.content.trim();
 }
 
 export async function predictSales(

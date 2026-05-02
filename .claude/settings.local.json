@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "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",
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "nousresearch/hermes-3-llama-3.1-405b:free",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "inclusionai/ling-2.6-1t:free",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+    "ANTHROPIC_API_KEY": ""
+  }
+}

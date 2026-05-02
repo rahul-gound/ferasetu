@@ -58,25 +58,27 @@ export default function HeroSection({ config, shopName }: HeroSectionProps) {
       `}</style>
       <section style={{
         background: `linear-gradient(135deg, ${bgColor} 0%, ${accentColor} 100%)`,
-        padding: '100px 24px', color: '#fff', minHeight: '600px',
+        padding: 'clamp(60px, 10vw, 120px) 24px', color: '#fff', minHeight: '600px',
         display: 'flex', alignItems: 'center', position: 'relative', overflow: 'hidden'
       }}>
         <div className="fera-hero-blob" />
         <div className="fera-hero-inner">
           <div className="fera-hero-content">
-            <div style={{ display: 'inline-block', padding: '6px 16px', background: 'rgba(255,255,255,0.15)', borderRadius: '20px', fontSize: '14px', fontWeight: 700, marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(255,255,255,0.15)', borderRadius: '24px', fontSize: 'clamp(12px, 2vw, 14px)', fontWeight: 700, marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1.5px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' }}>
               🏪 Serving Your Neighborhood
             </div>
             <h1 style={{
-              fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 900,
+              fontSize: 'clamp(24px, 5vw, 64px)', fontWeight: 900,
               lineHeight: 1.05, marginBottom: '24px', color: '#fff',
-              textShadow: '0 2px 10px rgba(0,0,0,0.1)'
+              textShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              letterSpacing: '-1px',
             }}>
               {headline}
             </h1>
             <p style={{
-              fontSize: 'clamp(18px, 2vw, 22px)', opacity: 0.95, marginBottom: '40px',
+              fontSize: 'clamp(16px, 2.5vw, 22px)', opacity: 0.95, marginBottom: '40px',
               lineHeight: 1.6, maxWidth: '600px',
+              fontWeight: 500,
             }}>
               {subheadline}
             </p>

@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   Globe, Eye, EyeOff, Sparkles, Plus, Trash2, Save,
-  ExternalLink, Layers, Settings, ChevronDown, GripVertical,
+  ExternalLink, Layers, Settings, ChevronDown, GripVertical, Wand2,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
+import WebsiteAIBuilder from '../components/WebsiteAIBuilder';
 import type { TemplateSection, ShopTemplate } from '../types/template';
 
 const SECTION_META: Record<TemplateSection['type'], { emoji: string; label: string }> = {
@@ -231,7 +232,7 @@ export default function WebsiteBuilderPage() {
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'gallery' | 'editor' | 'preview'>('gallery');
+  const [activeTab, setActiveTab] = useState<'ai' | 'gallery' | 'editor' | 'preview'>('ai');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [sections, setSections] = useState<TemplateSection[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
@@ -241,6 +242,7 @@ export default function WebsiteBuilderPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
   const [shopName, setShopName] = useState('');
+  const [shopPhone, setShopPhone] = useState('');
   const [addSectionOpen, setAddSectionOpen] = useState(false);
 
   const { data: websiteData } = useQuery<WebsiteData | null>({
@@ -266,27 +268,18 @@ export default function WebsiteBuilderPage() {
   useEffect(() => {
     if (websiteData) {
       setShopName(websiteData.name || user?.business_name || '');
-      if (websiteData.sections?.length) setSections(websiteData.sections);
+      if (websiteData.sections?.length) {
+        setSections(websiteData.sections);
+        const contactSection = websiteData.sections.find(s => s.type === 'contact');
+        if (contactSection?.config?.phone) {
+          setShopPhone(contactSection.config.phone as string);
+        }
+      }
       if (websiteData.template) setSelectedTemplate(websiteData.template);
       setIsPublished(websiteData.is_published === 1);
     } else if (user?.business_name) {
       setShopName(user.business_name);
-    }
-
-    // Check for pending AI sections from AI Assistant
-    const pending = sessionStorage.getItem('pending_ai_sections');
-    if (pending) {
-      try {
-        const parsed = JSON.parse(pending);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSections(parsed);
-          toast.success('✨ AI-generated design applied!', { icon: '✨', duration: 5000 });
-          setActiveTab('preview'); // Show the preview of the new design
-          sessionStorage.removeItem('pending_ai_sections'); // Clear it so it doesn't apply again
-        }
-      } catch (e) {
-        console.error('Failed to apply pending AI sections:', e);
-      }
+      setShopPhone(user.phone || '');
     }
   }, [websiteData, user]);
 
@@ -468,8 +461,8 @@ export default function WebsiteBuilderPage() {
       )}
 
       {/* Mobile tab switcher */}
-      <div style={{ display: 'flex', gap: '4px' }}>
-        {(['gallery', 'editor', 'preview'] as const).map(tab => (
+      <div style={{ display: 'flex', gap: '4px', overflowX: 'auto' }}>
+        {(['ai', 'gallery', 'editor', 'preview'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -478,13 +471,14 @@ export default function WebsiteBuilderPage() {
               cursor: 'pointer', fontWeight: 600, fontSize: '13px',
               background: activeTab === tab ? 'var(--primary)' : 'var(--surface)',
               color: activeTab === tab ? '#fff' : 'var(--text-muted)',
-              display: 'flex', alignItems: 'center', gap: '6px',
+              display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap',
             }}
           >
+            {tab === 'ai' && <Wand2 size={14} />}
             {tab === 'gallery' && <Layers size={14} />}
             {tab === 'editor' && <Settings size={14} />}
             {tab === 'preview' && <Eye size={14} />}
-            {tab === 'gallery' ? 'Design' : tab === 'editor' ? 'Edit Content' : 'Preview'}
+            {tab === 'ai' ? 'AI Mode' : tab === 'gallery' ? 'Design' : tab === 'editor' ? 'Edit Content' : 'Preview'}
           </button>
         ))}
       </div>
@@ -496,7 +490,7 @@ export default function WebsiteBuilderPage() {
         <div style={{
           ...panelBase,
           width: '300px', flexShrink: 0,
-          display: activeTab === 'preview' ? 'none' : 'flex',
+          display: (activeTab === 'preview' || activeTab === 'ai') ? 'none' : 'flex',
         }}>
           {/* Sub-tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
@@ -767,59 +761,80 @@ export default function WebsiteBuilderPage() {
           </div>
         </div>
 
-        {/* CENTER PANEL — Live Preview */}
+        {/* CENTER PANEL — AI Builder or Live Preview */}
         <div style={{
           ...panelBase, flex: 1, minWidth: 0,
-          display: activeTab === 'editor' ? 'none' : 'flex',
+          display: (activeTab === 'editor' || activeTab === 'ai') ? 'flex' : 'none',
         }}>
-          <div style={{
-            padding: '10px 16px', borderBottom: '1px solid var(--border)',
-            display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'var(--bg)',
-          }}>
-            <Eye size={14} style={{ color: 'var(--text-muted)' }} />
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>Live Preview</span>
-            <span style={{
-              marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)',
-              background: 'var(--surface)', padding: '2px 8px', borderRadius: '10px',
-            }}>60% zoom</span>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', background: '#e2e8f0', padding: '16px' }}>
+          {activeTab === 'ai' ? (
+            // AI Mode
             <div style={{
-              width: '166.67%',
-              transformOrigin: 'top left',
-              transform: 'scale(0.6)',
-              background: '#fff',
-              minHeight: '800px',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-              borderRadius: '8px',
-              overflow: 'hidden',
+              padding: '20px', flex: 1, overflowY: 'auto',
+              background: 'var(--bg)',
             }}>
-              {sections.length === 0 ? (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  height: '600px', color: '#94A3B8', flexDirection: 'column', gap: '16px',
-                }}>
-                  <Globe size={48} style={{ opacity: 0.3 }} />
-                  <p style={{ fontSize: '20px', fontWeight: 600 }}>Your website preview will appear here</p>
-                  <p style={{ fontSize: '14px' }}>Select a template or add sections to get started</p>
-                </div>
-              ) : (
-                <TemplateRenderer
-                  sections={sections}
-                  products={MOCK_PRODUCTS}
-                  shopName={shopName || 'My Store'}
-                  isPreview={true}
-                />
-              )}
+              <WebsiteAIBuilder
+                shopName={shopName}
+                onGenerate={(sections) => {
+                  setSections(sections);
+                  setActiveTab('preview');
+                  toast.success('✨ Website design created! Check the preview.', { duration: 5000 });
+                }}
+              />
             </div>
-          </div>
+          ) : (
+            // Live Preview (for editor tab)
+            <>
+              <div style={{
+                padding: '10px 16px', borderBottom: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                background: 'var(--bg)',
+              }}>
+                <Eye size={14} style={{ color: 'var(--text-muted)' }} />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>Live Preview</span>
+                <span style={{
+                  marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)',
+                  background: 'var(--surface)', padding: '2px 8px', borderRadius: '10px',
+                }}>60% zoom</span>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', background: '#e2e8f0', padding: '16px' }}>
+                <div style={{
+                  width: '166.67%',
+                  transformOrigin: 'top left',
+                  transform: 'scale(0.6)',
+                  background: '#fff',
+                  minHeight: '800px',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                }}>
+                  {sections.length === 0 ? (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      height: '600px', color: '#94A3B8', flexDirection: 'column', gap: '16px',
+                    }}>
+                      <Globe size={48} style={{ opacity: 0.3 }} />
+                      <p style={{ fontSize: '20px', fontWeight: 600 }}>Your website preview will appear here</p>
+                      <p style={{ fontSize: '14px' }}>Select a template or add sections to get started</p>
+                    </div>
+                  ) : (
+                    <TemplateRenderer
+                      shopId={user?.id || 'preview'}
+                      sections={sections}
+                      products={MOCK_PRODUCTS}
+                      shopName={shopName || 'My Store'}
+                      isPreview={true}
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* RIGHT PANEL — Section Config */}
         <div style={{
           ...panelBase, width: '280px', flexShrink: 0,
-          display: activeTab === 'gallery' ? 'none' : 'flex',
+          display: (activeTab === 'gallery' || activeTab === 'preview' || activeTab === 'ai') ? 'none' : 'flex',
         }}>
           <div style={{
             padding: '12px 16px', borderBottom: '1px solid var(--border)',

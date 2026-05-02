@@ -25,16 +25,94 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
     return;
   }
 
-  req.user = decoded as { id: string; email: string; plan: string; businessName?: string };
+  const userPayload = decoded as { id: string; email: string; plan: string; businessName?: string };
+  
+  // Check database for block status and plan expiration
+  const { getDatabase } = require('../models/database');
+  const db = getDatabase();
+  const user = db.prepare('SELECT id, email, is_blocked, plan, plan_expires_at FROM users WHERE id = ?').get(userPayload.id) as any;
+  
+  if (!user) {
+    console.warn(`⚠️ Auth: User ${userPayload.id} not found in DB`);
+    res.status(401).json({ error: 'User not found' });
+    return;
+  }
+
+  if (user.is_blocked) {
+    console.warn(`🚫 Auth: Blocked user attempted access: ${user.email}`);
+    res.status(403).json({ error: 'Account blocked', message: 'Your account has been blocked by administrators.' });
+    return;
+  }
+
+  // Check Subscription Expiration (for trial/free users)
+  if (user.plan === 'free' && user.plan_expires_at) {
+    const expiresAt = new Date(user.plan_expires_at);
+    if (expiresAt < new Date()) {
+      console.warn(`⏳ Auth: Trial expired for user: ${user.email}`);
+      res.status(403).json({ 
+        error: 'Trial expired', 
+        expired: true,
+        message: 'Your 7-day trial has ended. Please upgrade to a paid plan to continue using Fera.',
+        upgradeUrl: '/upgrade'
+      });
+      return;
+    }
+  }
+
+  // Update req.user with latest data from DB (in case plan changed)
+  req.user = {
+    ...userPayload,
+    plan: user.plan
+  };
+  next();
+}
+
+/**
+ * Middleware to check if a shopkeeper's public website should be active.
+ * Used in public website routes.
+ */
+export function validatePublicShop(req: Request, res: Response, next: NextFunction): void {
+  const { shopName } = req.params;
+  const { getDatabase } = require('../models/database');
+  const db = getDatabase();
+
+  const user = db.prepare('SELECT plan, plan_expires_at, is_blocked FROM users WHERE subdomain = ?').get(shopName) as any;
+
+  if (!user) {
+    next(); // Let the route handle 404
+    return;
+  }
+
+  if (user.is_blocked) {
+    res.status(403).send('This store is currently unavailable.');
+    return;
+  }
+
+  if (user.plan === 'free' && user.plan_expires_at) {
+    const expiresAt = new Date(user.plan_expires_at);
+    if (expiresAt < new Date()) {
+      res.status(402).send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h1>Store Temporarily Unavailable</h1>
+          <p>The trial period for this store has ended.</p>
+          <p>If you are the owner, please log in to your Fera dashboard to upgrade your plan.</p>
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="color: #FF6B35; font-weight: bold;">Login to Dashboard</a>
+        </div>
+      `);
+      return;
+    }
+  }
+
   next();
 }
 
 export function requirePremium(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.plan !== 'premium') {
+  const plan = req.user?.plan;
+  if (plan === 'trial') {
     res.status(403).json({
-      error: 'Premium plan required',
-      upgradeUrl: '/pricing',
-      message: 'This feature is only available on the Premium plan. Upgrade to unlock unlimited features!'
+      error: 'Upgrade required',
+      upgradeUrl: '/upgrade',
+      message: 'This feature is only available on paid plans. Upgrade to unlock advanced features!'
     });
     return;
   }

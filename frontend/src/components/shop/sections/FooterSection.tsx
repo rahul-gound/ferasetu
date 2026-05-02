@@ -12,7 +12,7 @@ export default function FooterSection({ config }: FooterSectionProps) {
 
   return (
     <footer style={{
-      background: primaryColor, padding: '100px 24px 40px',
+      background: primaryColor, padding: 'clamp(60px, 10vw, 100px) 24px 40px',
       color: '#fff', position: 'relative', overflow: 'hidden'
     }}>
       <div style={{

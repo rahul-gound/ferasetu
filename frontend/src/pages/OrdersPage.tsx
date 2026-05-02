@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ShoppingCart, X, Package, Phone, MapPin, ChevronDown } from 'lucide-react';
+import { ShoppingCart, X, Package, Phone, MapPin, ChevronDown, CheckCircle, ShieldCheck, Printer, Clock } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -90,11 +90,13 @@ function Shimmer() {
   );
 }
 
-function InvoiceModal({ order, onClose, onPaymentUpdate }: {
+function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
   order: Order;
   onClose: () => void;
   onPaymentUpdate: (id: string, status: string) => void;
+  onVerifyOtp: (id: string, otp: string) => void;
 }) {
+  const [otpValue, setOtpValue] = useState('');
   const invoiceNum = `INV-${order.id.slice(-8).toUpperCase()}`;
   const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -137,13 +139,40 @@ function InvoiceModal({ order, onClose, onPaymentUpdate }: {
         </div>
 
         <div style={{ padding: '28px 32px' }}>
+          {/* Handshake Panel */}
+          {order.payment_status !== 'paid' && (
+            <div style={{ background: '#FFF7ED', border: '2px solid #FFEDD5', borderRadius: '14px', padding: '20px', marginBottom: '24px' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <ShieldCheck size={20} color="#FF6B35" />
+                  <span style={{ fontWeight: 800, fontSize: '15px', color: '#9A3412' }}>Secure Payment Verification</span>
+               </div>
+               <p style={{ fontSize: '13px', color: '#C2410C', marginBottom: '16px' }}>
+                  Please ask the customer for the <b>{order.delivery_type === 'delivery' ? 'Security Code' : 'Payment OTP'}</b> to confirm this transaction.
+               </p>
+               <div style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    placeholder="Enter Code/OTP" 
+                    value={otpValue}
+                    onChange={e => setOtpValue(e.target.value.toUpperCase())}
+                    style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #FFD8A8', fontWeight: 700, fontSize: '16px', outline: 'none' }}
+                  />
+                  <button 
+                    onClick={() => onVerifyOtp(order.id, otpValue)}
+                    style={{ background: '#FF6B35', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Verify & Pay
+                  </button>
+               </div>
+            </div>
+          )}
+
           {/* Shop & Customer info */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>From</div>
-              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>Your Shop Name</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>Fera Shop Partner</div>
               <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
-                Your Address, City, State
+                 Merchant ID: {order.id.slice(0,8)}
               </div>
             </div>
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
@@ -193,7 +222,7 @@ function InvoiceModal({ order, onClose, onPaymentUpdate }: {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
               <span>Delivery Fee</span>
-              <span>{order.delivery_type === 'pickup' ? 'Free' : '₹0'}</span>
+              <span>{order.delivery_type === 'pickup' ? 'Free' : '₹30'}</span>
             </div>
             <div style={{
               display: 'flex', justifyContent: 'space-between', paddingTop: '12px',
@@ -212,26 +241,21 @@ function InvoiceModal({ order, onClose, onPaymentUpdate }: {
 
           {/* Action buttons */}
           <div className="no-print" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => onPaymentUpdate(order.id, 'paid')}
-              style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              ✅ Mark as Paid
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => onPaymentUpdate(order.id, 'pay_later')}
-              style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              ⏳ Pay Later
-            </button>
+            {order.payment_status !== 'paid' && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => onPaymentUpdate(order.id, 'pay_later')}
+                style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <Clock size={16} /> Pay Later
+              </button>
+            )}
             <button
               className="btn btn-secondary"
               onClick={() => window.print()}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
-              🖨️ Print
+              <Printer size={16} /> Print Invoice
             </button>
           </div>
         </div>
@@ -255,6 +279,24 @@ export default function OrdersPage() {
       return res.data.orders || res.data;
     },
   });
+
+  const otpMutation = useMutation({
+    mutationFn: ({ id, otp }: { id: string; otp: string }) =>
+      api.post(`/orders/${id}/verify-otp`, { otp }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast.success('OTP Verified! Payment Confirmed.');
+      setInvoiceOrder(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Invalid OTP');
+    },
+  });
+
+  const handleVerifyOtp = (id: string, otp: string) => {
+    if (!otp.trim()) return toast.error('Please enter OTP');
+    otpMutation.mutate({ id, otp });
+  };
 
   const updateMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -512,6 +554,29 @@ export default function OrdersPage() {
                 </span>
               </div>
 
+              {/* Delivery / Pickup Codes */}
+              {selectedOrder.notes && selectedOrder.notes.includes('Code:') && (
+                <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                       <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Delivery Code</div>
+                       <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)', letterSpacing: '1px' }}>
+                         {selectedOrder.notes.match(/Code: ([A-Z0-9]+)/)?.[1] || '---'}
+                       </div>
+                    </div>
+                    <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: '12px' }}>
+                       <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Payment OTP</div>
+                       <div style={{ fontSize: '20px', fontWeight: 900, color: '#1E293B', letterSpacing: '1px' }}>
+                         {selectedOrder.notes.match(/OTP: ([0-9]+)/)?.[1] || '---'}
+                       </div>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#94A3B8', marginTop: '10px' }}>
+                    Ask the customer for the <b>{selectedOrder.delivery_type === 'delivery' ? 'Security Code' : 'OTP'}</b> to verify the handshake.
+                  </p>
+                </div>
+              )}
+
               {/* Items */}
               <div style={{ background: 'var(--bg)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
                 <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
@@ -580,6 +645,7 @@ export default function OrdersPage() {
           order={invoiceOrder}
           onClose={() => setInvoiceOrder(null)}
           onPaymentUpdate={handlePaymentUpdate}
+          onVerifyOtp={handleVerifyOtp}
         />
       )}
     </div>
