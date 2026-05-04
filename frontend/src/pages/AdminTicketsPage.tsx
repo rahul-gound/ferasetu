@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
-  Send, CheckCircle2, MessageSquare, Clock, 
-  User, LifeBuoy, Filter, ChevronRight
+  Send, CheckCircle2, MessageSquare,
+  User, LifeBuoy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -15,7 +15,7 @@ export default function AdminTicketsPage() {
   const [replies, setReplies] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
   const [status, setStatus] = useState('open');
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const token = localStorage.getItem('admin_token');
   const scrollRef = useRef<HTMLDivElement>(null);
 

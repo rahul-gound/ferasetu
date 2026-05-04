@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Search, ShoppingBag, CreditCard, Clock, 
-  ChevronLeft, ChevronRight, User, Store
+  Clock, ChevronLeft, ChevronRight, Store
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';

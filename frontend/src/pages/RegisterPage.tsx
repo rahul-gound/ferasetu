@@ -34,7 +34,7 @@ export default function RegisterPage() {
   const [resendAttempts, setResendAttempts] = useState(0);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (resendTimer > 0) {
       interval = setInterval(() => setResendTimer(t => t - 1), 1000);
     }

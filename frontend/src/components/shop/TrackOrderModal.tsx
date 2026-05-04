@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import axios from 'axios';
-import { X, Search, Package, Phone, CheckCircle, Clock, Truck, MapPin } from 'lucide-react';
+import { X, Search, Phone, Clock, Truck, MapPin } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -15,7 +16,7 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
     if (!phone.trim()) return;
 

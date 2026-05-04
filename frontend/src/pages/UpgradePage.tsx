@@ -13,6 +13,8 @@ interface PlanConfig {
   description: string;
   outcome: string;
   features: string[];
+  aiCredits: string;
+  storage: string;
   icon: ReactNode;
   color: string;
   buttonText: string;
@@ -23,10 +25,12 @@ const plans: PlanConfig[] = [
   {
     id: 'basic',
     name: 'Starter',
-    price: 199,
-    yearlyPrice: 1990,
+    price: 299,
+    yearlyPrice: 2990,
     description: 'For shops taking their first serious step online.',
     outcome: 'Launch your catalog and accept local orders without confusion.',
+    aiCredits: '100 AI credits/month',
+    storage: '250 MB image storage',
     icon: <Zap size={24} />,
     color: '#0F172A',
     buttonText: 'Start Starter',
@@ -34,7 +38,10 @@ const plans: PlanConfig[] = [
       '100 products with stock tracking',
       'Professional Fera shop link',
       'Order dashboard and customer details',
-      'Basic AI assistant for daily questions',
+      '100 shared AI credits/month',
+      'Shopkeeper AI assistant access',
+      'Customer AI assistant can be enabled for bigger shops',
+      'Extra storage at ₹20/GB/month',
       'Payment QR support',
       'Email support'
     ]
@@ -42,50 +49,71 @@ const plans: PlanConfig[] = [
   {
     id: 'standard',
     name: 'Growth',
-    price: 499,
-    yearlyPrice: 4990,
+    price: 699,
+    yearlyPrice: 6990,
     description: 'Best for growing stores that want more orders and repeat customers.',
     outcome: 'Turn WhatsApp traffic into a polished buying experience.',
+    aiCredits: '500 AI credits/month',
+    storage: '1 GB image storage',
     icon: <Sparkles size={24} />,
     color: '#FF6B35',
     buttonText: 'Choose Growth',
     recommended: true,
     features: [
       '1,000 products and categories',
-      'Advanced AI website and content help',
+      '500 shared AI credits/month',
+      'Advanced website AI and content help',
+      'Customer-facing Fera AI assistant access',
       'Custom domain support',
       'Premium storefront templates',
       'Sales analytics and recommendations',
+      'Extra storage at ₹20/GB/month',
       'WhatsApp support priority'
     ]
   },
   {
     id: 'pro',
     name: 'Scale',
-    price: 999,
-    yearlyPrice: 9990,
+    price: 1499,
+    yearlyPrice: 14990,
     description: 'For serious retailers managing more products, staff, and brand trust.',
     outcome: 'Run your digital shop like a proper commerce operation.',
+    aiCredits: '2,000 AI credits/month',
+    storage: '5 GB image storage',
     icon: <Trophy size={24} />,
     color: '#7C3AED',
     buttonText: 'Go Scale',
     features: [
-      'Unlimited products',
+      '5,000 products',
+      '2,000 shared AI credits/month',
       'Priority advanced AI access',
+      'Customer-facing Fera AI assistant access',
       'Sales prediction and stock alerts',
       'Up to 5 staff accounts',
       'Bulk product import/export',
+      'Extra storage at ₹20/GB/month',
       'Dedicated onboarding help'
     ]
   }
 ];
 
 const comparisonFeatures = [
-  { title: 'Products', basic: '100', standard: '1,000', pro: 'Unlimited' },
+  { title: 'Products', basic: '100', standard: '1,000', pro: '5,000' },
   { title: 'Website', basic: 'Fera link', standard: 'Custom domain ready', pro: 'Brand-first setup' },
-  { title: 'AI Help', basic: 'Daily assistant', standard: 'Website + marketing', pro: 'Priority strategy' },
+  { title: 'AI Credits', basic: '100/month', standard: '500/month', pro: '2,000/month' },
+  { title: 'AI Access', basic: 'Shopkeeper + customer assistant', standard: 'Website + customer assistant', pro: 'Priority all AI' },
+  { title: 'Storage', basic: '250 MB', standard: '1 GB', pro: '5 GB' },
+  { title: 'Extra Storage', basic: '₹20/GB/month', standard: '₹20/GB/month', pro: '₹20/GB/month' },
   { title: 'Analytics', basic: 'Basic', standard: 'Growth insights', pro: 'Forecasts + alerts' },
   { title: 'Support', basic: 'Email', standard: 'Priority WhatsApp', pro: 'Onboarding help' },
+];
+
+const planCredits: Record<string, number> = { basic: 100, standard: 500, pro: 2000 };
+
+const aiCreditPacks = [
+  { label: '250 credits', price: '₹149', bestFor: 'Small website/content tasks' },
+  { label: '1,000 credits', price: '₹499', bestFor: 'Regular website AI and shop assistant use' },
+  { label: '3,000 credits', price: '₹1,299', bestFor: 'Heavy customer assistant usage' },
 ];
 
 export default function UpgradePage() {
@@ -109,7 +137,7 @@ export default function UpgradePage() {
 
       if (initRes.data.success) {
         toast.success(`Development mode: ${planName} plan activated.`);
-        if (user) updateUser({ plan: planId as any });
+        if (user) updateUser({ plan: planId as any, ai_credits_monthly_limit: planCredits[planId], ai_credits_balance: (user.ai_credits_balance || 0) + (planCredits[planId] || 0), ai_credits_used_month: 0 });
         navigate('/dashboard');
       }
     } catch (err: any) {
@@ -126,7 +154,7 @@ export default function UpgradePage() {
         <div className="pricing-eyebrow">Plans built for Indian shopkeepers</div>
         <h1>Choose the plan that makes your shop look serious online.</h1>
         <p>
-          Start with a 7-day trial, upgrade when your store is ready, and keep full control of products, orders, and customers.
+          Start with a 7-day trial including 20 AI credits. After that, choose a paid plan and buy extra credits only when your AI usage grows.
         </p>
         <div className="pricing-trust-row">
           <span><Shield size={16} /> Secure payments</span>
@@ -159,6 +187,7 @@ export default function UpgradePage() {
                 <span className="period">/month</span>
               </div>
               <div className="yearly-note">Pay yearly: ₹{plan.yearlyPrice.toLocaleString('en-IN')} and save 2 months</div>
+              <div className="yearly-note">{plan.aiCredits} · {plan.storage}</div>
               <div className="plan-outcome">{plan.outcome}</div>
 
               <div className="plan-features">
@@ -188,6 +217,27 @@ export default function UpgradePage() {
           <p>Customers trust shops that look organized, show real products, and respond quickly. Fera gives your store that professional signal.</p>
         </div>
         <div className="proof-stat"><span>40%</span> avg. sales lift after going online</div>
+      </section>
+
+      <section className="add-ons-grid">
+        <div className="addon-card dark">
+          <h3>Need more than Scale?</h3>
+          <p>Custom pricing starts at ₹2,999/month for multiple shops, custom storage, custom AI credits, staff access, integrations, and onboarding.</p>
+          <button onClick={() => navigate('/support')}>Request Custom Pricing</button>
+        </div>
+        <div className="addon-card">
+          <h3>Extra storage</h3>
+          <p>Buy only what you need for product images, banners, and shop assets.</p>
+          <strong>₹20 / GB / month</strong>
+        </div>
+        <div className="addon-card">
+          <h3>AI credit packs</h3>
+          <div className="credit-pack-list">
+            {aiCreditPacks.map(pack => (
+              <div key={pack.label}><span>{pack.label}</span><b>{pack.price}</b><small>{pack.bestFor}</small></div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="comparison-container">
@@ -526,6 +576,82 @@ export default function UpgradePage() {
           font-weight: 950;
         }
 
+        .add-ons-grid {
+          display: grid;
+          grid-template-columns: 1.2fr 0.8fr 1fr;
+          gap: 18px;
+          margin: 0 0 28px;
+        }
+
+        .addon-card {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 28px;
+          padding: 26px;
+          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+        }
+
+        .addon-card.dark {
+          background: #0f172a;
+          color: #fff;
+          border-color: #0f172a;
+        }
+
+        .addon-card h3 {
+          margin: 0 0 10px;
+          font-size: 20px;
+          font-weight: 950;
+        }
+
+        .addon-card p {
+          margin: 0 0 18px;
+          color: #64748b;
+          font-weight: 650;
+          line-height: 1.6;
+        }
+
+        .addon-card.dark p { color: #cbd5e1; }
+
+        .addon-card strong {
+          display: block;
+          color: #ea580c;
+          font-size: 26px;
+          font-weight: 950;
+        }
+
+        .addon-card button {
+          border: none;
+          border-radius: 16px;
+          background: #f97316;
+          color: #fff;
+          padding: 12px 16px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .credit-pack-list {
+          display: grid;
+          gap: 10px;
+        }
+
+        .credit-pack-list div {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 2px 10px;
+          padding: 12px;
+          border-radius: 16px;
+          background: #f8fafc;
+        }
+
+        .credit-pack-list span,
+        .credit-pack-list b { font-weight: 950; color: #0f172a; }
+
+        .credit-pack-list small {
+          grid-column: 1 / -1;
+          color: #64748b;
+          font-weight: 700;
+        }
+
         .comparison-container {
           background: #fff;
           border-radius: 28px;
@@ -581,6 +707,7 @@ export default function UpgradePage() {
           .plans-grid { grid-template-columns: 1fr; }
           .plan-card.recommended, .plan-card.recommended:hover { transform: none; }
           .pricing-proof { grid-template-columns: 1fr; }
+          .add-ons-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {

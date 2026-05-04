@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
-  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy
+  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/orders', icon: <ShoppingCart size={20} />, labelKey: 'orders' },
   { path: '/analytics', icon: <BarChart3 size={20} />, labelKey: 'analytics' },
   { path: '/ai-assistant', icon: <Bot size={20} />, labelKey: 'aiAssistant' },
+  { path: '/ai-credits', icon: <Coins size={20} />, labelKey: 'aiCredits' },
   { path: '/website-builder', icon: <Globe size={20} />, labelKey: 'websiteBuilder' },
   { path: '/support', icon: <LifeBuoy size={20} />, labelKey: 'support' },
 ];

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Search, Store, ExternalLink, Package, 
-  ChevronLeft, ChevronRight, Globe, User
+  Store, ExternalLink, Package, 
+  ChevronLeft, ChevronRight, Globe
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -73,7 +73,7 @@ export default function AdminShopsPage() {
                         <div>
                           <div className="font-black text-slate-900">{shop.shop_name}</div>
                           <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                            <Globe size={10} /> {shop.subdomain}.fera-shop.fera-search.tech
+                            <Globe size={10} /> {shop.subdomain}.fera-search.tech
                           </div>
                         </div>
                       </div>
@@ -95,7 +95,7 @@ export default function AdminShopsPage() {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <a 
-                        href={`/shop/${shop.shop_name}`} 
+                        href={`https://${shop.subdomain}.fera-search.tech`} 
                         target="_blank" 
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all"

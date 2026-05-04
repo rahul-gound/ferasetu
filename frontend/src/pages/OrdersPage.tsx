@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ShoppingCart, X, Package, Phone, MapPin, ChevronDown, CheckCircle, ShieldCheck, Printer, Clock } from 'lucide-react';
+import { ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 

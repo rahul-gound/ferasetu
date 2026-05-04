@@ -15,6 +15,13 @@ interface LocalUser {
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
+  plan_expires_at?: string;
+  ai_credits_balance?: number;
+  ai_credits_monthly_limit?: number;
+  ai_credits_used_month?: number;
+  ai_credits_reset_at?: string;
+  storage_used_bytes?: number;
+  storage_limit_bytes?: number;
   created_at: string;
 }
 
@@ -491,10 +498,17 @@ async function localPost(url: string, payload: Record<string, any>) {
       name,
       phone: payload.phone ? String(payload.phone) : undefined,
       business_name: businessName || undefined,
-      plan: 'free',
+      plan: 'trial',
       preferred_language: String(payload.preferredLanguage || 'en'),
       subdomain: generateSubdomain(businessName || name || 'my-store'),
       custom_domain: undefined,
+      plan_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      ai_credits_balance: 20,
+      ai_credits_monthly_limit: 20,
+      ai_credits_used_month: 0,
+      ai_credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      storage_used_bytes: 0,
+      storage_limit_bytes: 50 * 1024 * 1024,
       created_at: now(),
     };
     user.password_hash = await hashPassword(password, user.password_salt || '');
@@ -515,8 +529,9 @@ async function localPost(url: string, payload: Record<string, any>) {
     } else if (user.password !== password) {
       throw createHttpError(401, 'Invalid email or password');
     } else {
-      user.password_salt = createSalt();
-      user.password_hash = await hashPassword(password, user.password_salt);
+      const salt = createSalt();
+      user.password_salt = salt;
+      user.password_hash = await hashPassword(password, salt);
       delete user.password;
       saveDb(db);
     }
@@ -575,15 +590,64 @@ async function localPost(url: string, payload: Record<string, any>) {
 
   if (path === '/ai/chat') {
     const message = String(payload.message || '');
+    const userId = getCurrentUserId();
+    const user = userId ? db.users.find(u => u.id === userId) : null;
+    if (user) {
+      const cost = payload.usageType === 'website_ai' || message.includes('Generate website sections JSON for:') ? 3 : 1;
+      user.ai_credits_balance = Math.max(0, (user.ai_credits_balance || 0) - cost);
+      user.ai_credits_used_month = (user.ai_credits_used_month || 0) + cost;
+      saveDb(db);
+    }
     return createResponse({
       content: `Local mode is enabled. I saved your message locally: "${message.slice(0, MAX_MESSAGE_PREVIEW_LENGTH)}"`,
       model: 'Local Mock AI',
+      aiCreditsBalance: user?.ai_credits_balance || 0,
     });
   }
 
-  if (path === '/payment/initialize') {
+  if (path === '/payment/ai-credits') {
+    const userId = getCurrentUserId();
+    const user = userId ? db.users.find(u => u.id === userId) : null;
     return createResponse({
+      credits: user || { ai_credits_balance: 0, ai_credits_monthly_limit: 0, ai_credits_used_month: 0 },
+      packs: {
+        small: { credits: 250, amount: 149, label: '250 AI credits' },
+        growth: { credits: 1000, amount: 499, label: '1,000 AI credits' },
+        scale: { credits: 3000, amount: 1299, label: '3,000 AI credits' }
+      },
+      purchases: [],
+      usage: []
+    });
+  }
+
+  if (path === '/payment/ai-credits/purchase') {
+    const userId = getCurrentUserId();
+    const user = userId ? db.users.find(u => u.id === userId) : null;
+    const packs: Record<string, number> = { small: 250, growth: 1000, scale: 3000 };
+    const credits = packs[String(payload.pack)] || 0;
+    if (user && credits) {
+      user.ai_credits_balance = (user.ai_credits_balance || 0) + credits;
+      saveDb(db);
+    }
+    return createResponse({ success: true, ai_credits_balance: user?.ai_credits_balance || 0 }, 201);
+  }
+
+  if (path === '/payment/initialize') {
+    const userId = getCurrentUserId();
+    const user = userId ? db.users.find(u => u.id === userId) : null;
+    const plan = String(payload.plan || 'basic') as LocalUser['plan'];
+    const creditsByPlan: Record<string, number> = { basic: 100, standard: 500, pro: 2000, premium: 500 };
+    if (user) {
+      user.plan = plan;
+      user.ai_credits_balance = (user.ai_credits_balance || 0) + (creditsByPlan[plan] || 0);
+      user.ai_credits_monthly_limit = creditsByPlan[plan] || user.ai_credits_monthly_limit || 20;
+      user.ai_credits_used_month = 0;
+      saveDb(db);
+    }
+    return createResponse({
+      success: true,
       id: createId(),
+      plan,
       providerOrderId: `order_${createId().substring(0, 14)}`,
       amount: Number(payload.amount || 0),
       currency: 'INR',

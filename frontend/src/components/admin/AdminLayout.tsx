@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Users, LayoutDashboard, LifeBuoy, Bot, Activity, 
-  ShoppingBag, Store, BarChart3, Settings, Bell, 
-  Menu, X, LogOut, ChevronRight, Zap, Terminal
+  Users, LayoutDashboard, LifeBuoy,
+  ShoppingBag, Store, Bell,
+  Menu, LogOut, ChevronRight, Zap, Terminal
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

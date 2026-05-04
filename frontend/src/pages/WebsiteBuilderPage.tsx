@@ -242,7 +242,7 @@ export default function WebsiteBuilderPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
   const [shopName, setShopName] = useState('');
-  const [shopPhone, setShopPhone] = useState('');
+  const [, setShopPhone] = useState('');
   const [addSectionOpen, setAddSectionOpen] = useState(false);
 
   const { data: websiteData } = useQuery<WebsiteData | null>({
@@ -339,11 +339,12 @@ export default function WebsiteBuilderPage() {
       const res = await api.post('/ai/chat', {
         message: `Generate website sections JSON for: ${aiPrompt}`,
         language: 'en',
+        usageType: 'website_ai',
       });
       const data = res.data as { content?: string };
       setAiResponse(data.content || 'AI response received');
-    } catch {
-      toast.error('AI generation failed');
+    } catch (err: any) {
+      toast.error(err.response?.status === 402 ? 'AI credits finished. Buy credits to continue.' : 'AI generation failed');
     } finally {
       setAiGenerating(false);
     }

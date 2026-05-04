@@ -22,9 +22,11 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
+    "mysql2": "^3.22.3",
     "node-cron": "^3.0.3",
     "nodemailer": "^8.0.5",
     "sql.js": "^1.10.2",
+    "sync-mysql": "^3.0.1",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

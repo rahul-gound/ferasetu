@@ -34,6 +34,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '127.0.0.1';
 
 console.log(`📊 Loaded FRONTEND_URL: ${process.env.FRONTEND_URL}`);
 
@@ -117,8 +118,8 @@ initializeDatabase().then(async () => {
   // Verify mail service on startup
   await verifyMailService();
   
-  app.listen(Number(PORT), '127.0.0.1', () => {
-    console.log(`🚀 Fera Shopkeeper Backend running on http://127.0.0.1:${PORT}`);
+  app.listen(Number(PORT), HOST, () => {
+    console.log(`🚀 Fera Shopkeeper Backend running on http://${HOST}:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }).catch(err => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import type { FormEvent } from 'react';
 import axios from 'axios';
-import { LifeBuoy, Plus, CheckCircle, Clock, Send, MessageSquare, ChevronLeft, User, Bot, ChevronRight } from 'lucide-react';
+import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL || '/api';
@@ -57,7 +58,7 @@ export default function SupportPage() {
     return () => clearInterval(interval);
   }, [selectedTicket]);
 
-  const handleCreateTicket = async (e: React.FormEvent) => {
+  const handleCreateTicket = async (e: FormEvent) => {
     e.preventDefault();
     setLoadingSubmitting(true);
     try {
@@ -75,7 +76,7 @@ export default function SupportPage() {
     }
   };
 
-  const handleSendReply = async (e: React.FormEvent) => {
+  const handleSendReply = async (e: FormEvent) => {
     e.preventDefault();
     if (!replyText.trim()) return;
     try {
@@ -86,19 +87,6 @@ export default function SupportPage() {
       fetchReplies(selectedTicket.id);
     } catch (err) {
       toast.error('Failed to send reply');
-    }
-  };
-
-  const handleCloseTicket = async (id: string) => {
-    try {
-      await axios.post(`${API}/tickets/${id}/close`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      toast.success('Ticket closed');
-      if (selectedTicket?.id === id) setSelectedOrder(null);
-      fetchTickets();
-    } catch (err) {
-      toast.error('Failed to close ticket');
     }
   };
 

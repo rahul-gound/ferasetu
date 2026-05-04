@@ -1,17 +1,45 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
+import os from 'os';
 import { getDatabase } from '../models/database';
 import { adminOnly, AdminRequest } from '../middleware/adminAuth';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-do-not-use-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'fallback-dev-secret-do-not-use-in-dev');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fera.ai';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '@Rinku_singh_123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const VALID_PLANS = new Set(['free', 'trial', 'basic', 'standard', 'pro', 'premium']);
+
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many admin login attempts. Try again later.' }
+});
+
+function writeAuditLog(req: AdminRequest, action: string, targetType?: string, targetId?: string, metadata: Record<string, unknown> = {}) {
+  try {
+    const db = getDatabase();
+    db.prepare(`
+      INSERT INTO admin_audit_logs (id, admin_email, action, target_type, target_id, metadata)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), req.admin?.email || ADMIN_EMAIL, action, targetType || null, targetId || null, JSON.stringify(metadata));
+  } catch (err) {
+    console.warn('Admin audit log failed:', err);
+  }
+}
 
 // Admin Login (Public)
-router.post('/login', (req: Request, res: Response): void => {
+router.post('/login', adminLoginLimiter, (req: Request, res: Response): void => {
   const { username, password } = req.body;
+
+  if (!JWT_SECRET || !ADMIN_PASSWORD) {
+    res.status(500).json({ error: 'Admin login is not configured' });
+    return;
+  }
 
   if (username === 'admin' && password === ADMIN_PASSWORD) {
     const token = jwt.sign(
@@ -27,6 +55,10 @@ router.post('/login', (req: Request, res: Response): void => {
 
 // Use adminOnly middleware for all following routes
 router.use(adminOnly);
+
+router.get('/me', (req: AdminRequest, res: Response) => {
+  res.json({ admin: req.admin });
+});
 
 // --- USER MANAGEMENT ---
 
@@ -57,15 +89,16 @@ router.get('/users', (req: Request, res: Response) => {
 });
 
 // Update user status (block/unblock)
-router.patch('/users/:id/status', (req: Request, res: Response) => {
+router.patch('/users/:id/status', (req: AdminRequest, res: Response) => {
   const { is_blocked } = req.body;
   const db = getDatabase();
   db.prepare('UPDATE users SET is_blocked = ?, updated_at = datetime(\'now\') WHERE id = ?').run(is_blocked ? 1 : 0, req.params.id);
+  writeAuditLog(req, is_blocked ? 'user.block' : 'user.unblock', 'user', req.params.id);
   res.json({ success: true, is_blocked });
 });
 
 // Delete User (Hard Delete)
-router.delete('/users/:id', (req: Request, res: Response) => {
+router.delete('/users/:id', (req: AdminRequest, res: Response) => {
   const db = getDatabase();
   const userId = req.params.id;
   console.log(`[ADMIN] Attempting to delete user: ${userId}`);
@@ -88,6 +121,7 @@ router.delete('/users/:id', (req: Request, res: Response) => {
       return;
     }
 
+    writeAuditLog(req, 'user.delete', 'user', userId);
     res.json({ success: true, message: 'User and all related data deleted permanently' });
   } catch (err: any) {
     console.error(`❌ Admin: Failed to delete user ${userId}:`, err);
@@ -96,7 +130,7 @@ router.delete('/users/:id', (req: Request, res: Response) => {
 });
 
 // Impersonate User (Generate token for a user)
-router.post('/users/:id/impersonate', (req: Request, res: Response) => {
+router.post('/users/:id/impersonate', (req: AdminRequest, res: Response) => {
   const db = getDatabase();
   const user = db.prepare('SELECT id, email, name, plan, business_name FROM users WHERE id = ?').get(req.params.id) as any;
   
@@ -111,6 +145,7 @@ router.post('/users/:id/impersonate', (req: Request, res: Response) => {
     { expiresIn: '1h' }
   );
 
+  writeAuditLog(req, 'user.impersonate', 'user', req.params.id, { email: user.email });
   res.json({ token, user });
 });
 
@@ -131,6 +166,13 @@ router.get('/dashboard-stats', async (req: Request, res: Response) => {
 
   // Active Users (30 days)
   const activeUsers = (db.prepare("SELECT COUNT(DISTINCT user_id) as c FROM analytics_events WHERE created_at > datetime('now', '-30 days')").get() as any)?.c || 0;
+  const revenueChart = db.prepare(`
+    SELECT DATE(created_at) as date, SUM(total) as revenue, COUNT(*) as orders
+    FROM orders
+    WHERE payment_status = 'paid' AND created_at >= datetime('now', '-7 days')
+    GROUP BY DATE(created_at)
+    ORDER BY date ASC
+  `).all();
 
   // SMTP Check
   let smtpStatus = 'error';
@@ -149,8 +191,17 @@ router.get('/dashboard-stats', async (req: Request, res: Response) => {
     health: {
       smtp: smtpStatus,
       database: 'operational',
-      uptime: process.uptime()
-    }
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      system: {
+        totalMemory: os.totalmem(),
+        freeMemory: os.freemem(),
+        loadAverage: os.loadavg(),
+        cpuCount: os.cpus().length,
+        platform: os.platform()
+      }
+    },
+    revenueChart
   });
 });
 
@@ -261,16 +312,22 @@ router.patch('/tickets/:id', (req: Request, res: Response) => {
 
 // --- USER PLAN UPDATE ---
 
-router.patch('/users/:id/plan', (req: Request, res: Response) => {
+router.patch('/users/:id/plan', (req: AdminRequest, res: Response) => {
   const { plan } = req.body;
+  if (!VALID_PLANS.has(plan)) {
+    res.status(400).json({ error: 'Invalid plan' });
+    return;
+  }
+
   const db = getDatabase();
   db.prepare('UPDATE users SET plan = ?, updated_at = datetime(\'now\') WHERE id = ?').run(plan, req.params.id);
+  writeAuditLog(req, 'user.plan_update', 'user', req.params.id, { plan });
   res.json({ success: true, plan });
 });
 
 // --- ANNOUNCEMENTS ---
 
-router.post('/announcements', (req: Request, res: Response) => {
+router.post('/announcements', (req: AdminRequest, res: Response) => {
   const { title, content, target_plan, expires_at } = req.body;
   const db = getDatabase();
   
@@ -279,6 +336,7 @@ router.post('/announcements', (req: Request, res: Response) => {
     VALUES (?, ?, ?, ?, ?)
   `).run(uuidv4(), title, content, target_plan || 'all', expires_at || null);
 
+  writeAuditLog(req, 'announcement.create', 'announcement', undefined, { title, target_plan: target_plan || 'all' });
   res.json({ success: true });
 });
 
@@ -290,7 +348,7 @@ router.get('/feature-flags', (req: Request, res: Response) => {
   res.json({ flags });
 });
 
-router.post('/feature-flags', (req: Request, res: Response) => {
+router.post('/feature-flags', (req: AdminRequest, res: Response) => {
   const { flag_key, description, is_enabled, rules_json } = req.body;
   const db = getDatabase();
   
@@ -304,6 +362,7 @@ router.post('/feature-flags', (req: Request, res: Response) => {
     updated_at = datetime('now')
   `).run(uuidv4(), flag_key, description, is_enabled ? 1 : 0, JSON.stringify(rules_json || {}));
 
+  writeAuditLog(req, 'feature_flag.upsert', 'feature_flag', flag_key, { is_enabled: !!is_enabled });
   res.json({ success: true });
 });
 
@@ -312,16 +371,30 @@ router.post('/feature-flags', (req: Request, res: Response) => {
 router.get('/ai-usage', (req: Request, res: Response) => {
   const db = getDatabase();
   const logs = db.prepare(`
-    SELECT l.*, u.email, u.business_name 
+    SELECT l.*, u.email, u.business_name, u.ai_credits_balance
     FROM ai_usage_logs l 
     JOIN users u ON l.user_id = u.id 
     ORDER BY l.created_at DESC 
     LIMIT 100
   `).all();
   
-  const stats = db.prepare('SELECT model, COUNT(*) as count, SUM(cost) as total_cost FROM ai_usage_logs GROUP BY model').all();
+  const stats = db.prepare('SELECT model, COUNT(*) as count, SUM(cost) as total_cost, SUM(credits_used) as credits_used FROM ai_usage_logs GROUP BY model').all();
+  const byUsageType = db.prepare(`
+    SELECT usage_type, COUNT(*) as calls, SUM(credits_used) as credits_used, SUM(prompt_tokens + completion_tokens) as tokens
+    FROM ai_usage_logs
+    GROUP BY usage_type
+  `).all();
+  const byShop = db.prepare(`
+    SELECT u.id, u.email, u.business_name, u.ai_credits_balance, COUNT(l.id) as calls, SUM(l.credits_used) as credits_used
+    FROM users u
+    LEFT JOIN ai_usage_logs l ON l.user_id = u.id
+    GROUP BY u.id, u.email, u.business_name, u.ai_credits_balance
+    HAVING calls > 0
+    ORDER BY credits_used DESC
+    LIMIT 50
+  `).all();
 
-  res.json({ logs, stats });
+  res.json({ logs, stats, byUsageType, byShop });
 });
 
 export default router;

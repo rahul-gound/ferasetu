@@ -17,6 +17,12 @@ export interface User {
   subdomain?: string;
   custom_domain?: string;
   plan_expires_at?: string;
+  ai_credits_balance?: number;
+  ai_credits_monthly_limit?: number;
+  ai_credits_used_month?: number;
+  ai_credits_reset_at?: string;
+  storage_used_bytes?: number;
+  storage_limit_bytes?: number;
   created_at: string;
 }
 
@@ -54,8 +60,8 @@ export async function registerUser(data: {
 
   try {
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, name, phone, business_name, preferred_language, subdomain, plan, plan_expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'free', ?)
+      INSERT INTO users (id, email, password_hash, name, phone, business_name, preferred_language, subdomain, plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'trial', ?, 20, 20, datetime('now', '+30 days'))
     `).run(
       userId,
       data.email,
@@ -80,7 +86,7 @@ export async function registerUser(data: {
   const { password_hash: _ph, ...safeUser } = user;
 
   const token = jwt.sign(
-    { id: userId, email: data.email, plan: 'free', businessName: data.businessName || data.name },
+    { id: userId, email: data.email, plan: 'trial', businessName: data.businessName || data.name },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
@@ -132,7 +138,12 @@ export function verifyToken(token: string): Record<string, unknown> | null {
 
 export function getUserById(userId: string): User | null {
   const db = getDatabase();
-  const user = db.prepare('SELECT id, email, name, phone, business_name, plan, preferred_language, subdomain, custom_domain, created_at FROM users WHERE id = ?').get(userId) as User | undefined;
+  const user = db.prepare(`
+    SELECT id, email, name, phone, business_name, plan, preferred_language, subdomain, custom_domain,
+           plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at,
+           storage_used_bytes, storage_limit_bytes, created_at
+    FROM users WHERE id = ?
+  `).get(userId) as User | undefined;
   return user || null;
 }
 

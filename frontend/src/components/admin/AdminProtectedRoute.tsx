@@ -8,7 +8,16 @@ export default function AdminProtectedRoute({ children }: { children: React.Reac
     return <Navigate to="/admin" replace />;
   }
 
-  // Optional: Add JWT expiration check here
-  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] || ''));
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      localStorage.removeItem('admin_token');
+      return <Navigate to="/admin" replace />;
+    }
+  } catch {
+    localStorage.removeItem('admin_token');
+    return <Navigate to="/admin" replace />;
+  }
+   
   return <>{children}</>;
 }

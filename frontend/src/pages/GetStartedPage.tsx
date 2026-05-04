@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ArrowRight, ChevronRight, Sparkles, MessageCircle, Settings, Zap, TrendingUp, Globe, Package } from 'lucide-react';
+import { ArrowRight, ChevronRight, Sparkles, MessageCircle } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';

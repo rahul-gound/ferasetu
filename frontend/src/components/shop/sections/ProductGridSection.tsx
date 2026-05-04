@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import axios from 'axios';
 import { 
-  ShoppingBag, X, Check, Phone, MapPin, Truck, 
-  Package, ExternalLink, CreditCard, Wallet, Mail, 
-  ShoppingCart, Plus, Minus, Trash2, ArrowRight
+  ShoppingBag, X, Check, MapPin, Truck, 
+  Package, ExternalLink,
+  ShoppingCart, Plus, Minus, ArrowRight
 } from 'lucide-react';
 import type { SectionConfig, ShopProduct } from '../../../types/template';
 

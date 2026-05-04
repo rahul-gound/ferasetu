@@ -7,6 +7,48 @@ import { getDatabase } from '../models/database';
 
 const router = Router();
 
+const AI_CREDIT_COST: Record<string, number> = {
+  shopkeeper_assistant: 1,
+  website_ai: 3,
+  customer_assistant: 2
+};
+
+function chargeAiCredits(userId: string, usageType: string): { creditsUsed: number; balance: number } {
+  const db = getDatabase();
+  const creditsUsed = AI_CREDIT_COST[usageType] || 1;
+  const user = db.prepare(`
+    SELECT ai_credits_balance, ai_credits_reset_at, ai_credits_monthly_limit
+    FROM users WHERE id = ?
+  `).get(userId) as any;
+
+  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+
+  if (user.ai_credits_reset_at && new Date(user.ai_credits_reset_at).getTime() <= Date.now()) {
+    db.prepare(`
+      UPDATE users
+      SET ai_credits_balance = ai_credits_balance + ai_credits_monthly_limit,
+          ai_credits_used_month = 0,
+          ai_credits_reset_at = datetime('now', '+30 days')
+      WHERE id = ?
+    `).run(userId);
+    user.ai_credits_balance += user.ai_credits_monthly_limit || 0;
+  }
+
+  if ((user.ai_credits_balance || 0) < creditsUsed) {
+    throw Object.assign(new Error('Not enough AI credits. Please buy more credits or upgrade your plan.'), { status: 402 });
+  }
+
+  db.prepare(`
+    UPDATE users
+    SET ai_credits_balance = ai_credits_balance - ?,
+        ai_credits_used_month = ai_credits_used_month + ?,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `).run(creditsUsed, creditsUsed, userId);
+
+  return { creditsUsed, balance: (user.ai_credits_balance || 0) - creditsUsed };
+}
+
 // All AI routes require authentication
 router.use(authenticate);
 
@@ -41,8 +83,12 @@ router.post('/chat',
     // Detect if this is a complex task (website creation, major changes)
     const isWebsiteJsonRequest = /Generate website sections JSON for:/i.test(message) || /json/i.test(message);
     const isComplexTask = /create|build|generate|make.*website|redesign|restructure/i.test(message) || isWebsiteJsonRequest;
+    const usageType = req.body.usageType || (isWebsiteJsonRequest ? 'website_ai' : 'shopkeeper_assistant');
 
+    let creditCharge: { creditsUsed: number; balance: number } | null = null;
     try {
+      creditCharge = chargeAiCredits(req.user!.id, usageType);
+
       // Custom system prompt injection for actions
       const enhancedHistory = [...history];
       if (history.length === 0 || !history.find(h => h.role === 'system')) {
@@ -123,15 +169,35 @@ Do not output the JSON until you have all information. Keep your conversation na
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(aiMsgId, req.user!.id, 'assistant', finalContent, language, response.model);
 
+      db.prepare(`
+        INSERT INTO ai_usage_logs (id, user_id, model, prompt_tokens, completion_tokens, cost, credits_used, usage_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        uuidv4(),
+        req.user!.id,
+        response.model,
+        response.usage?.prompt_tokens || 0,
+        response.usage?.completion_tokens || 0,
+        0,
+        creditCharge.creditsUsed,
+        usageType
+      );
+
       res.json({
         id: aiMsgId,
         content: finalContent,
         model: response.model,
         language,
+        creditsUsed: creditCharge.creditsUsed,
+        aiCreditsBalance: creditCharge.balance,
         timestamp: new Date().toISOString()
       });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      if (creditCharge && err.status !== 402) {
+        db.prepare("UPDATE users SET ai_credits_balance = ai_credits_balance + ?, ai_credits_used_month = MAX(ai_credits_used_month - ?, 0) WHERE id = ?")
+          .run(creditCharge.creditsUsed, creditCharge.creditsUsed, req.user!.id);
+      }
+      res.status(err.status || 500).json({ error: err.message });
     }
   }
 );
@@ -148,11 +214,23 @@ router.post('/generate-website',
       return;
     }
 
+    const db = getDatabase();
+
+    let creditCharge: { creditsUsed: number; balance: number } | null = null;
     try {
+      creditCharge = chargeAiCredits(req.user!.id, 'website_ai');
       const config = await generateWebsiteConfig(req.body);
-      res.json({ config, generated: true, timestamp: new Date().toISOString() });
+      db.prepare(`
+        INSERT INTO ai_usage_logs (id, user_id, model, prompt_tokens, completion_tokens, cost, credits_used, usage_type)
+        VALUES (?, ?, ?, 0, 0, 0, ?, 'website_ai')
+      `).run(uuidv4(), req.user!.id, 'website-generator', creditCharge.creditsUsed);
+      res.json({ config, generated: true, creditsUsed: creditCharge.creditsUsed, aiCreditsBalance: creditCharge.balance, timestamp: new Date().toISOString() });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      if (creditCharge && err.status !== 402) {
+        db.prepare("UPDATE users SET ai_credits_balance = ai_credits_balance + ?, ai_credits_used_month = MAX(ai_credits_used_month - ?, 0) WHERE id = ?")
+          .run(creditCharge.creditsUsed, creditCharge.creditsUsed, req.user!.id);
+      }
+      res.status(err.status || 500).json({ error: err.message });
     }
   }
 );

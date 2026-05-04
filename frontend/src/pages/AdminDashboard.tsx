@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Users, DollarSign, Activity, AlertCircle, LogOut, CheckCircle, 
-  ShieldAlert, ShieldCheck, ChevronRight, LayoutDashboard,
-  LifeBuoy, Zap, TrendingUp, Clock, Bot, Trash2, Send, ChevronLeft, Menu, X
+  Users, DollarSign, Activity, AlertCircle,
+  LayoutDashboard, LifeBuoy, Clock, Bot, Trash2, Send, Menu
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
 import toast from 'react-hot-toast';

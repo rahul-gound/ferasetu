@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Send, Mic, MicOff, Bot, User, Globe, BrainCircuit, Store, Package, ClipboardList, TrendingUp } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
 
@@ -158,6 +159,7 @@ function TypingIndicator({ isThinking }: { isThinking?: boolean }) {
 }
 
 export default function AIAssistantPage() {
+  const { user, updateUser } = useAuth();
   const { language, setLanguage } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -202,7 +204,7 @@ export default function AIAssistantPage() {
       // Simulate real thinking for complex tasks
       setIsThinking(true);
       const res = await api.post('/ai/chat', payload);
-      const data = res.data as { content: string; model: string };
+      const data = res.data as { content: string; model: string; aiCreditsBalance?: number };
       
       // If response has <think> tag, wait at least 3-4 seconds to show "Thinking"
       if (data.content.includes('<think>')) {
@@ -213,6 +215,9 @@ export default function AIAssistantPage() {
     },
     onSuccess: (data) => {
       setIsThinking(false);
+      if (typeof data.aiCreditsBalance === 'number') {
+        updateUser({ ai_credits_balance: data.aiCreditsBalance } as any);
+      }
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
@@ -226,9 +231,9 @@ export default function AIAssistantPage() {
         speakText(cleanText, language);
       }
     },
-    onError: () => {
+    onError: (err: any) => {
       setIsThinking(false);
-      toast.error('Failed to get AI response');
+      toast.error(err.response?.status === 402 ? 'AI credits finished. Buy credits to continue.' : 'Failed to get AI response');
     },
   });
 
@@ -316,6 +321,9 @@ export default function AIAssistantPage() {
             </div>
           </div>
           <div className="header-actions">
+            <button onClick={() => window.location.href = '/ai-credits'} className="action-btn active" title="Buy AI credits">
+              {user?.ai_credits_balance ?? 0} credits
+            </button>
             <button 
               onClick={() => setAutoPlay(!autoPlay)} 
               className={`action-btn ${autoPlay ? 'active' : ''}`}

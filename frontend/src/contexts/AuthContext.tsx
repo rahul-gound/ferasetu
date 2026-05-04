@@ -11,6 +11,13 @@ interface User {
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
+  plan_expires_at?: string;
+  ai_credits_balance?: number;
+  ai_credits_monthly_limit?: number;
+  ai_credits_used_month?: number;
+  ai_credits_reset_at?: string;
+  storage_used_bytes?: number;
+  storage_limit_bytes?: number;
 }
 
 interface AuthContextType {

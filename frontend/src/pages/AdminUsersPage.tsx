@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Search, ShieldAlert, ShieldCheck, UserCog, 
-  Trash2, ExternalLink, ChevronLeft, ChevronRight,
-  User, Mail, Store, Package, ShoppingCart
+  Trash2, ChevronLeft, ChevronRight,
+  Package, ShoppingCart
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';

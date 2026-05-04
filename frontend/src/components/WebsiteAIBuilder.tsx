@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Sparkles, RotateCcw, BrainCircuit, AlertCircle } from 'lucide-react';
+import { Sparkles, RotateCcw, BrainCircuit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import type { TemplateSection } from '../types/template';

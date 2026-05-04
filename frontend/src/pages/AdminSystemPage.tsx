@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, Database, Mail, Bot, ToggleRight, 
-  Terminal, ShieldCheck, Zap, Server, BarChart3,
-  Cpu, HardDrive, RefreshCw, Plus, Trash2
+  Terminal, Zap, Cpu, Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -94,6 +93,13 @@ function HealthTab({ stats, loading }: any) {
     {Array(3).fill(0).map((_, i) => <div key={i} className="h-48 bg-white rounded-3xl border border-slate-200" />)}
   </div>;
 
+  const memory = stats?.health?.memory;
+  const system = stats?.health?.system;
+  const heapUsedMb = memory ? Math.round(memory.heapUsed / 1024 / 1024) : 0;
+  const rssMb = memory ? Math.round(memory.rss / 1024 / 1024) : 0;
+  const freeMemoryMb = system ? Math.round(system.freeMemory / 1024 / 1024) : 0;
+  const loadAvg = system?.loadAverage?.[0] ?? 0;
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -107,7 +113,7 @@ function HealthTab({ stats, loading }: any) {
           label="Core Database" 
           status="online" 
           icon={<Database className="text-emerald-500" />}
-          detail="SQLite / Write-Ahead Logging"
+          detail="Application database reachable"
         />
         <StatusCard 
           label="AI Engine (Sarvam)" 
@@ -134,9 +140,10 @@ function HealthTab({ stats, loading }: any) {
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <MetricItem label="Uptime" value={`${Math.floor(stats?.health?.uptime / 3600)}h ${Math.floor((stats?.health?.uptime % 3600) / 60)}m`} />
-            <MetricItem label="Memory Usage" value="154 MB" />
-            <MetricItem label="API Latency" value="24ms" />
-            <MetricItem label="Active Conn" value="12" />
+            <MetricItem label="Heap Used" value={`${heapUsedMb} MB`} />
+            <MetricItem label="RSS Memory" value={`${rssMb} MB`} />
+            <MetricItem label="Free RAM" value={`${freeMemoryMb} MB`} />
+            <MetricItem label="Load Avg" value={loadAvg.toFixed(2)} />
           </div>
         </div>
       </div>
@@ -144,7 +151,7 @@ function HealthTab({ stats, loading }: any) {
   );
 }
 
-function FlagsTab({ flags, onToggle, loading }: any) {
+function FlagsTab({ flags, onToggle }: any) {
   return (
     <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
@@ -184,7 +191,7 @@ function FlagsTab({ flags, onToggle, loading }: any) {
   );
 }
 
-function AiTab({ usage, loading }: any) {
+function AiTab({ usage }: any) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-6">
@@ -199,7 +206,7 @@ function AiTab({ usage, loading }: any) {
                   <th className="p-6">Partner</th>
                   <th className="p-6">Model</th>
                   <th className="p-6">Tokens</th>
-                  <th className="p-6">Cost (Est)</th>
+                  <th className="p-6">Credits</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -211,7 +218,7 @@ function AiTab({ usage, loading }: any) {
                     </td>
                     <td className="p-6"><span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase">{log.model}</span></td>
                     <td className="p-6">{log.prompt_tokens + log.completion_tokens}</td>
-                    <td className="p-6 text-emerald-600 font-black">₹{log.cost?.toFixed(4)}</td>
+                    <td className="p-6 text-emerald-600 font-black">{log.credits_used || 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -222,15 +229,15 @@ function AiTab({ usage, loading }: any) {
 
       <div className="space-y-6">
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-          <h3 className="text-lg font-black text-slate-900 mb-6">Usage Summary</h3>
+          <h3 className="text-lg font-black text-slate-900 mb-6">Usage By AI Type</h3>
           <div className="space-y-6">
-            {usage?.stats?.map((s: any) => (
-              <div key={s.model} className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
+            {usage?.byUsageType?.map((s: any) => (
+              <div key={s.usage_type} className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">{s.model}</span>
-                  <span className="text-sm font-black text-orange-600">{s.count} calls</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">{s.usage_type?.replace(/_/g, ' ')}</span>
+                  <span className="text-sm font-black text-orange-600">{s.calls} calls</span>
                 </div>
-                <div className="text-xl font-black text-slate-900">₹{s.total_cost?.toFixed(2)}</div>
+                <div className="text-xl font-black text-slate-900">{s.credits_used || 0} credits</div>
               </div>
             ))}
           </div>

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Users, DollarSign, Activity, ShoppingBag, 
-  TrendingUp, Clock, Bot, AlertCircle, CheckCircle2,
+  TrendingUp, Bot, CheckCircle2,
   ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, BarChart, Bar
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -35,15 +35,11 @@ export default function AdminDashboardPage() {
     fetchStats();
   }, [token]);
 
-  const chartData = [
-    { name: 'Mon', revenue: 4200, users: 40 },
-    { name: 'Tue', revenue: 3800, users: 45 },
-    { name: 'Wed', revenue: 5100, users: 42 },
-    { name: 'Thu', revenue: 4600, users: 50 },
-    { name: 'Fri', revenue: 6200, users: 55 },
-    { name: 'Sat', revenue: 7500, users: 60 },
-    { name: 'Sun', revenue: 6800, users: 58 },
-  ];
+  const chartData = (data?.revenueChart || []).map((row: any) => ({
+    name: new Date(row.date).toLocaleDateString(undefined, { weekday: 'short' }),
+    revenue: row.revenue || 0,
+    orders: row.orders || 0,
+  }));
 
   if (loading) return (
     <AdminLayout>
@@ -61,7 +57,7 @@ export default function AdminDashboardPage() {
           <KpiCard 
             title="Total Revenue" 
             value={`₹${data?.stats?.totalRevenue?.toLocaleString()}`} 
-            trend="+12.5%" 
+            trend="Live" 
             trendUp={true}
             icon={<DollarSign className="text-emerald-500" />}
             color="emerald"
@@ -69,7 +65,7 @@ export default function AdminDashboardPage() {
           <KpiCard 
             title="Active Shopkeepers" 
             value={data?.stats?.totalUsers} 
-            trend="+3.2%" 
+            trend={`${data?.stats?.activeUsers || 0} active`} 
             trendUp={true}
             icon={<Users className="text-blue-500" />}
             color="blue"
@@ -77,7 +73,7 @@ export default function AdminDashboardPage() {
           <KpiCard 
             title="Global Orders" 
             value={data?.stats?.totalOrders} 
-            trend="+8.1%" 
+            trend={`${data?.stats?.totalProducts || 0} products`} 
             trendUp={true}
             icon={<ShoppingBag className="text-purple-500" />}
             color="purple"
@@ -85,8 +81,8 @@ export default function AdminDashboardPage() {
           <KpiCard 
             title="Conversion Rate" 
             value={`${data?.stats?.conversionRate}%`} 
-            trend="-0.5%" 
-            trendUp={false}
+            trend={`${data?.stats?.premiumUsers || 0} paid`} 
+            trendUp={true}
             icon={<TrendingUp className="text-orange-500" />}
             color="orange"
           />

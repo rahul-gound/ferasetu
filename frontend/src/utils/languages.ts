@@ -31,6 +31,7 @@ const EN_DICT: Record<string, string> = {
   orders: 'Orders',
   analytics: 'Analytics',
   aiAssistant: 'AI Assistant',
+  aiCredits: 'AI Credits',
   websiteBuilder: 'Website Builder',
   logout: 'Logout',
   settings: 'Settings',

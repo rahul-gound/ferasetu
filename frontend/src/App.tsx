@@ -14,6 +14,7 @@ import OrdersPage from './pages/OrdersPage';
 import SupportPage from './pages/SupportPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
+import AICreditsPage from './pages/AICreditsPage';
 import WebsiteBuilderPage from './pages/WebsiteBuilderPage';
 import UpgradePage from './pages/UpgradePage';
 import ShopPage from './pages/ShopPage';
@@ -48,12 +49,9 @@ function AppRoutes() {
   const { user } = useAuth();
   const hostname = window.location.hostname;
   
-  // Detect if we are on a shop subdomain (not localhost, not the main platform)
-  const isShopSubdomain = hostname.endsWith('.fera-shop.fera-search.tech') || 
-                          (hostname !== 'localhost' && 
-                           hostname !== 'fera-shop.fera-search.tech' && 
-                           hostname !== 'fera-search.tech' &&
-                           !hostname.includes('app.github.dev'));
+  const platformDomain = 'fera-search.tech';
+  const isLocalOrPreview = hostname === 'localhost' || hostname.includes('127.0.0.1') || hostname.includes('app.github.dev');
+  const isShopSubdomain = hostname.endsWith(`.${platformDomain}`) && hostname !== platformDomain && !isLocalOrPreview;
 
   if (isShopSubdomain) {
     return (
@@ -98,6 +96,7 @@ function AppRoutes() {
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/ai-assistant" element={<AIAssistantPage />} />
+                <Route path="/ai-credits" element={<AICreditsPage />} />
                 <Route path="/website-builder" element={<WebsiteBuilderPage />} />
                 <Route path="/upgrade" element={<UpgradePage />} />
                 <Route path="/support" element={<SupportPage />} />
