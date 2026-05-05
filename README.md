@@ -53,7 +53,7 @@ fera-shopkeeper/
         ├── services/
         │   └── sarvamAI.ts    # Sarvam-30B & 105B clients
         ├── models/
-        │   └── database.ts    # sql.js SQLite wrapper
+        │   └── database.ts    # Oracle MySQL wrapper
         └── middleware/
             ├── auth.ts        # JWT verify + requirePremium
             └── rateLimiter.ts
@@ -274,12 +274,17 @@ cd ../frontend && npm install
 **Backend** — create `backend/.env`:
 ```env
 PORT=5000
+HOST=0.0.0.0
 NODE_ENV=development
 JWT_SECRET=change-this-to-a-long-random-string
 SARVAM_30B_API_KEY=your_sarvam_30b_key
 SARVAM_105B_API_KEY=your_sarvam_105b_key
 SARVAM_API_BASE_URL=https://api.sarvam.ai/v1
-DATABASE_PATH=./data/fera_shopkeeper.db
+MYSQL_HOST=your_oracle_mysql_host
+MYSQL_PORT=3306
+MYSQL_USER=your_mysql_user
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=fera_shopkeeper
 FRONTEND_URL=http://localhost:5173
 FREE_TIER_MAX_PRODUCTS=50
 BASE_DOMAIN=fera-shop.fera-search.tech
@@ -389,7 +394,7 @@ server {
 ## 🔮 Future Scaling Plan
 
 ### Phase 1 — Performance (Month 1–2)
-- Migrate from sql.js to PostgreSQL (Prisma ORM)
+- Add Redis for session caching + rate limiting
 - Add Redis for session caching + rate limiting
 - CDN for product images (Cloudflare R2 / S3)
 

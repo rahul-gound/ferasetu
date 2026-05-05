@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+
+dist
+**/dist
+build
+
+.git
+.env
+.env.*
+
+backend/data
+backend/uploads
+*.db
+*.sqlite
+
+npm-debug.log*
