@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'motion/react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -57,8 +58,16 @@ function StatCard({
   label: string; value: string; icon: React.ReactNode;
   color: string; change?: number; loading: boolean;
 }) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
-    <div className="card dashboard-card">
+    <motion.div
+      className="card dashboard-card"
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 16, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={shouldReduceMotion ? undefined : { y: -4 }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div style={{
           width: '40px', height: '40px', borderRadius: '10px',
@@ -88,13 +97,14 @@ function StatCard({
       ) : (
         <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{value}</div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { translate } = useLanguage();
+  const shouldReduceMotion = useReducedMotion();
 
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -115,10 +125,19 @@ export default function DashboardPage() {
   const isNewUser = !data || data?.stats?.total_orders === 0;
 
   return (
-    <div className="dashboard-wrapper">
+    <motion.div
+      className="dashboard-wrapper"
+      initial={shouldReduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.24 }}
+    >
       {/* Getting Started Banner for New Users */}
       {isNewUser && (
-        <div style={{
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.34, ease: 'easeOut' }}
+          style={{
           marginBottom: '24px',
           padding: '20px',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -131,7 +150,7 @@ export default function DashboardPage() {
         }}>
           <div>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700 }}>
-              🎉 Welcome to Fera, {user?.name}!
+              Welcome to Fera, {user?.name}!
             </h3>
             <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
               Let's get your online store set up in just a few minutes
@@ -156,17 +175,22 @@ export default function DashboardPage() {
           >
             Get Started →
           </Link>
-        </div>
+        </motion.div>
       )}
       {/* Header */}
-      <div className="dashboard-header">
+      <motion.div
+        className="dashboard-header"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+      >
         <h1 className="dashboard-title">
           Overview
         </h1>
         <p className="dashboard-subtitle">
           Real-time performance metrics for {user?.business_name || 'your store'}.
         </p>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
       <div className="stats-grid">
@@ -204,7 +228,11 @@ export default function DashboardPage() {
 
       {/* Platform Health Notification */}
       {!isLoading && !error && (
-        <div style={{
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, delay: 0.14 }}
+          style={{
           marginTop: '24px', padding: '12px 20px', borderRadius: '12px',
           background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.1)',
           display: 'flex', alignItems: 'center', gap: '10px'
@@ -213,13 +241,18 @@ export default function DashboardPage() {
            <span style={{ fontSize: '13px', fontWeight: 600, color: '#059669' }}>
               Your website is up and running. Synced with database.
            </span>
-        </div>
+         </motion.div>
       )}
 
       {/* Charts + Actions Row */}
       <div className="main-content-grid">
         {/* Revenue Chart */}
-        <div className="card dashboard-card chart-card">
+        <motion.div
+          className="card dashboard-card chart-card"
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 18, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.38, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>
               Revenue Performance
@@ -258,10 +291,15 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Quick Actions */}
-        <div className="card dashboard-card">
+        <motion.div
+          className="card dashboard-card"
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 18, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.38, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+        >
           <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: 'var(--text)' }}>
             Actions
           </h2>
@@ -306,7 +344,7 @@ export default function DashboardPage() {
               border: '1px solid rgba(255,107,53,0.2)',
             }}>
               <p style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 600, marginBottom: '6px' }}>
-                🚀 Scale Your Business
+                Scale Your Business
               </p>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
                 Unlock AI predictions, Custom Domains & Unlimited Products
@@ -325,11 +363,16 @@ export default function DashboardPage() {
               </Link>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Recent Orders */}
-      <div className="card dashboard-card">
+      <motion.div
+        className="card dashboard-card"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.36, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Recent Orders</h2>
           <Link to="/orders" style={{ fontSize: '13px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
@@ -392,7 +435,7 @@ export default function DashboardPage() {
             <p>No orders yet. Share your store link to get your first order!</p>
           </div>
         )}
-      </div>
+      </motion.div>
 
       <style>{`
         .dashboard-wrapper {
@@ -484,7 +527,7 @@ export default function DashboardPage() {
           }
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 }
 

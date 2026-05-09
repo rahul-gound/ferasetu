@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Send, Mic, MicOff, Bot, User, Globe, BrainCircuit, Store, Package, ClipboardList, TrendingUp } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,12 +39,17 @@ function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   const isWebsiteOnboarding = message.content.includes('designed your website');
   const [showThoughts, setShowThoughts] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
   
   const thoughtMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
   const thoughts = thoughtMatch ? thoughtMatch[1].trim() : null;
 
   return (
-    <div className="animate-fade-up" style={{
+    <motion.div
+      initial={shouldReduceMotion ? false : { opacity: 0, x: isUser ? 18 : -18, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+      transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+      style={{
       display: 'flex',
       flexDirection: isUser ? 'row-reverse' : 'row',
       gap: '10px', marginBottom: '16px', alignItems: 'flex-start',
@@ -79,24 +85,33 @@ function ChatMessage({ message }: { message: Message }) {
         )}
 
         {/* Thoughts / Reasoning UI */}
-        {showThoughts && thoughts && (
-           <div style={{ 
-             background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px 16px', borderRadius: '12px', 
-             fontSize: '12px', color: '#64748B', fontStyle: 'italic', marginBottom: '8px', borderLeft: '4px solid #6366F1',
-             lineHeight: 1.5
-           }}>
-              {thoughts}
-           </div>
-        )}
+        <AnimatePresence initial={false}>
+          {showThoughts && thoughts && (
+             <motion.div
+                initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -4 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                style={{ 
+                  background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px 16px', borderRadius: '12px', 
+                  fontSize: '12px', color: '#64748B', fontStyle: 'italic', marginBottom: '8px', borderLeft: '4px solid #CA8A04',
+                  lineHeight: 1.5, overflow: 'hidden'
+                }}>
+                 {thoughts}
+              </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bubble */}
-        <div style={{
+        <motion.div
+          whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+          style={{
           padding: '14px 18px', borderRadius: isUser ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
-          background: isUser ? 'var(--primary)' : 'var(--surface)',
+          background: isUser ? 'linear-gradient(135deg, #CA8A04, #FF6B35)' : 'rgba(255,255,255,0.92)',
           color: isUser ? '#fff' : 'var(--text)',
-          border: isUser ? 'none' : '1px solid var(--border)',
+          border: isUser ? '1px solid rgba(255,255,255,0.18)' : '1px solid rgba(226,232,240,0.9)',
           fontSize: '14px', lineHeight: 1.6,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          boxShadow: isUser ? '0 16px 32px rgba(202,138,4,0.18)' : '0 12px 30px rgba(15,23,42,0.08)',
           position: 'relative'
         }}>
           {formatContent(message.content)}
@@ -114,19 +129,26 @@ function ChatMessage({ message }: { message: Message }) {
               <Globe size={16} /> Open Website Builder
             </button>
           )}
-        </div>
+        </motion.div>
 
         <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600 }}>
           {message.timestamp.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function TypingIndicator({ isThinking }: { isThinking?: boolean }) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
-    <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'flex-start' }}>
+    <motion.div
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.2 }}
+      style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'flex-start' }}>
       <div style={{
         width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
         background: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -134,9 +156,9 @@ function TypingIndicator({ isThinking }: { isThinking?: boolean }) {
         <Bot size={16} color="#FF6B35" />
       </div>
       <div style={{
-        padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)',
+        padding: '14px 18px', background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(226,232,240,0.9)',
         borderRadius: '4px 20px 20px 20px', display: 'flex', gap: '12px', alignItems: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+        boxShadow: '0 12px 30px rgba(15,23,42,0.08)'
       }}>
         {isThinking ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6366F1' }}>
@@ -154,7 +176,7 @@ function TypingIndicator({ isThinking }: { isThinking?: boolean }) {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -178,6 +200,7 @@ export default function AIAssistantPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -288,8 +311,18 @@ export default function AIAssistantPage() {
   };
 
   return (
-    <div className="ai-workspace">
-      <aside className="ai-command-panel">
+    <motion.div
+      className="ai-workspace ai-motion-stage"
+      initial={shouldReduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.24 }}
+    >
+      <motion.aside
+        className="ai-command-panel"
+        initial={shouldReduceMotion ? false : { opacity: 0, x: -24, scale: 0.98 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div className="ai-command-hero">
           <div className="ai-command-icon"><Bot size={24} /></div>
           <div>
@@ -303,13 +336,30 @@ export default function AIAssistantPage() {
         </div>
 
         <div className="ai-command-cards">
-          <div><strong>Live mode</strong><span>Ready to assist</span></div>
-          <div><strong>{currentLang?.nativeName || 'English'}</strong><span>Selected language</span></div>
-          <div><strong>{messages.length}</strong><span>Messages in session</span></div>
+          {[
+            ['Live mode', 'Ready to assist'],
+            [currentLang?.nativeName || 'English', 'Selected language'],
+            [String(messages.length), 'Messages in session'],
+          ].map(([title, subtitle], index) => (
+            <motion.div
+              key={subtitle}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, delay: 0.12 + index * 0.06 }}
+              whileHover={shouldReduceMotion ? undefined : { y: -2, scale: 1.01 }}
+            >
+              <strong>{title}</strong><span>{subtitle}</span>
+            </motion.div>
+          ))}
         </div>
-      </aside>
+      </motion.aside>
 
-      <section className="chat-container-wrapper ai-chat-shell">
+      <motion.section
+        className="chat-container-wrapper ai-chat-shell"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 18, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.44, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div className="chat-header">
           <div className="ai-info-meta">
             <div className="ai-avatar">
@@ -336,27 +386,37 @@ export default function AIAssistantPage() {
               <button onClick={() => setLangOpen(!langOpen)} className="action-btn">
                 <Globe size={14} /> {currentLang?.nativeName}
               </button>
-              {langOpen && (
-                <div className="lang-dropdown">
-                  {SUPPORTED_LANGUAGES.slice(0, 6).map(lang => (
-                    <div 
-                      key={lang.code}
-                      className={`lang-option ${language === lang.code ? 'active' : ''}`}
-                      onClick={() => changeLanguage(lang.code)}
-                    >
-                      {lang.nativeName}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <AnimatePresence>
+                {langOpen && (
+                  <motion.div
+                    className="lang-dropdown"
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                  >
+                    {SUPPORTED_LANGUAGES.slice(0, 6).map(lang => (
+                      <div 
+                        key={lang.code}
+                        className={`lang-option ${language === lang.code ? 'active' : ''}`}
+                        onClick={() => changeLanguage(lang.code)}
+                      >
+                        {lang.nativeName}
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
 
         <div className="messages-scroll-area">
           <div className="messages-inner">
-            {messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
-            {isLoading && <TypingIndicator isThinking={isThinking} />}
+            <AnimatePresence initial={false}>
+              {messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+              {isLoading && <TypingIndicator isThinking={isThinking} />}
+            </AnimatePresence>
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -364,24 +424,27 @@ export default function AIAssistantPage() {
         <div className="chat-input-section">
           <div className="quick-chips-area">
             {QUICK_CHIPS.map(chip => (
-              <button 
+              <motion.button 
                 key={chip.label} 
                 onClick={() => handleChipClick(chip.msg)} 
                 className="chip-btn"
                 disabled={isLoading}
+                whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
               >
                 {chip.icon}{chip.label}
-              </button>
+              </motion.button>
             ))}
           </div>
           <div className="input-bar">
-            <button 
+            <motion.button 
               onClick={startVoice} 
               className={`voice-btn ${isListening ? 'active' : ''}`}
               disabled={isLoading}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
             >
               <Mic size={18} />
-            </button>
+            </motion.button>
             <textarea
               ref={inputRef}
               value={input}
@@ -392,16 +455,18 @@ export default function AIAssistantPage() {
               className="chat-textarea"
               disabled={isLoading}
             />
-            <button 
+            <motion.button 
               onClick={handleSend} 
               className={`send-btn ${input.trim() && !isLoading ? 'ready' : ''}`}
               disabled={!input.trim() || isLoading}
+              whileHover={input.trim() && !isLoading && !shouldReduceMotion ? { y: -1 } : undefined}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
             >
               <Send size={18} />
-            </button>
+            </motion.button>
           </div>
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }
