@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 type SyncMysqlConnection = {
-  query: (sql: string, params?: unknown[]) => any;
+  query: (sql: string, params?: unknown[]) => unknown;
 };
 
 type SqlitePreparedStatementLike = {
@@ -71,7 +71,10 @@ class MySqlPreparedStatement implements DbPreparedStatement {
 
   run(...params: unknown[]): { changes: number; lastInsertRowid: number } {
     const flatParams = flattenParams(params);
-    const result = this._connection.query(transformSqlForMysql(this._sql), flatParams) || {};
+    const result = (this._connection.query(transformSqlForMysql(this._sql), flatParams) || {}) as {
+      affectedRows?: number;
+      insertId?: number;
+    };
     return { changes: result.affectedRows || 0, lastInsertRowid: result.insertId || 0 };
   }
 }
@@ -135,6 +138,11 @@ function transformSqlForMysql(sql: string): string {
     );
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 export function getDatabase(): AppDatabase {
   if (!db || !dbReady) {
     throw new Error('Database not initialized. Call initializeDatabase() first.');
@@ -155,8 +163,8 @@ export async function initializeDatabase(): Promise<void> {
 
   try {
     initializeMySqlDatabase(mysqlHost, mysqlUser, mysqlDatabase);
-  } catch (error: any) {
-    const reason = error?.message || 'unknown error';
+  } catch (error: unknown) {
+    const reason = getErrorMessage(error);
     console.warn(`⚠️ MySQL initialization failed (${reason}). Falling back to SQLite.`);
     initializeSqliteDatabase('MySQL connection failed.');
   }
@@ -180,8 +188,8 @@ function initializeMySqlDatabase(host: string, user: string, database: string): 
   for (const sql of getMySqlSchemaStatements()) {
     try {
       db.exec(sql);
-    } catch (err: any) {
-      console.warn(`MySQL schema statement failed: ${err.message}`);
+    } catch (err: unknown) {
+      console.warn(`MySQL schema statement failed: ${getErrorMessage(err)}`);
     }
   }
 
@@ -205,8 +213,8 @@ function initializeSqliteDatabase(reason: string): void {
   for (const sql of getSqliteSchemaStatements()) {
     try {
       db.exec(sql);
-    } catch (err: any) {
-      console.warn(`SQLite schema statement failed: ${err.message}`);
+    } catch (err: unknown) {
+      console.warn(`SQLite schema statement failed: ${getErrorMessage(err)}`);
     }
   }
 
