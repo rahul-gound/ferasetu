@@ -120,7 +120,7 @@ class SqlitePreparedStatement implements PreparedStatementAdapter {
     const result = this._connection.prepare(this._sql).run(...flatParams) || {};
     return {
       changes: result.changes || 0,
-      lastInsertRowid: Number(result.lastInsertRowid || 0)
+      lastInsertRowid: toSafeRowId(result.lastInsertRowid)
     };
   }
 
@@ -143,14 +143,24 @@ function transformSqlForMysql(sql: string): string {
 
 function transformSchemaStatementForSqlite(sql: string): string {
   return sql
-    .replace(/\)\s*ENGINE=InnoDB\s*DEFAULT\s*CHARSET=utf8mb4\s*$/i, ')')
+    .replace(/\)\s*(?:ENGINE=InnoDB\s*)?(?:DEFAULT\s+CHARSET=utf8mb4\s*)?(?:ENGINE=InnoDB\s*)?$/i, ')')
     .replace(/\bLONGTEXT\b/gi, 'TEXT')
     .replace(/\bTINYINT\b/gi, 'INTEGER')
     .replace(/\bBIGINT\b/gi, 'INTEGER')
     .replace(/\bDECIMAL\((\d+),(\d+)\)\b/gi, 'REAL')
     .replace(/DATETIME\s+NOT\s+NULL\s+DEFAULT\s+CURRENT_TIMESTAMP\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP/gi, 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-    .replace(/,\s*INDEX\s+[^(]+\([^)]*\)\s*/gi, '')
+    .replace(/,\s*INDEX\s+[^(]+\(.+?\)\s*(?=,|\))/gis, '')
     .replace(/,\s*\)/g, '\n)');
+}
+
+function toSafeRowId(rowId: unknown): number {
+  if (typeof rowId === 'bigint') {
+    if (rowId > BigInt(Number.MAX_SAFE_INTEGER)) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    return Number(rowId);
+  }
+  return Number(rowId || 0);
 }
 
 export function getDatabase(): DatabaseAdapter {
@@ -176,8 +186,8 @@ export async function initializeDatabase(): Promise<void> {
 
   try {
     initializeMySqlDatabase();
-  } catch (error: any) {
-    console.warn(`⚠️ MySQL unavailable (${error?.message || 'unknown error'}). Falling back to SQLite backup database.`);
+  } catch {
+    console.warn('⚠️ MySQL unavailable. Falling back to SQLite backup database.');
     initializeSqliteDatabase();
   }
 }
