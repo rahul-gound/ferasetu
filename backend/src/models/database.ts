@@ -120,7 +120,7 @@ class SqlitePreparedStatement implements PreparedStatementAdapter {
     const result = this._connection.prepare(this._sql).run(...flatParams) || {};
     return {
       changes: result.changes || 0,
-      lastInsertRowid: toSafeRowId(result.lastInsertRowid)
+      lastInsertRowid: normalizeRowId(result.lastInsertRowid)
     };
   }
 
@@ -143,7 +143,7 @@ function transformSqlForMysql(sql: string): string {
 
 function transformSchemaStatementForSqlite(sql: string): string {
   return sql
-    .replace(/\)\s*(?:ENGINE=InnoDB\s*)?(?:DEFAULT\s+CHARSET=utf8mb4\s*)?(?:ENGINE=InnoDB\s*)?$/i, ')')
+    .replace(/\)\s*(?:(?:ENGINE=InnoDB|DEFAULT\s+CHARSET=utf8mb4)\s*)+$/i, ')')
     .replace(/\bLONGTEXT\b/gi, 'TEXT')
     .replace(/\bTINYINT\b/gi, 'INTEGER')
     .replace(/\bBIGINT\b/gi, 'INTEGER')
@@ -153,7 +153,7 @@ function transformSchemaStatementForSqlite(sql: string): string {
     .replace(/,\s*\)/g, '\n)');
 }
 
-function toSafeRowId(rowId: unknown): number {
+function normalizeRowId(rowId: unknown): number {
   if (typeof rowId === 'bigint') {
     if (rowId > BigInt(Number.MAX_SAFE_INTEGER)) {
       return Number.MAX_SAFE_INTEGER;
@@ -186,8 +186,8 @@ export async function initializeDatabase(): Promise<void> {
 
   try {
     initializeMySqlDatabase();
-  } catch {
-    console.warn('⚠️ MySQL unavailable. Falling back to SQLite backup database.');
+  } catch (error: any) {
+    console.warn(`⚠️ MySQL unavailable (${error?.name || 'connection error'}). Falling back to SQLite backup database.`);
     initializeSqliteDatabase();
   }
 }
