@@ -5,7 +5,7 @@ type SyncMysqlConnection = {
   query: (sql: string, params?: unknown[]) => unknown;
 };
 
-type SqlitePreparedStatementLike = {
+type SqlitePreparedStatementContract = {
   get: (...params: unknown[]) => unknown;
   all: (...params: unknown[]) => unknown[];
   run: (...params: unknown[]) => { changes: number; lastInsertRowid: number };
@@ -13,7 +13,7 @@ type SqlitePreparedStatementLike = {
 
 type SqliteConnection = {
   exec: (sql: string) => void;
-  prepare: (sql: string) => SqlitePreparedStatementLike;
+  prepare: (sql: string) => SqlitePreparedStatementContract;
 };
 
 type DbPreparedStatement = {
@@ -96,9 +96,9 @@ class SqliteDb implements AppDatabase {
 }
 
 class SqlitePreparedStatement implements DbPreparedStatement {
-  private _statement: SqlitePreparedStatementLike;
+  private _statement: SqlitePreparedStatementContract;
 
-  constructor(statement: SqlitePreparedStatementLike) {
+  constructor(statement: SqlitePreparedStatementContract) {
     this._statement = statement;
   }
 
@@ -218,8 +218,7 @@ function initializeSqliteDatabase(reason: string): void {
     }
   }
 
-  console.log(`⚠️ ${reason}`);
-  console.log(`✅ SQLite fallback database initialized (${resolvedPath})`);
+  console.log(`⚠️ ${reason} Falling back to SQLite at ${resolvedPath}`);
 }
 
 function getMySqlSchemaStatements(): string[] {
