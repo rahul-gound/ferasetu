@@ -1,11 +1,35 @@
-let db: MySqlDb | undefined;
-let mysqlReady = false;
+import fs from 'fs';
+import path from 'path';
+
+let db: DatabaseAdapter | undefined;
+let dbReady = false;
 
 type SyncMysqlConnection = {
   query: (sql: string, params?: unknown[]) => any;
 };
 
-class MySqlDb {
+type SqliteConnection = {
+  pragma: (sql: string) => unknown;
+  exec: (sql: string) => void;
+  prepare: (sql: string) => {
+    get: (...params: unknown[]) => unknown;
+    all: (...params: unknown[]) => unknown[];
+    run: (...params: unknown[]) => { changes?: number; lastInsertRowid?: number };
+  };
+};
+
+type DatabaseAdapter = {
+  exec: (sql: string) => void;
+  prepare: (sql: string) => PreparedStatementAdapter;
+};
+
+type PreparedStatementAdapter = {
+  get: (...params: unknown[]) => unknown | undefined;
+  all: (...params: unknown[]) => unknown[];
+  run: (...params: unknown[]) => { changes: number; lastInsertRowid: number };
+};
+
+class MySqlDb implements DatabaseAdapter {
   private _connection: SyncMysqlConnection;
 
   constructor(connection: SyncMysqlConnection) {
@@ -19,12 +43,12 @@ class MySqlDb {
     }
   }
 
-  prepare(sql: string): MySqlPreparedStatement {
+  prepare(sql: string): PreparedStatementAdapter {
     return new MySqlPreparedStatement(this._connection, sql);
   }
 }
 
-class MySqlPreparedStatement {
+class MySqlPreparedStatement implements PreparedStatementAdapter {
   private _connection: SyncMysqlConnection;
   private _sql: string;
 
@@ -56,6 +80,56 @@ class MySqlPreparedStatement {
   }
 }
 
+class SqliteDb implements DatabaseAdapter {
+  private _connection: SqliteConnection;
+
+  constructor(connection: SqliteConnection) {
+    this._connection = connection;
+  }
+
+  exec(sql: string): void {
+    this._connection.exec(sql);
+  }
+
+  prepare(sql: string): PreparedStatementAdapter {
+    return new SqlitePreparedStatement(this._connection, sql);
+  }
+}
+
+class SqlitePreparedStatement implements PreparedStatementAdapter {
+  private _connection: SqliteConnection;
+  private _sql: string;
+
+  constructor(connection: SqliteConnection, sql: string) {
+    this._connection = connection;
+    this._sql = sql;
+  }
+
+  get(...params: unknown[]): unknown | undefined {
+    const flatParams = this._flattenParams(params);
+    return this._connection.prepare(this._sql).get(...flatParams);
+  }
+
+  all(...params: unknown[]): unknown[] {
+    const flatParams = this._flattenParams(params);
+    return this._connection.prepare(this._sql).all(...flatParams);
+  }
+
+  run(...params: unknown[]): { changes: number; lastInsertRowid: number } {
+    const flatParams = this._flattenParams(params);
+    const result = this._connection.prepare(this._sql).run(...flatParams) || {};
+    return {
+      changes: result.changes || 0,
+      lastInsertRowid: Number(result.lastInsertRowid || 0)
+    };
+  }
+
+  private _flattenParams(params: unknown[]): unknown[] {
+    if (params.length === 1 && Array.isArray(params[0])) return params[0];
+    return params;
+  }
+}
+
 function transformSqlForMysql(sql: string): string {
   return sql
     .replace(/datetime\('now',\s*'\+(\d+) days'\)/gi, 'DATE_ADD(NOW(), INTERVAL $1 DAY)')
@@ -67,20 +141,50 @@ function transformSqlForMysql(sql: string): string {
       'ON DUPLICATE KEY UPDATE description = VALUES(description), is_enabled = VALUES(is_enabled), rules_json = VALUES(rules_json), updated_at = NOW()');
 }
 
-export function getDatabase(): MySqlDb {
-  if (!db || !mysqlReady) {
+function transformSchemaStatementForSqlite(sql: string): string {
+  return sql
+    .replace(/\)\s*ENGINE=InnoDB\s*DEFAULT\s*CHARSET=utf8mb4\s*$/i, ')')
+    .replace(/\bLONGTEXT\b/gi, 'TEXT')
+    .replace(/\bTINYINT\b/gi, 'INTEGER')
+    .replace(/\bBIGINT\b/gi, 'INTEGER')
+    .replace(/\bDECIMAL\((\d+),(\d+)\)\b/gi, 'REAL')
+    .replace(/DATETIME\s+NOT\s+NULL\s+DEFAULT\s+CURRENT_TIMESTAMP\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP/gi, 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+    .replace(/,\s*INDEX\s+[^(]+\([^)]*\)\s*/gi, '')
+    .replace(/,\s*\)/g, '\n)');
+}
+
+export function getDatabase(): DatabaseAdapter {
+  if (!db || !dbReady) {
     throw new Error('Database not initialized. Call initializeDatabase() first.');
   }
   return db;
 }
 
 export async function initializeDatabase(): Promise<void> {
-  const SyncMysql = require('sync-mysql');
-  const database = process.env.MYSQL_DATABASE || process.env.DB_NAME || 'fera_shopkeeper';
+  const databaseClient = (process.env.DATABASE_CLIENT || 'mysql').toLowerCase();
+
+  if (databaseClient === 'sqlite') {
+    initializeSqliteDatabase();
+    return;
+  }
 
   if (!process.env.MYSQL_HOST) {
-    throw new Error('MYSQL_HOST is required. This backend is configured for MySQL only.');
+    console.warn('⚠️ MYSQL_HOST not set. Falling back to SQLite backup database.');
+    initializeSqliteDatabase();
+    return;
   }
+
+  try {
+    initializeMySqlDatabase();
+  } catch (error: any) {
+    console.warn(`⚠️ MySQL unavailable (${error?.message || 'unknown error'}). Falling back to SQLite backup database.`);
+    initializeSqliteDatabase();
+  }
+}
+
+function initializeMySqlDatabase(): void {
+  const SyncMysql = require('sync-mysql');
+  const database = process.env.MYSQL_DATABASE || process.env.DB_NAME || 'fera_shopkeeper';
 
   const connection = new SyncMysql({
     host: process.env.MYSQL_HOST,
@@ -92,9 +196,9 @@ export async function initializeDatabase(): Promise<void> {
   }) as SyncMysqlConnection;
 
   db = new MySqlDb(connection);
-  mysqlReady = true;
+  dbReady = true;
 
-  for (const sql of getMySqlSchemaStatements()) {
+  for (const sql of getSchemaStatements()) {
     try {
       db.exec(sql);
     } catch (err: any) {
@@ -105,7 +209,33 @@ export async function initializeDatabase(): Promise<void> {
   console.log(`✅ MySQL database initialized successfully (${database})`);
 }
 
-function getMySqlSchemaStatements(): string[] {
+function initializeSqliteDatabase(): void {
+  const BetterSqlite = require('better-sqlite3');
+  const configuredPath = process.env.DATABASE_PATH || './data/fera_shopkeeper.db';
+  const databasePath = path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.join(process.cwd(), configuredPath);
+
+  fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+
+  const connection = new BetterSqlite(databasePath) as SqliteConnection;
+  connection.pragma('foreign_keys = ON');
+
+  db = new SqliteDb(connection);
+  dbReady = true;
+
+  for (const sql of getSchemaStatements()) {
+    try {
+      db.exec(transformSchemaStatementForSqlite(sql));
+    } catch (err: any) {
+      console.warn(`SQLite schema statement failed: ${err.message}`);
+    }
+  }
+
+  console.log(`✅ SQLite backup database initialized successfully (${databasePath})`);
+}
+
+function getSchemaStatements(): string[] {
   return [
     `CREATE TABLE IF NOT EXISTS users (
       id VARCHAR(64) PRIMARY KEY,
