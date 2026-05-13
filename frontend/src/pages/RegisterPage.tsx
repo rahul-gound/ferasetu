@@ -120,9 +120,9 @@ export default function RegisterPage() {
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <ShoppingBag size={32} color="#FF6B35" />
-            <span style={{ fontSize: '28px', fontWeight: 800, color: '#FF6B35' }}>Fera</span>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#FF6B35' }}>FeraSetu</span>
           </Link>
-          <p style={{ color: '#666', marginTop: '8px', fontSize: '14px' }}>Start your 7-day Premium trial</p>
+          <p style={{ color: '#666', marginTop: '8px', fontSize: '14px' }}>Your shop’s digital bridge</p>
         </div>
 
         {/* Card */}

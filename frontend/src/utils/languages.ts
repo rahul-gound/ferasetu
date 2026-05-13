@@ -74,7 +74,7 @@ const EN_DICT: Record<string, string> = {
   finish: 'Finish',
   next: 'Next',
   skip: 'Skip',
-  welcome: 'Welcome to Fera',
+  welcome: 'Welcome to FeraSetu',
   businessName: 'Business Name',
   businessType: 'Business Type',
   description: 'Description',

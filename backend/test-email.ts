@@ -32,9 +32,9 @@ async function testEmail() {
     
     console.log('Sending test email...');
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Fera Test" <noreply@fera-search.tech>',
+      from: process.env.EMAIL_FROM || '"FeraSetu Test" <noreply@fera-search.tech>',
       to: 'himanshusah659@gmail.com',
-      subject: 'Fera SMTP Test',
+      subject: 'FeraSetu SMTP Test',
       text: 'If you see this, your SMTP settings are correct!',
     });
     console.log('✅ Email sent successfully:', info.messageId);

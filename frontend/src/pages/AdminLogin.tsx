@@ -39,7 +39,7 @@ export default function AdminLogin() {
             <Lock size={32} />
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>Admin Login</h1>
-          <p style={{ color: '#64748B', fontSize: '14px' }}>Secure access for Fera administrators</p>
+          <p style={{ color: '#64748B', fontSize: '14px' }}>Secure access for FeraSetu administrators</p>
         </div>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

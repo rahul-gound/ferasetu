@@ -36,7 +36,7 @@ const plans: PlanConfig[] = [
     buttonText: 'Start Starter',
     features: [
       '100 products with stock tracking',
-      'Professional Fera shop link',
+      'Professional FeraSetu shop link',
       'Order dashboard and customer details',
       '100 shared AI credits/month',
       'Shopkeeper AI assistant access',
@@ -63,7 +63,7 @@ const plans: PlanConfig[] = [
       '1,000 products and categories',
       '500 shared AI credits/month',
       'Advanced website AI and content help',
-      'Customer-facing Fera AI assistant access',
+      'Customer-facing FeraSetu assistant access',
       'Custom domain support',
       'Premium storefront templates',
       'Sales analytics and recommendations',
@@ -87,7 +87,7 @@ const plans: PlanConfig[] = [
       '5,000 products',
       '2,000 shared AI credits/month',
       'Priority advanced AI access',
-      'Customer-facing Fera AI assistant access',
+      'Customer-facing FeraSetu assistant access',
       'Sales prediction and stock alerts',
       'Up to 5 staff accounts',
       'Bulk product import/export',
@@ -99,7 +99,7 @@ const plans: PlanConfig[] = [
 
 const comparisonFeatures = [
   { title: 'Products', basic: '100', standard: '1,000', pro: '5,000' },
-  { title: 'Website', basic: 'Fera link', standard: 'Custom domain ready', pro: 'Brand-first setup' },
+  { title: 'Website', basic: 'FeraSetu link', standard: 'Custom domain ready', pro: 'Brand-first setup' },
   { title: 'AI Credits', basic: '100/month', standard: '500/month', pro: '2,000/month' },
   { title: 'AI Access', basic: 'Shopkeeper + customer assistant', standard: 'Website + customer assistant', pro: 'Priority all AI' },
   { title: 'Storage', basic: '250 MB', standard: '1 GB', pro: '5 GB' },
@@ -214,7 +214,7 @@ export default function UpgradePage() {
       <section className="pricing-proof">
         <div>
           <strong>Why paid plans convert better</strong>
-          <p>Customers trust shops that look organized, show real products, and respond quickly. Fera gives your store that professional signal.</p>
+          <p>Customers trust shops that look organized, show real products, and respond quickly. FeraSetu gives your store that professional signal.</p>
         </div>
         <div className="proof-stat"><span>40%</span> avg. sales lift after going online</div>
       </section>

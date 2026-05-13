@@ -170,7 +170,7 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>From</div>
-              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>Fera Shop Partner</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>FeraSetu Shop Partner</div>
               <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
                  Merchant ID: {order.id.slice(0,8)}
               </div>

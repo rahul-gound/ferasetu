@@ -1,6 +1,8 @@
-# Fera Shopkeeper — AI-Powered E-Commerce SaaS
+# FeraSetu — Your shop’s digital bridge
 
-> Build your online store in minutes with AI. Designed for small retailers, kirana stores, and local businesses across India.
+> Build your shop website, manage products, and grow orders with AI.
+>
+> Dukaan ko online lao, orders WhatsApp par pao.
 
 ---
 
@@ -447,4 +449,4 @@ server {
 
 ## 📄 License
 
-MIT © Fera Shopkeeper
+MIT © FeraSetu

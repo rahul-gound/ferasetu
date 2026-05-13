@@ -1,4 +1,4 @@
-# Setting up Cloudflare for Fera Shopkeeper
+# Setting up Cloudflare for FeraSetu
 
 To make your domain `fera-search.tech` work with user websites, follow these steps:
 

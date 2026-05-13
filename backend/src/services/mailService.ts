@@ -13,7 +13,7 @@ const transporter = hasSMTPConfig ? nodemailer.createTransport({
 }) : null;
 
 const BRAND_COLOR = '#FF6B35';
-const BRAND_NAME = 'Fera AI';
+const BRAND_NAME = 'FeraSetu';
 
 function getFromAddress(): string {
   return process.env.EMAIL_FROM || process.env.SMTP_USER || `"${BRAND_NAME}" <noreply@fera-search.tech>`;
@@ -79,7 +79,7 @@ export async function sendOTPEmail(email: string, otp: string) {
       </div>
       <div style="background: #fff; border: 1px solid #f1f5f9; border-radius: 24px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
         <h2 style="font-size: 24px; font-weight: 800; color: #1e293b; margin-top: 0;">Verify your account 🔐</h2>
-        <p style="font-size: 16px; color: #475569;">Namaste! 🙏 Welcome to Fera. Use the code below to complete your registration and start your store.</p>
+        <p style="font-size: 16px; color: #475569;">Namaste! 🙏 Welcome to FeraSetu. Use the code below to complete your registration and start your store.</p>
         
         <div style="background: #f8fafc; border-radius: 16px; padding: 32px; text-align: center; margin: 32px 0; border: 2px solid #e2e8f0;">
           <span style="font-size: 42px; font-weight: 900; letter-spacing: 12px; color: #1e293b; font-family: monospace;">${otp}</span>
@@ -98,7 +98,7 @@ export async function sendOTPEmail(email: string, otp: string) {
   await transporter.sendMail({
     from: getFromAddress(),
     to: email,
-    subject: `${otp} is your verification code for Fera AI`,
+    subject: `${otp} is your verification code for FeraSetu`,
     html,
   });
 }
@@ -126,7 +126,7 @@ export async function sendOnboardingEmail(email: string, name: string) {
           <p style="margin: 4px 0 0 0; font-size: 14px; color: #c2410c;">India is moving online, and your shop is now part of the revolution.</p>
         </div>
 
-        <h3 style="font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 12px;">What can you do with Fera?</h3>
+        <h3 style="font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 12px;">What can you do with FeraSetu?</h3>
         <ul style="padding: 0; list-style: none; margin-bottom: 32px;">
           <li style="margin-bottom: 12px; display: flex; align-items: start;">
             <span style="margin-right: 12px;">✨</span>
@@ -159,7 +159,7 @@ export async function sendOnboardingEmail(email: string, name: string) {
       </p>
       
       <div style="${FOOTER_STYLE}">
-        <p>© ${new Date().getFullYear()} Fera AI. Digitizing Bharat's Kirana Stores.</p>
+        <p>© ${new Date().getFullYear()} FeraSetu. Digitizing Bharat's Kirana Stores.</p>
         <p>Safe and Secure Platform</p>
       </div>
     </div>
@@ -168,7 +168,7 @@ export async function sendOnboardingEmail(email: string, name: string) {
   await transporter.sendMail({
     from: getFromAddress(),
     to: email,
-    subject: `Welcome to Fera AI, ${firstName}! Your store is ready to launch 🚀`,
+    subject: `Welcome to FeraSetu, ${firstName}! Your store is ready to launch 🚀`,
     html,
   });
 }

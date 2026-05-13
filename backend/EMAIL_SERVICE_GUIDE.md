@@ -1,7 +1,7 @@
 # Email Service Implementation Guide
 
 ## Overview
-This document explains the email service implementation for Fera Shopkeeper using Nodemailer and Brevo SMTP.
+This document explains the email service implementation for FeraSetu using Nodemailer and Brevo SMTP.
 
 ---
 
@@ -44,7 +44,7 @@ SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=your_smtp_user@smtp-brevo.com
 SMTP_PASS=your_smtp_password_from_brevo
-EMAIL_FROM="Fera Shopkeeper <noreply@yourdomain.com>"
+EMAIL_FROM="FeraSetu <noreply@yourdomain.com>"
 ```
 
 ### How to Get Brevo Credentials:
@@ -65,7 +65,7 @@ EMAIL_FROM="Fera Shopkeeper <noreply@yourdomain.com>"
 - Error logging without exposing credentials
 
 ### 2. **Welcome Email**
-**Subject:** `Welcome to Fera Shopkeeper 🎉`
+**Subject:** `Welcome to FeraSetu 🎉`
 
 **Features:**
 - Personalized greeting with user name

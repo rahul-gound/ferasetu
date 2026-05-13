@@ -19,7 +19,7 @@ Features:
 Two professional HTML email templates included:
 
 **Welcome Email:**
-- Subject: "Welcome to Fera Shopkeeper 🎉"
+- Subject: "Welcome to FeraSetu 🎉"
 - Personalized greeting with user name
 - Store icon and brand colors (#FF6B35)
 - CTA: "Start Adding Your Products"
@@ -61,7 +61,7 @@ SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=your_smtp_user@smtp-brevo.com
 SMTP_PASS=your_smtp_password_from_brevo
-EMAIL_FROM="Fera Shopkeeper <noreply@yourdomain.com>"
+EMAIL_FROM="FeraSetu <noreply@yourdomain.com>"
 ```
 
 ### 6. Documentation
@@ -135,7 +135,7 @@ Comprehensive guide covering:
    SMTP_PORT=587
    SMTP_USER=<your-smtp-user>
    SMTP_PASS=<your-smtp-password>
-   EMAIL_FROM="Fera Shopkeeper <noreply@yourdomain.com>"
+   EMAIL_FROM="FeraSetu <noreply@yourdomain.com>"
    ```
 
 3. **Start Server:**

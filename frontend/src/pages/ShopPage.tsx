@@ -35,11 +35,11 @@ export default function ShopPage() {
 
   useEffect(() => {
     if (!shopName) return;
-    document.title = `${shopName} — Powered by Fera`;
+    document.title = `${shopName} — Powered by FeraSetu`;
     axios.get<PublicShopData>(`${API}/website/public/${shopName}`)
       .then(res => {
         setData(res.data);
-        document.title = `${res.data.shop.name} — Powered by Fera`;
+        document.title = `${res.data.shop.name} — Powered by FeraSetu`;
       })
       .catch(err => {
         if (axios.isAxiosError(err) && err.response?.status === 404) {
@@ -95,7 +95,7 @@ export default function ShopPage() {
               fontWeight: 600, fontSize: '15px',
             }}
           >
-            ← Back to Fera
+            ← Back to FeraSetu
           </a>
         </div>
       </div>

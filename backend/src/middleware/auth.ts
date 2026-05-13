@@ -52,7 +52,7 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
       res.status(403).json({ 
         error: 'Trial expired', 
         expired: true,
-        message: 'Your 7-day trial has ended. Please upgrade to a paid plan to continue using Fera.',
+        message: 'Your 7-day trial has ended. Please upgrade to a paid plan to continue using FeraSetu.',
         upgradeUrl: '/upgrade'
       });
       return;
@@ -95,7 +95,7 @@ export function validatePublicShop(req: Request, res: Response, next: NextFuncti
         <div style="font-family: sans-serif; text-align: center; padding: 50px;">
           <h1>Store Temporarily Unavailable</h1>
           <p>The trial period for this store has ended.</p>
-          <p>If you are the owner, please log in to your Fera dashboard to upgrade your plan.</p>
+          <p>If you are the owner, please log in to your FeraSetu dashboard to upgrade your plan.</p>
           <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="color: #FF6B35; font-weight: bold;">Login to Dashboard</a>
         </div>
       `);

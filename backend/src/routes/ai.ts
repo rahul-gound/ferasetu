@@ -93,7 +93,7 @@ router.post('/chat',
       const enhancedHistory = [...history];
       if (history.length === 0 || !history.find(h => h.role === 'system')) {
         const actionPrompt = `
-You are Fera AI. Keep simple greetings (like "hi") very short.
+You are FeraSetu. Keep simple greetings (like "hi") very short.
 For complex store tasks, think step-by-step inside <think></think> tags before you reply.
 
 ACTIONS:
@@ -107,7 +107,7 @@ Do not output the JSON until you have all information. Keep your conversation na
         `;
         // Inject system prompt manually
         enhancedHistory.unshift({ role: 'user', content: `SYSTEM INSTRUCTION: ${actionPrompt}\n\nUser: Hello` });
-        enhancedHistory.push({ role: 'assistant', content: 'Hello! I am Fera AI. How can I help you today?' });
+        enhancedHistory.push({ role: 'assistant', content: 'Hello! I am FeraSetu. How can I help you today?' });
       }
 
       const response = await generateAIResponse(

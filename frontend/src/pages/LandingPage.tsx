@@ -70,7 +70,7 @@ export default function LandingPage() {
             <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
               <span className="text-white font-black text-xl italic">F</span>
             </div>
-            <span className="text-xl font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">AI</span></span>
+            <span className="text-xl font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">Setu</span></span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#how-it-works" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
@@ -108,7 +108,7 @@ export default function LandingPage() {
               </h1>
               
               <p className="max-w-2xl mx-auto text-lg md:text-xl text-slate-500 font-medium mb-12 leading-relaxed">
-                Add products on WhatsApp, get your own professional shop link, and start selling today. <span className="text-slate-900 font-bold">Apni dukaan, apni pehchan.</span>
+                Build your shop website, manage products, and grow orders with AI. <span className="text-slate-900 font-bold">Dukaan ko online lao, orders WhatsApp par pao.</span>
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
@@ -129,7 +129,7 @@ export default function LandingPage() {
                   <img 
                     src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000" 
                     className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-1000"
-                    alt="Fera Dashboard"
+                    alt="FeraSetu Dashboard"
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-900/5 group-hover:bg-transparent transition-colors">
                     <div className="px-6 py-3 bg-white/90 backdrop-blur rounded-2xl border border-white shadow-xl flex items-center gap-3">
@@ -210,7 +210,7 @@ export default function LandingPage() {
                   </div>
                   <div className="relative z-10">
                     <div className="text-6xl font-black text-white mb-6">40%</div>
-                    <div className="text-2xl font-bold text-slate-400 mb-8 leading-snug">Average sales increase for <br /> shopkeepers using Fera AI.</div>
+                    <div className="text-2xl font-bold text-slate-400 mb-8 leading-snug">Average sales increase for <br /> shopkeepers using FeraSetu.</div>
                     <Link to="/register" className="inline-flex items-center gap-2 text-orange-500 font-black text-lg group">
                       Grow your business today <ArrowRight className="group-hover:translate-x-2 transition-transform" />
                     </Link>
@@ -229,7 +229,7 @@ export default function LandingPage() {
                   {[1,2,3,4,5].map(i => <Star key={i} size={24} fill="currentColor" />)}
                 </div>
                 <h3 className="text-3xl md:text-5xl font-bold leading-tight mb-12 italic">
-                  "Pehle register maintain karna mushkil tha. Ab Fera AI se sab phone pe hai. Sales bhi badhi hai aur tension bhi kam hui hai."
+                  "Pehle register maintain karna mushkil tha. Ab FeraSetu se sab phone pe hai. Sales bhi badhi hai aur tension bhi kam hui hai."
                 </h3>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-2xl">RK</div>
@@ -263,7 +263,7 @@ export default function LandingPage() {
                 name="Starter"
                 price="199"
                 desc="Launch your online catalog and accept local orders."
-                features={["100 products", "Fera shop link", "Basic AI help"]}
+                features={["100 products", "FeraSetu shop link", "Basic AI help"]}
               />
               <div className="relative rounded-[2rem] p-8 bg-white border-2 border-orange-500 shadow-2xl shadow-orange-500/15 lg:-translate-y-4">
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-2 rounded-full bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-lg">
@@ -324,10 +324,10 @@ export default function LandingPage() {
             <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-black text-sm italic">F</span>
             </div>
-            <span className="text-lg font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">AI</span></span>
+            <span className="text-lg font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">Setu</span></span>
           </div>
           <div className="text-sm font-bold text-slate-400">
-            © {new Date().getFullYear()} Fera AI. Digitizing Bharat, one shop at a time.
+            © {new Date().getFullYear()} FeraSetu. Your shop’s digital bridge.
           </div>
         </div>
       </footer>

@@ -318,7 +318,7 @@ export default function AnalyticsPage() {
               </div>
               <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B', marginBottom: '12px' }}>Unlock Commercial Predictions</h3>
               <p style={{ color: '#64748B', maxWidth: '500px', margin: '0 auto 32px', lineHeight: 1.6 }}>
-                 Get high-accuracy revenue forecasts and strategic inventory recommendations powered by Fera's advanced AI models.
+                 Get high-accuracy revenue forecasts and strategic inventory recommendations powered by FeraSetu's advanced AI models.
               </p>
               <Link to="/upgrade" className="btn btn-primary" style={{ padding: '16px 40px', fontSize: '16px' }}>
                  Upgrade to Standard or Pro
