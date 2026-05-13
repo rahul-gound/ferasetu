@@ -84,7 +84,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ message: 'Fera Shopkeeper API is running', env: process.env.NODE_ENV });
+  res.json({ message: 'FeraSetu API is running', env: process.env.NODE_ENV });
 });
 
 // Static files for uploads
@@ -119,7 +119,7 @@ initializeDatabase().then(async () => {
   await verifyMailService();
   
   app.listen(Number(PORT), HOST, () => {
-    console.log(`🚀 Fera Shopkeeper Backend running on http://${HOST}:${PORT}`);
+    console.log(`🚀 FeraSetu Backend running on http://${HOST}:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }).catch(err => {

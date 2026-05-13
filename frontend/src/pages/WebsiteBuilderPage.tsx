@@ -30,7 +30,7 @@ function makeDefaultSection(type: TemplateSection['type'], shopName: string): Te
     banner: { text: '🎉 Special offers available!', bgColor: '#F59E0B', textColor: '#fff' },
     productGrid: { title: 'Our Products', accentColor: '#FF6B35', showStock: true },
     contact: { title: 'Find Us', address: '', phone: '', email: '', hours: '' },
-    footer: { shopName, tagline: 'Powered by Fera Shopkeeper AI', primaryColor: '#1E293B', social: {} },
+    footer: { shopName, tagline: 'Powered by FeraSetu', primaryColor: '#1E293B', social: {} },
   };
   return { id: `${type}-${Date.now()}`, type, config: defaults[type] };
 }
@@ -685,7 +685,7 @@ export default function WebsiteBuilderPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <Sparkles size={14} style={{ color: '#7C3AED' }} />
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>Fera AI Helper</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED' }}>FeraSetu Helper</span>
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
               <input

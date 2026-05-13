@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center w-10 h-10 font-black rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg shadow-orange-500/20">F</div>
               <div>
-                <div className="text-lg font-black tracking-tight">Fera CEO</div>
+                <div className="text-lg font-black tracking-tight">FeraSetu CEO</div>
                 <div className="text-[10px] uppercase tracking-widest text-orange-500 font-bold opacity-80">Command Center</div>
               </div>
             </div>

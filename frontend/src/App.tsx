@@ -38,7 +38,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 40, height: 40, border: '3px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-        <p style={{ color: '#64748B' }}>Loading Fera Shopkeeper...</p>
+        <p style={{ color: '#64748B' }}>Loading FeraSetu...</p>
       </div>
     </div>
   );

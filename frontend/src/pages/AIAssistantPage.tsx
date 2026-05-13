@@ -165,7 +165,7 @@ export default function AIAssistantPage() {
     {
       id: '0',
       role: 'assistant',
-      content: '**Namaste! 🙏 I\'m Fera AI, your smart shopkeeper assistant.**\n\nI can help you:\n- **Build your website** in seconds\n- **Manage products** and apply discounts\n- **Analyze your sales** and suggest improvements\n- **Answer questions** about running your store\n\nTry asking me something in your language!',
+      content: '**Namaste! 🙏 I\'m FeraSetu, your smart shopkeeper assistant.**\n\nI can help you:\n- **Build your website** in seconds\n- **Manage products** and apply discounts\n- **Analyze your sales** and suggest improvements\n- **Answer questions** about running your store\n\nTry asking me something in your language!',
       timestamp: new Date(),
       model: 'sarvam-m',
     },
@@ -293,7 +293,7 @@ export default function AIAssistantPage() {
         <div className="ai-command-hero">
           <div className="ai-command-icon"><Bot size={24} /></div>
           <div>
-            <p>Fera AI</p>
+            <p>FeraSetu</p>
             <h1>Business Command Center</h1>
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function AIAssistantPage() {
               <Bot size={20} color="#FF6B35" />
             </div>
             <div>
-              <div className="ai-name">Fera AI Assistant</div>
+              <div className="ai-name">FeraSetu Assistant</div>
               <div className="ai-status">ONLINE · SHOPKEEPER COPILOT</div>
             </div>
           </div>
@@ -387,7 +387,7 @@ export default function AIAssistantPage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Fera to add products, improve your store, or analyze sales..."
+              placeholder="Ask FeraSetu to add products, improve your store, or analyze sales..."
               rows={1}
               className="chat-textarea"
               disabled={isLoading}

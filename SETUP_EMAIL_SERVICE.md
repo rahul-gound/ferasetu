@@ -22,7 +22,7 @@ SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=your_user@smtp-brevo.com
 SMTP_PASS=your_api_key
-EMAIL_FROM="Fera Shopkeeper <noreply@yourdomain.com>"
+EMAIL_FROM="FeraSetu <noreply@yourdomain.com>"
 ```
 
 Save and exit.

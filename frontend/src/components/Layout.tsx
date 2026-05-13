@@ -56,7 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }}>
           <img 
             src="/logo_v1.png" 
-            alt="Fera" 
+            alt="FeraSetu" 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -73,8 +73,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           />
         </div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>Fera</div>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Shopkeeper AI</div>
+          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>FeraSetu</div>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Your shop's digital bridge</div>
         </div>
       </div>
 

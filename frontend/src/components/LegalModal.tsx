@@ -16,11 +16,11 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
       sections: [
         {
           h: '1. Acceptance of Terms',
-          p: 'By creating an account on Fera Shopkeeper AI, you agree to comply with and be bound by these Terms and Conditions. Our platform is designed to help small businesses in India digitize their operations using AI.'
+          p: 'By creating an account on FeraSetu, you agree to comply with and be bound by these Terms and Conditions. Our platform is designed to help small businesses in India digitize their operations using AI.'
         },
         {
           h: '2. Use of AI Services',
-          p: 'Our platform uses advanced AI models (including Sarvam AI) to generate website content and business insights. While we strive for accuracy, AI-generated content should be reviewed by you. Fera is not responsible for business decisions made based on AI suggestions.'
+          p: 'Our platform uses advanced AI models (including Sarvam AI) to generate website content and business insights. While we strive for accuracy, AI-generated content should be reviewed by you. FeraSetu is not responsible for business decisions made based on AI suggestions.'
         },
         {
           h: '3. Subscription and Fees',
@@ -28,7 +28,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         },
         {
           h: '4. User Content',
-          p: 'You retain all rights to the product data, images, and business information you upload. By using Fera, you grant us a license to host and display this content to your customers.'
+          p: 'You retain all rights to the product data, images, and business information you upload. By using FeraSetu, you grant us a license to host and display this content to your customers.'
         },
         {
           h: '5. Account Security',
@@ -46,7 +46,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         },
         {
           h: '2. How We Use Data',
-          p: 'Your data is used to provide the Fera services, improve our AI models, and communicate important updates. We do not sell your personal information to third parties.'
+          p: 'Your data is used to provide the FeraSetu services, improve our AI models, and communicate important updates. We do not sell your personal information to third parties.'
         },
         {
           h: '3. Data Storage (India)',

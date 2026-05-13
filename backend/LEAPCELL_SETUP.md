@@ -1,6 +1,6 @@
 # Leapcell Backend Setup Guide
 
-This guide explains how to deploy the Fera Shopkeeper backend to [Leapcell](https://leapcell.io/).
+This guide explains how to deploy the FeraSetu backend to [Leapcell](https://leapcell.io/).
 
 ## 1. Prerequisites
 

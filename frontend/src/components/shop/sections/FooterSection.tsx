@@ -84,7 +84,7 @@ export default function FooterSection({ config }: FooterSectionProps) {
             <span>All rights reserved.</span>
           </div>
           <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            Powered by <span style={{ color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>Fera Shopkeeper AI <span style={{ fontSize: '16px' }}>✨</span></span>
+            Powered by <span style={{ color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>FeraSetu <span style={{ fontSize: '16px' }}>✨</span></span>
           </div>
         </div>
       </div>

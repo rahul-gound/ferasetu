@@ -462,7 +462,7 @@ export default function GetStartedPage() {
 
           {/* Benefits */}
           <div style={{ paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-            <p style={{ fontSize: '12px', opacity: 0.8, margin: '16px 0 12px 0' }}>✨ Why Fera?</p>
+            <p style={{ fontSize: '12px', opacity: 0.8, margin: '16px 0 12px 0' }}>✨ Why FeraSetu?</p>
             <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', opacity: 0.9 }}>
               <li>Free for first 7 days</li>
               <li>No coding needed</li>

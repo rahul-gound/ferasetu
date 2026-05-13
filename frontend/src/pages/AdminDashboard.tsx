@@ -260,7 +260,7 @@ export default function AdminDashboard() {
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ width: '40px', height: '40px', background: '#FF6B35', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>F</div>
-          <div><div style={{ fontWeight: 800 }}>Fera CEO</div></div>
+          <div><div style={{ fontWeight: 800 }}>FeraSetu CEO</div></div>
         </div>
         <nav style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
           {sidebarItems.map(item => (
