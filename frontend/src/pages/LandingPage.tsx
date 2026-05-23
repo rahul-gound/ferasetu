@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  ShoppingBag, Zap, ShieldCheck, TrendingUp, 
-  ChevronRight, Star, ArrowRight, Smartphone, 
-  Store, MessageCircle, BarChart3, Globe
+import {
+  ShoppingBag, Zap, ShieldCheck, TrendingUp,
+  ChevronRight, Star, ArrowRight, Smartphone,
+  Store, MessageCircle, BarChart3, Globe, Sparkles, IndianRupee
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,382 +11,700 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsVisible(true);
+    setTimeout(() => setIsVisible(true), 80);
     if (user) navigate('/dashboard');
   }, [user, navigate]);
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    setMousePos({
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height,
+    });
+  };
+
+  const tiltX = (mousePos.y - 0.5) * -10;
+  const tiltY = (mousePos.x - 0.5) * 10;
+
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-orange-100 selection:text-orange-600">
+    <div className="min-h-screen bg-[#060818] text-white font-sans overflow-x-hidden">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .hero-gradient {
-          background: radial-gradient(circle at 50% -20%, rgba(255, 107, 53, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
+        * { font-family: 'Inter', sans-serif; }
+
+        .mesh-bg {
+          background:
+            radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255,107,53,0.18) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 40% at 80% 80%, rgba(99,102,241,0.12) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 50% at 10% 60%, rgba(16,185,129,0.08) 0%, transparent 50%),
+            #060818;
         }
-        .animate-fade-up {
-          animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+
+        .glass {
+          background: rgba(255,255,255,0.04);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255,255,255,0.08);
         }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+
+        .glass-warm {
+          background: rgba(255,107,53,0.06);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255,107,53,0.15);
         }
-        .feature-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px -8px rgba(0,0,0,0.08);
+
+        .glow-orange {
+          box-shadow: 0 0 40px rgba(255,107,53,0.35), 0 0 80px rgba(255,107,53,0.15);
         }
-        .commercial-orb {
-          animation: floatOrb 7s ease-in-out infinite;
+
+        .glow-text {
+          text-shadow: 0 0 60px rgba(255,107,53,0.5);
         }
-        .commercial-shine {
+
+        @keyframes floatA {
+          0%,100% { transform: translate3d(0,0,0) rotate(0deg); }
+          33% { transform: translate3d(8px,-14px,0) rotate(2deg); }
+          66% { transform: translate3d(-6px,-8px,0) rotate(-1deg); }
+        }
+        @keyframes floatB {
+          0%,100% { transform: translate3d(0,0,0) rotate(0deg); }
+          50% { transform: translate3d(-12px,-18px,0) rotate(-2deg); }
+        }
+        @keyframes fadeSlideUp {
+          from { opacity:0; transform: translateY(32px); }
+          to   { opacity:1; transform: translateY(0); }
+        }
+        @keyframes scanline {
+          0% { top: -8%; }
+          100% { top: 108%; }
+        }
+        @keyframes shimmerBtn {
+          0%,60% { left:-70%; }
+          100% { left:140%; }
+        }
+        @keyframes pulseRing {
+          0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+          50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+        }
+        @keyframes gradientShift {
+          0%,100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes orbPulse {
+          0%,100% { opacity:0.5; transform: scale(1); }
+          50% { opacity:0.8; transform: scale(1.1); }
+        }
+
+        .float-a { animation: floatA 8s ease-in-out infinite; }
+        .float-b { animation: floatB 10s ease-in-out infinite; }
+
+        .hero-visible { animation: fadeSlideUp 0.9s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+        .hero-hidden { opacity:0; }
+
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.15s; }
+        .stagger-3 { animation-delay: 0.28s; }
+        .stagger-4 { animation-delay: 0.4s; }
+        .stagger-5 { animation-delay: 0.55s; }
+
+        .shimmer-btn {
           position: relative;
           overflow: hidden;
         }
-        .commercial-shine::after {
-          content: '';
-          position: absolute;
-          inset: -120% auto auto -60%;
-          width: 60%;
-          height: 300%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.42), transparent);
+        .shimmer-btn::after {
+          content:'';
+          position:absolute;
+          inset:-120% auto auto -60%;
+          width:60%; height:300%;
+          background: linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);
           transform: rotate(18deg);
-          animation: shineSweep 4.2s ease-in-out infinite;
+          animation: shimmerBtn 3.5s ease-in-out infinite;
         }
-        @keyframes floatOrb {
-          0%, 100% { transform: translate3d(0,0,0) scale(1); }
-          50% { transform: translate3d(12px,-18px,0) scale(1.04); }
+
+        .card-3d {
+          transition: transform 0.4s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.4s ease;
+          transform-style: preserve-3d;
         }
-        @keyframes shineSweep {
-          0%, 55% { left: -70%; }
-          100% { left: 140%; }
+        .card-3d:hover {
+          transform: translateY(-8px) rotateX(4deg) rotateY(-2deg);
+          box-shadow: 0 32px 64px -16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+        }
+
+        .pricing-3d {
+          transition: transform 0.4s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.4s ease;
+        }
+        .pricing-3d:hover {
+          transform: translateY(-12px) scale(1.02);
+        }
+
+        .step-line {
+          position:absolute;
+          top:50%; left:calc(100% + 1px);
+          width:100%; height:1px;
+          background: linear-gradient(90deg, rgba(255,107,53,0.4), transparent);
+        }
+
+        .animated-gradient {
+          background: linear-gradient(270deg, #ff6b35, #e55a24, #ff9a6c, #ff6b35);
+          background-size: 300% 300%;
+          animation: gradientShift 4s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .orb {
+          position:absolute;
+          border-radius:50%;
+          filter: blur(60px);
+          animation: orbPulse 6s ease-in-out infinite;
+          pointer-events:none;
+        }
+
+        .stat-badge {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          backdrop-filter: blur(12px);
+          border-radius:16px;
+          padding: 12px 16px;
         }
       `}</style>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <span className="text-white font-black text-xl italic">F</span>
+      <nav className="fixed top-0 w-full z-50" style={{
+        background: 'rgba(6,8,24,0.7)',
+        backdropFilter: 'blur(24px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between" style={{ height: 72 }}>
+          <div className="flex items-center gap-3">
+            <div style={{
+              width: 42, height: 42, borderRadius: 14,
+              background: 'linear-gradient(135deg, #ff6b35 0%, #e55a24 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 20px rgba(255,107,53,0.4)',
+            }}>
+              <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, fontStyle: 'italic' }}>F</span>
             </div>
-            <span className="text-xl font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">Setu</span></span>
+            <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em' }}>
+              Fera<span style={{ color: '#ff6b35' }}>Setu</span>
+            </span>
           </div>
+
           <div className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
-            <a href="#benefits" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Benefits</a>
-            <a href="#pricing" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
-            <Link to="/login" className="text-sm font-semibold text-slate-900">Sign in</Link>
-            <Link to="/register" className="px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-full hover:bg-slate-800 transition-all shadow-md active:scale-95">
+            {['How it works', 'Benefits', 'Pricing'].map((item, i) => (
+              <a key={i} href={`#${item.toLowerCase().replace(/ /g, '-')}`}
+                style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.6)', transition: 'color 0.2s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}>
+                {item}
+              </a>
+            ))}
+            <Link to="/login" style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Sign in</Link>
+            <Link to="/register" className="shimmer-btn" style={{
+              padding: '10px 22px', borderRadius: 50,
+              background: 'linear-gradient(135deg, #ff6b35, #e55a24)',
+              color: '#fff', fontSize: 14, fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(255,107,53,0.4)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              display: 'inline-block',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 30px rgba(255,107,53,0.55)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,107,53,0.4)'; }}>
               Start Your Shop
             </Link>
           </div>
         </div>
       </nav>
 
-      <main className="pt-20">
-        {/* Hero Section */}
-        <section className="hero-gradient relative overflow-hidden pt-20 pb-32">
-          <div className="commercial-orb absolute top-28 left-6 w-24 h-24 rounded-full bg-orange-200/50 blur-2xl" />
-          <div className="commercial-orb absolute bottom-24 right-10 w-32 h-32 rounded-full bg-blue-200/40 blur-3xl" style={{ animationDelay: '1.5s' }} />
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <div className={`transition-all duration-1000 ${isVisible ? 'animate-fade-up' : 'opacity-0'}`}>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 mb-8">
-                <div className="flex -space-x-2">
-                  {[1,2,3].map(i => (
-                    <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
-                      <img src={`https://i.pravatar.cc/100?u=${i}`} alt="user" />
-                    </div>
-                  ))}
-                </div>
-                <span className="text-[13px] font-bold text-orange-600">10,000+ Indian shopkeepers joined</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 mb-6 leading-[1.1]">
-                Grow your business <br className="hidden md:block" />
-                <span className="text-orange-500">online in 2 minutes.</span>
-              </h1>
-              
-              <p className="max-w-2xl mx-auto text-lg md:text-xl text-slate-500 font-medium mb-12 leading-relaxed">
-                Build your shop website, manage products, and grow orders with AI. <span className="text-slate-900 font-bold">Dukaan ko online lao, orders WhatsApp par pao.</span>
-              </p>
+      {/* Hero */}
+      <section className="mesh-bg relative overflow-hidden" style={{ paddingTop: 160, paddingBottom: 120 }}
+        ref={heroRef} onMouseMove={handleMouseMove}>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-                <Link to="/register" className="commercial-shine w-full sm:w-auto px-10 py-5 bg-orange-500 text-white text-lg font-black rounded-2xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/25 active:scale-95 flex items-center justify-center gap-3">
-                  Start Your Shop Now <ChevronRight size={20} strokeWidth={3} />
-                </Link>
-                <div className="flex items-center gap-3 px-6 py-4">
-                  <div className="flex text-orange-400">
-                    {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
-                  </div>
-                  <span className="text-sm font-bold text-slate-600">4.9/5 Rating</span>
-                </div>
-              </div>
+        <div className="orb" style={{ width: 600, height: 600, top: -200, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,107,53,0.12)' }} />
+        <div className="orb" style={{ width: 400, height: 400, bottom: -100, right: -100, background: 'rgba(99,102,241,0.1)', animationDelay: '2s' }} />
 
-              {/* Product Mockup */}
-              <div className="relative max-w-5xl mx-auto rounded-[2.5rem] p-4 bg-slate-100/50 border border-slate-200 shadow-2xl overflow-hidden group">
-                <div className="bg-white rounded-[1.8rem] border border-slate-200 shadow-inner overflow-hidden aspect-[16/10] md:aspect-[16/8]">
-                  <img 
-                    src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000" 
-                    className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-1000"
-                    alt="FeraSetu Dashboard"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/5 group-hover:bg-transparent transition-colors">
-                    <div className="px-6 py-3 bg-white/90 backdrop-blur rounded-2xl border border-white shadow-xl flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-sm font-black text-slate-900">Your store is live & ready to sell</span>
-                    </div>
-                  </div>
+        <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
+
+          {/* Badge */}
+          <div className={`inline-flex items-center gap-2 mb-8 ${isVisible ? 'hero-visible stagger-1' : 'hero-hidden'}`}
+            style={{ padding: '8px 18px', borderRadius: 50, background: 'rgba(255,107,53,0.12)', border: '1px solid rgba(255,107,53,0.25)', backdropFilter: 'blur(12px)' }}>
+            <Sparkles size={14} style={{ color: '#ff6b35' }} />
+            <div className="flex -space-x-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} style={{ width: 22, height: 22, borderRadius: '50%', border: '2px solid rgba(255,107,53,0.4)', overflow: 'hidden', background: '#1e293b' }}>
+                  <img src={`https://i.pravatar.cc/100?u=${i + 10}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#ff9a6c' }}>10,000+ Indian shopkeepers joined</span>
+          </div>
+
+          {/* Headline */}
+          <h1 className={`${isVisible ? 'hero-visible stagger-2' : 'hero-hidden'}`}
+            style={{ fontSize: 'clamp(42px,7vw,88px)', fontWeight: 900, lineHeight: 1.02, letterSpacing: '-0.04em', marginBottom: 28 }}>
+            Grow your business
+            <br />
+            <span className="animated-gradient glow-text">online in 2 minutes.</span>
+          </h1>
+
+          <p className={`${isVisible ? 'hero-visible stagger-3' : 'hero-hidden'}`}
+            style={{ maxWidth: 560, margin: '0 auto 40px', fontSize: 18, fontWeight: 500, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>
+            Build your shop website, manage products, and grow orders with AI.{' '}
+            <span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>Dukaan ko online lao, orders WhatsApp par pao.</span>
+          </p>
+
+          {/* CTAs */}
+          <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 ${isVisible ? 'hero-visible stagger-4' : 'hero-hidden'}`}>
+            <Link to="/register" className="shimmer-btn" style={{
+              padding: '18px 40px', borderRadius: 20,
+              background: 'linear-gradient(135deg, #ff6b35 0%, #e55a24 100%)',
+              color: '#fff', fontSize: 18, fontWeight: 900,
+              boxShadow: '0 8px 40px rgba(255,107,53,0.45), 0 0 0 1px rgba(255,107,53,0.2)',
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 12px 50px rgba(255,107,53,0.6)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 40px rgba(255,107,53,0.45)'; }}>
+              Start Your Shop Now <ChevronRight size={20} strokeWidth={3} />
+            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 24px' }}>
+              <div style={{ display: 'flex', color: '#ff6b35' }}>
+                {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>4.9/5 Rating</span>
+            </div>
+          </div>
+
+          {/* 3D Mockup */}
+          <div className={`${isVisible ? 'hero-visible stagger-5' : 'hero-hidden'}`}
+            style={{
+              perspective: 1200,
+              maxWidth: 960,
+              margin: '0 auto',
+            }}>
+            <div style={{
+              transform: `rotateX(${tiltX * 0.5}deg) rotateY(${tiltY * 0.5}deg)`,
+              transition: 'transform 0.1s linear',
+              transformStyle: 'preserve-3d',
+              borderRadius: 32,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              padding: 6,
+              boxShadow: '0 60px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)',
+            }}>
+              <div style={{ borderRadius: 28, overflow: 'hidden', position: 'relative', aspectRatio: '16/8' }}>
+                <img
+                  src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.7) saturate(1.2)' }}
+                  alt="FeraSetu Dashboard"
+                />
+                {/* Overlay grid */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(6,8,24,0.4) 100%)',
+                }} />
+                {/* Scanline effect */}
+                <div style={{
+                  position: 'absolute', left: 0, right: 0, height: '8%',
+                  background: 'linear-gradient(0deg,transparent,rgba(255,255,255,0.04),transparent)',
+                  animation: 'scanline 3s linear infinite',
+                }} />
+                {/* Live badge */}
+                <div style={{
+                  position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+                  padding: '12px 24px', borderRadius: 50,
+                  background: 'rgba(6,8,24,0.8)', backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  whiteSpace: 'nowrap',
+                }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', animation: 'pulseRing 2s infinite' }} />
+                  <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>Your store is live & ready to sell</span>
+                </div>
+
+                {/* Floating stat badges */}
+                <div className="stat-badge float-a" style={{ position: 'absolute', top: 24, left: 24 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Today's Revenue</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>₹12,480</div>
+                  <div style={{ fontSize: 12, color: '#10B981', fontWeight: 700, marginTop: 2 }}>↑ 23% vs yesterday</div>
+                </div>
+                <div className="stat-badge float-b" style={{ position: 'absolute', top: 24, right: 24 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>New Orders</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>47</div>
+                  <div style={{ fontSize: 12, color: '#ff6b35', fontWeight: 700, marginTop: 2 }}>+8 pending</div>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* How It Works */}
-        <section id="how-it-works" className="py-32 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-20">
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mb-4">Start selling in 3 simple steps</h2>
-              <p className="text-lg text-slate-500 font-medium">No technical skills needed. Bilkul aasan.</p>
+      {/* Trusted by logos strip */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '28px 0', background: 'rgba(255,255,255,0.015)' }}>
+        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-10">
+          {['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Chennai', 'Hyderabad', 'Pune'].map(city => (
+            <div key={city} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.3)', fontSize: 14, fontWeight: 700 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff6b35', opacity: 0.6 }} />
+              {city}
             </div>
-            
-            <div className="grid md:grid-cols-3 gap-12">
-              <StepCard 
-                number="01"
-                title="Create Shop"
-                desc="Apni shop ka naam daalein aur mobile number se verify karein."
-                icon={<Store className="text-orange-500" size={32} />}
-              />
-              <StepCard 
-                number="02"
-                title="Add Products"
-                desc="Products ki photos kheinchein aur price set karein instantly."
-                icon={<ShoppingBag className="text-blue-500" size={32} />}
-              />
-              <StepCard 
-                number="03"
-                title="Share & Sell"
-                desc="Link ko WhatsApp pe share karein aur orders lena shuru karein."
-                icon={<Zap className="text-purple-500" size={32} />}
-              />
+          ))}
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <section id="how-it-works" style={{ padding: '120px 0', background: 'rgba(255,255,255,0.01)' }}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-20">
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 50, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', marginBottom: 20 }}>
+              <Zap size={13} style={{ color: '#818cf8' }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Super Simple</span>
             </div>
+            <h2 style={{ fontSize: 'clamp(32px,5vw,56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 16 }}>
+              Start selling in{' '}
+              <span style={{ color: '#ff6b35' }}>3 simple steps</span>
+            </h2>
+            <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>No technical skills needed. Bilkul aasan.</p>
           </div>
-        </section>
 
-        {/* Benefits Section */}
-        <section id="benefits" className="py-32 bg-white">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid lg:grid-cols-2 gap-20 items-center">
-              <div>
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 mb-8 leading-[1.2]">
-                  Designed for the <br />
-                  <span className="text-orange-500">modern shopkeeper.</span>
-                </h2>
-                
-                <div className="space-y-8">
-                  <BenefitItem 
-                    title="Know your profit instantly"
-                    desc="Calculation ki tension khatam. Har order pe apna profit dekhein."
-                    icon={<TrendingUp size={24} />}
-                  />
-                  <BenefitItem 
-                    title="Sell on WhatsApp effortlessly"
-                    desc="Customers ko professional link bhejein, purane tarike chhodein."
-                    icon={<MessageCircle size={24} />}
-                  />
-                  <BenefitItem 
-                    title="Safe & Secure"
-                    desc="Aapka data hamesha secure rehta hai. Trust of 10k+ users."
-                    icon={<ShieldCheck size={24} />}
-                  />
+          <div className="grid md:grid-cols-3 gap-8" style={{ position: 'relative' }}>
+            {[
+              { num: '01', title: 'Create Shop', desc: 'Apni shop ka naam daalein aur mobile number se verify karein.', icon: <Store size={28} />, color: '#ff6b35', glow: 'rgba(255,107,53,0.2)' },
+              { num: '02', title: 'Add Products', desc: 'Products ki photos kheinchein aur price set karein instantly.', icon: <ShoppingBag size={28} />, color: '#6366f1', glow: 'rgba(99,102,241,0.2)' },
+              { num: '03', title: 'Share & Sell', desc: 'Link ko WhatsApp pe share karein aur orders lena shuru karein.', icon: <Zap size={28} />, color: '#10b981', glow: 'rgba(16,185,129,0.2)' },
+            ].map((step, i) => (
+              <div key={i} className="card-3d" style={{
+                padding: 40,
+                borderRadius: 28,
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}>
+                <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: step.glow, filter: 'blur(30px)' }} />
+                <div style={{ fontSize: 12, fontWeight: 900, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 24 }}>{step.num}</div>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 18,
+                  background: `${step.glow}`,
+                  border: `1px solid ${step.color}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: step.color, marginBottom: 28,
+                  boxShadow: `0 8px 24px ${step.glow}`,
+                }}>
+                  {step.icon}
                 </div>
+                <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12, letterSpacing: '-0.02em' }}>{step.title}</h3>
+                <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, fontWeight: 500 }}>{step.desc}</p>
               </div>
-              
-              <div className="relative">
-                <div className="bg-slate-900 rounded-[3rem] p-12 overflow-hidden shadow-2xl aspect-square flex flex-col justify-end">
-                  <div className="absolute top-0 right-0 p-12 opacity-10">
-                    <Globe size={400} />
-                  </div>
-                  <div className="relative z-10">
-                    <div className="text-6xl font-black text-white mb-6">40%</div>
-                    <div className="text-2xl font-bold text-slate-400 mb-8 leading-snug">Average sales increase for <br /> shopkeepers using FeraSetu.</div>
-                    <Link to="/register" className="inline-flex items-center gap-2 text-orange-500 font-black text-lg group">
-                      Grow your business today <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Testimonial */}
-        <section className="py-32 bg-slate-900 text-white overflow-hidden relative">
-           <div className="max-w-7xl mx-auto px-6 relative z-10">
-              <div className="max-w-3xl">
-                <div className="flex gap-1 text-orange-400 mb-8">
-                  {[1,2,3,4,5].map(i => <Star key={i} size={24} fill="currentColor" />)}
-                </div>
-                <h3 className="text-3xl md:text-5xl font-bold leading-tight mb-12 italic">
-                  "Pehle register maintain karna mushkil tha. Ab FeraSetu se sab phone pe hai. Sales bhi badhi hai aur tension bhi kam hui hai."
-                </h3>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-2xl">RK</div>
-                  <div>
-                    <div className="text-xl font-black">Rajesh Kumar</div>
-                    <div className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Kirana Store Owner, Delhi</div>
-                  </div>
-                </div>
+      {/* Benefits */}
+      <section id="benefits" style={{ padding: '120px 0' }}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 50, background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)', marginBottom: 24 }}>
+                <TrendingUp size={13} style={{ color: '#ff6b35' }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#ff6b35', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Why FeraSetu</span>
               </div>
-           </div>
-        </section>
-
-        {/* Pricing Preview */}
-        <section id="pricing" className="py-32 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-orange-100 text-orange-600 text-xs font-black uppercase tracking-widest mb-6 shadow-sm">
-                <ShieldCheck size={14} /> Simple pricing
-              </div>
-              <h2 className="text-4xl md:text-6xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
-                Start small. Upgrade when orders grow.
+              <h2 style={{ fontSize: 'clamp(32px,4vw,52px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, marginBottom: 40 }}>
+                Designed for the{' '}
+                <span style={{ color: '#ff6b35' }}>modern shopkeeper.</span>
               </h2>
-              <p className="text-lg text-slate-500 font-semibold leading-relaxed">
-                Pricing is designed to feel safe for small shops and powerful when you are ready to scale.
-              </p>
-            </div>
 
-            <div className="grid lg:grid-cols-3 gap-6 items-stretch">
-              <PricingTeaser
-                icon={<Smartphone size={24} />}
-                name="Starter"
-                price="199"
-                desc="Launch your online catalog and accept local orders."
-                features={["100 products", "FeraSetu shop link", "Basic AI help"]}
-              />
-              <div className="relative rounded-[2rem] p-8 bg-white border-2 border-orange-500 shadow-2xl shadow-orange-500/15 lg:-translate-y-4">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-2 rounded-full bg-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-lg">
-                  Best Value
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-6">
-                  <TrendingUp size={24} />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Growth</h3>
-                <p className="text-slate-500 font-semibold min-h-[48px]">Custom domain, premium templates, and growth analytics.</p>
-                <div className="my-8 flex items-end gap-1">
-                  <span className="text-xl font-black text-slate-400">₹</span>
-                  <span className="text-6xl font-black tracking-tighter text-slate-900">499</span>
-                  <span className="text-slate-400 font-bold mb-2">/mo</span>
-                </div>
-                <div className="space-y-3 mb-8">
-                  {["1,000 products", "Custom domain support", "Advanced AI and analytics"].map(item => (
-                    <div key={item} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                      <CheckMark /> {item}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                {[
+                  { title: 'Know your profit instantly', desc: 'Calculation ki tension khatam. Har order pe apna profit dekhein.', icon: <TrendingUp size={22} />, color: '#ff6b35' },
+                  { title: 'Sell on WhatsApp effortlessly', desc: 'Customers ko professional link bhejein, purane tarike chhodein.', icon: <MessageCircle size={22} />, color: '#10b981' },
+                  { title: 'Safe & Secure', desc: 'Aapka data hamesha secure rehta hai. Trust of 10k+ users.', icon: <ShieldCheck size={22} />, color: '#6366f1' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 20 }}>
+                    <div style={{
+                      flexShrink: 0, width: 52, height: 52, borderRadius: 18,
+                      background: `${item.color}15`, border: `1px solid ${item.color}25`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: item.color, boxShadow: `0 8px 24px ${item.color}20`,
+                    }}>
+                      {item.icon}
                     </div>
-                  ))}
-                </div>
-                <Link to="/upgrade" className="commercial-shine flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-orange-500 text-white font-black shadow-xl shadow-orange-500/25 hover:bg-orange-600 transition-all">
-                  See plans <ArrowRight size={18} />
-                </Link>
+                    <div>
+                      <h4 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, letterSpacing: '-0.02em' }}>{item.title}</h4>
+                      <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, fontWeight: 500 }}>{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <PricingTeaser
-                icon={<BarChart3 size={24} />}
-                name="Scale"
-                price="999"
-                desc="For serious retailers with more products and staff."
-                features={["Unlimited products", "Sales prediction", "Onboarding help"]}
-              />
             </div>
-          </div>
-        </section>
 
-        {/* Final CTA */}
-        <section className="py-32 bg-white">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="bg-orange-500 rounded-[3rem] p-12 md:p-24 text-center relative overflow-hidden">
-               <div className="absolute inset-0 opacity-10 pointer-events-none">
-                 <Store size={400} className="absolute -bottom-20 -right-20" />
-               </div>
-               <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight">Ab aapki baari hai.</h2>
-               <p className="text-xl text-orange-100 font-bold mb-12 max-w-xl mx-auto leading-relaxed">Join 10,000+ smart shopkeepers. Bilkul free se shuru karein.</p>
-               <Link to="/register" className="inline-flex px-12 py-6 bg-white text-orange-600 text-xl font-black rounded-2xl hover:shadow-2xl transition-all shadow-xl active:scale-95">
-                 Create Your Store
-               </Link>
-            </div>
-          </div>
-        </section>
-      </main>
+            {/* 3D Stats Card */}
+            <div style={{ perspective: 800 }}>
+              <div className="card-3d" style={{
+                borderRadius: 40,
+                padding: 52,
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: '0 40px 80px rgba(0,0,0,0.4)',
+              }}>
+                <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,107,53,0.15)', filter: 'blur(40px)' }} />
+                <div style={{ position: 'absolute', bottom: -40, left: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(99,102,241,0.12)', filter: 'blur(40px)' }} />
 
-      <footer className="py-12 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-black text-sm italic">F</span>
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div style={{ fontSize: 80, fontWeight: 900, letterSpacing: '-0.05em', lineHeight: 1, background: 'linear-gradient(135deg,#ff6b35,#ff9a6c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: 12 }}>40%</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 40, lineHeight: 1.5 }}>Average sales increase for<br />shopkeepers using FeraSetu.</div>
+
+                  <div className="grid grid-cols-2 gap-4" style={{ marginBottom: 36 }}>
+                    {[
+                      { val: '10K+', label: 'Shops', color: '#ff6b35' },
+                      { val: '₹2Cr+', label: 'Revenue Processed', color: '#10b981' },
+                      { val: '22+', label: 'Languages', color: '#6366f1' },
+                      { val: '99.9%', label: 'Uptime', color: '#f59e0b' },
+                    ].map((stat, i) => (
+                      <div key={i} style={{ padding: '16px 20px', borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ fontSize: 22, fontWeight: 900, color: stat.color, letterSpacing: '-0.03em' }}>{stat.val}</div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: 4 }}>{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Link to="/register" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 10,
+                    padding: '14px 28px', borderRadius: 50,
+                    background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+                    color: '#fff', fontWeight: 800, fontSize: 16,
+                    boxShadow: '0 8px 30px rgba(255,107,53,0.4)',
+                    transition: 'transform 0.2s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+                    Grow your business today <ArrowRight size={18} />
+                  </Link>
+                </div>
+              </div>
             </div>
-            <span className="text-lg font-black tracking-tight text-slate-900">Fera<span className="text-orange-500">Setu</span></span>
           </div>
-          <div className="text-sm font-bold text-slate-400">
-            © {new Date().getFullYear()} FeraSetu. Your shop’s digital bridge.
+        </div>
+      </section>
+
+      {/* Testimonial */}
+      <section style={{ padding: '120px 0', background: 'rgba(255,255,255,0.015)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="max-w-5xl mx-auto px-6">
+          <div style={{
+            padding: '60px 64px', borderRadius: 40,
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{ position: 'absolute', top: -60, left: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,107,53,0.1)', filter: 'blur(50px)' }} />
+            <div style={{ display: 'flex', gap: 4, color: '#ff6b35', marginBottom: 28, position: 'relative', zIndex: 1 }}>
+              {[1, 2, 3, 4, 5].map(i => <Star key={i} size={22} fill="currentColor" />)}
+            </div>
+            <blockquote style={{ fontSize: 'clamp(20px,3vw,30px)', fontWeight: 700, lineHeight: 1.5, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', marginBottom: 40, position: 'relative', zIndex: 1 }}>
+              "Pehle register maintain karna mushkil tha. Ab FeraSetu se sab phone pe hai. Sales bhi badhi hai aur tension bhi kam hui hai."
+            </blockquote>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 18,
+                background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 900, fontSize: 18, boxShadow: '0 8px 24px rgba(255,107,53,0.35)',
+              }}>RK</div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>Rajesh Kumar</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4 }}>Kirana Store Owner, Delhi</div>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" style={{ padding: '120px 0' }}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 50, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', marginBottom: 20 }}>
+              <ShieldCheck size={13} style={{ color: '#10b981' }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Simple Pricing</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(32px,5vw,60px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 16 }}>
+              Start small. Upgrade when <span style={{ color: '#ff6b35' }}>orders grow.</span>
+            </h2>
+            <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>Designed to feel safe for small shops and powerful at scale.</p>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6 items-stretch">
+            <PricingCard
+              icon={<Smartphone size={22} />}
+              name="Starter"
+              price="199"
+              desc="Launch your online catalog and accept local orders."
+              features={['100 products', 'FeraSetu shop link', 'Basic AI help']}
+              featured={false}
+            />
+            <PricingCard
+              icon={<TrendingUp size={22} />}
+              name="Growth"
+              price="499"
+              desc="Custom domain, premium templates, and growth analytics."
+              features={['1,000 products', 'Custom domain support', 'Advanced AI & analytics']}
+              featured={true}
+            />
+            <PricingCard
+              icon={<BarChart3 size={22} />}
+              name="Scale"
+              price="999"
+              desc="For serious retailers with more products and staff."
+              features={['Unlimited products', 'Sales prediction', 'Onboarding help']}
+              featured={false}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section style={{ padding: '80px 0 120px' }}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div style={{
+            borderRadius: 48,
+            padding: '80px 64px',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, rgba(255,107,53,0.2) 0%, rgba(229,90,36,0.15) 50%, rgba(99,102,241,0.12) 100%)',
+            border: '1px solid rgba(255,107,53,0.2)',
+            boxShadow: '0 40px 80px rgba(255,107,53,0.12)',
+          }}>
+            <div style={{ position: 'absolute', top: -80, left: '50%', transform: 'translateX(-50%)', width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,107,53,0.15)', filter: 'blur(80px)' }} />
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <IndianRupee size={40} style={{ color: '#ff6b35', margin: '0 auto 24px', display: 'block', opacity: 0.8 }} />
+              <h2 style={{ fontSize: 'clamp(32px,5vw,64px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 20 }}>Ab aapki baari hai.</h2>
+              <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', fontWeight: 600, marginBottom: 44, maxWidth: 480, margin: '0 auto 44px' }}>
+                Join 10,000+ smart shopkeepers. Bilkul free se shuru karein.
+              </p>
+              <Link to="/register" className="shimmer-btn" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 12,
+                padding: '20px 52px', borderRadius: 24,
+                background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+                color: '#fff', fontSize: 20, fontWeight: 900,
+                boxShadow: '0 16px 60px rgba(255,107,53,0.5)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 20px 70px rgba(255,107,53,0.65)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 16px 60px rgba(255,107,53,0.5)'; }}>
+                Create Your Store <ArrowRight size={22} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '40px 0' }}>
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(255,107,53,0.3)',
+            }}>
+              <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, fontStyle: 'italic' }}>F</span>
+            </div>
+            <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>Fera<span style={{ color: '#ff6b35' }}>Setu</span></span>
+          </div>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.25)' }}>
+            © {new Date().getFullYear()} FeraSetu. Your shop's digital bridge.
+          </p>
         </div>
       </footer>
     </div>
   );
 }
 
-function StepCard({ number, title, desc, icon }: any) {
+function PricingCard({ icon, name, price, desc, features, featured }: any) {
   return (
-    <div className="feature-card p-10 bg-white rounded-[2.5rem] border border-slate-100 transition-all">
-      <div className="text-sm font-black text-slate-400 mb-6 tracking-widest">{number}</div>
-      <div className="mb-8">{icon}</div>
-      <h3 className="text-2xl font-black text-slate-900 mb-4">{title}</h3>
-      <p className="text-slate-500 font-medium leading-relaxed">{desc}</p>
-    </div>
-  );
-}
+    <div className="pricing-3d" style={{
+      borderRadius: 32, padding: 40,
+      background: featured
+        ? 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(229,90,36,0.08) 100%)'
+        : 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+      border: featured ? '1px solid rgba(255,107,53,0.3)' : '1px solid rgba(255,255,255,0.07)',
+      boxShadow: featured ? '0 24px 60px rgba(255,107,53,0.15), 0 0 0 1px rgba(255,107,53,0.15)' : 'none',
+      position: 'relative',
+      overflow: 'hidden',
+      marginTop: featured ? 0 : 0,
+      transform: featured ? 'scale(1.03)' : 'scale(1)',
+    }}>
+      {featured && (
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          padding: '6px 20px', borderRadius: '0 0 16px 16px',
+          background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+          fontSize: 11, fontWeight: 900, color: '#fff',
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+          boxShadow: '0 4px 20px rgba(255,107,53,0.4)',
+        }}>Best Value</div>
+      )}
+      {featured && <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,107,53,0.15)', filter: 'blur(30px)' }} />}
 
-function BenefitItem({ title, desc, icon }: any) {
-  return (
-    <div className="flex gap-6">
-      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
+      <div style={{
+        width: 52, height: 52, borderRadius: 18,
+        background: featured ? 'rgba(255,107,53,0.2)' : 'rgba(255,255,255,0.06)',
+        border: featured ? '1px solid rgba(255,107,53,0.3)' : '1px solid rgba(255,255,255,0.08)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: featured ? '#ff6b35' : 'rgba(255,255,255,0.6)',
+        marginBottom: 24, marginTop: featured ? 24 : 0,
+      }}>
         {icon}
       </div>
-      <div>
-        <h4 className="text-xl font-black text-slate-900 mb-1">{title}</h4>
-        <p className="text-slate-500 font-medium leading-relaxed">{desc}</p>
-      </div>
-    </div>
-  );
-}
 
-function PricingTeaser({ icon, name, price, desc, features }: any) {
-  return (
-    <div className="rounded-[2rem] p-8 bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-      <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center mb-6 border border-slate-100">
-        {icon}
+      <h3 style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 10 }}>{name}</h3>
+      <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', fontWeight: 500, lineHeight: 1.6, minHeight: 48 }}>{desc}</p>
+
+      <div style={{ margin: '28px 0', display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+        <span style={{ fontSize: 20, fontWeight: 900, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>₹</span>
+        <span style={{ fontSize: 56, fontWeight: 900, letterSpacing: '-0.04em', color: featured ? '#ff6b35' : '#fff', lineHeight: 1 }}>{price}</span>
+        <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.3)', fontWeight: 700, marginBottom: 6 }}>/mo</span>
       </div>
-      <h3 className="text-2xl font-black text-slate-900 mb-2">{name}</h3>
-      <p className="text-slate-500 font-semibold min-h-[48px]">{desc}</p>
-      <div className="my-8 flex items-end gap-1">
-        <span className="text-xl font-black text-slate-400">₹</span>
-        <span className="text-5xl font-black tracking-tighter text-slate-900">{price}</span>
-        <span className="text-slate-400 font-bold mb-1">/mo</span>
-      </div>
-      <div className="space-y-3 mb-8">
-        {features.map((item: string) => (
-          <div key={item} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-            <CheckMark /> {item}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+        {features.map((f: string) => (
+          <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: '50%',
+              background: featured ? 'rgba(255,107,53,0.2)' : 'rgba(255,255,255,0.08)',
+              color: featured ? '#ff6b35' : 'rgba(255,255,255,0.5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 900, flexShrink: 0,
+            }}>✓</div>
+            {f}
           </div>
         ))}
       </div>
-      <Link to="/upgrade" className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-slate-900 text-white font-black hover:bg-slate-800 transition-all">
-        View details <ArrowRight size={18} />
+
+      <Link to="/upgrade" style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        width: '100%', padding: '14px 0', borderRadius: 50,
+        background: featured ? 'linear-gradient(135deg,#ff6b35,#e55a24)' : 'rgba(255,255,255,0.08)',
+        border: featured ? 'none' : '1px solid rgba(255,255,255,0.12)',
+        color: '#fff', fontWeight: 800, fontSize: 15,
+        boxShadow: featured ? '0 8px 30px rgba(255,107,53,0.35)' : 'none',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
+        View details <ArrowRight size={16} />
       </Link>
     </div>
   );
-}
-
-function CheckMark() {
-  return <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">✓</span>;
 }

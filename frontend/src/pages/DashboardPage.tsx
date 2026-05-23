@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  Tooltip, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
-import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package, ArrowRight, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,63 +31,100 @@ interface DashboardData {
   }[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: '#F59E0B',
-  confirmed: '#3B82F6',
-  preparing: '#8B5CF6',
-  out_for_delivery: '#06B6D4',
-  delivered: '#10B981',
-  cancelled: '#EF4444',
+const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+  pending:          { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  label: 'Pending' },
+  confirmed:        { color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',  label: 'Confirmed' },
+  preparing:        { color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)',  label: 'Preparing' },
+  out_for_delivery: { color: '#06B6D4', bg: 'rgba(6,182,212,0.12)',   label: 'On the Way' },
+  delivered:        { color: '#10B981', bg: 'rgba(16,185,129,0.12)',  label: 'Delivered' },
+  cancelled:        { color: '#EF4444', bg: 'rgba(239,68,68,0.12)',   label: 'Cancelled' },
 };
 
-function Shimmer({ w = '100%', h = '20px', r = '6px' }: { w?: string; h?: string; r?: string }) {
+function Shimmer({ w = '100%', h = '20px', r = '10px' }: { w?: string; h?: string; r?: string }) {
   return (
     <div style={{
       width: w, height: h, borderRadius: r,
-      background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+      background: 'linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%)',
       backgroundSize: '200% 100%',
-      animation: 'shimmer 1.4s infinite',
+      animation: 'db-shimmer 1.4s infinite',
     }} />
   );
 }
 
-function StatCard({
-  label, value, icon, color, change, loading,
-}: {
-  label: string; value: string; icon: React.ReactNode;
-  color: string; change?: number; loading: boolean;
-}) {
+interface StatCardProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  gradient: string;
+  glowColor: string;
+  change?: number;
+  loading: boolean;
+  prefix?: string;
+}
+
+function StatCard({ label, value, icon, gradient, glowColor, change, loading, prefix }: StatCardProps) {
   return (
-    <div className="card dashboard-card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+    <div style={{
+      padding: '28px 28px 24px',
+      borderRadius: 24,
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.07)',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+      cursor: 'default',
+    }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px) scale(1.01)';
+        (e.currentTarget as HTMLDivElement).style.boxShadow = `0 20px 60px ${glowColor}25`;
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0) scale(1)';
+        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+      }}>
+
+      {/* Ambient glow */}
+      <div style={{
+        position: 'absolute', top: -30, right: -30,
+        width: 100, height: 100, borderRadius: '50%',
+        background: glowColor, filter: 'blur(30px)', opacity: 0.4,
+      }} />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, position: 'relative', zIndex: 1 }}>
         <div style={{
-          width: '40px', height: '40px', borderRadius: '10px',
-          background: '#F8FAFC', border: '1px solid var(--border)',
+          width: 46, height: 46, borderRadius: 16,
+          background: gradient,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: color,
+          color: '#fff',
+          boxShadow: `0 8px 24px ${glowColor}50`,
         }}>
           {icon}
         </div>
         {change !== undefined && !loading && (
           <div style={{
-            fontSize: '12px',
+            fontSize: 12, fontWeight: 700,
             color: change >= 0 ? '#10B981' : '#EF4444',
-            fontWeight: 700,
-            background: change >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-            padding: '2px 8px', borderRadius: '20px'
+            background: change >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+            border: `1px solid ${change >= 0 ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
+            padding: '3px 10px', borderRadius: 50,
           }}>
             {change >= 0 ? '+' : ''}{change}%
           </div>
         )}
       </div>
-      <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-        {label}
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+          {label}
+        </div>
+        {loading ? (
+          <Shimmer h="36px" w="55%" />
+        ) : (
+          <div style={{ fontSize: 32, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1 }}>
+            {value}
+          </div>
+        )}
       </div>
-      {loading ? (
-        <Shimmer h="32px" w="60%" />
-      ) : (
-        <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{value}</div>
-      )}
     </div>
   );
 }
@@ -106,221 +143,282 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    if (error) {
-      toast.error('Failed to load dashboard data');
-    }
+    if (error) toast.error('Failed to load dashboard data');
   }, [error]);
 
   const stats = data?.stats;
   const isNewUser = !data || data?.stats?.total_orders === 0;
 
   return (
-    <div className="dashboard-wrapper">
-      {/* Getting Started Banner for New Users */}
-      {isNewUser && (
+    <div style={{ paddingBottom: 40 }}>
+      <style>{`
+        @keyframes db-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes db-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.4)} 50%{box-shadow:0 0 0 6px rgba(16,185,129,0)} }
+
+        .action-link {
+          display: flex; align-items: center; gap: 14px;
+          padding: 14px 18px; border-radius: 16px;
+          text-decoration: none; font-weight: 600; font-size: 14px;
+          border: 1px solid rgba(255,255,255,0.07);
+          background: rgba(255,255,255,0.03);
+          color: rgba(255,255,255,0.7);
+          transition: all 0.25s ease;
+          position: relative; overflow: hidden;
+        }
+        .action-link:hover {
+          background: rgba(255,255,255,0.07);
+          border-color: rgba(255,255,255,0.12);
+          color: #fff;
+          transform: translateX(4px);
+        }
+        .action-link .arrow-icon {
+          margin-left: auto;
+          opacity: 0;
+          transform: translateX(-6px);
+          transition: all 0.25s ease;
+        }
+        .action-link:hover .arrow-icon {
+          opacity: 1;
+          transform: translateX(0);
+        }
+
+        .order-row {
+          transition: background 0.2s ease;
+          border-radius: 12px;
+        }
+        .order-row:hover {
+          background: rgba(255,255,255,0.03);
+        }
+
+        @media (max-width: 1024px) {
+          .db-main-grid { grid-template-columns: 1fr !important; }
+          .hide-tablet { display: none !important; }
+        }
+        @media (max-width: 480px) {
+          .db-stats-grid { grid-template-columns: 1fr !important; }
+          .hide-mobile { display: none !important; }
+        }
+      `}</style>
+
+      {/* Welcome Banner for new users */}
+      {isNewUser && !isLoading && (
         <div style={{
-          marginBottom: '24px',
-          padding: '20px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: '14px',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '20px',
+          marginBottom: 28,
+          padding: '24px 28px',
+          borderRadius: 24,
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.15) 100%)',
+          border: '1px solid rgba(99,102,241,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+          position: 'relative', overflow: 'hidden',
         }}>
-          <div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700 }}>
+          <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(99,102,241,0.2)', filter: 'blur(30px)' }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#fff' }}>
               🎉 Welcome to FeraSetu, {user?.name}!
             </h3>
-            <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+            <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
               Let's get your online store set up in just a few minutes
             </p>
           </div>
-          <Link
-            to="/get-started"
-            style={{
-              padding: '10px 20px',
-              background: '#fff',
-              color: '#667eea',
-              textDecoration: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '14px',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              transition: 'transform 0.2s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-          >
+          <Link to="/get-started" style={{
+            padding: '10px 22px', borderRadius: 50,
+            background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+            color: '#fff', textDecoration: 'none',
+            fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
+            boxShadow: '0 8px 24px rgba(99,102,241,0.35)',
+            transition: 'transform 0.2s', flexShrink: 0, position: 'relative', zIndex: 1,
+          }}
+            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
             Get Started →
           </Link>
         </div>
       )}
+
       {/* Header */}
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', marginBottom: 6 }}>
           Overview
         </h1>
-        <p className="dashboard-subtitle">
-          Real-time performance metrics for {user?.business_name || 'your store'}.
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: 500 }}>
+          Real-time performance metrics for <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{user?.business_name || 'your store'}</span>.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="stats-grid">
+      <div className="db-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 18, marginBottom: 28 }}>
         <StatCard
           label={translate('totalRevenue')}
           value={stats ? `₹${stats.total_revenue.toLocaleString('en-IN')}` : '—'}
-          icon={<TrendingUp size={20} />}
-          color="#3B82F6"
+          icon={<TrendingUp size={22} />}
+          gradient="linear-gradient(135deg,#3B82F6,#6366f1)"
+          glowColor="rgba(59,130,246,0.5)"
           change={stats?.revenue_change}
           loading={isLoading}
         />
         <StatCard
           label={translate('totalOrders')}
           value={stats ? String(stats.total_orders) : '—'}
-          icon={<ShoppingCart size={20} />}
-          color="#8B5CF6"
+          icon={<ShoppingCart size={22} />}
+          gradient="linear-gradient(135deg,#8B5CF6,#a78bfa)"
+          glowColor="rgba(139,92,246,0.5)"
           change={stats?.orders_change}
           loading={isLoading}
         />
         <StatCard
           label={translate('pendingOrders')}
           value={stats ? String(stats.pending_orders) : '—'}
-          icon={<Clock size={20} />}
-          color="#F59E0B"
+          icon={<Clock size={22} />}
+          gradient="linear-gradient(135deg,#F59E0B,#fbbf24)"
+          glowColor="rgba(245,158,11,0.5)"
           loading={isLoading}
         />
         <StatCard
           label={translate('lowStock')}
           value={stats ? String(stats.low_stock_count) : '—'}
-          icon={<AlertTriangle size={20} />}
-          color="#EF4444"
+          icon={<AlertTriangle size={22} />}
+          gradient="linear-gradient(135deg,#EF4444,#f87171)"
+          glowColor="rgba(239,68,68,0.5)"
           loading={isLoading}
         />
       </div>
 
-      {/* Platform Health Notification */}
+      {/* Platform Health */}
       {!isLoading && !error && (
         <div style={{
-          marginTop: '24px', padding: '12px 20px', borderRadius: '12px',
-          background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.1)',
-          display: 'flex', alignItems: 'center', gap: '10px'
+          marginBottom: 28, padding: '12px 20px', borderRadius: 14,
+          background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)',
+          display: 'flex', alignItems: 'center', gap: 10,
         }}>
-           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 0 3px rgba(16,185,129,0.1)' }} />
-           <span style={{ fontSize: '13px', fontWeight: 600, color: '#059669' }}>
-              Your website is up and running. Synced with database.
-           </span>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', animation: 'db-pulse 2s infinite' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>
+            Your website is up and running. Synced with database.
+          </span>
         </div>
       )}
 
-      {/* Charts + Actions Row */}
-      <div className="main-content-grid">
+      {/* Charts + Actions */}
+      <div className="db-main-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 18, marginBottom: 18 }}>
+
         {/* Revenue Chart */}
-        <div className="card dashboard-card chart-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>
-              Revenue Performance
-            </h2>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px' }}>
-              Last 30 Days
+        <div style={{
+          padding: 28, borderRadius: 24,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 2 }}>Revenue Performance</h2>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>Last 30 days</p>
             </div>
+            <div style={{
+              fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              padding: '5px 12px', borderRadius: 50,
+            }}>30D</div>
           </div>
-          <div className="chart-container">
-            {isLoading ? (
-              <div style={{ height: '100%', minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Shimmer h="220px" />
-              </div>
-            ) : data?.revenue_chart && data.revenue_chart.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={data.revenue_chart} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={v => `₹${v}`} />
-                  <Tooltip
-                    cursor={{ stroke: '#CBD5E1', strokeWidth: 1 }}
-                    contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', padding: '12px' }}
-                  />
-                  <Line
-                    isAnimationActive={false} type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3}
-                    dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{
-                height: '100%', minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-muted)', fontSize: '14px',
-              }}>
-                No performance data available
-              </div>
-            )}
-          </div>
+
+          {isLoading ? (
+            <Shimmer h="240px" r="16px" />
+          ) : data?.revenue_chart && data.revenue_chart.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={data.revenue_chart} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.3)' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.3)' }} tickFormatter={v => `₹${v}`} />
+                <Tooltip
+                  cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                  contentStyle={{
+                    borderRadius: 14, border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(20px)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                    color: '#fff', fontSize: 13,
+                  }}
+                />
+                <Area
+                  isAnimationActive type="monotone" dataKey="revenue"
+                  stroke="#3B82F6" strokeWidth={2.5}
+                  fill="url(#revenueGrad)"
+                  dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0, boxShadow: '0 0 12px rgba(59,130,246,0.8)' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{
+              height: 240, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(255,255,255,0.25)', fontSize: 14, fontWeight: 600,
+              border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 16,
+            }}>
+              <TrendingUp size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              No performance data yet
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
-        <div className="card dashboard-card">
-          <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: 'var(--text)' }}>
-            Actions
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{
+          padding: 28, borderRadius: 24,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 2 }}>Quick Actions</h2>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>Jump to key features</p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
             {[
-              { label: translate('addProduct'), icon: <Plus size={18} />, to: '/products', color: '#0F172A', bg: '#F8FAFC' },
-              { label: 'Manage Orders', icon: <ShoppingCart size={18} />, to: '/orders', color: '#0F172A', bg: '#F8FAFC' },
-              { label: translate('aiAssistant'), icon: <Bot size={18} />, to: '/ai-assistant', color: '#3B82F6', bg: 'rgba(59,130,246,0.05)' },
-              { label: 'View Analytics', icon: <TrendingUp size={18} />, to: '/analytics', color: '#0F172A', bg: '#F8FAFC' },
+              { label: translate('addProduct'), icon: <Plus size={18} />, to: '/products', color: '#ff6b35', glow: 'rgba(255,107,53,0.2)' },
+              { label: 'Manage Orders', icon: <ShoppingCart size={18} />, to: '/orders', color: '#8B5CF6', glow: 'rgba(139,92,246,0.2)' },
+              { label: translate('aiAssistant'), icon: <Bot size={18} />, to: '/ai-assistant', color: '#3B82F6', glow: 'rgba(59,130,246,0.2)' },
+              { label: 'View Analytics', icon: <TrendingUp size={18} />, to: '/analytics', color: '#10B981', glow: 'rgba(16,185,129,0.2)' },
             ].map(action => (
-              <Link
-                key={action.label}
-                to={action.to}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '12px 16px', borderRadius: 'var(--radius)',
-                  background: action.bg, textDecoration: 'none',
-                  color: action.color, fontWeight: 600, fontSize: '14px',
-                  border: '1px solid var(--border)',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#CBD5E1';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                {action.icon}
+              <Link key={action.label} to={action.to} className="action-link">
+                <div style={{
+                  width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                  background: action.glow,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: action.color,
+                }}>
+                  {action.icon}
+                </div>
                 {action.label}
+                <ArrowRight size={15} className="arrow-icon" style={{ color: action.color }} />
               </Link>
             ))}
           </div>
 
-          {/* Plan upgrade notice */}
-          {user?.plan === 'free' && (
+          {/* Upgrade notice */}
+          {user?.plan === 'trial' && (
             <div style={{
-              marginTop: '20px', padding: '14px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgba(255,107,53,0.1), rgba(0,78,137,0.1))',
-              border: '1px solid rgba(255,107,53,0.2)',
+              marginTop: 20, padding: '16px 18px', borderRadius: 18,
+              background: 'linear-gradient(135deg,rgba(255,107,53,0.12),rgba(99,102,241,0.08))',
+              border: '1px solid rgba(255,107,53,0.15)',
             }}>
-              <p style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 600, marginBottom: '6px' }}>
-                🚀 Scale Your Business
-              </p>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <Zap size={14} style={{ color: '#ff6b35' }} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Scale Your Business</span>
+              </div>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
                 Unlock AI predictions, Custom Domains & Unlimited Products
               </p>
-              <Link
-                to="/upgrade"
-                style={{
-                  display: 'block', textAlign: 'center',
-                  padding: '8px', borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #FF6B35, #e55a24)',
-                  color: '#fff', textDecoration: 'none',
-                  fontSize: '12px', fontWeight: 700,
-                }}
-              >
+              <Link to="/upgrade" style={{
+                display: 'block', textAlign: 'center',
+                padding: '9px', borderRadius: 12,
+                background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+                color: '#fff', textDecoration: 'none',
+                fontSize: 13, fontWeight: 700,
+                boxShadow: '0 6px 20px rgba(255,107,53,0.3)',
+              }}>
                 View Upgrade Plans →
               </Link>
             </div>
@@ -329,162 +427,92 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Orders */}
-      <div className="card dashboard-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Recent Orders</h2>
-          <Link to="/orders" style={{ fontSize: '13px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+      <div style={{
+        padding: 28, borderRadius: 24,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 2 }}>Recent Orders</h2>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>Latest 5 transactions</p>
+          </div>
+          <Link to="/orders" style={{
+            fontSize: 13, fontWeight: 700,
+            color: '#ff6b35', textDecoration: 'none',
+            padding: '6px 14px', borderRadius: 50,
+            background: 'rgba(255,107,53,0.1)',
+            border: '1px solid rgba(255,107,53,0.15)',
+            transition: 'all 0.2s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,107,53,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,107,53,0.1)')}>
             {translate('viewAll')} →
           </Link>
         </div>
 
         {isLoading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[1, 2, 3].map(i => <Shimmer key={i} h="48px" />)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[1, 2, 3].map(i => <Shimmer key={i} h="52px" />)}
           </div>
         ) : data?.recent_orders && data.recent_orders.length > 0 ? (
-          <div style={{ overflowX: 'auto', margin: '0 -12px', padding: '0 12px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '500px' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Customer</th>
-                  <th className="hide-mobile" style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Items</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Total</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Status</th>
-                  <th className="hide-tablet" style={{ textAlign: 'left', padding: '8px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Date</th>
+                <tr>
+                  {['Customer', 'Items', 'Total', 'Status', 'Date'].map((h, i) => (
+                    <th key={h} className={i === 1 ? 'hide-mobile' : i === 4 ? 'hide-tablet' : ''}
+                      style={{ textAlign: 'left', padding: '8px 14px 16px', fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {data.recent_orders.slice(0, 5).map(order => (
-                  <tr key={order.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 12px', fontWeight: 500, color: 'var(--text)' }}>
-                      {order.customer_name}
-                    </td>
-                    <td className="hide-mobile" style={{ padding: '12px 12px', color: 'var(--text-muted)' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Package size={13} /> {order.items_count}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 12px', fontWeight: 600, color: 'var(--text)' }}>
-                      ₹{order.total.toLocaleString('en-IN')}
-                    </td>
-                    <td style={{ padding: '12px 12px' }}>
-                      <span style={{
-                        padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
-                        background: `${STATUS_COLORS[order.status] || '#888'}20`,
-                        color: STATUS_COLORS[order.status] || '#888',
-                      }}>
-                        {order.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="hide-tablet" style={{ padding: '12px 12px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                      {new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                    </td>
-                  </tr>
-                ))}
+                {data.recent_orders.slice(0, 5).map(order => {
+                  const sc = STATUS_CONFIG[order.status] || { color: '#888', bg: 'rgba(136,136,136,0.12)', label: order.status };
+                  return (
+                    <tr key={order.id} className="order-row">
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: '#fff', fontSize: 14 }}>
+                        {order.customer_name}
+                      </td>
+                      <td className="hide-mobile" style={{ padding: '12px 14px', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Package size={13} /> {order.items_count}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: '#fff', fontSize: 14 }}>
+                        ₹{order.total.toLocaleString('en-IN')}
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{
+                          padding: '4px 12px', borderRadius: 50, fontSize: 12, fontWeight: 700,
+                          background: sc.bg, color: sc.color, border: `1px solid ${sc.color}25`,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="hide-tablet" style={{ padding: '12px 14px', color: 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: 600 }}>
+                        {new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         ) : (
           <div style={{
-            textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px',
+            textAlign: 'center', padding: '56px 40px',
+            color: 'rgba(255,255,255,0.2)', fontSize: 14, fontWeight: 600,
+            border: '1px dashed rgba(255,255,255,0.07)', borderRadius: 18,
           }}>
-            <ShoppingCart size={40} style={{ marginBottom: '12px', opacity: 0.3 }} />
-            <p>No orders yet. Share your store link to get your first order!</p>
+            <ShoppingCart size={40} style={{ marginBottom: 14, opacity: 0.25 }} />
+            <p style={{ margin: 0 }}>No orders yet. Share your store link to get your first order!</p>
           </div>
         )}
       </div>
-
-      <style>{`
-        .dashboard-wrapper {
-          padding-bottom: 32px;
-        }
-        .dashboard-header {
-          margin-bottom: 32px;
-        }
-        .dashboard-title {
-          font-size: 30px;
-          font-weight: 800;
-          color: var(--text);
-          letter-spacing: -0.03em;
-        }
-        .dashboard-subtitle {
-          color: var(--text-muted);
-          margin-top: 4px;
-          font-size: 15px;
-        }
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 24px;
-          margin-bottom: 32px;
-        }
-        .main-content-grid {
-          display: grid;
-          grid-template-columns: 1fr 340px;
-          gap: 24px;
-          margin-bottom: 32px;
-        }
-        .dashboard-card {
-          padding: 24px;
-        }
-        .chart-card {
-          display: flex;
-          flex-direction: column;
-        }
-        .chart-container {
-          flex: 1;
-          min-height: 240px;
-          min-width: 0;
-        }
-
-        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-
-        @media (max-width: 1024px) {
-          .main-content-grid {
-            grid-template-columns: 1fr;
-          }
-          .hide-tablet {
-            display: none;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .dashboard-header {
-            margin-bottom: 24px;
-          }
-          .dashboard-title {
-            font-size: 24px;
-          }
-          .dashboard-subtitle {
-            font-size: 14px;
-          }
-          .stats-grid {
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-          }
-          .main-content-grid {
-            gap: 16px;
-            margin-bottom: 24px;
-          }
-          .dashboard-card {
-            padding: 16px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .stats-grid {
-            grid-template-columns: 1fr;
-          }
-          .hide-mobile {
-            display: none;
-          }
-          .chart-container {
-            min-height: 200px;
-          }
-        }
-      `}</style>
     </div>
   );
 }
-
