@@ -20,80 +20,77 @@ import adminRoutes from './routes/admin';
 import ticketRoutes from './routes/tickets';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
+import fs from 'fs';
 
 process.on('uncaughtException', (err) => {
   console.error('🔥 FATAL UNCAUGHT EXCEPTION:', err);
-  // Keep process alive if possible or exit after logging
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('🔥 UNHANDLED REJECTION at:', promise, 'reason:', reason);
 });
 
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '127.0.0.1';
+const PORT = process.env.PORT || (IS_PRODUCTION ? 5000 : 3001);
+const HOST = process.env.HOST || (IS_PRODUCTION ? '0.0.0.0' : '127.0.0.1');
 
 console.log(`📊 Loaded FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-// Trust proxy for rate limiting (needed in GitHub Codespaces)
 app.set('trust proxy', 1);
 
-// Security middleware
+// Security middleware — relaxed CSP in production to allow the React app
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: IS_PRODUCTION ? false : undefined,
 }));
 
-// CORS
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+// CORS — in production the frontend is served from the same origin, so this mostly covers API-only access
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5000';
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    // Check if origin matches FRONTEND_URL or is a GitHub Codespaces URL
-    if (origin === frontendUrl || 
-        origin.endsWith('.app.github.dev') || 
-        origin.includes('localhost') || 
-        origin.includes('127.0.0.1')) {
+    if (
+      IS_PRODUCTION ||
+      origin === frontendUrl ||
+      origin.endsWith('.replit.app') ||
+      origin.endsWith('.repl.co') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
       return callback(null, true);
-    } else {
-      console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
-      return callback(null, true); // Temporarily allow for debugging
     }
+    console.warn(`⚠️ CORS blocked: ${origin}`);
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
 
-// Logging
-app.use(morgan('dev'));
+// Logging — quieter in production
+app.use(morgan(IS_PRODUCTION ? 'combined' : 'dev'));
 
-// Debug logger
-app.use((req, res, next) => {
-  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
+if (!IS_PRODUCTION) {
+  app.use((req, _res, next) => {
+    console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+}
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({ message: 'FeraSetu API is running', env: process.env.NODE_ENV });
-});
-
-// Static files for uploads
+// Static uploads
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Rate limiting
-app.use('/api/', createRateLimiter(100, 15)); // 100 requests per 15 minutes
+// API rate limiting
+app.use('/api/', createRateLimiter(100, 15));
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/products', productRoutes);
@@ -110,17 +107,39 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
 });
 
+// Serve frontend in production
+if (IS_PRODUCTION) {
+  const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+  if (fs.existsSync(frontendDist)) {
+    console.log(`📦 Serving frontend from: ${frontendDist}`);
+    app.use(express.static(frontendDist));
+    // SPA fallback — all non-API routes serve index.html
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+  } else {
+    console.warn('⚠️ Frontend dist not found. Run `npm run build` in frontend/');
+    app.get('/', (_req, res) => {
+      res.json({ message: 'FeraSetu API is running', env: process.env.NODE_ENV });
+    });
+  }
+} else {
+  app.get('/', (_req, res) => {
+    res.json({ message: 'FeraSetu API is running', env: process.env.NODE_ENV });
+  });
+}
+
 // Error handler
 app.use(errorHandler);
 
-// Initialize database then start server
+// Start
 initializeDatabase().then(async () => {
-  // Verify mail service on startup
   await verifyMailService();
-  
   app.listen(Number(PORT), HOST, () => {
-    console.log(`🚀 FeraSetu Backend running on http://${HOST}:${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🚀 FeraSetu running on http://${HOST}:${PORT}`);
+    if (IS_PRODUCTION) {
+      console.log(`🌐 Serving frontend + API on port ${PORT}`);
+    }
   });
 }).catch(err => {
   console.error('Failed to initialize database:', err);
