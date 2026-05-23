@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package, ArrowRight, Zap } from 'lucide-react';
@@ -59,10 +59,9 @@ interface StatCardProps {
   glowColor: string;
   change?: number;
   loading: boolean;
-  prefix?: string;
 }
 
-function StatCard({ label, value, icon, gradient, glowColor, change, loading, prefix }: StatCardProps) {
+function StatCard({ label, value, icon, gradient, glowColor, change, loading }: StatCardProps) {
   return (
     <div style={{
       padding: '28px 28px 24px',
@@ -346,7 +345,7 @@ export default function DashboardPage() {
                   isAnimationActive type="monotone" dataKey="revenue"
                   stroke="#3B82F6" strokeWidth={2.5}
                   fill="url(#revenueGrad)"
-                  dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0, boxShadow: '0 0 12px rgba(59,130,246,0.8)' }}
+                  dot={false} activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 0 }}
                 />
               </AreaChart>
             </ResponsiveContainer>

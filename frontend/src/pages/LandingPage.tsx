@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   ShoppingBag, Zap, ShieldCheck, TrendingUp,
   ChevronRight, Star, ArrowRight, Smartphone,
-  Store, MessageCircle, BarChart3, Globe, Sparkles, IndianRupee
+  Store, MessageCircle, BarChart3, Sparkles, IndianRupee
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
