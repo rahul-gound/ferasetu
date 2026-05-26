@@ -6,6 +6,65 @@
 
 ---
 
+## 🎁 Beta Offer: ₹299 plan — **FREE** (limited time)
+
+Our main goal right now is simple:
+
+- We want to **give the ₹299/month plan for free in Beta**
+- So we can collect **reviews, feedback, and feature requests**
+- And use that to **make the product better, faster**
+
+### What you get in Beta Free (₹299 value)
+- Shop website + free subdomain
+- Product & order management
+- Basic invoices
+- Basic AI assistant
+
+> After Beta, this plan will be ₹299/month.
+
+---
+
+## 💬 Give Feedback (inside Dashboard)
+
+We’ve added / planned a simple way to share feedback directly from the app:
+
+- **Dashboard → “Give Feedback”**
+  - Report bugs
+  - Request new features
+  - Suggest improvements
+
+**Tip (my idea):** Add 3 quick buttons to increase responses:
+- “Bug”
+- “Feature request”
+- “Something is confusing”
+
+And allow screenshot upload.
+
+---
+
+## 📅 Book a meeting
+
+If you want a quick call to help us improve FeraSetu:
+
+- **Dashboard → “Book a meeting”**
+  - 10–15 min feedback call
+  - Help us understand what your shop needs
+
+**Tip (my idea):** Offer 2 options:
+- “Product feedback call”
+- “Help me set up my shop website”
+
+---
+
+## 🧠 Extra ideas to get more reviews fast
+
+- Show a small banner in Dashboard: **“Beta: ₹299 plan is FREE — please leave feedback”**
+- After user completes 3 steps (add 5 products / publish website / get first order), show a popup:
+  - “How’s your experience? Rate 1–5 + feedback”
+- Add WhatsApp feedback link for shopkeepers who prefer WhatsApp
+
+---
+
 ## 📐 Architecture Overview
 
 ```
@@ -409,8 +468,6 @@ server {
 ### Phase 3 — AI Enhancement (Month 5–6)
 - Fine-tuned model on Indian retail data
 - Automated social media post generation (product launch posts)
-- QR code store sharing
-- Offline-first PWA with background sync
 
 ### Phase 4 — Scale (Month 7–12)
 - Kubernetes / container orchestration
@@ -422,18 +479,17 @@ server {
 
 ## 💰 Monetization Strategy
 
+### Beta pricing
+- **Beta:** ₹299 plan is **FREE** (limited time)
+- **After Beta:** ₹299/month
+
+### Long-term revenue
 1. **Freemium conversion** — Free tier is useful but Premium unlocks AI predictions, custom domain, unlimited products → target ₹499/month
 2. **Annual plan** — ₹3,999/year (33% saving) — improves LTV
 3. **Transaction fee** — 0.5% on Premium orders, 1% on Free
 4. **Premium templates** — ₹199–₹999 one-time purchase
 5. **WhatsApp Business** add-on — ₹199/month
 6. **B2B reseller** — White-label for distributors/wholesalers
-
-**User Acquisition for Indian Retail:**
-- Partner with local CA/GST consultants (they reach shopkeepers)
-- YouTube tutorials in regional languages
-- WhatsApp group marketing in trade associations
-- Google My Business integration referral
 
 ---
 
