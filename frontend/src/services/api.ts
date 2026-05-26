@@ -90,6 +90,7 @@ interface LocalDb {
 
 const LOCAL_DB_KEY = 'fera_local_db_v1';
 const MAX_MESSAGE_PREVIEW_LENGTH = 120;
+const LOCAL_PAYMENT_PROVIDER_KEY = 'local_mock';
 const SURVEY_QUESTIONS = [
   { id: 'usage_frequency', question: 'How often do you use FeraSetu in a typical week?' },
   { id: 'main_goal', question: 'What is your main goal with FeraSetu right now?' },
@@ -704,7 +705,7 @@ async function localPost(url: string, payload: Record<string, any>) {
       providerOrderId: `order_${createId().substring(0, 14)}`,
       amount: expectedAmount,
       currency: 'INR',
-      key: 'local_mock',
+      key: LOCAL_PAYMENT_PROVIDER_KEY,
       betaFreePlan: isBetaFreePlan(plan),
       betaMode: BETA_MODE
     }, 201);

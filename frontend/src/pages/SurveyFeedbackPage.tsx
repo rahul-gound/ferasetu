@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Bot, Download, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { getPlanBadge } from '../config/beta';
 
 interface SurveyQuestion {
   id: string;
@@ -84,6 +85,7 @@ export default function SurveyFeedbackPage() {
         .map(([questionId, answer]) => ({ questionId, answer })),
     [answers]
   );
+  const starterBadge = getPlanBadge('basic') || 'Free (Beta)';
 
   const sendAssistantMessage = async (event: FormEvent) => {
     event.preventDefault();
@@ -171,7 +173,7 @@ export default function SurveyFeedbackPage() {
       <div style={{ padding: 24, borderRadius: 20, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <h1 style={{ margin: 0, color: '#fff', fontSize: 28 }}>Survey & Feedback</h1>
         <p style={{ color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
-          Help us improve FeraSetu while the ₹299 Starter plan is Free (Beta).
+        Help us improve FeraSetu while the ₹299 Starter plan is {starterBadge}.
         </p>
       </div>
 

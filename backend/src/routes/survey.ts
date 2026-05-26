@@ -14,7 +14,9 @@ import {
 const router = Router();
 router.use(authenticate);
 // Keep assistant responses fast for UX and fail over quickly to deterministic local flow.
-const OPENAI_REQUEST_TIMEOUT_MS = 20000;
+const OPENAI_REQUEST_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 20000);
+const OPENAI_SURVEY_SYSTEM_PROMPT =
+  'You are a survey assistant. Ask one survey question at a time from the provided list. Keep replies concise. Return strict JSON with keys: reply, done, nextQuestionId, summary.';
 
 router.get('/questions', (_req: AuthenticatedRequest, res: Response): void => {
   res.json({ questions: SURVEY_QUESTIONS });
@@ -118,8 +120,7 @@ router.post(
             messages: [
               {
                 role: 'system',
-                content:
-                  'You are a survey assistant. Ask one survey question at a time from the provided list. Keep replies concise. Return strict JSON with keys: reply, done, nextQuestionId, summary.'
+                content: OPENAI_SURVEY_SYSTEM_PROMPT
               },
               {
                 role: 'user',
