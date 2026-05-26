@@ -104,9 +104,9 @@ router.post(
   body('answers').optional().isArray(),
   body('latestMessage').optional().isString(),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const answers = (req.body.answers || []) as SurveyAnswer[];
+    const latestMessage = String(req.body.latestMessage || '').trim();
     try {
-      const answers = (req.body.answers || []) as SurveyAnswer[];
-      const latestMessage = String(req.body.latestMessage || '').trim();
       const apiKey = process.env.OPENAI_API_KEY;
 
       if (apiKey) {
@@ -144,7 +144,7 @@ router.post(
         if (raw) {
           try {
             const parsed = JSON.parse(raw);
-            const summary = parsed.done ? (parsed.summary || buildSurveySummary(answers, latestMessage)) : undefined;
+            const summary = parsed.done ? buildSurveySummary(answers, latestMessage) : undefined;
             const nextQuestion = SURVEY_QUESTIONS.find((q) => q.id === parsed.nextQuestionId);
             res.json({
               mode: 'openai',
@@ -164,8 +164,8 @@ router.post(
       const summary = local.done ? buildSurveySummary(answers, latestMessage) : undefined;
       res.json({ ...local, summary });
     } catch (error: any) {
-      const local = buildLocalAssistantResponse((req.body.answers || []) as SurveyAnswer[], String(req.body.latestMessage || ''));
-      const summary = local.done ? buildSurveySummary((req.body.answers || []) as SurveyAnswer[], String(req.body.latestMessage || '')) : undefined;
+      const local = buildLocalAssistantResponse(answers, latestMessage);
+      const summary = local.done ? buildSurveySummary(answers, latestMessage) : undefined;
       res.json({ ...local, summary, fallbackReason: error.message || 'assistant_error' });
     }
   }

@@ -55,10 +55,20 @@ export default function SurveyFeedbackPage() {
         ]);
         setQuestions(questionRes.data.questions || []);
         setHistory(historyRes.data.submissions || []);
-        const firstQuestion = (questionRes.data.questions || [])[0];
-        if (firstQuestion) {
-          setAiMessages([{ role: 'assistant', text: firstQuestion.question }]);
-          setActiveQuestionId(firstQuestion.id);
+        try {
+          const assistantRes = await api.post<{
+            reply: string;
+            done: boolean;
+            nextQuestion?: SurveyQuestion;
+          }>('/survey/assistant', { answers: [], latestMessage: '' });
+          setAiMessages([{ role: 'assistant', text: assistantRes.data.reply }]);
+          setActiveQuestionId(assistantRes.data.done ? null : assistantRes.data.nextQuestion?.id || null);
+        } catch {
+          const firstQuestion = (questionRes.data.questions || [])[0];
+          if (firstQuestion) {
+            setAiMessages([{ role: 'assistant', text: firstQuestion.question }]);
+            setActiveQuestionId(firstQuestion.id);
+          }
         }
       } catch {
         toast.error('Unable to load survey right now');
