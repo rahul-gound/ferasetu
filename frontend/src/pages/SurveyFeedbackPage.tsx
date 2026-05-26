@@ -216,7 +216,11 @@ export default function SurveyFeedbackPage() {
           <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Bot size={18} /> AI Assistant
           </h2>
-          <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 10, padding: 10, background: '#f8fafc', marginBottom: 10 }}>
+          <div
+            role="log"
+            aria-label="AI Assistant conversation"
+            style={{ flex: 1, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 10, padding: 10, background: '#f8fafc', marginBottom: 10 }}
+          >
             {aiMessages.map((message, i) => (
               <div key={`${message.role}-${i}`} style={{ marginBottom: 8, textAlign: message.role === 'user' ? 'right' : 'left' }}>
                 <span style={{ display: 'inline-block', padding: '8px 10px', borderRadius: 10, background: message.role === 'user' ? '#dbeafe' : '#e2e8f0' }}>

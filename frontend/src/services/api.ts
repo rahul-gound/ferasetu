@@ -760,7 +760,7 @@ async function localPost(url: string, payload: Record<string, any>) {
       return createResponse({
         mode: 'local',
         done: true,
-        reply: `Thanks for sharing. ${latestMessage ? 'I captured your final response.' : ''}`,
+        reply: `Thanks for sharing. ${latestMessage ? 'I captured your last response.' : ''}`,
         summary: {
           pain_points: [answerMap.get('biggest_pain') || 'No explicit pain point shared'],
           feature_requests: [answerMap.get('missing_feature') || 'No feature request shared'],
