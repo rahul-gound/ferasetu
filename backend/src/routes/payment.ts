@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { getDatabase } from '../models/database';
+import { BETA_MODE, isBetaFreePlan, getEffectivePlanAmount } from '../config/beta';
 
 const router = Router();
 router.use(authenticate);
@@ -30,7 +31,7 @@ const EXTRA_STORAGE_PRICE_PER_GB = 20;
  */
 router.post('/initialize',
   body('plan').isIn(['basic', 'standard', 'pro']).withMessage('Invalid plan selected'),
-  body('amount').isFloat({ min: 1 }).withMessage('Amount must be positive'),
+  body('amount').isFloat({ min: 0 }).withMessage('Amount must be zero or positive'),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -46,7 +47,8 @@ router.post('/initialize',
     try {
       const transactionId = uuidv4();
       const planConfig = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
-      if (requestedAmount !== planConfig.amount) {
+      const effectiveAmount = getEffectivePlanAmount(plan, planConfig.amount);
+      if (requestedAmount !== effectiveAmount) {
         res.status(400).json({ error: 'Invalid amount for selected plan' });
         return;
       }
@@ -54,7 +56,19 @@ router.post('/initialize',
       db.prepare(`
         INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(transactionId, userId, `dev_${transactionId}`, requestedAmount, plan, 'completed', JSON.stringify({ provider: 'development' }));
+      `).run(
+        transactionId,
+        userId,
+        `dev_${transactionId}`,
+        effectiveAmount,
+        plan,
+        'completed',
+        JSON.stringify({
+          provider: 'development',
+          betaFreePlan: isBetaFreePlan(plan),
+          betaMode: BETA_MODE
+        })
+      );
 
       db.prepare(`
         UPDATE users
@@ -63,7 +77,14 @@ router.post('/initialize',
         WHERE id = ?
       `).run(plan, planConfig.monthlyCredits, planConfig.monthlyCredits, userId);
 
-      res.status(201).json({ success: true, id: transactionId, plan, message: `Plan activated: ${plan}` });
+      res.status(201).json({
+        success: true,
+        id: transactionId,
+        plan,
+        amount: effectiveAmount,
+        betaFreePlan: isBetaFreePlan(plan),
+        message: isBetaFreePlan(plan) ? `Plan activated for free in beta: ${plan}` : `Plan activated: ${plan}`
+      });
     } catch (error: any) {
       console.error('Failed to initialize payment:', error);
       res.status(500).json({ error: error.message || 'Failed to initialize payment' });

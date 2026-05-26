@@ -18,6 +18,7 @@ import voiceRoutes from './routes/voice';
 import paymentRoutes from './routes/payment';
 import adminRoutes from './routes/admin';
 import ticketRoutes from './routes/tickets';
+import surveyRoutes from './routes/survey';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -101,6 +102,7 @@ app.use('/api/voice', voiceRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/survey', surveyRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

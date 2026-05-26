@@ -4,6 +4,7 @@ import { ArrowRight, Check, CreditCard, Loader2, Shield, Sparkles, Trophy, Zap }
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { BETA_MODE, getEffectivePlanPrice, getPlanBadge } from '../config/beta';
 
 interface PlanConfig {
   id: 'basic' | 'standard' | 'pro';
@@ -131,12 +132,13 @@ export default function UpgradePage() {
         id: string;
         plan: string;
         message: string;
+        betaFreePlan?: boolean;
       }>('/payment/initialize', { plan: planId, amount });
 
       const planName = planId.charAt(0).toUpperCase() + planId.slice(1);
 
       if (initRes.data.success) {
-        toast.success(`Development mode: ${planName} plan activated.`);
+        toast.success(initRes.data.betaFreePlan ? `${planName} plan activated as Free (Beta).` : `Development mode: ${planName} plan activated.`);
         if (user) updateUser({ plan: planId as any, ai_credits_monthly_limit: planCredits[planId], ai_credits_balance: (user.ai_credits_balance || 0) + (planCredits[planId] || 0), ai_credits_used_month: 0 });
         navigate('/dashboard');
       }
@@ -154,7 +156,7 @@ export default function UpgradePage() {
         <div className="pricing-eyebrow">Plans built for Indian shopkeepers</div>
         <h1>Choose the plan that makes your shop look serious online.</h1>
         <p>
-          Start with a 7-day trial including 20 AI credits. After that, choose a paid plan and buy extra credits only when your AI usage grows.
+          Start with a 7-day trial including 20 AI credits. {BETA_MODE ? 'During beta, the ₹299 Starter plan is Free (Beta) for everyone.' : 'After that, choose a paid plan and buy extra credits only when your AI usage grows.'}
         </p>
         <div className="pricing-trust-row">
           <span><Shield size={16} /> Secure payments</span>
@@ -166,6 +168,8 @@ export default function UpgradePage() {
       <section className="plans-grid" aria-label="Pricing plans">
         {plans.map((plan) => {
           const isCurrent = user?.plan === plan.id;
+          const effectivePrice = getEffectivePlanPrice(plan.id, plan.price);
+          const betaBadge = getPlanBadge(plan.id);
           return (
             <article
               key={plan.id}
@@ -183,10 +187,12 @@ export default function UpgradePage() {
 
               <div className="plan-price">
                 <span className="currency">₹</span>
-                <span className="amount">{plan.price}</span>
+                <span className="amount">{effectivePrice}</span>
                 <span className="period">/month</span>
               </div>
-              <div className="yearly-note">Pay yearly: ₹{plan.yearlyPrice.toLocaleString('en-IN')} and save 2 months</div>
+              <div className="yearly-note">
+                {betaBadge || `Pay yearly: ₹${plan.yearlyPrice.toLocaleString('en-IN')} and save 2 months`}
+              </div>
               <div className="yearly-note">{plan.aiCredits} · {plan.storage}</div>
               <div className="plan-outcome">{plan.outcome}</div>
 
@@ -200,11 +206,11 @@ export default function UpgradePage() {
               </div>
 
               <button
-                onClick={() => handleUpgrade(plan.id, plan.price)}
+                onClick={() => handleUpgrade(plan.id, effectivePrice)}
                 disabled={!!loading || isCurrent}
                 className="plan-btn"
               >
-                {loading === plan.id ? <Loader2 className="animate-spin" size={20} /> : isCurrent ? 'Current Plan' : <>{plan.buttonText}<ArrowRight size={18} /></>}
+                {loading === plan.id ? <Loader2 className="animate-spin" size={20} /> : isCurrent ? 'Current Plan' : <>{betaBadge ? 'Activate Free Beta' : plan.buttonText}<ArrowRight size={18} /></>}
               </button>
             </article>
           );

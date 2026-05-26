@@ -6,11 +6,11 @@
 
 ---
 
-## 🎁 Beta Offer: ₹299 plan — **FREE** (limited time)
+## 🎁 Beta Offer: ₹299 plan — **FREE (Beta)**
 
 Our main goal right now is simple:
 
-- We want to **give the ₹299/month plan for free in Beta**
+- We give the **₹299/month (Starter/basic) plan for free in Beta**
 - So we can collect **reviews, feedback, and feature requests**
 - And use that to **make the product better, faster**
 
@@ -20,18 +20,28 @@ Our main goal right now is simple:
 - Basic invoices
 - Basic AI assistant
 
-> After Beta, this plan will be ₹299/month.
+> Beta mode is enabled by default for everyone (`BETA_MODE=true`).
+> To disable beta pricing later, set:
+> - Backend: `BETA_MODE=false`
+> - Frontend: `VITE_BETA_MODE=false`
 
 ---
 
-## 💬 Give Feedback (inside Dashboard)
+## 💬 Survey & Feedback (inside Dashboard)
 
-We’ve added / planned a simple way to share feedback directly from the app:
+Share feedback directly from the app:
 
-- **Dashboard → “Give Feedback”**
-  - Report bugs
-  - Request new features
-  - Suggest improvements
+- **Dashboard → “Survey & Feedback”**
+  - Structured survey questions
+  - Free-text feedback
+  - Optional contact details
+  - Export your submissions as CSV
+
+### AI survey assistant fallback
+
+- The survey page includes an AI Assistant chat flow.
+- If `OPENAI_API_KEY` is available on the backend, the assistant uses OpenAI.
+- If no key is present (or API call fails), it automatically falls back to a deterministic local flow and still generates a structured summary.
 
 **Tip (my idea):** Add 3 quick buttons to increase responses:
 - “Bug”
@@ -480,7 +490,7 @@ server {
 ## 💰 Monetization Strategy
 
 ### Beta pricing
-- **Beta:** ₹299 plan is **FREE** (limited time)
+- **Beta (default):** ₹299 plan is **FREE (Beta)** for everyone
 - **After Beta:** ₹299/month
 
 ### Long-term revenue
