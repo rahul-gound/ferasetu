@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { BETA_MODE, getEffectivePlanPrice, isBetaFreePlan } from '../config/beta';
 
 const USE_LOCAL_STORAGE_API = import.meta.env.VITE_USE_LOCAL_STORAGE !== 'false';
 
@@ -69,15 +70,36 @@ interface LocalWebsite {
   updated_at: string;
 }
 
+interface LocalSurveySubmission {
+  id: string;
+  user_id: string;
+  answers_json: string;
+  feedback: string;
+  contact?: string;
+  ai_summary_json?: string;
+  created_at: string;
+}
+
 interface LocalDb {
   users: LocalUser[];
   products: LocalProduct[];
   orders: LocalOrder[];
   websites: LocalWebsite[];
+  survey_submissions: LocalSurveySubmission[];
 }
 
 const LOCAL_DB_KEY = 'fera_local_db_v1';
 const MAX_MESSAGE_PREVIEW_LENGTH = 120;
+const LOCAL_PAYMENT_PROVIDER_KEY = 'local_mock';
+const SURVEY_QUESTIONS = [
+  { id: 'usage_frequency', question: 'How often do you use FeraSetu in a typical week?' },
+  { id: 'main_goal', question: 'What is your main goal with FeraSetu right now?' },
+  { id: 'biggest_pain', question: 'What is the biggest pain point you face while using the product?' },
+  { id: 'missing_feature', question: 'Which feature do you feel is missing today?' },
+  { id: 'upgrade_reason', question: 'What would make you upgrade to a paid plan later?' },
+  { id: 'urgency', question: 'How urgent are these improvements for your business? (high/medium/low)' },
+  { id: 'willingness_to_pay', question: 'After beta, would you pay for this plan if your key needs are solved? (yes/maybe/no)' }
+];
 
 const now = () => new Date().toISOString();
 const createId = () => {
@@ -114,7 +136,7 @@ const createHttpError = (status: number, message: string) => {
 function loadDb(): LocalDb {
   const raw = localStorage.getItem(LOCAL_DB_KEY);
   if (!raw) {
-    return { users: [], products: [], orders: [], websites: [] };
+    return { users: [], products: [], orders: [], websites: [], survey_submissions: [] };
   }
 
   try {
@@ -124,9 +146,10 @@ function loadDb(): LocalDb {
       products: parsed.products || [],
       orders: parsed.orders || [],
       websites: parsed.websites || [],
+      survey_submissions: parsed.survey_submissions || [],
     };
   } catch {
-    return { users: [], products: [], orders: [], websites: [] };
+    return { users: [], products: [], orders: [], websites: [], survey_submissions: [] };
   }
 }
 
@@ -476,6 +499,32 @@ async function localGet(url: string) {
     }));
   }
 
+  if (path === '/survey/questions') {
+    requireAuth();
+    return Promise.resolve(createResponse({ questions: SURVEY_QUESTIONS }));
+  }
+
+  if (path === '/survey/submissions') {
+    const userId = requireAuth();
+    const submissions = db.survey_submissions
+      .filter((item) => item.user_id === userId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return Promise.resolve(createResponse({ submissions }));
+  }
+
+  if (path === '/survey/submissions/export') {
+    const userId = requireAuth();
+    const submissions = db.survey_submissions
+      .filter((item) => item.user_id === userId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const header = 'created_at,feedback,contact,summary\n';
+    const body = submissions
+      .map((row) => [row.created_at, row.feedback, row.contact || '', row.ai_summary_json || ''].map(escapeCsv).join(','))
+      .join('\n');
+    return Promise.resolve(createResponse({ csv: `${header}${body}` }));
+  }
+
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
@@ -637,6 +686,11 @@ async function localPost(url: string, payload: Record<string, any>) {
     const user = userId ? db.users.find(u => u.id === userId) : null;
     const plan = String(payload.plan || 'basic') as LocalUser['plan'];
     const creditsByPlan: Record<string, number> = { basic: 100, standard: 500, pro: 2000, premium: 500 };
+    const basePriceByPlan: Record<string, number> = { basic: 299, standard: 699, pro: 1499, premium: 699 };
+    const expectedAmount = getEffectivePlanPrice(plan, basePriceByPlan[plan] || 0);
+    if (Number(payload.amount) !== expectedAmount) {
+      throw createHttpError(400, 'Invalid amount for selected plan');
+    }
     if (user) {
       user.plan = plan;
       user.ai_credits_balance = (user.ai_credits_balance || 0) + (creditsByPlan[plan] || 0);
@@ -649,9 +703,11 @@ async function localPost(url: string, payload: Record<string, any>) {
       id: createId(),
       plan,
       providerOrderId: `order_${createId().substring(0, 14)}`,
-      amount: Number(payload.amount || 0),
+      amount: expectedAmount,
       currency: 'INR',
-      key: 'rzp_test_local_mock'
+      key: LOCAL_PAYMENT_PROVIDER_KEY,
+      betaFreePlan: isBetaFreePlan(plan),
+      betaMode: BETA_MODE
     }, 201);
   }
 
@@ -669,6 +725,63 @@ async function localPost(url: string, payload: Record<string, any>) {
 
   if (path === '/voice/text-to-speech') {
     return createResponse({ audio: null });
+  }
+
+  if (path === '/survey/submissions') {
+    const userId = requireAuth();
+    const answers = Array.isArray(payload.answers) ? payload.answers : [];
+    const feedback = String(payload.feedback || '').trim();
+    const contact = String(payload.contact || '').trim();
+    if (answers.length < 5) throw createHttpError(400, 'Please answer at least 5 survey questions');
+    if (feedback.length < 5) throw createHttpError(400, 'Feedback must be at least 5 characters');
+
+    db.survey_submissions.push({
+      id: createId(),
+      user_id: userId,
+      answers_json: JSON.stringify(answers),
+      feedback,
+      contact: contact || undefined,
+      ai_summary_json: payload.summary ? JSON.stringify(payload.summary) : undefined,
+      created_at: now(),
+    });
+    saveDb(db);
+    return createResponse({ success: true }, 201);
+  }
+
+  if (path === '/survey/assistant') {
+    requireAuth();
+    const answers = Array.isArray(payload.answers) ? payload.answers : [];
+    const latestMessage = String(payload.latestMessage || '').trim();
+    const answered = new Set(answers.map((item: any) => item.questionId));
+    const nextQuestion = SURVEY_QUESTIONS.find((q) => !answered.has(q.id));
+    if (!nextQuestion) {
+      const answerMap = new Map(answers.map((item: any) => [item.questionId, String(item.answer || '')]));
+      const urgencyRaw = (answerMap.get('urgency') || '').toLowerCase();
+      const wtpRaw = (answerMap.get('willingness_to_pay') || '').toLowerCase();
+      return createResponse({
+        mode: 'local',
+        done: true,
+        reply: `Thanks for sharing. ${latestMessage ? 'I captured your last response.' : ''}`,
+        summary: {
+          pain_points: [answerMap.get('biggest_pain') || 'No explicit pain point shared'],
+          feature_requests: [answerMap.get('missing_feature') || 'No feature request shared'],
+          urgency: urgencyRaw.includes('high') ? 'high' : urgencyRaw.includes('low') ? 'low' : 'medium',
+          willingness_to_pay: wtpRaw.includes('yes') ? 'yes' : wtpRaw.includes('no') ? 'no' : 'maybe',
+          suggested_improvements: [
+            answerMap.get('missing_feature'),
+            answerMap.get('upgrade_reason'),
+            latestMessage
+          ].filter(Boolean)
+        }
+      });
+    }
+
+    return createResponse({
+      mode: 'local',
+      done: false,
+      nextQuestion,
+      reply: `${latestMessage ? 'Thanks, noted. ' : ''}${nextQuestion.question}`
+    });
   }
 
   throw createHttpError(404, `Unknown POST endpoint: ${path}`);

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
-  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins
+  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins, MessageSquareText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
+import { getPlanBadge } from '../config/beta';
 
 interface NavItem {
   path: string;
@@ -21,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/analytics',      icon: <BarChart3 size={18} />,       labelKey: 'analytics' },
   { path: '/ai-assistant',   icon: <Bot size={18} />,             labelKey: 'aiAssistant' },
   { path: '/ai-credits',     icon: <Coins size={18} />,           labelKey: 'aiCredits' },
+  { path: '/survey-feedback',icon: <MessageSquareText size={18} />,labelKey: 'surveyFeedback' },
   { path: '/website-builder',icon: <Globe size={18} />,           labelKey: 'websiteBuilder' },
   { path: '/support',        icon: <LifeBuoy size={18} />,        labelKey: 'support' },
 ];
@@ -31,6 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langDropOpen, setLangDropOpen] = useState(false);
+  const planBadge = user?.plan ? getPlanBadge(user.plan) : null;
 
   const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === language);
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -128,13 +131,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           fontSize: 11, fontWeight: 700,
           background: user?.plan === 'premium'
             ? 'linear-gradient(135deg,rgba(245,158,11,0.2),rgba(239,68,68,0.2))'
+            : planBadge
+              ? 'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.15))'
             : 'rgba(255,255,255,0.06)',
           border: user?.plan === 'premium'
             ? '1px solid rgba(245,158,11,0.3)'
+            : planBadge
+              ? '1px solid rgba(16,185,129,0.3)'
             : '1px solid rgba(255,255,255,0.08)',
-          color: user?.plan === 'premium' ? '#fbbf24' : 'rgba(255,255,255,0.4)',
+          color: user?.plan === 'premium' ? '#fbbf24' : planBadge ? '#34d399' : 'rgba(255,255,255,0.4)',
         }}>
-          {user?.plan === 'premium' ? '⭐ Premium' : translate('free')}
+          {user?.plan === 'premium' ? '⭐ Premium' : planBadge || translate('free')}
         </div>
       </div>
     </div>
@@ -260,11 +267,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Plan badge */}
             <span style={{
               padding: '4px 12px', borderRadius: 50, fontSize: 12, fontWeight: 700,
-              background: user?.plan === 'premium' ? 'linear-gradient(135deg,rgba(245,158,11,0.2),rgba(239,68,68,0.2))' : 'rgba(255,255,255,0.06)',
-              border: user?.plan === 'premium' ? '1px solid rgba(245,158,11,0.25)' : '1px solid rgba(255,255,255,0.08)',
-              color: user?.plan === 'premium' ? '#fbbf24' : 'rgba(255,255,255,0.4)',
+              background: user?.plan === 'premium'
+                ? 'linear-gradient(135deg,rgba(245,158,11,0.2),rgba(239,68,68,0.2))'
+                : planBadge
+                  ? 'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.15))'
+                  : 'rgba(255,255,255,0.06)',
+              border: user?.plan === 'premium'
+                ? '1px solid rgba(245,158,11,0.25)'
+                : planBadge
+                  ? '1px solid rgba(16,185,129,0.3)'
+                  : '1px solid rgba(255,255,255,0.08)',
+              color: user?.plan === 'premium' ? '#fbbf24' : planBadge ? '#34d399' : 'rgba(255,255,255,0.4)',
             }}>
-              {user?.plan === 'premium' ? '⭐ Premium' : translate('free')}
+              {user?.plan === 'premium' ? '⭐ Premium' : planBadge || translate('free')}
             </span>
 
             {/* User avatar */}

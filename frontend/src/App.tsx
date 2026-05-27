@@ -17,6 +17,7 @@ import AIAssistantPage from './pages/AIAssistantPage';
 import AICreditsPage from './pages/AICreditsPage';
 import WebsiteBuilderPage from './pages/WebsiteBuilderPage';
 import UpgradePage from './pages/UpgradePage';
+import SurveyFeedbackPage from './pages/SurveyFeedbackPage';
 import ShopPage from './pages/ShopPage';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboardPage from './pages/AdminDashboardPage';
@@ -98,6 +99,7 @@ function AppRoutes() {
                 <Route path="/ai-assistant" element={<AIAssistantPage />} />
                 <Route path="/ai-credits" element={<AICreditsPage />} />
                 <Route path="/website-builder" element={<WebsiteBuilderPage />} />
+                <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
                 <Route path="/upgrade" element={<UpgradePage />} />
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

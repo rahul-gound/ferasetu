@@ -439,6 +439,17 @@ function getMySqlSchemaStatements(): string[] {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       INDEX idx_analytics_user_date (user_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS survey_submissions (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      answers_json LONGTEXT NOT NULL,
+      feedback TEXT NOT NULL,
+      contact VARCHAR(255),
+      ai_summary_json LONGTEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      INDEX idx_survey_user_date (user_id, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
   ];
 }
@@ -649,6 +660,16 @@ function getSqliteSchemaStatements(): string[] {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS survey_submissions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      answers_json TEXT NOT NULL,
+      feedback TEXT NOT NULL,
+      contact TEXT,
+      ai_summary_json TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
     `CREATE INDEX IF NOT EXISTS idx_products_user ON products (user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_products_user_created ON products (user_id, created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id)`,
@@ -661,6 +682,7 @@ function getSqliteSchemaStatements(): string[] {
     `CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets (user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes (email)`,
     `CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_logs (created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_events (user_id, created_at)`
+    `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_events (user_id, created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_survey_user_date ON survey_submissions (user_id, created_at)`
   ];
 }
