@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense, lazy, Component } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, useScroll, useTransform, useReducedMotion, useSpring } from 'framer-motion';
 import {
@@ -7,6 +8,9 @@ import {
   Store, MessageCircle, BarChart3, Sparkles, IndianRupee,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+
+// Heavy WebGL hero — code-split so three.js only loads when the scene renders.
+const HeroScene = lazy(() => import('../components/three/HeroScene'));
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -17,6 +21,9 @@ export default function LandingPage() {
   // User can opt into full animation even if the OS has reduced-motion on.
   const [forceMotion, setForceMotion] = useState(false);
   const reduceMotion = !!prefersReducedMotion && !forceMotion;
+  // Only mount the WebGL hero when motion is allowed; SceneBoundary catches any
+  // WebGL failure and falls back to the CSS aurora below.
+  const enable3D = !reduceMotion;
   const heroRef = useRef<HTMLDivElement>(null);
 
   const { scrollY, scrollYProgress } = useScroll();
