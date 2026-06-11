@@ -37,3 +37,8 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Cloudflare Workers / Wrangler
+.wrangler/
+.dev.vars
+wrangler.local.toml

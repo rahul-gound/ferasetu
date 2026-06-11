@@ -1,0 +1,23 @@
+# Cloudflare Worker config for the FeraSetu Worker API.
+#
+# This is a NEW, self-contained Worker (see worker/index.js). It does NOT run
+# the Express backend in backend/ — that one is Node-only and cannot run on
+# Workers (sync MySQL/SQLite, nodemailer SMTP, multer file uploads, node-cron).
+# This Worker implements the core shopkeeper routes backed by Cloudflare D1.
+#
+# Deploys from the repo root with:  npx wrangler deploy
+
+name = "fera-shopkeeper"
+main = "worker/index.js"
+compatibility_date = "2025-06-01"
+
+# D1 database binding. You must create the database once and paste its id below:
+#
+#   npx wrangler d1 create fera-shopkeeper
+#
+# Copy the printed `database_id` into the value below, then deploy. The Worker
+# creates its tables automatically on first request (CREATE TABLE IF NOT EXISTS).
+[[d1_databases]]
+binding = "DB"
+database_name = "fera-shopkeeper"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
