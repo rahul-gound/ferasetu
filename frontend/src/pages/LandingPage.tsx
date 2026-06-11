@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, lazy, Suspense, Component, type ReactNode } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, useScroll, useTransform, useReducedMotion, useSpring } from 'framer-motion';
 import {
@@ -8,16 +8,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-// Heavy WebGL bundle — code-split so it never blocks first paint.
-const HeroScene = lazy(() => import('../components/three/HeroScene'));
-
 export default function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const [isVisible, setIsVisible] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [enable3D, setEnable3D] = useState(false);
   // User can opt into full animation even if the OS has reduced-motion on.
   const [forceMotion, setForceMotion] = useState(false);
   const reduceMotion = !!prefersReducedMotion && !forceMotion;
@@ -39,14 +35,6 @@ export default function LandingPage() {
     return () => clearTimeout(t);
   }, [user, navigate]);
 
-  // Mount WebGL just after first paint so it never blocks initial render.
-  // Note: we render it even with reduced motion (as a calm, static scene) so the
-  // visual upgrade always shows — only continuous animation is suppressed.
-  useEffect(() => {
-    const t = setTimeout(() => setEnable3D(true), 150);
-    return () => clearTimeout(t);
-  }, []);
-
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!heroRef.current || reduceMotion) return;
     const rect = heroRef.current.getBoundingClientRect();
@@ -67,7 +55,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#060818] text-white overflow-x-hidden" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Work+Sans:wght@400;500;600;700&display=swap');
         h1,h2,h3,h4,.font-display { font-family: 'Outfit', sans-serif; }
         body, p, span, a, div { font-family: 'Work Sans', 'Outfit', sans-serif; }
 
@@ -121,6 +108,11 @@ export default function LandingPage() {
         @keyframes pulseRing { 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.5)} 50%{box-shadow:0 0 0 8px rgba(16,185,129,0)} }
         @keyframes gradientShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
         @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        @keyframes iconFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+        @keyframes spinSlow { to { transform: rotate(360deg); } }
+
+        /* Continuous subtle float for icons/badges */
+        .icon-float { animation: iconFloat 4.5s ease-in-out infinite; }
 
         /* Infinite city marquee */
         .marquee-mask { overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent); mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent); }
@@ -155,7 +147,7 @@ export default function LandingPage() {
         .stat-badge { background: rgba(8,10,28,0.7); border:1px solid rgba(255,255,255,0.12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius:16px; padding:12px 16px; }
 
         @media (prefers-reduced-motion: reduce) {
-          .aurora::before, .grid-floor, .float-a, .float-b, .shimmer-btn::after { animation: none !important; }
+          .aurora::before, .grid-floor, .float-a, .float-b, .shimmer-btn::after, .icon-float { animation: none !important; }
           .marquee-track { animation: none !important; flex-wrap: wrap; justify-content: center; width: 100% !important; }
           .hero-hidden { opacity: 1 !important; }
           .card-3d:hover { transform: translateY(-4px); }
@@ -177,7 +169,9 @@ export default function LandingPage() {
       <ActivityTicker forceMotion={forceMotion} />
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50" style={{ background: 'rgba(6,8,24,0.7)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <motion.nav
+        initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+        className="fixed top-0 w-full z-50" style={{ background: 'rgba(6,8,24,0.7)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between" style={{ height: 72 }}>
           <div className="flex items-center gap-3">
             <div style={{ width: 42, height: 42, borderRadius: 14, background: 'linear-gradient(135deg,#ff6b35,#e55a24)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(255,107,53,0.4)' }}>
@@ -204,7 +198,7 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Hero */}
       <section className="aurora relative overflow-hidden" style={{ minHeight: '100vh', paddingTop: 150, paddingBottom: 120 }} ref={heroRef} onMouseMove={handleMouseMove}>
@@ -352,13 +346,14 @@ export default function LandingPage() {
 
       {/* How It Works */}
       <Section id="how-it-works" bg="rgba(255,255,255,0.01)">
-        <div className="text-center mb-20">
+        <motion.div className="text-center mb-20"
+          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.5 }}>
           <Pill color="#818cf8" bg="rgba(99,102,241,0.12)" border="rgba(99,102,241,0.2)" icon={<Zap size={13} />}>Super Simple</Pill>
           <h2 className="font-display" style={{ fontSize: 'clamp(32px,5vw,56px)', fontWeight: 900, letterSpacing: '-0.04em', margin: '20px 0 16px' }}>
             Start selling in <span style={{ color: '#ff6b35' }}>3 simple steps</span>
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>No technical skills needed. Bilkul aasan.</p>
-        </div>
+        </motion.div>
         <div className="grid md:grid-cols-3 gap-8" style={{ perspective: 1200 }}>
           {[
             { num: '01', title: 'Create Shop', desc: 'Apni shop ka naam daalein aur mobile number se verify karein.', icon: <Store size={28} />, color: '#ff6b35', glow: 'rgba(255,107,53,0.2)' },
@@ -393,15 +388,17 @@ export default function LandingPage() {
                 { title: 'Sell on WhatsApp effortlessly', desc: 'Customers ko professional link bhejein, purane tarike chhodein.', icon: <MessageCircle size={22} />, color: '#10b981' },
                 { title: 'Safe & Secure', desc: 'Aapka data hamesha secure rehta hai. Trust of 10k+ users.', icon: <ShieldCheck size={22} />, color: '#6366f1' },
               ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: 20 }}>
-                  <div style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 18, background: `${item.color}15`, border: `1px solid ${item.color}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color, boxShadow: `0 8px 24px ${item.color}20` }}>
+                <motion.div key={i} style={{ display: 'flex', gap: 20 }}
+                  initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.5, delay: i * 0.12 }}>
+                  <div className="icon-float" style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 18, background: `${item.color}15`, border: `1px solid ${item.color}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color, boxShadow: `0 8px 24px ${item.color}20`, animationDelay: `${i * 0.6}s` }}>
                     {item.icon}
                   </div>
                   <div>
                     <h4 className="font-display" style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, letterSpacing: '-0.02em' }}>{item.title}</h4>
                     <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, fontWeight: 500 }}>{item.desc}</p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -444,7 +441,10 @@ export default function LandingPage() {
       {/* Testimonial */}
       <section style={{ padding: '120px 0', background: 'rgba(255,255,255,0.015)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="max-w-5xl mx-auto px-6">
-          <div style={{ padding: '60px 64px', borderRadius: 40, background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.97 }} whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
+            style={{ padding: '60px 64px', borderRadius: 40, background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -60, left: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,107,53,0.1)', filter: 'blur(50px)' }} />
             <div style={{ display: 'flex', gap: 4, color: '#ff6b35', marginBottom: 28, position: 'relative', zIndex: 1 }} aria-hidden="true">
               {[1, 2, 3, 4, 5].map(i => <Star key={i} size={22} fill="currentColor" />)}
@@ -459,34 +459,38 @@ export default function LandingPage() {
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4 }}>Kirana Store Owner, Delhi</div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Pricing */}
       <Section id="pricing">
-        <div className="text-center mb-16">
+        <motion.div className="text-center mb-16"
+          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.5 }}>
           <Pill color="#10b981" bg="rgba(16,185,129,0.1)" border="rgba(16,185,129,0.2)" icon={<ShieldCheck size={13} />}>Simple Pricing</Pill>
           <h2 className="font-display" style={{ fontSize: 'clamp(32px,5vw,60px)', fontWeight: 900, letterSpacing: '-0.04em', margin: '20px 0 16px' }}>
             Start small. Upgrade when <span style={{ color: '#ff6b35' }}>orders grow.</span>
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>Designed to feel safe for small shops and powerful at scale.</p>
-        </div>
+        </motion.div>
         <div className="grid lg:grid-cols-3 gap-6 items-stretch">
-          <PricingCard icon={<Smartphone size={22} />} name="Starter" price="199" desc="Launch your online catalog and accept local orders." features={['100 products', 'FeraSetu shop link', 'Basic AI help']} featured={false} />
-          <PricingCard icon={<TrendingUp size={22} />} name="Growth" price="499" desc="Custom domain, premium templates, and growth analytics." features={['1,000 products', 'Custom domain support', 'Advanced AI & analytics']} featured={true} />
-          <PricingCard icon={<BarChart3 size={22} />} name="Scale" price="999" desc="For serious retailers with more products and staff." features={['Unlimited products', 'Sales prediction', 'Onboarding help']} featured={false} />
+          <PricingCard index={0} icon={<Smartphone size={22} />} name="Starter" price="199" desc="Launch your online catalog and accept local orders." features={['100 products', 'FeraSetu shop link', 'Basic AI help']} featured={false} />
+          <PricingCard index={1} icon={<TrendingUp size={22} />} name="Growth" price="499" desc="Custom domain, premium templates, and growth analytics." features={['1,000 products', 'Custom domain support', 'Advanced AI & analytics']} featured={true} />
+          <PricingCard index={2} icon={<BarChart3 size={22} />} name="Scale" price="999" desc="For serious retailers with more products and staff." features={['Unlimited products', 'Sales prediction', 'Onboarding help']} featured={false} />
         </div>
       </Section>
 
       {/* Final CTA */}
       <section style={{ padding: '80px 0 120px' }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div style={{ borderRadius: 48, padding: '80px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, rgba(255,107,53,0.2), rgba(229,90,36,0.15) 50%, rgba(99,102,241,0.12))', border: '1px solid rgba(255,107,53,0.2)', boxShadow: '0 40px 80px rgba(255,107,53,0.12)' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.96 }} whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
+            style={{ borderRadius: 48, padding: '80px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, rgba(255,107,53,0.2), rgba(229,90,36,0.15) 50%, rgba(99,102,241,0.12))', border: '1px solid rgba(255,107,53,0.2)', boxShadow: '0 40px 80px rgba(255,107,53,0.12)' }}>
             <div style={{ position: 'absolute', top: -80, left: '50%', transform: 'translateX(-50%)', width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,107,53,0.15)', filter: 'blur(80px)' }} />
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
             <div style={{ position: 'relative', zIndex: 1 }}>
-              <IndianRupee size={40} style={{ color: '#ff6b35', margin: '0 auto 24px', display: 'block', opacity: 0.8 }} aria-hidden="true" />
+              <IndianRupee className="icon-float" size={40} style={{ color: '#ff6b35', margin: '0 auto 24px', display: 'block', opacity: 0.8 }} aria-hidden="true" />
               <h2 className="font-display" style={{ fontSize: 'clamp(32px,5vw,64px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 20 }}>Ab aapki baari hai.</h2>
               <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', fontWeight: 600, maxWidth: 480, margin: '0 auto 44px' }}>
                 Join 10,000+ smart shopkeepers. Bilkul free se shuru karein.
@@ -497,12 +501,14 @@ export default function LandingPage() {
                 Create Your Store <ArrowRight size={22} aria-hidden="true" />
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '40px 0' }}>
+      <motion.footer
+        initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.7 }}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '40px 0' }}>
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#ff6b35,#e55a24)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(255,107,53,0.3)' }}>
@@ -514,7 +520,7 @@ export default function LandingPage() {
             © {new Date().getFullYear()} FeraSetu. Your shop's digital bridge.
           </p>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }
@@ -678,9 +684,15 @@ function Pill({ color, bg, border, icon, children }: { color: string; bg: string
   );
 }
 
-function PricingCard({ icon, name, price, desc, features, featured }: { icon: React.ReactNode; name: string; price: string; desc: string; features: string[]; featured: boolean }) {
+function PricingCard({ index = 0, icon, name, price, desc, features, featured }: { index?: number; icon: React.ReactNode; name: string; price: string; desc: string; features: string[]; featured: boolean }) {
   return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.5, delay: index * 0.12 }}
+      style={{ height: '100%' }}
+    >
     <div className="pricing-3d" style={{
+      height: '100%',
       borderRadius: 32, padding: 40,
       background: featured ? 'linear-gradient(135deg, rgba(255,107,53,0.15), rgba(229,90,36,0.08))' : 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
       border: featured ? '1px solid rgba(255,107,53,0.3)' : '1px solid rgba(255,255,255,0.07)',
@@ -691,7 +703,7 @@ function PricingCard({ icon, name, price, desc, features, featured }: { icon: Re
         <div className="font-display" style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', padding: '6px 20px', borderRadius: '0 0 16px 16px', background: 'linear-gradient(135deg,#ff6b35,#e55a24)', fontSize: 11, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', boxShadow: '0 4px 20px rgba(255,107,53,0.4)' }}>Best Value</div>
       )}
       {featured && <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,107,53,0.15)', filter: 'blur(30px)' }} />}
-      <div style={{ width: 52, height: 52, borderRadius: 18, background: featured ? 'rgba(255,107,53,0.2)' : 'rgba(255,255,255,0.06)', border: featured ? '1px solid rgba(255,107,53,0.3)' : '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: featured ? '#ff6b35' : 'rgba(255,255,255,0.6)', marginBottom: 24, marginTop: featured ? 24 : 0 }}>
+      <div className="icon-float" style={{ width: 52, height: 52, borderRadius: 18, background: featured ? 'rgba(255,107,53,0.2)' : 'rgba(255,255,255,0.06)', border: featured ? '1px solid rgba(255,107,53,0.3)' : '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: featured ? '#ff6b35' : 'rgba(255,255,255,0.6)', marginBottom: 24, marginTop: featured ? 24 : 0, animationDelay: `${index * 0.5}s` }}>
         {icon}
       </div>
       <h3 className="font-display" style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 10 }}>{name}</h3>
@@ -717,6 +729,7 @@ function PricingCard({ icon, name, price, desc, features, featured }: { icon: Re
         View details <ArrowRight size={16} aria-hidden="true" />
       </Link>
     </div>
+    </motion.div>
   );
 }
 

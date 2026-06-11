@@ -6,7 +6,7 @@ import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginForm {
-  emailOrUsername: string;
+  email: string;
   password: string;
 }
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      await login(data.emailOrUsername, data.password);
+      await login(data.email, data.password);
       toast.success('Logged in successfully!');
       navigate(redirect);
     } catch (err: unknown) {
@@ -115,16 +115,16 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)}>
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.55)', marginBottom: 8, letterSpacing: '0.01em' }}>
-                Email or Username
+                Email
               </label>
               <input
-                type="text"
+                type="email"
                 className="auth-input"
-                placeholder="you@example.com or username"
-                {...register('emailOrUsername', { required: 'Email or username is required' })}
+                placeholder="you@example.com"
+                {...register('email', { required: 'Email is required' })}
               />
-              {errors.emailOrUsername && (
-                <p style={{ color: '#f87171', fontSize: 12, marginTop: 6, fontWeight: 600 }}>{errors.emailOrUsername.message}</p>
+              {errors.email && (
+                <p style={{ color: '#f87171', fontSize: 12, marginTop: 6, fontWeight: 600 }}>{errors.email.message}</p>
               )}
             </div>
 

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { UserPlus, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
 import LegalModal from '../components/LegalModal';
@@ -19,7 +18,7 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const { register: performRegister, sendOtp } = useAuth();
+  const { register: performRegister } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
@@ -27,17 +26,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [step, setStep] = useState(0);
-  const [otp, setOtp] = useState('');
-  const [sendingOtp, setSendingOtp] = useState(false);
   const [legalModal, setLegalModal] = useState<{ open: boolean, type: 'privacy' | 'terms' }>({ open: false, type: 'terms' });
-  const [resendTimer, setResendTimer] = useState(0);
-  const [resendAttempts, setResendAttempts] = useState(0);
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (resendTimer > 0) interval = setInterval(() => setResendTimer(t => t - 1), 1000);
-    return () => clearInterval(interval);
-  }, [resendTimer]);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: {
@@ -48,48 +37,16 @@ export default function RegisterPage() {
   });
 
   const selectedLang = watch('preferredLanguage');
-  const emailValue = watch('email');
   const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === selectedLang);
 
   const onSubmit = async (data: RegisterForm) => {
-    setSendingOtp(true);
-    try {
-      await sendOtp(data.email);
-      toast.success('OTP sent successfully! 📧');
-      setStep(1);
-      setResendTimer(30);
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to send OTP. Please try again.');
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (resendAttempts >= 3) { toast.error('Too many attempts. Please wait.'); return; }
-    setSendingOtp(true);
-    try {
-      await api.post('/auth/resend-otp', { email: emailValue });
-      toast.success('New code sent! 🚀');
-      setResendTimer(30 + (resendAttempts * 30));
-      setResendAttempts(prev => prev + 1);
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to resend. Try again later.');
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (otp.length !== 6) { toast.error('Please enter the 6-digit verification code'); return; }
     setLoading(true);
     try {
-      const formData = watch();
-      await performRegister({ ...formData, otp });
+      await performRegister(data);
       setStep(2);
       setTimeout(() => navigate(redirect), 2000);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Verification failed. Please check your code.');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -283,74 +240,21 @@ export default function RegisterPage() {
                   {errors.agreedToTerms && <p className="auth-error">{errors.agreedToTerms.message}</p>}
                 </div>
 
-                <button type="submit" disabled={sendingOtp} style={{
+                <button type="submit" disabled={loading} style={{
                   width: '100%', padding: 14, fontSize: 15, fontWeight: 800,
-                  background: sendingOtp ? 'rgba(255,107,53,0.5)' : 'linear-gradient(135deg,#ff6b35,#e55a24)',
+                  background: loading ? 'rgba(255,107,53,0.5)' : 'linear-gradient(135deg,#ff6b35,#e55a24)',
                   color: '#fff', border: 'none', borderRadius: 16,
-                  cursor: sendingOtp ? 'not-allowed' : 'pointer',
-                  boxShadow: sendingOtp ? 'none' : '0 8px 30px rgba(255,107,53,0.35)',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  boxShadow: loading ? 'none' : '0 8px 30px rgba(255,107,53,0.35)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all 0.2s',
                 }}>
-                  {sendingOtp
-                    ? <><span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} /> Sending OTP...</>
+                  {loading
+                    ? <><span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} /> Creating...</>
                     : <><UserPlus size={17} /> Create Your Store</>
                   }
                 </button>
               </form>
-            </>
-          ) : step === 1 ? (
-            <>
-              <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 6, letterSpacing: '-0.03em' }}>Verify your email 📧</h1>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, marginBottom: 28, fontWeight: 500 }}>
-                We've sent a 6-digit code to <span style={{ color: '#ff9a6c', fontWeight: 700 }}>{emailValue}</span>
-              </p>
-
-              <div style={{ marginBottom: 24 }}>
-                <label className="auth-label">Enter 6-digit OTP</label>
-                <input type="text" maxLength={6} value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                  className="auth-input"
-                  placeholder="000000"
-                  style={{ textAlign: 'center', letterSpacing: 12, fontSize: 28, fontWeight: 900, padding: '14px 16px' }} />
-              </div>
-
-              <button onClick={handleVerify} disabled={loading} style={{
-                width: '100%', padding: 14, fontSize: 15, fontWeight: 800,
-                background: loading ? 'rgba(255,107,53,0.5)' : 'linear-gradient(135deg,#ff6b35,#e55a24)',
-                color: '#fff', border: 'none', borderRadius: 16,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 8px 30px rgba(255,107,53,0.35)',
-                transition: 'all 0.2s',
-              }}>
-                {loading ? 'Verifying...' : 'Verify & Create Store'}
-              </button>
-
-              <button onClick={() => setStep(0)} style={{
-                width: '100%', background: 'none', border: 'none',
-                color: 'rgba(255,255,255,0.35)', marginTop: 14,
-                cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', fontWeight: 500,
-                transition: 'color 0.2s',
-              }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}>
-                ← Back to edit details
-              </button>
-
-              <div style={{ marginTop: 24, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', marginBottom: 8, fontWeight: 500 }}>Didn't receive the code?</p>
-                <button type="button" disabled={resendTimer > 0 || sendingOtp} onClick={handleResendOtp} style={{
-                  background: 'none', border: 'none',
-                  color: resendTimer > 0 ? 'rgba(255,255,255,0.2)' : '#ff6b35',
-                  fontWeight: 700, cursor: resendTimer > 0 ? 'not-allowed' : 'pointer',
-                  fontSize: 14, fontFamily: 'inherit',
-                }}>
-                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend code now'}
-                </button>
-                {resendAttempts > 0 && (
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 4 }}>Attempt {resendAttempts} of 3</p>
-                )}
-              </div>
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
