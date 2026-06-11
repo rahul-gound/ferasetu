@@ -7,17 +7,14 @@
 #
 # Deploys from the repo root with:  npx wrangler deploy
 
-name = "fera-shopkeeper"
+name = "ferasetu"
 main = "worker/index.js"
 compatibility_date = "2025-06-01"
 
-# D1 database binding. You must create the database once and paste its id below:
-#
-#   npx wrangler d1 create fera-shopkeeper
-#
-# Copy the printed `database_id` into the value below, then deploy. The Worker
-# creates its tables automatically on first request (CREATE TABLE IF NOT EXISTS).
+# D1 database binding. The Worker creates its tables automatically on first
+# request (CREATE TABLE IF NOT EXISTS), so no manual migration is needed.
+# `database_id` is an account-scoped resource id, not a secret — safe to commit.
 [[d1_databases]]
 binding = "DB"
 database_name = "fera-shopkeeper"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "ac0e07fa-8183-4a99-b744-c095027f61d6"
