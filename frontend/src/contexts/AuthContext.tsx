@@ -10,6 +10,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  is_verified: boolean;
   phone?: string;
   business_name?: string;
   plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
@@ -31,6 +32,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -104,14 +106,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch the profile from D1 (via Worker); create/init if missing.
   const loadProfile = async (): Promise<User> => {
     await syncToken();
+    const me = await account.get();
     const { data } = await api.get('/users/me');
+    
+    let profile: any;
     if (data.needs_init) {
-      return createProfile({
+      profile = await createProfile({
         name: data.user.name,
         email: data.user.email,
       });
+    } else {
+      profile = data.user;
     }
-    return data.user;
+
+    return {
+      ...profile,
+      is_verified: me.emailVerification,
+    };
+  };
+
+  const sendVerificationEmail = async () => {
+    try {
+      await account.createVerification(window.location.origin + '/dashboard');
+    } catch (err) {
+      throw toHttpishError(err);
+    }
   };
 
   const createProfile = async (
@@ -232,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, sendVerificationEmail, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

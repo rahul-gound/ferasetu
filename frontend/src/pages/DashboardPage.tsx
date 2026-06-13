@@ -129,7 +129,7 @@ function StatCard({ label, value, icon, gradient, glowColor, change, loading }: 
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, sendVerificationEmail } = useAuth();
   const { translate } = useLanguage();
 
   const { data, isLoading, error } = useQuery<DashboardData>({
@@ -231,6 +231,47 @@ export default function DashboardPage() {
             onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
             Get Started →
           </Link>
+        </div>
+      )}
+
+      {/* Verification Banner */}
+      {user && !user.is_verified && (
+        <div style={{
+          marginBottom: 28,
+          padding: '20px 24px',
+          borderRadius: 24,
+          background: 'rgba(245,158,11,0.08)',
+          border: '1px solid rgba(245,158,11,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800, color: '#fff' }}>Verify your email</h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Please verify your email to secure your account and unlock all platform features.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const promise = sendVerificationEmail();
+              toast.promise(promise, {
+                loading: 'Sending verification email...',
+                success: 'Email sent! Check your inbox.',
+                error: (err) => err?.response?.data?.message || 'Failed to send email',
+              });
+            }}
+            style={{
+              padding: '10px 20px', borderRadius: 14, background: '#F59E0B', color: '#000',
+              border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 8px 24px rgba(245,158,11,0.2)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            Resend Email
+          </button>
         </div>
       )}
 
