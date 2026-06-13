@@ -1,3 +1,5 @@
+import { useState, useEffect, useRef, type FormEvent } from 'react';
+import axios from 'axios';
 import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -131,7 +133,7 @@ export default function SupportPage() {
                   <div style={{ fontSize: '14px', color: '#1E293B', lineHeight: 1.6 }}>{selectedTicket.description}</div>
                </div>
 
-                {replies.map((reply, index) => (
+                {replies.map((reply: any, index: number) => (
                   <div key={reply.id} className="chat-bubble" style={{ 
                     alignSelf: reply.sender_role === 'user' ? 'flex-end' : 'flex-start',
                     maxWidth: '90%',
@@ -222,7 +224,7 @@ export default function SupportPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {tickets.map((ticket, index) => (
+          {tickets.map((ticket: any, index: number) => (
             <div 
               className="support-ticket-card"
               key={ticket.id} 

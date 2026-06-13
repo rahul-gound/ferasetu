@@ -132,7 +132,6 @@ export default function DashboardPage() {
   const { user, sendVerificationEmail } = useAuth();
   const { translate } = useLanguage();
   const [showRating, setShowRating] = useState(false);
-  const [showRating, setShowRating] = useState(false);
 
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -149,19 +148,6 @@ export default function DashboardPage() {
 
   const stats = data?.stats;
   const isNewUser = !data || data?.stats?.total_orders === 0;
-
-  // NPS/Rating logic: After first order, show rating popup
-  useEffect(() => {
-    if (data && stats) {
-      const hasOrder = stats.total_orders >= 1;
-      const alreadyRated = localStorage.getItem('fera_rated');
-      if (hasOrder && !alreadyRated) {
-        // Delay popup slightly for better UX
-        const timer = setTimeout(() => setShowRating(true), 3000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [data, stats]);
 
   // NPS/Rating logic: After first order, show rating popup
   useEffect(() => {
