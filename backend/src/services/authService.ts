@@ -12,7 +12,7 @@ export interface User {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
+  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'pro';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -53,15 +53,15 @@ export async function registerUser(data: {
     subdomain = `${subdomain}-${Math.random().toString(36).substring(2, 6)}`;
   }
 
-  // Set initial trial expiration (7 days from now)
+  // Set initial plan expiration (10 years for Beta Plan)
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  expiresAt.setFullYear(expiresAt.getFullYear() + 10);
   const expiresAtStr = expiresAt.toISOString();
 
   try {
     db.prepare(`
       INSERT INTO users (id, email, password_hash, name, phone, business_name, preferred_language, subdomain, plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'trial', ?, 20, 20, datetime('now', '+30 days'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'beta', ?, 20, 20, datetime('now', '+30 days'))
     `).run(
       userId,
       data.email,
@@ -86,9 +86,9 @@ export async function registerUser(data: {
   const { password_hash: _ph, ...safeUser } = user;
 
   const token = jwt.sign(
-    { id: userId, email: data.email, plan: 'trial', businessName: data.businessName || data.name },
+    { id: userId, email: data.email, plan: 'beta', businessName: data.businessName || data.name },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+    { expiresIn: '30d' } as jwt.SignOptions
   );
 
   return { user: safeUser as User, token };
@@ -147,7 +147,7 @@ export function getUserById(userId: string): User | null {
   return user || null;
 }
 
-export async function updateUserPlan(userId: string, plan: 'trial' | 'basic' | 'standard' | 'pro'): Promise<void> {
+export async function updateUserPlan(userId: string, plan: 'trial' | 'beta' | 'basic' | 'standard' | 'pro'): Promise<void> {
   const db = getDatabase();
   db.prepare('UPDATE users SET plan = ?, updated_at = datetime(\'now\') WHERE id = ?').run(plan, userId);
 }

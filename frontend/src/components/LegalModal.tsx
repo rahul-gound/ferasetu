@@ -24,7 +24,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         },
         {
           h: '3. Subscription and Fees',
-          p: 'We offer a 7-day free trial. After the trial period, premium features require a paid subscription. All fees are in INR and are inclusive of GST where applicable.'
+          p: 'We offer a Free Beta Plan for all early adopters. Premium plans and advanced AI features will be introduced in the future. All fees are in INR and are inclusive of GST where applicable.'
         },
         {
           h: '4. User Content',

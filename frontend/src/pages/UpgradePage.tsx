@@ -156,7 +156,7 @@ export default function UpgradePage() {
         <div className="pricing-eyebrow">Plans built for Indian shopkeepers</div>
         <h1>Choose the plan that makes your shop look serious online.</h1>
         <p>
-          Start with a 7-day trial including 20 AI credits. {BETA_MODE ? 'During beta, the ₹299 Starter plan is Free (Beta) for everyone.' : 'After that, choose a paid plan and buy extra credits only when your AI usage grows.'}
+          Start with the <strong>Beta Plan</strong> including 20 AI credits. {BETA_MODE ? 'During beta, the Starter plan is Free (Beta) for everyone.' : 'Choose a paid plan and buy extra credits only when your AI usage grows.'}
         </p>
         <div className="pricing-trust-row">
           <span><Shield size={16} /> Secure payments</span>

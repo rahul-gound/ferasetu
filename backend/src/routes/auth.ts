@@ -84,28 +84,28 @@ router.post('/register',
       const hashedPassword = await bcrypt.hash(password, 10);
       const userId = uuidv4();
 
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      const betaEndsAt = new Date();
+      betaEndsAt.setFullYear(betaEndsAt.getFullYear() + 10);
 
       db.prepare(`
         INSERT INTO users (id, email, password_hash, name, business_name, is_verified, plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at)
-        VALUES (?, ?, ?, ?, ?, 1, 'trial', ?, 20, 20, datetime('now', '+30 days'))
-      `).run(userId, email, hashedPassword, name, businessName || name, trialEndsAt.toISOString());
+        VALUES (?, ?, ?, ?, ?, 1, 'beta', ?, 20, 20, datetime('now', '+30 days'))
+      `).run(userId, email, hashedPassword, name, businessName || name, betaEndsAt.toISOString());
 
       // 3. Send Onboarding Welcome Email
       sendOnboardingEmail(email, name).catch(err => console.error('Welcome email failed:', err.message));
 
       // 4. Generate Token
       const token = jwt.sign(
-        { id: userId, email, plan: 'trial' },
+        { id: userId, email, plan: 'beta' },
         JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: '30d' }
       );
 
       res.status(201).json({
         success: true,
         token,
-        user: { id: userId, email, name, plan: 'trial', ai_credits_balance: 20, ai_credits_monthly_limit: 20, ai_credits_used_month: 0, plan_expires_at: trialEndsAt.toISOString() }
+        user: { id: userId, email, name, plan: 'beta', ai_credits_balance: 20, ai_credits_monthly_limit: 20, ai_credits_used_month: 0, plan_expires_at: betaEndsAt.toISOString() }
       });
     } catch (err: any) {
       console.error('Registration error:', err);

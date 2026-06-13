@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 const PLAN_CONFIG: Record<string, { amount: number; monthlyCredits: number; trialDays?: number }> = {
+  beta: { amount: 0, monthlyCredits: 20, trialDays: 3650 },
   trial: { amount: 0, monthlyCredits: 20, trialDays: 7 },
   basic: { amount: 299, monthlyCredits: 100 },
   standard: { amount: 699, monthlyCredits: 500 },

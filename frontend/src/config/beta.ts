@@ -1,8 +1,9 @@
 export const BETA_MODE = import.meta.env.VITE_BETA_MODE !== 'false';
-export const BETA_FREE_PLAN_ID = 'basic';
+export const BETA_FREE_PLAN_ID = 'beta';
 
 export function isBetaFreePlan(planId: string): boolean {
-  return BETA_MODE && planId === BETA_FREE_PLAN_ID;
+  // If we are in BETA_MODE, the 'beta' plan is always free.
+  return planId === 'beta' || (BETA_MODE && planId === 'basic');
 }
 
 export function getEffectivePlanPrice(planId: string, basePrice: number): number {

@@ -129,7 +129,7 @@ export default function RegisterPage() {
           {step === 0 ? (
             <>
               <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 6, letterSpacing: '-0.03em' }}>Create your store 🛒</h1>
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, marginBottom: 28, fontWeight: 500 }}>7-day trial · No credit card needed</p>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, marginBottom: 28, fontWeight: 500 }}>Beta Plan · Free for everyone · No credit card needed</p>
 
               <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid grid-cols-2 gap-4" style={{ marginBottom: 16 }}>
