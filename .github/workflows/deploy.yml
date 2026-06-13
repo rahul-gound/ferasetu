@@ -1,0 +1,32 @@
+name: Deploy FeraSetu Worker
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          # These must be in your "Secrets" section
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          
+          # This tells wrangler which secrets to upload to the Worker
+          secrets: |
+            SARVAM_API_KEY
+        env:
+          # Mapping the secrets
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          
+          # Mapping the variables (from the Variables section)
+          # Make sure these names match exactly what you typed in GitHub
+          APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
