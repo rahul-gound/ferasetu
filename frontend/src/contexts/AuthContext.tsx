@@ -28,6 +28,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
@@ -170,6 +171,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      await account.createOAuth2Session(
+        'google',
+        window.location.origin + '/dashboard',
+        window.location.origin + '/login'
+      );
+    } catch (err) {
+      throw toHttpishError(err);
+    }
+  };
+
   const register = async (data: RegisterData) => {
     try {
       const email = data.email.trim();
@@ -218,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
