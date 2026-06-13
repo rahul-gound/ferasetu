@@ -1,7 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import type { FormEvent } from 'react';
-import axios from 'axios';
-import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL || '/api';
@@ -13,7 +10,7 @@ export default function SupportPage() {
   const [selectedTicket, setSelectedOrder] = useState<any | null>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
-  const [formData, setFormData] = useState({ subject: '', description: '' });
+  const [formData, setFormData] = useState({ subject: 'setup', description: '' });
   const [submitting, setLoadingSubmitting] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -262,13 +259,19 @@ export default function SupportPage() {
             <form onSubmit={handleCreateTicket} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Subject</label>
-                <input
+                <select
                   required
-                  placeholder="Brief summary of the issue"
                   value={formData.subject}
                   onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none' }}
-                />
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', background: '#fff' }}
+                >
+                  <option value="setup">Help me set up my shop website</option>
+                  <option value="feedback">Product feedback call (Beta)</option>
+                  <option value="bug">Report a Bug</option>
+                  <option value="feature">Feature Request</option>
+                  <option value="confused">Something is confusing</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Description</label>
@@ -296,6 +299,16 @@ export default function SupportPage() {
                   style={{ flex: 1, padding: '14px', borderRadius: '12px', background: '#2563EB', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
                   {submitting ? 'Submitting...' : <><Send size={18} /> Submit</>}
+                </button>
+              </div>
+              <div style={{ marginTop: '12px', borderTop: '1px solid #F1F5F9', paddingTop: '20px', textAlign: 'center' }}>
+                <p style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase' }}>Or quick chat with us</p>
+                <button
+                  type="button"
+                  onClick={() => window.open('https://wa.me/919876543210?text=Hi FeraSetu Team, I need help with my shop...', '_blank')}
+                  style={{ width: '100%', padding: '12px', borderRadius: '12px', background: '#DCFCE7', color: '#166534', border: '1px solid #BBF7D0', fontWeight: 800, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <MessageCircle size={18} /> Chat on WhatsApp
                 </button>
               </div>
             </form>

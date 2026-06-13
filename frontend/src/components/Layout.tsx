@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
 import { getPlanBadge } from '../config/beta';
+import FeedbackWidget from './FeedbackWidget';
 
 interface NavItem {
   path: string;
@@ -312,6 +313,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      <FeedbackWidget />
 
       <style>{`
         @media (max-width: 768px) {
