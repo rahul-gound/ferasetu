@@ -450,6 +450,17 @@ function getMySqlSchemaStatements(): string[] {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       INDEX idx_survey_user_date (user_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS meetings (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      customer_name VARCHAR(255) NOT NULL,
+      customer_email VARCHAR(255) NOT NULL,
+      meeting_date DATETIME NOT NULL,
+      topic VARCHAR(255),
+      status VARCHAR(32) NOT NULL DEFAULT 'scheduled',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
   ];
 }
@@ -667,6 +678,17 @@ function getSqliteSchemaStatements(): string[] {
       feedback TEXT NOT NULL,
       contact TEXT,
       ai_summary_json TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS meetings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      meeting_date DATETIME NOT NULL,
+      topic TEXT,
+      status TEXT NOT NULL DEFAULT 'scheduled',
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,

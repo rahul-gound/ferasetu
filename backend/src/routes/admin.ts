@@ -397,4 +397,24 @@ router.get('/ai-usage', (req: Request, res: Response) => {
   res.json({ logs, stats, byUsageType, byShop });
 });
 
+// --- MEETINGS MANAGEMENT ---
+
+router.get('/meetings', (req: Request, res: Response) => {
+  const db = getDatabase();
+  const meetings = db.prepare(`
+    SELECT m.*, u.email as partner_email, u.business_name 
+    FROM meetings m
+    JOIN users u ON m.user_id = u.id
+    ORDER BY m.meeting_date ASC
+  `).all();
+  res.json({ meetings });
+});
+
+router.patch('/meetings/:id', (req: Request, res: Response) => {
+  const { status } = req.body;
+  const db = getDatabase();
+  db.prepare('UPDATE meetings SET status = ? WHERE id = ?').run(status, req.params.id);
+  res.json({ success: true });
+});
+
 export default router;

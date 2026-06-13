@@ -26,6 +26,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Overview' },
     { id: 'users', path: '/admin/users', icon: <Users size={20} />, label: 'Partners' },
     { id: 'shops', path: '/admin/shops', icon: <Store size={20} />, label: 'Shops' },
+    { id: 'meetings', path: '/admin/meetings', icon: <Calendar size={20} />, label: 'Consultations' },
     { id: 'orders', path: '/admin/orders', icon: <ShoppingBag size={20} />, label: 'Global Orders' },
     { id: 'tickets', path: '/admin/tickets', icon: <LifeBuoy size={20} />, label: 'Support Desk' },
     { id: 'system', path: '/admin/system', icon: <Terminal size={20} />, label: 'System Controls' },

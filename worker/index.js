@@ -114,6 +114,18 @@ async function ensureSchema(db) {
         created_at    TEXT NOT NULL
       )`
     ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS meetings (
+        id              TEXT PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        customer_name   TEXT NOT NULL,
+        customer_email  TEXT NOT NULL,
+        meeting_date    TEXT NOT NULL,
+        topic           TEXT,
+        status          TEXT NOT NULL DEFAULT 'scheduled',
+        created_at      TEXT NOT NULL
+      )`
+    ),
   ]);
   schemaReady = true;
 }
@@ -372,6 +384,58 @@ async function createOrder(request, env) {
   return json({ order }, 201);
 }
 
+async function listMeetings(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM meetings WHERE user_id = ? ORDER BY meeting_date ASC"
+  ).bind(me.$id).all();
+  return json({ meetings: results ?? [] });
+}
+
+async function createMeeting(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+  const body = await readJsonBody(request);
+
+  if (!body.customer_name || !body.customer_email || !body.meeting_date) {
+    throw new HttpError("Missing required fields", 422);
+  }
+
+  const meeting = {
+    id: crypto.randomUUID(),
+    user_id: me.$id,
+    customer_name: body.customer_name,
+    customer_email: body.customer_email,
+    meeting_date: body.meeting_date,
+    topic: body.topic || null,
+    status: 'scheduled',
+    created_at: new Date().toISOString(),
+  };
+
+  await env.DB.prepare(
+    `INSERT INTO meetings (id, user_id, customer_name, customer_email, meeting_date, topic, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(meeting.id, meeting.user_id, meeting.customer_name, meeting.customer_email, meeting.meeting_date, meeting.topic, meeting.status, meeting.created_at)
+    .run();
+
+  return json({ meeting }, 201);
+}
+
+async function updateMeeting(request, env) {
+  await getAuthenticatedUser(request, env); // Ensure authed
+  const body = await readJsonBody(request);
+  const url = new URL(request.url);
+  const id = url.pathname.split('/').pop();
+
+  if (!body.status) throw new HttpError("Status is required", 422);
+
+  await env.DB.prepare("UPDATE meetings SET status = ? WHERE id = ?")
+    .bind(body.status, id)
+    .run();
+
+  return json({ success: true });
+}
+
 function safeParseArray(value) {
   try {
     const parsed = JSON.parse(value);
@@ -424,6 +488,17 @@ async function route(request, env) {
   if (path === "/api/orders") {
     if (method === "GET") return listOrders(request, env);
     if (method === "POST") return createOrder(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+
+  if (path === "/api/meetings") {
+    if (method === "GET") return listMeetings(request, env);
+    if (method === "POST") return createMeeting(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+
+  if (path.startsWith("/api/meetings/")) {
+    if (method === "PATCH" || method === "PUT") return updateMeeting(request, env);
     throw new HttpError("Method not allowed", 405);
   }
 
