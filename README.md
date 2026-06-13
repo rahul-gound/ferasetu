@@ -1,4 +1,5 @@
 # FeraSetu — Your shop’s digital bridge
+> link :- https://ferasetu.appwrite.network/
 
 > Build your shop website, manage products, and grow orders with AI.
 >
@@ -8,9 +9,9 @@
 
 ## 🎁 Beta Offer: ₹299 plan — **FREE (Beta)**
 
-Our main goal right now is simple:
+Our main goal is simple:
 
-- We give the **₹299/month (Starter/basic) plan for free in Beta**
+- We give the **₹299/month (Starter) plan for free in Beta**
 - So we can collect **reviews, feedback, and feature requests**
 - And use that to **make the product better, faster**
 
@@ -19,12 +20,11 @@ Our main goal right now is simple:
 - Product & order management
 - Basic invoices
 - Basic AI assistant
+- basic ai credits
+- ticket support
 
-> Beta mode is enabled by default for everyone (`BETA_MODE=true`).
-> To disable beta pricing later, set:
-> - Backend: `BETA_MODE=false`
-> - Frontend: `VITE_BETA_MODE=false`
-
+### beta is free for everyone 
+ 
 ---
 
 ## 💬 Survey & Feedback (inside Dashboard)
@@ -32,23 +32,10 @@ Our main goal right now is simple:
 Share feedback directly from the app:
 
 - **Dashboard → “Survey & Feedback”**
-  - Structured survey questions
+  - it have Structured survey questions
   - Free-text feedback
   - Optional contact details
   - Export your submissions as CSV
-
-### AI survey assistant fallback
-
-- The survey page includes an AI Assistant chat flow.
-- If `OPENAI_API_KEY` is available on the backend, the assistant uses OpenAI.
-- If no key is present (or API call fails), it automatically falls back to a deterministic local flow and still generates a structured summary.
-
-**Tip (my idea):** Add 3 quick buttons to increase responses:
-- “Bug”
-- “Feature request”
-- “Something is confusing”
-
-And allow screenshot upload.
 
 ---
 
@@ -59,19 +46,6 @@ If you want a quick call to help us improve FeraSetu:
 - **Dashboard → “Book a meeting”**
   - 10–15 min feedback call
   - Help us understand what your shop needs
-
-**Tip (my idea):** Offer 2 options:
-- “Product feedback call”
-- “Help me set up my shop website”
-
----
-
-## 🧠 Extra ideas to get more reviews fast
-
-- Show a small banner in Dashboard: **“Beta: ₹299 plan is FREE — please leave feedback”**
-- After user completes 3 steps (add 5 products / publish website / get first order), show a popup:
-  - “How’s your experience? Rate 1–5 + feedback”
-- Add WhatsApp feedback link for shopkeepers who prefer WhatsApp
 
 ---
 
@@ -288,9 +262,9 @@ Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, O
 
 ## 🏗️ Key Features
 
-### Free Tier
-- Free subdomain: `businessname.fera-shop.fera-search.tech`
-- Up to **50 products**
+### beta(0/month)
+- Free subdomain: `businessname.ferasetu.fera-search.tech`
+- Up to **19 products**
 - Basic AI (Sarvam-30B)
 - Order management + basic invoices
 - 500 MB storage
@@ -396,7 +370,7 @@ cd frontend && npm run build
 
 ---
 
-## 🌐 Deployment Guide
+## 🌐 Deployment Guide (for stardance reviewer)
 
 ### Option A: Single VPS (recommended for MVP)
 
@@ -462,7 +436,7 @@ server {
 
 ---
 
-## 🔮 Future Scaling Plan
+## 🔮 Future Scaling Plan for ferasetu 
 
 ### Phase 1 — Performance (Month 1–2)
 - Add Redis for session caching + rate limiting
@@ -502,8 +476,8 @@ server {
 6. **B2B reseller** — White-label for distributors/wholesalers
 
 ---
-
-## ⚠️ Security Notes
+if you are hosting it see this if not avoid this 
+## ⚠️ Security Notes( for stardance reviewer )
 
 - Never commit `.env` files with real API keys
 - JWT secret must be at least 32 characters
