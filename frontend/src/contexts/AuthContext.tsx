@@ -1,13 +1,9 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import {
   account,
-  databases,
-  DATABASE_ID,
-  USERS_COLLECTION_ID,
   ID,
-  Permission,
-  Role,
 } from '../lib/appwrite';
+import api from '../services/api';
 
 interface User {
   id: string;
@@ -48,8 +44,7 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Profile fields stored in the Appwrite `users` collection. Keep this list in
-// sync with the attributes created by scripts/setup-appwrite.mjs.
+// Profile fields stored in D1.
 const PROFILE_KEYS: (keyof User)[] = [
   'email', 'name', 'phone', 'business_name', 'plan', 'preferred_language',
   'subdomain', 'custom_domain', 'plan_expires_at', 'ai_credits_balance',
@@ -67,32 +62,10 @@ function generateSubdomain(value: string): string {
     .slice(0, 60) || 'my-store';
 }
 
-// Map an Appwrite profile document onto our User shape.
-function docToUser(id: string, doc: Record<string, any>): User {
-  return {
-    id,
-    email: doc.email,
-    name: doc.name,
-    phone: doc.phone ?? undefined,
-    business_name: doc.business_name ?? undefined,
-    plan: doc.plan || 'trial',
-    preferred_language: doc.preferred_language || 'en',
-    subdomain: doc.subdomain ?? undefined,
-    custom_domain: doc.custom_domain ?? undefined,
-    plan_expires_at: doc.plan_expires_at ?? undefined,
-    ai_credits_balance: doc.ai_credits_balance ?? 0,
-    ai_credits_monthly_limit: doc.ai_credits_monthly_limit ?? 0,
-    ai_credits_used_month: doc.ai_credits_used_month ?? 0,
-    ai_credits_reset_at: doc.ai_credits_reset_at ?? undefined,
-    storage_used_bytes: doc.storage_used_bytes ?? 0,
-    storage_limit_bytes: doc.storage_limit_bytes ?? 0,
-  };
-}
-
 // Re-shape an Appwrite error so the existing pages (which read
 // err.response.data.message / .error) can surface a useful message.
 function toHttpishError(err: any): Error {
-  const message = err?.message || 'Something went wrong. Please try again.';
+  const message = err?.response?.data?.message || err?.message || 'Something went wrong. Please try again.';
   const wrapped = new Error(message) as Error & {
     response: { data: { message: string; error: string } };
   };
@@ -106,6 +79,7 @@ function persistLocalUser(user: User | null) {
     localStorage.setItem('fera_user', JSON.stringify(user));
   } else {
     localStorage.removeItem('fera_user');
+    localStorage.removeItem('fera_token');
   }
 }
 
@@ -113,56 +87,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch the profile doc for a logged-in account; create defaults if missing.
-  const loadProfile = async (accountId: string, fallbackEmail: string, fallbackName: string): Promise<User> => {
+  // Sync JWT from Appwrite to localStorage for the `api` service to use.
+  const syncToken = async () => {
     try {
-      const doc = await databases.getDocument(DATABASE_ID, USERS_COLLECTION_ID, accountId);
-      return docToUser(accountId, doc as any);
-    } catch {
-      return createProfile(accountId, { email: fallbackEmail, name: fallbackName });
+      const { jwt } = await account.createJWT();
+      localStorage.setItem('fera_token', jwt);
+      return jwt;
+    } catch (err) {
+      localStorage.removeItem('fera_token');
+      return null;
     }
   };
 
+  // Fetch the profile from D1 (via Worker); create/init if missing.
+  const loadProfile = async (): Promise<User> => {
+    await syncToken();
+    const { data } = await api.get('/users/me');
+    if (data.needs_init) {
+      return createProfile({
+        name: data.user.name,
+        email: data.user.email,
+      });
+    }
+    return data.user;
+  };
+
   const createProfile = async (
-    accountId: string,
     data: { email: string; name: string; phone?: string; businessName?: string; preferredLanguage?: string },
   ): Promise<User> => {
-    const nowIso = new Date().toISOString();
-    const profile = {
-      email: data.email,
-      name: data.name || 'User',
-      phone: data.phone || undefined,
-      business_name: data.businessName || undefined,
-      plan: 'trial',
+    const payload = {
+      name: data.name,
+      phone: data.phone,
+      business_name: data.businessName,
       preferred_language: data.preferredLanguage || 'en',
       subdomain: generateSubdomain(data.businessName || data.name || 'my-store'),
-      custom_domain: undefined,
-      plan_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      ai_credits_balance: 20,
-      ai_credits_monthly_limit: 20,
-      ai_credits_used_month: 0,
-      ai_credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      storage_used_bytes: 0,
-      storage_limit_bytes: 50 * 1024 * 1024,
-      created_at: nowIso,
     };
-    const doc = await databases.createDocument(
-      DATABASE_ID,
-      USERS_COLLECTION_ID,
-      accountId,
-      profile,
-      [Permission.read(Role.user(accountId)), Permission.update(Role.user(accountId))],
-    );
-    return docToUser(accountId, doc as any);
+    const { data: response } = await api.put('/users/me', payload);
+    return response.user;
   };
 
   useEffect(() => {
     const initAuth = async () => {
       try {
         const me = await account.get();
-        const profile = await loadProfile(me.$id, me.email, me.name);
-        setUser(profile);
-        persistLocalUser(profile);
+        if (me) {
+          const profile = await loadProfile();
+          setUser(profile);
+          persistLocalUser(profile);
+        }
       } catch {
         setUser(null);
         persistLocalUser(null);
@@ -190,8 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       await startSession(email.trim(), password);
-      const me = await account.get();
-      const profile = await loadProfile(me.$id, me.email, me.name);
+      const profile = await loadProfile();
       setUser(profile);
       persistLocalUser(profile);
     } catch (err) {
@@ -202,9 +173,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     try {
       const email = data.email.trim();
-      const created = await account.create(ID.unique(), email, data.password, data.name);
+      try {
+        await account.create(ID.unique(), email, data.password, data.name);
+      } catch (err: any) {
+        // If account already exists, just try to log in instead of failing.
+        if (err?.code !== 409) throw err;
+      }
+      
       await startSession(email, data.password);
-      const profile = await createProfile(created.$id, {
+      const profile = await createProfile({
         email,
         name: data.name,
         phone: data.phone,
@@ -230,15 +207,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
     persistLocalUser(updated);
 
-    // Write changed profile fields back to Appwrite (best-effort).
+    // Sync to D1 (best-effort).
     const payload: Record<string, any> = {};
     for (const key of PROFILE_KEYS) {
       if (key in updates) payload[key] = (updates as any)[key];
     }
     if (Object.keys(payload).length > 0) {
-      databases
-        .updateDocument(DATABASE_ID, USERS_COLLECTION_ID, user.id, payload)
-        .catch((err) => console.error('Failed to sync profile to Appwrite:', err));
+      api.put('/users/me', payload).catch((err) => console.error('Failed to sync profile to D1:', err));
     }
   };
 
@@ -254,3 +229,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
+
