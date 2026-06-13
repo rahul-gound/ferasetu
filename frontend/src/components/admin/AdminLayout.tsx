@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, LayoutDashboard, LifeBuoy,
-  ShoppingBag, Store, Bell,
+  ShoppingBag, Store, Bell, Calendar,
   Menu, LogOut, ChevronRight, Zap, Terminal
 } from 'lucide-react';
 import toast from 'react-hot-toast';

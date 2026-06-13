@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Calendar, Clock, User, Mail, 
-  CheckCircle2, XCircle, MoreVertical, Search,
+  Calendar, Mail, 
+  CheckCircle2, XCircle, Search,
   Store
 } from 'lucide-react';
 import toast from 'react-hot-toast';
