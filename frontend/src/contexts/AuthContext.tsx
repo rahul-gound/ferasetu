@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import {
   account,
   ID,
+  OAuthProvider,
 } from '../lib/appwrite';
 import api from '../services/api';
 
@@ -174,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async () => {
     try {
       await account.createOAuth2Session(
-        'google',
+        OAuthProvider.Google,
         window.location.origin + '/dashboard',
         window.location.origin + '/login'
       );

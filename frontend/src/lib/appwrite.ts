@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID, Query, Permission, Role } from "appwrite";
+import { Client, Account, Databases, ID, Query, Permission, Role, OAuthProvider } from "appwrite";
 
 // Appwrite project: "fera-login" (Singapore region).
 // Endpoint and project ID are public client-side values — safe to expose to the web SDK.
@@ -13,4 +13,4 @@ const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID);
 const account = new Account(client);
 const databases = new Databases(client);
 
-export { client, account, databases, ID, Query, Permission, Role };
+export { client, account, databases, ID, Query, Permission, Role, OAuthProvider };
