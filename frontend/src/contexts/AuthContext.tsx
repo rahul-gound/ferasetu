@@ -13,7 +13,7 @@ interface User {
   is_verified: boolean;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
+  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'pro';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;

@@ -273,66 +273,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Beta Promotion Banner */}
-      {!isLoading && (
-        <div style={{
-          marginBottom: 20,
-          padding: '12px 20px',
-          borderRadius: 16,
-          background: 'rgba(99,102,241,0.08)',
-          border: '1px solid rgba(99,102,241,0.2)',
-          display: 'flex', alignItems: 'center', gap: 12
-        }}>
-          <Zap size={18} style={{ color: '#6366f1' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-            Beta: ₹299 plan is <span style={{ color: '#6366f1' }}>FREE</span> — please leave feedback!
-          </span>
-        </div>
-      )}
-
-      {/* NPS Popup */}
-      {showRating && (
-        <div style={{
-          position: 'fixed', bottom: 30, right: 30, zIndex: 1000,
-          width: 340, padding: 24, borderRadius: 28,
-          background: '#161b33', border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 30px 60px rgba(0,0,0,0.5)',
-          animation: 'fadeUp 0.5s ease-out'
-        }}>
-          <h4 style={{ margin: '0 0 8px', color: '#fff', fontSize: 16, fontWeight: 800 }}>How's your experience?</h4>
-          <p style={{ margin: '0 0 20px', color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 500 }}>Rate FeraSetu to help us improve.</p>
-          
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-            {[1, 2, 3, 4, 5].map(num => (
-              <button
-                key={num}
-                onClick={() => {
-                  toast.success('Thanks for your rating!');
-                  localStorage.setItem('fera_rated', 'true');
-                  setShowRating(false);
-                }}
-                style={{
-                  flex: 1, height: 44, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)',
-                  background: 'rgba(255,255,255,0.03)', color: '#fff', fontWeight: 800, cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#ff6b35')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-              >
-                {num}
-              </button>
-            ))}
-          </div>
-          
-          <button
-            onClick={() => setShowRating(false)}
-            style={{ width: '100%', padding: '10px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-          >
-            Maybe later
-          </button>
-        </div>
-      )}
-
       {/* Welcome Banner for new users */}
       {isNewUser && !isLoading && (
         <div style={{
@@ -572,7 +512,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Upgrade notice */}
-          {user?.plan === 'trial' && (
+          {(user?.plan === 'beta' || user?.plan === 'trial') && (
             <div style={{
               marginTop: 20, padding: '16px 18px', borderRadius: 18,
               background: 'linear-gradient(135deg,rgba(255,107,53,0.12),rgba(99,102,241,0.08))',

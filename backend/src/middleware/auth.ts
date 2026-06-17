@@ -45,7 +45,7 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
   }
 
   // Check Subscription Expiration (for trial users)
-  if (user.plan === 'trial' && user.plan_expires_at) {
+  if ((user.plan === 'trial' || user.plan === 'beta') && user.plan_expires_at) {
     const expiresAt = new Date(user.plan_expires_at);
     if (expiresAt < new Date()) {
       console.warn(`⏳ Auth: Trial expired for user: ${user.email}`);
@@ -88,7 +88,7 @@ export function validatePublicShop(req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  if (user.plan === 'trial' && user.plan_expires_at) {
+  if ((user.plan === 'trial' || user.plan === 'beta') && user.plan_expires_at) {
     const expiresAt = new Date(user.plan_expires_at);
     if (expiresAt < new Date()) {
       res.status(402).send(`
@@ -108,7 +108,7 @@ export function validatePublicShop(req: Request, res: Response, next: NextFuncti
 
 export function requirePremium(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const plan = req.user?.plan;
-  if (plan === 'trial' || plan === 'free') {
+  if (plan === 'trial' || plan === 'free' || plan === 'beta') {
     res.status(403).json({
       error: 'Upgrade required',
       upgradeUrl: '/upgrade',

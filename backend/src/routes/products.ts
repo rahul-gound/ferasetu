@@ -93,6 +93,7 @@ router.post('/',
       // Check product limits based on plan
       const planLimits: Record<string, number> = {
         'trial': parseInt(process.env.FREE_TIER_MAX_PRODUCTS || '50'),
+        'beta': parseInt(process.env.FREE_TIER_MAX_PRODUCTS || '50'),
         'basic': 100,
         'standard': 1000,
         'pro': Infinity

@@ -94,7 +94,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 el.style.background = 'rgba(255,255,255,0.04)';
               }
             }}
-            onMouseLeave={_e => {
+            onMouseLeave={e => {
+              const el = e.currentTarget;
+              const active = el.classList.contains('active');
+              if (!active) {
+                el.style.color = 'rgba(255,255,255,0.45)';
+                el.style.background = 'transparent';
+              }
             }}
           >
             {item.icon}
