@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { UserPlus, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
 import LegalModal from '../components/LegalModal';
@@ -18,7 +18,7 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const { register: performRegister, loginWithGoogle } = useAuth();
+  const { register: performRegister, sendOTP, verifyOTP, createAccountAfterOTP, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
@@ -26,7 +26,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const [formData, setFormData] = useState<RegisterForm | null>(null);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState('');
   const [legalModal, setLegalModal] = useState<{ open: boolean, type: 'privacy' | 'terms' }>({ open: false, type: 'terms' });
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: {
@@ -39,14 +43,85 @@ export default function RegisterPage() {
   const selectedLang = watch('preferredLanguage');
   const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === selectedLang);
 
+  useEffect(() => {
+    if (step === 1) {
+      otpRefs.current[0]?.focus();
+    }
+  }, [step]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value && !/^\d$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    setOtpError('');
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length === 6) {
+      setOtp(pasted.split(''));
+      otpRefs.current[5]?.focus();
+    }
+  };
+
   const onSubmit = async (data: RegisterForm) => {
     setLoading(true);
     try {
-      await performRegister(data);
-      setStep(2);
-      setTimeout(() => navigate(redirect), 2000);
+      await sendOTP(data.email);
+      setFormData(data);
+      setStep(1);
+      toast.success('OTP sent to your email!');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please try again.');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    const otpCode = otp.join('');
+    if (otpCode.length !== 6) {
+      setOtpError('Please enter the complete 6-digit OTP');
+      return;
+    }
+    if (!formData) return;
+    setLoading(true);
+    setOtpError('');
+    try {
+      const isValid = await verifyOTP(formData.email, otpCode);
+      if (isValid) {
+        await createAccountAfterOTP(formData);
+        setStep(2);
+        setTimeout(() => navigate(redirect), 2000);
+      } else {
+        setOtpError('Invalid OTP. Please try again.');
+      }
+    } catch (err: any) {
+      setOtpError(err.response?.data?.error || err.response?.data?.message || 'Invalid OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (!formData) return;
+    setLoading(true);
+    try {
+      await sendOTP(formData.email);
+      toast.success('OTP resent to your email!');
+    } catch (err: any) {
+      toast.error('Failed to resend OTP.');
     } finally {
       setLoading(false);
     }
@@ -126,7 +201,7 @@ export default function RegisterPage() {
           backdropFilter: 'blur(20px)',
           boxShadow: '0 40px 80px rgba(0,0,0,0.4)',
         }}>
-          {step === 0 ? (
+          {step === 0 && (
             <>
               <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 6, letterSpacing: '-0.03em' }}>Create your store 🛒</h1>
               <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, marginBottom: 28, fontWeight: 500 }}>Beta Plan · Free for everyone · No credit card needed</p>
@@ -282,7 +357,94 @@ export default function RegisterPage() {
                 Continue with Google
               </button>
             </>
-          ) : (
+          )}
+
+          {step === 1 && (
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={() => { setStep(0); setOtp(['', '', '', '', '', '']); setOtpError(''); }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)',
+                  fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, padding: 0, marginBottom: 20,
+                  fontFamily: 'inherit',
+                }}>
+                <ArrowLeft size={16} /> Back
+              </button>
+              <div style={{
+                width: 64, height: 64, borderRadius: 16,
+                background: 'rgba(255,107,53,0.12)', border: '1px solid rgba(255,107,53,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 4, letterSpacing: '-0.03em' }}>Verify your email</h1>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14, marginBottom: 4, fontWeight: 500 }}>
+                Enter the 6-digit code sent to
+              </p>
+              <p style={{ color: '#ff6b35', fontSize: 14, fontWeight: 700, marginBottom: 28 }}>
+                {formData?.email}
+              </p>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
+                {otp.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={el => otpRefs.current[i] = el}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={e => handleOtpChange(i, e.target.value)}
+                    onKeyDown={e => handleOtpKeyDown(i, e)}
+                    onPaste={i === 0 ? handleOtpPaste : undefined}
+                    style={{
+                      width: 46, height: 52, textAlign: 'center', fontSize: 22, fontWeight: 800,
+                      background: 'rgba(255,255,255,0.05)', border: otpError ? '1px solid #f87171' : '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 12, color: '#fff', outline: 'none', fontFamily: 'monospace',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                    }}
+                    onFocus={e => { e.target.style.borderColor = 'rgba(255,107,53,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,107,53,0.08)'; }}
+                    onBlur={e => { e.target.style.borderColor = otpError ? '#f87171' : 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                ))}
+              </div>
+
+              {otpError && (
+                <p style={{ color: '#f87171', fontSize: 12, fontWeight: 600, marginTop: 8, marginBottom: 16 }}>
+                  {otpError}
+                </p>
+              )}
+
+              <button type="button" onClick={handleVerifyOTP} disabled={loading || otp.join('').length !== 6} style={{
+                width: '100%', padding: 14, fontSize: 15, fontWeight: 800,
+                background: loading || otp.join('').length !== 6 ? 'rgba(255,107,53,0.3)' : 'linear-gradient(135deg,#ff6b35,#e55a24)',
+                color: '#fff', border: 'none', borderRadius: 16, marginTop: 20,
+                cursor: loading || otp.join('').length !== 6 ? 'not-allowed' : 'pointer',
+                boxShadow: loading || otp.join('').length !== 6 ? 'none' : '0 8px 30px rgba(255,107,53,0.35)',
+                transition: 'all 0.2s',
+              }}>
+                {loading
+                  ? <><span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block', marginRight: 8 }} /> Verifying...</>
+                  : 'Verify & Create Account'
+                }
+              </button>
+
+              <button type="button" onClick={handleResendOTP} disabled={loading} style={{
+                background: 'none', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 16,
+                fontFamily: 'inherit', transition: 'color 0.2s',
+              }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ff6b35'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.3)'; }}>
+                Didn't receive the code? <span style={{ color: '#ff6b35', fontWeight: 700 }}>Resend</span>
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <div style={{
                 width: 80, height: 80,

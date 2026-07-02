@@ -17,6 +17,35 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-do-not-use-in-
 const otpRateLimiter = createRateLimiter(5, 15);
 
 /**
+ * PHASE 0: VERIFY OTP ONLY (no user creation - for frontend OTP step)
+ */
+router.post('/verify-otp',
+  body('email').isEmail().normalizeEmail(),
+  body('otp').isLength({ min: 6, max: 6 }).isNumeric().withMessage('Valid 6-digit OTP is required'),
+  async (req: Request, res: Response): Promise<void> => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { email, otp } = req.body;
+
+    try {
+      const verifyResult = await OTPService.verifyOTP(email, otp);
+      if (!verifyResult.success) {
+        res.status(400).json({ success: false, error: verifyResult.message });
+        return;
+      }
+      res.status(200).json({ success: true, message: 'OTP verified successfully.' });
+    } catch (err: any) {
+      console.error('Verify OTP error:', err);
+      res.status(500).json({ error: 'Failed to verify OTP.' });
+    }
+  }
+);
+
+/**
  * PHASE 1: PRE-REGISTRATION (OTP SENDING)
  */
 router.post('/send-otp',

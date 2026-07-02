@@ -32,6 +32,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  sendOTP: (email: string) => Promise<void>;
+  verifyOTP: (email: string, otp: string) => Promise<boolean>;
+  createAccountAfterOTP: (data: RegisterData) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
@@ -166,6 +169,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
+  const sendOTP = async (email: string) => {
+    try {
+      await api.post('/auth/send-otp', { email: email.trim().toLowerCase() });
+    } catch (err) {
+      throw toHttpishError(err);
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
+    try {
+      const { data } = await api.post('/auth/verify-otp', {
+        email: email.trim().toLowerCase(),
+        otp: otp.trim(),
+      });
+      return data.success === true;
+    } catch (err: any) {
+      throw toHttpishError(err);
+    }
+  };
+
+  const createAccountAfterOTP = async (data: RegisterData) => {
+    try {
+      const email = data.email.trim();
+      await account.create(ID.unique(), email, data.password, data.name);
+      try {
+        await startSession(email, data.password);
+      } catch (sessionErr: any) {
+        console.warn('Session creation failed after account creation, user may need to login:', sessionErr.message);
+      }
+      const profile = await createProfile({
+        email,
+        name: data.name,
+        phone: data.phone,
+        businessName: data.businessName,
+        preferredLanguage: data.preferredLanguage,
+      });
+      setUser(profile);
+      persistLocalUser(profile);
+    } catch (err: any) {
+      if (err?.code === 409) {
+        const emailErr = new Error('This email is already registered. Please login instead.') as Error & {
+          response: { data: { message: string; error: string } };
+        };
+        emailErr.response = { data: { message: 'This email is already registered. Please login instead.', error: 'This email is already registered. Please login instead.' } };
+        throw emailErr;
+      }
+      throw toHttpishError(err);
+    }
+  };
+
   const startSession = async (email: string, password: string) => {
     try {
       await account.createEmailPasswordSession(email, password);
@@ -206,25 +259,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     try {
       const email = data.email.trim();
-      await account.create(ID.unique(), email, data.password, data.name);
-      await startSession(email, data.password);
-      const profile = await createProfile({
-        email,
-        name: data.name,
-        phone: data.phone,
-        businessName: data.businessName,
-        preferredLanguage: data.preferredLanguage,
-      });
-      setUser(profile);
-      persistLocalUser(profile);
-    } catch (err: any) {
-      if (err?.code === 409) {
-        const emailErr = new Error('This email is already registered. Please login instead.') as Error & {
-          response: { data: { message: string; error: string } };
-        };
-        emailErr.response = { data: { message: 'This email is already registered. Please login instead.', error: 'This email is already registered. Please login instead.' } };
-        throw emailErr;
-      }
+      await api.post('/auth/send-otp', { email });
+    } catch (err) {
       throw toHttpishError(err);
     }
   };
@@ -252,7 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, sendVerificationEmail, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, sendOTP, verifyOTP, createAccountAfterOTP, sendVerificationEmail, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
