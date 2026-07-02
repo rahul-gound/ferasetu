@@ -1,22 +1,10 @@
-import nodemailer from 'nodemailer';
-
-const hasSMTPConfig = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-
-const transporter = hasSMTPConfig ? nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.maileroo.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-}) : null;
+import { sendEmailViaBrevo, verifyBrevoConnection } from './brevoService';
 
 const BRAND_COLOR = '#FF6B35';
 const BRAND_NAME = 'FeraSetu';
 
 function getFromAddress(): string {
-  return process.env.EMAIL_FROM || process.env.SMTP_USER || `"${BRAND_NAME}" <noreply@fera-search.tech>`;
+  return process.env.EMAIL_FROM || `"${BRAND_NAME}" <noreply@ferasetu.fera-search.tech>`;
 }
 
 const BASE_STYLE = `
@@ -52,26 +40,10 @@ const BUTTON_STYLE = `
 `;
 
 export async function verifyMailService(): Promise<boolean> {
-  if (!transporter) {
-    console.warn('⚠️ Mail service not configured (SMTP credentials missing). Skipping.');
-    return false;
-  }
-  try {
-    await transporter.verify();
-    console.log('✅ Mail service verified successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ SMTP Verification Failed:', error);
-    return false;
-  }
+  return await verifyBrevoConnection();
 }
 
 export async function sendOTPEmail(email: string, otp: string) {
-  if (!transporter) {
-    console.warn('⚠️ SMTP not configured. Skipping OTP email.');
-    return;
-  }
-
   const html = `
     <div style="${BASE_STYLE}">
       <div style="text-align: center; margin-bottom: 32px;">
@@ -95,20 +67,20 @@ export async function sendOTPEmail(email: string, otp: string) {
     </div>
   `;
 
-  await transporter.sendMail({
-    from: getFromAddress(),
-    to: email,
-    subject: `${otp} is your verification code for FeraSetu`,
-    html,
-  });
+  try {
+    await sendEmailViaBrevo(
+      email,
+      `${otp} is your verification code for FeraSetu`,
+      html,
+      getFromAddress()
+    );
+    console.log(`OTP email sent successfully to: ${email}`);
+  } catch (error: any) {
+    console.error(`Failed to send OTP email to ${email}:`, error.message);
+  }
 }
 
 export async function sendOnboardingEmail(email: string, name: string) {
-  if (!transporter) {
-    console.warn('⚠️ SMTP not configured. Skipping onboarding email.');
-    return;
-  }
-
   const firstName = name.split(' ')[0];
   
   const html = `
@@ -165,10 +137,15 @@ export async function sendOnboardingEmail(email: string, name: string) {
     </div>
   `;
 
-  await transporter.sendMail({
-    from: getFromAddress(),
-    to: email,
-    subject: `Welcome to FeraSetu, ${firstName}! Your store is ready to launch 🚀`,
-    html,
-  });
+  try {
+    await sendEmailViaBrevo(
+      email,
+      `Welcome to FeraSetu, ${firstName}! Your store is ready to launch 🚀`,
+      html,
+      getFromAddress()
+    );
+    console.log(`Onboarding email sent successfully to: ${email}`);
+  } catch (error: any) {
+    console.error(`Failed to send onboarding email to ${email}:`, error.message);
+  }
 }
