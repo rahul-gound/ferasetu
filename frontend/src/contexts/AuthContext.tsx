@@ -206,13 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     try {
       const email = data.email.trim();
-      try {
-        await account.create(ID.unique(), email, data.password, data.name);
-      } catch (err: any) {
-        // If account already exists, just try to log in instead of failing.
-        if (err?.code !== 409) throw err;
-      }
-      
+      await account.create(ID.unique(), email, data.password, data.name);
       await startSession(email, data.password);
       const profile = await createProfile({
         email,
@@ -223,7 +217,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setUser(profile);
       persistLocalUser(profile);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === 409) {
+        const emailErr = new Error('This email is already registered. Please login instead.') as Error & {
+          response: { data: { message: string; error: string } };
+        };
+        emailErr.response = { data: { message: 'This email is already registered. Please login instead.', error: 'This email is already registered. Please login instead.' } };
+        throw emailErr;
+      }
       throw toHttpishError(err);
     }
   };
