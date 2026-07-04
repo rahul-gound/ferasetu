@@ -1,0 +1,395 @@
+:root {
+  /* === Color System === */
+  --background: #FAFAFA;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #0052FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #0052FF;
+  --accent-secondary: #4D7CFF;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FAFAFA;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #0052FF;
+  --chart-1: #0052FF;
+  --chart-2: #4D7CFF;
+  --chart-3: #0F172A;
+  --chart-4: #F1F5F9;
+  --chart-5: #64748B;
+
+  /* === Font System === */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Calistoga', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace;
+
+  /* === Border Radius === */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* === Shadows === */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --shadow-accent: 0 4px 14px rgba(0, 82, 255, 0.25);
+  --shadow-accent-lg: 0 8px 24px rgba(0, 82, 255, 0.35);
+
+  /* === Transitions === */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+  --transition-entrance: 700ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* === Spacing === */
+  --spacing: 0.25rem;
+  --container-width: 72rem;
+  --section-py: 7rem;
+  --section-py-lg: 11rem;
+}
+
+/* === Gradient Utilities === */
+.gradient-text {
+  background: linear-gradient(to right, var(--accent), var(--accent-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+}
+
+.gradient-border {
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  padding: 2px;
+  border-radius: var(--radius-xl);
+}
+
+.gradient-border > * {
+  background: var(--card);
+  border-radius: calc(var(--radius-xl) - 2px);
+}
+
+.gradient-underline {
+  position: absolute;
+  bottom: -0.25rem;
+  left: 0;
+  height: 0.75rem;
+  width: 100%;
+  border-radius: 0.125rem;
+  background: linear-gradient(to right, rgba(0, 82, 255, 0.15), rgba(77, 124, 255, 0.1));
+}
+
+/* === Section Label === */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.375rem 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 82, 255, 0.3);
+  background: rgba(0, 82, 255, 0.05);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  font-weight: 400;
+}
+
+.section-label .dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+
+.section-label .dot.pulsing {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* === Button Styles === */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  border: none;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-sans);
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.btn-primary:hover {
+  transform: translateY(-0.125rem);
+  box-shadow: var(--shadow-accent);
+  filter: brightness(1.08);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-sans);
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.btn-secondary:hover {
+  background: var(--muted);
+  border-color: rgba(0, 82, 255, 0.3);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  border: none;
+  border-radius: var(--radius-xl);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-sans);
+  text-decoration: none;
+}
+
+.btn-ghost:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* === Card Styles === */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-slow);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-xl);
+}
+
+.card-elevated {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition-slow);
+}
+
+.card-elevated:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-0.25rem);
+}
+
+/* === Input Styles === */
+.input {
+  width: 100%;
+  height: 3rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  outline: none;
+  transition: all var(--transition-base);
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: rgba(100, 116, 139, 0.5);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 82, 255, 0.15);
+}
+
+/* === Animations === */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up var(--transition-entrance) forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 5s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 60s linear infinite;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* === Dot Pattern Texture === */
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* === Typography === */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* === Section spacing === */
+.section {
+  padding: var(--section-py) 1rem;
+}
+
+.section-lg {
+  padding: var(--section-py-lg) 1rem;
+}
+
+.container {
+  max-width: var(--container-width);
+  margin: 0 auto;
+}
+
+/* === Focus styles === */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px var(--background);
+  border-radius: var(--radius-md);
+}
+
+/* === Reduced motion === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
