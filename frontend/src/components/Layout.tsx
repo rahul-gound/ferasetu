@@ -30,18 +30,19 @@ const NAV_ITEMS: NavItem[] = [
 
 const s = {
   aside: {
-    width: 232, flexShrink: 0, background: '#0b0f1e',
+    width: 232, flexShrink: 0, background: 'var(--text)',
     borderRight: '1px solid rgba(255,255,255,0.05)',
     display: 'flex', flexDirection: 'column', overflowY: 'auto',
   },
   header: {
-    height: 58, background: 'rgba(11,15,30,0.85)', borderBottom: '1px solid rgba(255,255,255,0.05)',
+    height: 58, background: 'var(--surface)', borderBottom: '1px solid var(--border)',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '0 20px', flexShrink: 0, position: 'sticky' as const, top: 0, zIndex: 20,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   },
   iconBtn: {
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 10, cursor: 'pointer', color: 'rgba(255,255,255,0.6)',
+    background: 'var(--surface2)', border: '1px solid var(--border)',
+    borderRadius: 10, cursor: 'pointer', color: 'var(--text-muted)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   navLink: {
@@ -51,9 +52,9 @@ const s = {
   },
   langBtn: {
     display: 'flex', alignItems: 'center', gap: 6,
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+    background: 'var(--surface2)', border: '1px solid var(--border)',
     borderRadius: 10, padding: '6px 12px', cursor: 'pointer',
-    fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 500, transition: 'all 0.2s',
+    fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, transition: 'all 0.2s',
   },
   langItem: {
     display: 'flex', justifyContent: 'space-between',
@@ -80,15 +81,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 14, flexShrink: 0,
-            background: 'linear-gradient(135deg, #ff6b35 0%, #e55a24 100%)',
+            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 6px 20px rgba(255,107,53,0.35)',
+            boxShadow: '0 6px 20px rgba(0,82,255,0.35)',
           }}>
             <span style={{ color: '#fff', fontWeight: 900, fontSize: 18, fontStyle: 'italic' }}>F</span>
           </div>
           <div>
             <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: '-0.03em', lineHeight: 1, color: '#fff' }}>
-              Fera<span style={{ color: '#ff6b35' }}>Setu</span>
+              Fera<span style={{ color: 'var(--primary)' }}>Setu</span>
             </div>
             <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 3 }}>
               Your shop's digital bridge
@@ -103,9 +104,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             className="nav-item"
             style={({ isActive }) => ({
               fontWeight: isActive ? 700 : 500, fontSize: 14,
-              color: isActive ? '#ff6b35' : 'rgba(255,255,255,0.45)',
-              background: isActive ? 'rgba(255,107,53,0.1)' : 'transparent',
-              border: isActive ? '1px solid rgba(255,107,53,0.15)' : '1px solid transparent',
+              color: isActive ? 'var(--primary)' : 'rgba(255,255,255,0.45)',
+              background: isActive ? 'rgba(0,82,255,0.1)' : 'transparent',
+              border: isActive ? '1px solid rgba(0,82,255,0.15)' : '1px solid transparent',
               ...s.navLink,
             })}
           >
@@ -119,10 +120,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 12, flexShrink: 0,
-            background: 'linear-gradient(135deg,rgba(255,107,53,0.2),rgba(99,102,241,0.2))',
+            background: 'linear-gradient(135deg,rgba(0,82,255,0.2),rgba(77,124,255,0.2))',
             border: '1px solid rgba(255,255,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 800, color: '#ff9a6c',
+            fontSize: 14, fontWeight: 800, color: 'var(--primary)',
           }}>
             {(user?.name || 'U').charAt(0).toUpperCase()}
           </div>
@@ -154,7 +155,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#090c1a', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
 
       <aside style={s.aside} className="desktop-sidebar">
         {sidebarContent}
@@ -169,7 +170,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <aside className="mobile-sidebar" style={{
         position: 'fixed', top: 0, left: sidebarOpen ? 0 : '-260px',
-        width: 232, height: '100vh', background: '#0b0f1e',
+        width: 232, height: '100vh', background: 'var(--text)',
         borderRight: '1px solid rgba(255,255,255,0.05)',
         zIndex: 50, transition: 'left 0.25s ease',
         display: 'none', flexDirection: 'column', overflowY: 'auto',
@@ -201,20 +202,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {langDropOpen && (
                 <div style={{
                   position: 'absolute', top: 40, right: 0,
-                  background: '#0f1422', border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.12)',
                   zIndex: 100, width: 200, maxHeight: 300, overflowY: 'auto',
                 }}>
                   {SUPPORTED_LANGUAGES.map(lang => (
                     <button key={lang.code} onClick={() => { setLanguage(lang.code); setLangDropOpen(false); }}
                       className="lang-item"
                       style={{
-                        background: lang.code === language ? 'rgba(255,107,53,0.12)' : 'none',
-                        color: lang.code === language ? '#ff6b35' : 'rgba(255,255,255,0.6)',
+                        background: lang.code === language ? 'rgba(0,82,255,0.08)' : 'none',
+                        color: lang.code === language ? 'var(--primary)' : 'var(--text-muted)',
                         ...s.langItem,
                       }}>
                       <span>{lang.name}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>{lang.nativeName}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{lang.nativeName}</span>
                     </button>
                   ))}
                 </div>
@@ -237,10 +238,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             <div style={{
               width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-              background: 'linear-gradient(135deg,rgba(255,107,53,0.3),rgba(99,102,241,0.3))',
+              background: 'linear-gradient(135deg,rgba(0,82,255,0.3),rgba(77,124,255,0.3))',
               border: '1px solid rgba(255,255,255,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 800, color: '#ff9a6c',
+              fontSize: 13, fontWeight: 800, color: 'var(--primary)',
             }}>
               {(user?.name || 'U').charAt(0).toUpperCase()}
             </div>
@@ -267,8 +268,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           .mobile-menu-btn { display: flex !important; }
         }
         .nav-item:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.75); }
-        .lang-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
-        .lang-item:hover { background: rgba(255,255,255,0.05); }
+        .lang-btn:hover { background: var(--bg); color: var(--text); }
+        .lang-item:hover { background: var(--bg); }
         .logout-btn:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.2); color: #f87171; }
       `}</style>
     </div>

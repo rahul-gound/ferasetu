@@ -22,59 +22,61 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#0f172a',
+    background: 'var(--bg)',
     padding: 16,
   },
   card: {
     width: '100%',
     maxWidth: 420,
-    background: '#1e293b',
-    borderRadius: 16,
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
     padding: 32,
-    border: '1px solid #334155',
+    border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow-md)',
   },
   h1: {
     fontSize: 22,
     fontWeight: 800,
-    color: '#f1f5f9',
+    color: 'var(--text)',
     marginBottom: 4,
   },
   p: {
     fontSize: 13,
-    color: '#64748b',
+    color: 'var(--text-muted)',
     marginBottom: 24,
     fontWeight: 500,
   },
   label: {
     display: 'block',
     fontSize: 12,
-    fontWeight: 700,
-    color: '#94a3b8',
+    fontWeight: 600,
+    color: 'var(--text-muted)',
     marginBottom: 6,
   },
   input: {
     width: '100%',
     padding: '10px 12px',
-    background: '#0f172a',
-    border: '1px solid #334155',
-    borderRadius: 10,
+    background: 'transparent',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
     fontSize: 14,
-    color: '#f1f5f9',
+    color: 'var(--text)',
     outline: 'none',
     boxSizing: 'border-box' as const,
+    transition: 'all 0.2s ease',
   },
   inputFocus: {
-    borderColor: '#ff6b35',
-    boxShadow: '0 0 0 2px rgba(255,107,53,0.15)',
+    borderColor: 'var(--primary)',
+    boxShadow: '0 0 0 2px rgba(0,82,255,0.15)',
   },
   select: {
     width: '100%',
     padding: '10px 12px',
-    background: '#0f172a',
-    border: '1px solid #334155',
-    borderRadius: 10,
+    background: 'transparent',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
     fontSize: 14,
-    color: '#f1f5f9',
+    color: 'var(--text)',
     outline: 'none',
     boxSizing: 'border-box' as const,
     appearance: 'none' as const,
@@ -83,17 +85,18 @@ const styles = {
     width: '100%',
     padding: '12px 16px',
     fontSize: 14,
-    fontWeight: 700,
-    background: '#ff6b35',
+    fontWeight: 500,
+    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
     color: '#fff',
     border: 'none',
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    transition: 'opacity 0.15s',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
   },
   btnDisabled: {
     opacity: 0.5,
@@ -103,16 +106,17 @@ const styles = {
     width: '100%',
     padding: '11px 16px',
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 500,
     background: 'transparent',
-    color: '#94a3b8',
-    border: '1px solid #334155',
-    borderRadius: 10,
+    color: 'var(--text-muted)',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    transition: 'all 0.2s ease',
   },
   divider: {
     display: 'flex',
@@ -123,17 +127,17 @@ const styles = {
   dividerLine: {
     flex: 1,
     height: 1,
-    background: '#334155',
+    background: 'var(--border)',
   },
   dividerText: {
     fontSize: 11,
-    color: '#475569',
-    fontWeight: 700,
+    color: 'var(--text-muted)',
+    fontWeight: 600,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
   },
   error: {
-    color: '#f87171',
+    color: '#EF4444',
     fontSize: 11,
     marginTop: 4,
     fontWeight: 600,
@@ -144,16 +148,16 @@ const styles = {
     textAlign: 'center' as const,
     fontSize: 20,
     fontWeight: 800,
-    background: '#0f172a',
-    border: '1px solid #334155',
-    borderRadius: 10,
-    color: '#f1f5f9',
+    background: 'transparent',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
+    color: 'var(--text)',
     outline: 'none',
-    fontFamily: 'monospace',
+    fontFamily: 'var(--font-mono)',
   },
   otpInputFocus: {
-    borderColor: '#ff6b35',
-    boxShadow: '0 0 0 2px rgba(255,107,53,0.15)',
+    borderColor: 'var(--primary)',
+    boxShadow: '0 0 0 2px rgba(0,82,255,0.15)',
   },
 };
 
@@ -240,7 +244,7 @@ export default function RegisterPage() {
     }
   };
 
-  const focusStyle = { ...styles.input, borderColor: '#ff6b35', boxShadow: '0 0 0 2px rgba(255,107,53,0.15)' };
+  const focusStyle = { ...styles.input, borderColor: 'var(--primary)', boxShadow: '0 0 0 2px rgba(0,82,255,0.15)' };
 
   return (
     <div style={styles.page}>
@@ -250,13 +254,13 @@ export default function RegisterPage() {
           <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, fontStyle: 'italic' }}>F</span>
             </div>
-            <span style={{ fontSize: 20, fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em' }}>
-              Fera<span style={{ color: '#ff6b35' }}>Setu</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.03em' }}>
+              Fera<span style={{ color: 'var(--primary)' }}>Setu</span>
             </span>
           </Link>
         </div>
@@ -276,7 +280,7 @@ export default function RegisterPage() {
                 {errors.name && <p style={styles.error}>{errors.name.message}</p>}
               </div>
               <div style={{ flex: 1 }}>
-                <label style={styles.label}>Business <span style={{ color: '#475569' }}>(opt)</span></label>
+                <label style={styles.label}>Business <span style={{ color: 'var(--text-muted)' }}>(opt)</span></label>
                 <input style={styles.input} placeholder="My Store"
                   {...register('businessName')}
                   onFocus={e => { e.target.style.borderColor = focusStyle.borderColor; e.target.style.boxShadow = focusStyle.boxShadow; }}
@@ -302,7 +306,7 @@ export default function RegisterPage() {
                   onBlur={e => { e.target.style.borderColor = styles.input.borderColor; e.target.style.boxShadow = 'none'; }} />
                 <button type="button" onClick={() => setShowPassword(v => !v)} style={{
                   position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex',
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex',
                 }} aria-label={showPassword ? 'Hide password' : 'Show password'}>
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -311,7 +315,7 @@ export default function RegisterPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={styles.label}>Phone <span style={{ color: '#475569' }}>(opt)</span></label>
+              <label style={styles.label}>Phone <span style={{ color: 'var(--text-muted)' }}>(opt)</span></label>
               <input type="tel" style={styles.input} placeholder="+91 98765 43210"
                 {...register('phone', { pattern: { value: /^[+]?[\d\s-]{7,15}$/, message: 'Invalid phone number' } })}
                 onFocus={e => { e.target.style.borderColor = focusStyle.borderColor; e.target.style.boxShadow = focusStyle.boxShadow; }}
@@ -340,18 +344,18 @@ export default function RegisterPage() {
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <input type="checkbox" id="agreedToTerms" style={{ marginTop: 3, accentColor: '#ff6b35', width: 14, height: 14 }}
+                <input type="checkbox" id="agreedToTerms" style={{ marginTop: 3, accentColor: 'var(--primary)', width: 14, height: 14 }}
                   {...register('agreedToTerms', { required: 'You must agree to the terms' })} />
                 <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
                   <label htmlFor="agreedToTerms" style={{ cursor: 'pointer' }}>
                     I agree to the{' '}
                   </label>
                   <button type="button" onClick={() => setLegalModal({ open: true, type: 'terms' })}
-                    style={{ background: 'none', border: 'none', color: '#ff6b35', fontWeight: 600, padding: 0, cursor: 'pointer', textDecoration: 'underline', fontSize: 12, fontFamily: 'inherit' }}>
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, padding: 0, cursor: 'pointer', textDecoration: 'underline', fontSize: 12, fontFamily: 'inherit' }}>
                     Terms
                   </button>{' '}and{' '}
                   <button type="button" onClick={() => setLegalModal({ open: true, type: 'privacy' })}
-                    style={{ background: 'none', border: 'none', color: '#ff6b35', fontWeight: 600, padding: 0, cursor: 'pointer', textDecoration: 'underline', fontSize: 12, fontFamily: 'inherit' }}>
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, padding: 0, cursor: 'pointer', textDecoration: 'underline', fontSize: 12, fontFamily: 'inherit' }}>
                     Privacy Policy
                   </button>
                 </div>
@@ -381,7 +385,7 @@ export default function RegisterPage() {
 
             <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#64748b' }}>
               Already have an account?{' '}
-              <Link to="/login" style={{ color: '#ff6b35', fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
+              <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
             </p>
           </form>
         )}
@@ -389,16 +393,16 @@ export default function RegisterPage() {
         {step === 1 && (
           <div style={{ textAlign: 'center' }}>
             <button onClick={() => { setStep(0); setOtp(['', '', '', '', '', '']); setOtpError(''); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: 0, marginBottom: 20, fontFamily: 'inherit' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: 0, marginBottom: 20, fontFamily: 'inherit' }}>
               <ArrowLeft size={14} /> Back
             </button>
 
             <div style={{
               width: 48, height: 48, borderRadius: 12,
-              background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)',
+              background: 'rgba(0,82,255,0.1)', border: '1px solid rgba(0,82,255,0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
             }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
@@ -406,7 +410,7 @@ export default function RegisterPage() {
 
             <h1 style={styles.h1}>Verify your email</h1>
             <p style={{ ...styles.p, marginBottom: 8 }}>Enter the 6-digit code sent to</p>
-            <p style={{ color: '#ff6b35', fontSize: 14, fontWeight: 700, marginBottom: 24 }}>{formData?.email}</p>
+            <p style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 700, marginBottom: 24 }}>{formData?.email}</p>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 8 }}>
               {otp.map((digit, i) => (
@@ -414,9 +418,9 @@ export default function RegisterPage() {
                   aria-label={`OTP digit ${i + 1}`}
                   value={digit} onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => handleOtpKeyDown(i, e)}
                   onPaste={i === 0 ? handleOtpPaste : undefined}
-                  style={{ ...styles.otpInput, borderColor: otpError ? '#f87171' : '#334155' }}
+                  style={{ ...styles.otpInput, borderColor: otpError ? '#EF4444' : 'var(--border)' }}
                   onFocus={e => { e.target.style.borderColor = styles.otpInputFocus.borderColor; e.target.style.boxShadow = styles.otpInputFocus.boxShadow; }}
-                  onBlur={e => { e.target.style.borderColor = otpError ? '#f87171' : '#334155'; e.target.style.boxShadow = 'none'; }} />
+                  onBlur={e => { e.target.style.borderColor = otpError ? '#EF4444' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
               ))}
             </div>
 
@@ -441,7 +445,7 @@ export default function RegisterPage() {
               }
             }}
               disabled={resending} style={{ background: 'none', border: 'none', cursor: resending ? 'not-allowed' : 'pointer', color: '#64748b', fontSize: 13, marginTop: 16, fontFamily: 'inherit' }}>
-              Didn't get it? <span style={{ color: '#ff6b35', fontWeight: 700 }}>Resend</span>
+              Didn't get it? <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Resend</span>
             </button>
           </div>
         )}

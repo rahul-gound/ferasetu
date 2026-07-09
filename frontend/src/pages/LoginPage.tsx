@@ -16,70 +16,74 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#0f172a',
+    background: 'var(--bg)',
     padding: 16,
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    background: '#1e293b',
-    borderRadius: 16,
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
     padding: 32,
-    border: '1px solid #334155',
+    border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow-md)',
   },
   label: {
     display: 'block',
     fontSize: 12,
-    fontWeight: 700,
-    color: '#94a3b8',
+    fontWeight: 600,
+    color: 'var(--text-muted)',
     marginBottom: 6,
   },
   input: {
     width: '100%',
     padding: '10px 12px',
-    background: '#0f172a',
-    border: '1px solid #334155',
-    borderRadius: 10,
+    background: 'transparent',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
     fontSize: 14,
-    color: '#f1f5f9',
+    color: 'var(--text)',
     outline: 'none',
     boxSizing: 'border-box' as const,
+    transition: 'all 0.2s ease',
   },
   inputFocus: {
-    borderColor: '#ff6b35',
-    boxShadow: '0 0 0 2px rgba(255,107,53,0.15)',
+    borderColor: 'var(--primary)',
+    boxShadow: '0 0 0 2px rgba(0,82,255,0.15)',
   },
   btnPrimary: {
     width: '100%',
     padding: '12px 16px',
     fontSize: 14,
-    fontWeight: 700,
-    background: '#ff6b35',
+    fontWeight: 500,
+    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
     color: '#fff',
     border: 'none',
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    transition: 'opacity 0.15s',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
   },
   btnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
   btnSecondary: {
     width: '100%',
     padding: '11px 16px',
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 500,
     background: 'transparent',
-    color: '#94a3b8',
-    border: '1px solid #334155',
-    borderRadius: 10,
+    color: 'var(--text-muted)',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    transition: 'all 0.2s ease',
   },
   divider: {
     display: 'flex',
@@ -87,15 +91,15 @@ const styles = {
     gap: 12,
     margin: '20px 0',
   },
-  dividerLine: { flex: 1, height: 1, background: '#334155' },
+  dividerLine: { flex: 1, height: 1, background: 'var(--border)' },
   dividerText: {
     fontSize: 11,
-    color: '#475569',
-    fontWeight: 700,
+    color: 'var(--text-muted)',
+    fontWeight: 600,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
   },
-  error: { color: '#f87171', fontSize: 11, marginTop: 4, fontWeight: 600 },
+  error: { color: '#EF4444', fontSize: 11, marginTop: 4, fontWeight: 600 },
 };
 
 export default function LoginPage() {
@@ -124,11 +128,11 @@ export default function LoginPage() {
   };
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#ff6b35';
-    e.target.style.boxShadow = '0 0 0 2px rgba(255,107,53,0.15)';
+    e.target.style.borderColor = 'var(--primary)';
+    e.target.style.boxShadow = '0 0 0 2px rgba(0,82,255,0.15)';
   };
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#334155';
+    e.target.style.borderColor = '';
     e.target.style.boxShadow = 'none';
   };
 
@@ -140,19 +144,19 @@ export default function LoginPage() {
           <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
+              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, fontStyle: 'italic' }}>F</span>
             </div>
-            <span style={{ fontSize: 20, fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em' }}>
-              Fera<span style={{ color: '#ff6b35' }}>Setu</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.03em' }}>
+              Fera<span style={{ color: 'var(--primary)' }}>Setu</span>
             </span>
           </Link>
         </div>
 
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#f1f5f9', marginBottom: 4 }}>Welcome back</h1>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24, fontWeight: 500 }}>Sign in to your store dashboard</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Welcome back</h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, fontWeight: 500 }}>Sign in to your store dashboard</p>
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div style={{ marginBottom: 16 }}>
@@ -198,9 +202,9 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#64748b' }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-muted)' }}>
           Don't have an account?{' '}
-          <Link to="/register" style={{ color: '#ff6b35', fontWeight: 700, textDecoration: 'none' }}>Create one free</Link>
+          <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Create one free</Link>
         </p>
       </div>
     </div>
