@@ -8,6 +8,48 @@
       "headers": {
         "x-api-key": "21st_sk_0b5c0853b768b794cdebd5fe0fd7a517fb2dbafdf9f6b0d7d7d6148cf2d43e36"
       }
+    },
+    "cloudflare": {
+      "type": "remote",
+      "url": "https://mcp.cloudflare.com/mcp",
+      "enabled": true,
+      "oauth": {}
+    },
+    "cloudflare-docs": {
+      "type": "remote",
+      "url": "https://docs.mcp.cloudflare.com/mcp",
+      "enabled": true
+    },
+    "cloudflare-bindings": {
+      "type": "remote",
+      "url": "https://bindings.mcp.cloudflare.com/mcp",
+      "enabled": true,
+      "oauth": {}
+    },
+    "cloudflare-builds": {
+      "type": "remote",
+      "url": "https://builds.mcp.cloudflare.com/mcp",
+      "enabled": true,
+      "oauth": {}
+    },
+    "cloudflare-observability": {
+      "type": "remote",
+      "url": "https://observability.mcp.cloudflare.com/mcp",
+      "enabled": true,
+      "oauth": {}
+    },
+    "appwrite": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "mcp-server-appwrite"
+      ],
+      "enabled": true,
+      "environment": {
+        "APPWRITE_PROJECT_ID": "https://sgp.cloud.appwrite.io/v1",
+        "APPWRITE_API_KEY": "standard_1722af4985c315e4fe5dd76757d9b0cbd986c6dc2aaad26d9c81aa9d3c6e3e3e165dc38079c38cfb04f1bf9db39480b204fed5cead882943f31bfc0703cfc2cff373de8a52c9bd0728842a439ae2c6ee6be7b277473fdb5d219573eb518ff943b5c2d6fe5d228c1903418830e1a63e41d34c169e2577dc00db502e39d466de4d",
+        "APPWRITE_ENDPOINT": "https://sgp.cloud.appwrite.io/v1"
+      }
     }
   }
 }
