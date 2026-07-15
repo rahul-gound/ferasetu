@@ -1,0 +1,242 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --background: #060818;
+  --foreground: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Aurora background */
+.aurora {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(255, 107, 53, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 30%, rgba(99, 102, 241, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 10% 70%, rgba(16, 185, 129, 0.10) 0%, transparent 55%),
+    #060818;
+}
+
+.aurora::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background:
+    conic-gradient(from 0deg at 30% 30%, rgba(255, 107, 53, 0.10), transparent 40%),
+    conic-gradient(from 180deg at 70% 60%, rgba(99, 102, 241, 0.10), transparent 40%);
+  filter: blur(60px);
+  animation: auroraSpin 24s linear infinite;
+  pointer-events: none;
+}
+
+/* 3D Grid floor */
+.grid-floor {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 200%;
+  height: 60%;
+  transform: translateX(-50%) perspective(420px) rotateX(70deg);
+  transform-origin: bottom center;
+  background-image:
+    linear-gradient(rgba(255, 107, 53, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 107, 53, 0.18) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to top, #000 0%, transparent 75%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 75%);
+  animation: gridMove 6s linear infinite;
+  pointer-events: none;
+}
+
+/* Glow text */
+.glow-text {
+  text-shadow: 0 0 60px rgba(255, 107, 53, 0.5);
+}
+
+/* Animated gradient text */
+.animated-gradient {
+  background: linear-gradient(270deg, #ff6b35, #e55a24, #ff9a6c, #ff6b35);
+  background-size: 300% 300%;
+  animation: gradientShift 4s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer button */
+.shimmer-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-btn::after {
+  content: '';
+  position: absolute;
+  inset: -120% auto auto -60%;
+  width: 60%;
+  height: 300%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transform: rotate(18deg);
+  animation: shimmerBtn 3.5s ease-in-out infinite;
+}
+
+/* Card 3D hover */
+.card-3d {
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.card-3d:hover {
+  transform: translateY(-10px) rotateX(6deg) rotateY(-3deg);
+  box-shadow: 0 36px 70px -16px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Pricing card hover */
+.pricing-3d {
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pricing-3d:hover {
+  transform: translateY(-12px) scale(1.02);
+}
+
+/* Stat badge */
+.stat-badge {
+  background: rgba(8, 10, 28, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
+/* Marquee */
+.marquee-mask {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  gap: 40px;
+  width: max-content;
+  animation: marquee 32s linear infinite;
+}
+
+.marquee-mask:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Icon float */
+.icon-float {
+  animation: iconFloat 4.5s ease-in-out infinite;
+}
+
+/* Float animations */
+.float-a {
+  animation: floatA 8s ease-in-out infinite;
+}
+
+.float-b {
+  animation: floatB 10s ease-in-out infinite;
+}
+
+/* Hero entrance */
+.hero-visible {
+  animation: fadeSlideUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.hero-hidden {
+  opacity: 0;
+}
+
+/* Stagger delays */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.15s; }
+.stagger-3 { animation-delay: 0.28s; }
+.stagger-4 { animation-delay: 0.40s; }
+.stagger-5 { animation-delay: 0.55s; }
+
+/* Scroll progress bar */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  transform-origin: 0%;
+  background: linear-gradient(90deg, #ff6b35, #ff9a6c, #6366f1);
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.6);
+}
+
+/* Scanline */
+.scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8%;
+  background: linear-gradient(0deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: scanline 3s linear infinite;
+}
+
+/* Orb */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before, .grid-floor, .float-a, .float-b, .shimmer-btn::after, .icon-float {
+    animation: none !important;
+  }
+  .marquee-track {
+    animation: none !important;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100% !important;
+  }
+  .hero-hidden {
+    opacity: 1 !important;
+  }
+  .card-3d:hover {
+    transform: translateY(-4px);
+  }
+}

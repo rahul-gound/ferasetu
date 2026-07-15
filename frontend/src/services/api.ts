@@ -512,6 +512,19 @@ async function localGet(url: string) {
     return Promise.resolve(createResponse({ submissions }));
   }
 
+  if (path === '/auth/public/platform-stats') {
+    return Promise.resolve(createResponse({
+      totalUsers: db.users.length,
+      totalOrders: db.orders.length,
+      totalProducts: db.products.length,
+      totalRevenue: db.orders.reduce((sum, o) => sum + (o.total || 0), 0),
+      activeUsers: db.users.length,
+      citiesCount: 0,
+      languagesCount: 22,
+      uptime: '99.9'
+    }));
+  }
+
   if (path === '/survey/submissions/export') {
     const userId = requireAuth();
     const submissions = db.survey_submissions

@@ -57,10 +57,10 @@
 }
 
 body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-family);
-    line-height: 1.6;
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+    font-family: var(--font-family) !important;
+    line-height: 1.6 !important;
     min-height: 100vh;
 }
 
@@ -127,12 +127,12 @@ html.dark {
    Card Components
    ======================================== */
 .card {
-    background-color: var(--card);
-    color: var(--card-foreground);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: calc(var(--radius) + 4px);
-    padding: var(--spacing-xl);
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    background-color: var(--card) !important;
+    color: var(--card-foreground) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: calc(var(--radius) + 4px) !important;
+    padding: var(--spacing-xl) !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
     transition: all 0.2s ease;
 }
 
@@ -144,21 +144,21 @@ html.dark {
    Button Components
    ======================================== */
 .btn {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-sm);
     white-space: nowrap;
-    border-radius: var(--radius);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
+    border-radius: var(--radius) !important;
+    font-size: var(--font-size-sm) !important;
+    font-weight: 500 !important;
     transition: all 0.2s;
-    border: none;
-    cursor: pointer;
-    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none !important;
+    cursor: pointer !important;
+    padding: var(--spacing-sm) var(--spacing-lg) !important;
     min-height: 2.25rem;
     outline: none;
-    text-decoration: none;
+    text-decoration: none !important;
 }
 
 .btn:disabled {
@@ -167,59 +167,59 @@ html.dark {
 }
 
 .btn-primary {
-    background-color: var(--primary);
-    color: var(--primary-foreground);
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
 }
 
 .btn-primary:hover {
-    background-color: rgba(236, 236, 236, 0.9);
+    background-color: rgba(236, 236, 236, 0.9) !important;
 }
 
 .btn-outline {
-    background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--foreground);
+    background-color: transparent !important;
+    border: 1px solid var(--border) !important;
+    color: var(--foreground) !important;
 }
 
 .btn-outline:hover {
-    background-color: var(--accent);
+    background-color: var(--accent) !important;
 }
 
 .btn-ghost {
-    background-color: transparent;
-    color: var(--foreground);
+    background-color: transparent !important;
+    color: var(--foreground) !important;
 }
 
 .btn-ghost:hover {
-    background-color: var(--accent);
+    background-color: var(--accent) !important;
 }
 
 .btn-destructive {
-    background-color: var(--destructive);
-    color: white;
+    background-color: var(--destructive) !important;
+    color: white !important;
 }
 
 .btn-destructive:hover {
-    background-color: rgba(220, 38, 38, 0.9);
+    background-color: rgba(220, 38, 38, 0.9) !important;
 }
 
 /* Button Sizes */
 .btn-sm {
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-md) !important;
+    font-size: var(--font-size-xs) !important;
     min-height: 2rem;
 }
 
 .btn-lg {
-    padding: var(--spacing-md) var(--spacing-xl);
-    font-size: var(--font-size-base);
+    padding: var(--spacing-md) var(--spacing-xl) !important;
+    font-size: var(--font-size-base) !important;
     min-height: 2.75rem;
 }
 
 .btn-icon {
-    padding: var(--spacing-sm);
-    width: 2.25rem;
-    height: 2.25rem;
+    padding: var(--spacing-sm) !important;
+    width: 2.25rem !important;
+    height: 2.25rem !important;
 }
 
 /* ========================================
@@ -227,12 +227,12 @@ html.dark {
    ======================================== */
 .form-input {
     width: 100%;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: var(--spacing-sm) var(--spacing-md);
-    color: var(--foreground);
-    font-size: var(--font-size-sm);
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    color: var(--foreground) !important;
+    font-size: var(--font-size-sm) !important;
     outline: none;
     transition: all 0.2s;
 }
@@ -290,21 +290,21 @@ html.dark {
 }
 
 .tab-button {
-    background-color: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--foreground);
-    text-transform: capitalize;
-    font-weight: 500;
+    background-color: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: var(--foreground) !important;
+    text-transform: capitalize !important;
+    font-weight: 500 !important;
     transition: all 0.2s ease;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    border-radius: var(--radius) !important;
+    cursor: pointer !important;
+    font-size: var(--font-size-sm) !important;
 }
 
 .tab-button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
 .tab-button.active {
@@ -322,19 +322,19 @@ html.dark {
 /* ========================================
    Typography
    ======================================== */
-.text-xs { font-size: var(--font-size-xs); }
-.text-sm { font-size: var(--font-size-sm); }
-.text-base { font-size: var(--font-size-base); }
-.text-lg { font-size: var(--font-size-lg); }
-.text-xl { font-size: var(--font-size-xl); }
-.text-2xl { font-size: var(--font-size-2xl); }
-.text-3xl { font-size: var(--font-size-3xl); }
-.text-4xl { font-size: var(--font-size-4xl); }
+.text-xs { font-size: var(--font-size-xs) !important; }
+.text-sm { font-size: var(--font-size-sm) !important; }
+.text-base { font-size: var(--font-size-base) !important; }
+.text-lg { font-size: var(--font-size-lg) !important; }
+.text-xl { font-size: var(--font-size-xl) !important; }
+.text-2xl { font-size: var(--font-size-2xl) !important; }
+.text-3xl { font-size: var(--font-size-3xl) !important; }
+.text-4xl { font-size: var(--font-size-4xl) !important; }
 
-.font-normal { font-weight: 400; }
-.font-medium { font-weight: 500; }
-.font-semibold { font-weight: 600; }
-.font-bold { font-weight: 700; }
+.font-normal { font-weight: 400 !important; }
+.font-medium { font-weight: 500 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
 
 .text-primary { color: var(--primary); }
 .text-muted { color: var(--muted-foreground); }
