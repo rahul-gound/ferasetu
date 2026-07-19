@@ -1,15 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
-import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package, ArrowRight, Zap } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package, ArrowRight, Zap, Check, Gift, Flame } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  if (h < 21) return 'Good evening';
+  return 'Good night';
+}
+
+const STREAK_KEY = 'fera_dashboard_streak_v1';
+function getStreakInfo(): { count: number; lastDay: string } {
+  try {
+    const raw = localStorage.getItem(STREAK_KEY);
+    if (!raw) return { count: 0, lastDay: '' };
+    const parsed = JSON.parse(raw) as { count: number; lastDay: string };
+    return parsed;
+  } catch { return { count: 0, lastDay: '' }; }
+}
+function bumpStreak(): { count: number; isNew: boolean } {
+  const today = new Date().toISOString().slice(0, 10);
+  const info = getStreakInfo();
+  if (info.lastDay === today) {
+    return { count: info.count, isNew: false };
+  }
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const newCount = info.lastDay === yesterday ? info.count + 1 : 1;
+  const updated = { count: newCount, lastDay: today };
+  localStorage.setItem(STREAK_KEY, JSON.stringify(updated));
+  return { count: newCount, isNew: true };
+}
 
 interface DashboardData {
   stats: {
@@ -132,6 +163,8 @@ export default function DashboardPage() {
   const { user, sendVerificationEmail } = useAuth();
   const { translate } = useLanguage();
   const [showRating, setShowRating] = useState(false);
+  const streakInfo = useMemo(() => bumpStreak(), []);
+  const greeting = useMemo(() => getGreeting(), []);
 
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -142,12 +175,46 @@ export default function DashboardPage() {
     retry: 1,
   });
 
+  // Platform-wide social proof (used in on-dashboard social-proof strip).
+  const { data: platformStats } = useQuery<{ totalUsers: number; totalOrders: number; totalRevenue: number }>({
+    queryKey: ['platform-stats'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/auth/public/platform-stats');
+        return res.data;
+      } catch {
+        return { totalUsers: 0, totalOrders: 0, totalRevenue: 0 };
+      }
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: 0,
+  });
+
   useEffect(() => {
     if (error) toast.error('Failed to load dashboard data');
   }, [error]);
 
   const stats = data?.stats;
   const isNewUser = !data || data?.stats?.total_orders === 0;
+
+  // Setup progress: endowed-progress checklist (goal-gradient psychology)
+  const setupSteps = useMemo(() => {
+    const done = new Set<string>();
+    done.add('register'); // signed up = first step done (endowed progress)
+    if ((stats?.total_orders ?? 0) >= 1) done.add('first_order');
+    const flags = JSON.parse(localStorage.getItem('fera_setup_flags') || '{}');
+    if (flags.first_product) done.add('first_product');
+    if (flags.website_published) done.add('website_published');
+    if (flags.payment_setup) done.add('payment_setup');
+    const steps = [
+      { id: 'register', label: 'Create your FeraSetu account', done: done.has('register'), link: null as string | null },
+      { id: 'first_product', label: 'Add your first product', done: done.has('first_product'), link: '/products' },
+      { id: 'website_published', label: 'Publish your shop link', done: done.has('website_published'), link: '/website-builder' },
+      { id: 'first_order', label: 'Receive your first order', done: done.has('first_order'), link: '/orders' },
+      { id: 'payment_setup', label: 'Set up payments', done: done.has('payment_setup'), link: '/upgrade' },
+    ];
+    return { steps, completed: steps.filter(s => s.done).length, total: steps.length };
+  }, [stats]);
 
   // NPS/Rating logic: After first order, show rating popup
   useEffect(() => {
@@ -213,7 +280,23 @@ export default function DashboardPage() {
         }
       `}</style>
 
-      {/* Beta Promotion Banner */}
+      {/* Social proof strip — community belonging for logged-in users */}
+      {platformStats && platformStats.totalUsers > 0 && (
+        <div style={{
+          marginBottom: 20, padding: '12px 18px', borderRadius: 14,
+          background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)',
+          display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
+          fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.75)',
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#10b981' }}>
+            <Check size={14} strokeWidth={3} aria-hidden="true" /> You're one of {platformStats.totalUsers.toLocaleString('en-IN')}+ shopkeepers on FeraSetu
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+          <span>Together we've processed <strong style={{ color: '#fff' }}>{platformStats.totalOrders.toLocaleString('en-IN')}+</strong> orders worth <strong style={{ color: '#fff' }}>₹{platformStats.totalRevenue.toLocaleString('en-IN')}+</strong></span>
+        </div>
+      )}
+
+      {/* Beta Promotion Banner — loss aversion + charm pricing */}
       {!isLoading && (
         <div style={{
           marginBottom: 20,
@@ -221,11 +304,11 @@ export default function DashboardPage() {
           borderRadius: 16,
           background: 'rgba(99,102,241,0.08)',
           border: '1px solid rgba(99,102,241,0.2)',
-          display: 'flex', alignItems: 'center', gap: 12
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap'
         }}>
           <Zap size={18} style={{ color: '#6366f1' }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-            Beta: ₹299 plan is <span style={{ color: '#6366f1' }}>FREE</span> — please leave feedback!
+            Beta: ₹299 Starter plan is <span style={{ color: '#6366f1' }}>FREE</span> for now — it becomes ₹299/mo after beta. Lock in yours today and keep the free tier forever.
           </span>
         </div>
       )}
@@ -273,7 +356,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Welcome Banner for new users */}
+      {/* Welcome Banner for new users — setup checklist with endowed progress */}
       {isNewUser && !isLoading && (
         <div style={{
           marginBottom: 28,
@@ -281,30 +364,71 @@ export default function DashboardPage() {
           borderRadius: 24,
           background: 'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.15) 100%)',
           border: '1px solid rgba(99,102,241,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+          display: 'flex', flexDirection: 'column', gap: 20,
           position: 'relative', overflow: 'hidden',
         }}>
           <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(99,102,241,0.2)', filter: 'blur(30px)' }} />
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#fff' }}>
-              🎉 Welcome to FeraSetu, {user?.name}!
-            </h3>
-            <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-              Let's get your online store set up in just a few minutes
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+            <div>
+              <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                🎉 Welcome to FeraSetu, {user?.name?.split(' ')[0]}!
+              </h3>
+              <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>
+                You're already {Math.round((setupSteps.completed / setupSteps.total) * 100)}% done. Finish setup in 2 minutes — your buyers are waiting.
+              </p>
+            </div>
+            <Link to="/get-started" style={{
+              padding: '10px 22px', borderRadius: 50,
+              background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              color: '#fff', textDecoration: 'none',
+              fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
+              boxShadow: '0 8px 24px rgba(99,102,241,0.35)',
+              transition: 'transform 0.2s', flexShrink: 0,
+            }}
+              onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
+              onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
+              Get Started →
+            </Link>
           </div>
-          <Link to="/get-started" style={{
-            padding: '10px 22px', borderRadius: 50,
-            background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-            color: '#fff', textDecoration: 'none',
-            fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
-            boxShadow: '0 8px 24px rgba(99,102,241,0.35)',
-            transition: 'transform 0.2s', flexShrink: 0, position: 'relative', zIndex: 1,
-          }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-            Get Started →
-          </Link>
+
+          {/* Progress bar — goal-gradient psychology */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>
+              <span>Store Setup</span>
+              <span>{setupSteps.completed} of {setupSteps.total} done</span>
+            </div>
+            <div style={{ width: '100%', height: 8, borderRadius: 50, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ width: `${(setupSteps.completed / setupSteps.total) * 100}%`, height: '100%', borderRadius: 50, background: 'linear-gradient(90deg,#10b981,#34d399)', transition: 'width 0.6s ease' }} />
+            </div>
+          </div>
+
+          {/* Checklist */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8, position: 'relative', zIndex: 1 }}>
+            {setupSteps.steps.map(step => {
+              const inner = (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12,
+                  background: step.done ? 'rgba(16,185,129,0.10)' : 'rgba(255,255,255,0.03)',
+                  border: '1px solid ' + (step.done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.08)'),
+                  fontSize: 13, fontWeight: 600, color: step.done ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.65)',
+                  textDecoration: step.done ? 'none' : 'none', opacity: step.done ? 1 : 0.9,
+                }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: step.done ? '#10b981' : 'rgba(255,255,255,0.06)',
+                    color: step.done ? '#fff' : 'rgba(255,255,255,0.5)',
+                  }}>
+                    {step.done ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : <span style={{ fontSize: 11, fontWeight: 800 }}>{setupSteps.steps.findIndex(s => s.id === step.id) + 1}</span>}
+                  </div>
+                  <span style={{ flex: 1 }}>{step.label}</span>
+                </div>
+              );
+              return step.link && !step.done
+                ? <Link key={step.id} to={step.link} style={{ textDecoration: 'none' }}>{inner}</Link>
+                : <div key={step.id}>{inner}</div>;
+            })}
+          </div>
         </div>
       )}
 
@@ -350,13 +474,25 @@ export default function DashboardPage() {
       )}
 
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', marginBottom: 6 }}>
-          Overview
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: 500 }}>
-          Real-time performance metrics for <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{user?.business_name || 'your store'}</span>.
-        </p>
+      <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', marginBottom: 6 }}>
+            {greeting}, {user?.name?.split(' ')[0] || 'shopkeeper'} <span aria-hidden="true">👋</span>
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: 500, margin: 0 }}>
+            Real-time performance for <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{user?.business_name || 'your store'}</span>.
+          </p>
+        </div>
+        {streakInfo.count > 1 && (
+          <div title="Daily streak — open FeraSetu every day to keep it going" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '8px 14px', borderRadius: 50,
+            background: 'rgba(255,107,53,0.12)', color: '#FF6B35',
+            border: '1px solid rgba(255,107,53,0.25)', fontWeight: 800, fontSize: 13,
+          }}>
+            <Flame size={16} aria-hidden="true" /> {streakInfo.count}-day streak
+          </div>
+        )}
       </div>
 
       {/* Stats Grid */}
@@ -511,29 +647,38 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Upgrade notice */}
-          {(user?.plan === 'beta' || user?.plan === 'trial') && (
+          {/* Upgrade nudge — outcome-framed + loss aversion + milestone trigger (A/B-ready) */}
+          {(user?.plan === 'beta' || user?.plan === 'trial') && !isNewUser && (
             <div style={{
-              marginTop: 20, padding: '16px 18px', borderRadius: 18,
+              marginTop: 20, padding: '18px 18px 16px', borderRadius: 18,
               background: 'linear-gradient(135deg,rgba(255,107,53,0.12),rgba(99,102,241,0.08))',
-              border: '1px solid rgba(255,107,53,0.15)',
+              border: '1px solid rgba(255,107,53,0.2)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <Zap size={14} style={{ color: '#ff6b35' }} />
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Scale Your Business</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>
+                  {stats && stats.total_orders >= 3
+                    ? `🎉 You've processed ${stats.total_orders} orders! Your shop is growing.`
+                    : stats && stats.low_stock_count > 0
+                      ? `📦 ${stats.low_stock_count} product${stats.low_stock_count > 1 ? 's are' : ' is'} running low.`
+                      : 'Scale Your Business'}
+                </span>
               </div>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
-                Unlock AI predictions, Custom Domains & Unlimited Products
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
+                {stats && stats.total_revenue > 0
+                  ? <>You've earned <strong style={{ color: '#fff' }}>₹{stats.total_revenue.toLocaleString('en-IN')}</strong> — on Free (Beta) we keep these reports for 30 days. <strong style={{ color: '#FF6B35' }}>Upgrade to keep unlimited history</strong> and unlock sales forecasts that find your best profit-makers.</>
+                  : <>Unlock AI predictions, custom domains, and up to 5,000 products. Growth plan starts at <strong style={{ color: '#FF6B35' }}>₹699/mo</strong> (just ₹23/day).</>}
               </p>
               <Link to="/upgrade" style={{
-                display: 'block', textAlign: 'center',
-                padding: '9px', borderRadius: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '10px', borderRadius: 12,
                 background: 'linear-gradient(135deg,#ff6b35,#e55a24)',
                 color: '#fff', textDecoration: 'none',
-                fontSize: 13, fontWeight: 700,
+                fontSize: 13, fontWeight: 800,
                 boxShadow: '0 6px 20px rgba(255,107,53,0.3)',
               }}>
-                View Upgrade Plans →
+                <Gift size={14} aria-hidden="true" /> {stats && stats.total_orders >= 3 ? 'Keep Your Reports — View Plans' : 'View Upgrade Plans'}
+                <ArrowRight size={15} aria-hidden="true" />
               </Link>
             </div>
           )}

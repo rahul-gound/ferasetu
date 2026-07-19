@@ -302,6 +302,13 @@ export default function WebsiteBuilderPage() {
       const published = (res.data as { published: boolean }).published;
       setIsPublished(published);
       toast.success(published ? '🌐 Website published!' : '🔒 Website unpublished');
+      if (published) {
+        try {
+          const flags = JSON.parse(localStorage.getItem('fera_setup_flags') || '{}');
+          flags.website_published = true;
+          localStorage.setItem('fera_setup_flags', JSON.stringify(flags));
+        } catch { /* ignore */ }
+      }
     },
     onError: () => toast.error('Failed to update publish status'),
   });

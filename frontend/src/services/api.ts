@@ -12,7 +12,7 @@ interface LocalUser {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro';
+  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro' | 'beta';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -89,6 +89,7 @@ interface LocalDb {
 }
 
 const LOCAL_DB_KEY = 'fera_local_db_v1';
+const LOCAL_OTP_KEY = 'fera_local_otp_v1';
 const MAX_MESSAGE_PREVIEW_LENGTH = 120;
 const LOCAL_PAYMENT_PROVIDER_KEY = 'local_mock';
 const SURVEY_QUESTIONS = [
@@ -244,6 +245,18 @@ function buildRevenueChart(orders: LocalOrder[], days = 30): Array<{ date: strin
 async function localGet(url: string) {
   const { path, query } = splitUrl(url);
   const db = loadDb();
+
+  if (path === '/users/me') {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      return Promise.resolve(createResponse({ needs_init: true, user: { name: 'New User', email: '' } }));
+    }
+    const user = db.users.find(u => u.id === userId);
+    if (!user) {
+      return Promise.resolve(createResponse({ needs_init: true, user: { name: 'New User', email: '' } }));
+    }
+    return Promise.resolve(createResponse({ needs_init: false, user: userPublicData(user) }));
+  }
 
   if (path === '/products') {
     const userId = requireAuth();
@@ -545,6 +558,37 @@ async function localPost(url: string, payload: Record<string, any>) {
   const { path } = splitUrl(url);
   const db = loadDb();
 
+  if (path === '/auth/send-otp') {
+    const email = String(payload.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw createHttpError(400, 'A valid email is required');
+    }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const raw = localStorage.getItem(LOCAL_OTP_KEY) || '{}';
+    const map = (() => { try { return JSON.parse(raw); } catch { return {}; } })();
+    map[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
+    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(map));
+    console.info(`[local mock] OTP for ${email}: ${otp}`);
+    return Promise.resolve(createResponse({ success: true, message: 'OTP sent to your email. (local mock - check console)' }));
+  }
+
+  if (path === '/auth/verify-otp') {
+    const email = String(payload.email || '').trim().toLowerCase();
+    const otp = String(payload.otp || '').trim();
+    const raw = localStorage.getItem(LOCAL_OTP_KEY) || '{}';
+    const map = (() => { try { return JSON.parse(raw); } catch { return {}; } })();
+    const entry = map[email];
+    if (!entry || entry.otp !== otp) {
+      throw createHttpError(400, 'Invalid or expired OTP');
+    }
+    if (Date.now() > entry.expires) {
+      throw createHttpError(400, 'OTP has expired');
+    }
+    delete map[email];
+    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(map));
+    return Promise.resolve(createResponse({ success: true, message: 'OTP verified successfully.' }));
+  }
+
   if (path === '/auth/register') {
     const email = String(payload.email || '').trim().toLowerCase();
     const password = String(payload.password || '');
@@ -803,6 +847,50 @@ async function localPost(url: string, payload: Record<string, any>) {
 async function localPut(url: string, payload: Record<string, any>) {
   const { path } = splitUrl(url);
   const db = loadDb();
+
+  if (path === '/users/me') {
+    let userId = getCurrentUserId();
+    let user = userId ? db.users.find(u => u.id === userId) : undefined;
+
+    if (!user) {
+      const newId = createId();
+      const newUser: LocalUser = {
+        id: newId,
+        email: String(payload.email || 'user@example.com'),
+        name: String(payload.name || 'New User'),
+        phone: payload.phone ? String(payload.phone) : undefined,
+        business_name: payload.business_name ? String(payload.business_name) : undefined,
+        plan: 'beta',
+        preferred_language: String(payload.preferred_language || 'en'),
+        subdomain: payload.subdomain ? String(payload.subdomain) : generateSubdomain(payload.business_name || payload.name || 'my-store'),
+        custom_domain: undefined,
+        plan_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        ai_credits_balance: 20,
+        ai_credits_monthly_limit: 20,
+        ai_credits_used_month: 0,
+        ai_credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        storage_used_bytes: 0,
+        storage_limit_bytes: 50 * 1024 * 1024,
+        created_at: now(),
+      };
+      db.users.push(newUser);
+      saveDb(db);
+      const persisted = userPublicData(newUser);
+      localStorage.setItem('fera_user', JSON.stringify(persisted));
+      return Promise.resolve(createResponse({ user: persisted }));
+    }
+
+    Object.assign(user, {
+      business_name: payload.business_name ?? user.business_name,
+      preferred_language: payload.preferred_language ?? user.preferred_language,
+      phone: payload.phone ?? user.phone,
+      subdomain: payload.subdomain ?? user.subdomain,
+      name: payload.name ?? user.name,
+    });
+    saveDb(db);
+    return Promise.resolve(createResponse({ user: userPublicData(user) }));
+  }
+
   const userId = requireAuth();
 
   if (path === '/users/profile') {

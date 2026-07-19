@@ -96,18 +96,26 @@ export async function registerUser(data: {
 
 export async function loginUser(emailOrUsername: string, password: string): Promise<{ user: User; token: string }> {
   const db = getDatabase();
-  
+
   console.log(`🔐 Attempting login for: ${emailOrUsername}`);
-  
+
   // Search by email OR name OR subdomain
   const user = db.prepare(`
     SELECT * FROM users 
     WHERE email = ? OR name = ? OR subdomain = ?
-  `).get(emailOrUsername, emailOrUsername, emailOrUsername) as (User & { password_hash: string }) | undefined;
+  `).get(emailOrUsername, emailOrUsername, emailOrUsername) as (User & { password_hash?: string | null }) | undefined;
 
   if (!user) {
     console.warn(`❌ User not found: ${emailOrUsername}`);
     throw Object.assign(new Error('Invalid email/username or password'), { status: 401 });
+  }
+
+  if (!user.password_hash) {
+    console.warn(`❌ No password set for user (likely social login): ${user.email}`);
+    throw Object.assign(
+      new Error('This account was created with Google. Please use Google sign-in.'),
+      { status: 401 }
+    );
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -77,6 +77,19 @@ export default function ProductsPage() {
       return res.data.products || res.data;
     },
   });
+
+  // Mark setup-checklist flag when the user adds at least one product.
+  useEffect(() => {
+    if (products.length > 0) {
+      try {
+        const flags = JSON.parse(localStorage.getItem('fera_setup_flags') || '{}');
+        if (!flags.first_product) {
+          flags.first_product = true;
+          localStorage.setItem('fera_setup_flags', JSON.stringify(flags));
+        }
+      } catch { /* ignore */ }
+    }
+  }, [products.length]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/products/${id}`),

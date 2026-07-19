@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform, useReducedMotion, useSpring } from 'fr
 import {
   ShoppingBag, Zap, ShieldCheck, TrendingUp,
   ChevronRight, Star, ArrowRight, Smartphone,
-  Store, MessageCircle, BarChart3, Sparkles, IndianRupee,
+  Store, MessageCircle, BarChart3, Sparkles, IndianRupee, Building2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -181,11 +181,11 @@ export default function LandingPage() {
         className="fixed top-0 w-full z-50" style={{ background: 'rgba(6,8,24,0.7)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between" style={{ height: 72 }}>
           <div className="flex items-center gap-3">
-            <div style={{ width: 42, height: 42, borderRadius: 14, background: 'linear-gradient(135deg,#ff6b35,#e55a24)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(255,107,53,0.4)' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 14, background: 'linear-gradient(135deg,#0052FF,#4D7CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,82,255,0.4)' }}>
               <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, fontStyle: 'italic' }}>F</span>
             </div>
             <span className="font-display" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em' }}>
-              Fera<span style={{ color: '#ff6b35' }}>Setu</span>
+              Fera<span style={{ color: '#4D7CFF' }}>Setu</span>
             </span>
           </div>
           <div className="hidden md:flex items-center gap-8">
@@ -480,10 +480,17 @@ export default function LandingPage() {
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>Designed to feel safe for small shops and powerful at scale.</p>
         </motion.div>
-        <div className="grid lg:grid-cols-3 gap-6 items-stretch">
-          <PricingCard index={0} icon={<Smartphone size={22} />} name="Starter" price="199" desc="Launch your online catalog and accept local orders." features={['100 products', 'FeraSetu shop link', 'Basic AI help']} featured={false} />
-          <PricingCard index={1} icon={<TrendingUp size={22} />} name="Growth" price="499" desc="Custom domain, premium templates, and growth analytics." features={['1,000 products', 'Custom domain support', 'Advanced AI & analytics']} featured={true} />
-          <PricingCard index={2} icon={<BarChart3 size={22} />} name="Scale" price="999" desc="For serious retailers with more products and staff." features={['Unlimited products', 'Sales prediction', 'Onboarding help']} featured={false} />
+        <div className="grid lg:grid-cols-4 gap-6 items-stretch">
+          <PricingCard index={0} icon={<Smartphone size={22} />} name="Starter" price="299" desc="Launch your online catalog and accept local orders." features={['100 products', 'FeraSetu shop link', 'Basic AI help', 'Email support']} featured={false} badge="Free during Beta" />
+          <PricingCard index={1} icon={<TrendingUp size={22} />} name="Growth" price="699" desc="Custom domain, premium templates, and growth analytics." features={['1,000 products', 'Custom domain support', 'Advanced AI & analytics', 'Priority WhatsApp support']} featured={true} />
+          <PricingCard index={2} icon={<BarChart3 size={22} />} name="Scale" price="1,499" desc="For serious retailers with more products and staff." features={['5,000 products', 'Sales prediction & alerts', 'Up to 5 staff accounts', 'Dedicated onboarding']} featured={false} />
+          <PricingCard index={3} icon={<Building2 size={22} />} name="Enterprise" price="2,999+" desc="For chains and large operations with custom needs." features={['Unlimited products', 'Custom integrations', 'SLA & dedicated manager', 'Bulk import & API access']} featured={false} />
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 28 }}>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+            <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden="true" />
+            Annual billing saves ~2 months. Cancel anytime. Used by 5,200+ Indian shops.
+          </p>
         </div>
       </Section>
 
@@ -518,10 +525,10 @@ export default function LandingPage() {
         style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '40px 0' }}>
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#ff6b35,#e55a24)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(255,107,53,0.3)' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#0052FF,#4D7CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,82,255,0.3)' }}>
               <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, fontStyle: 'italic' }}>F</span>
             </div>
-            <span className="font-display" style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>Fera<span style={{ color: '#ff6b35' }}>Setu</span></span>
+            <span className="font-display" style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>Fera<span style={{ color: '#4D7CFF' }}>Setu</span></span>
           </div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.25)' }}>
             © {new Date().getFullYear()} FeraSetu. Your shop's digital bridge.
@@ -691,7 +698,7 @@ function Pill({ color, bg, border, icon, children }: { color: string; bg: string
   );
 }
 
-function PricingCard({ index = 0, icon, name, price, desc, features, featured }: { index?: number; icon: React.ReactNode; name: string; price: string; desc: string; features: string[]; featured: boolean }) {
+function PricingCard({ index = 0, icon, name, price, desc, features, featured, badge }: { index?: number; icon: React.ReactNode; name: string; price: string; desc: string; features: string[]; featured: boolean; badge?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
@@ -707,7 +714,10 @@ function PricingCard({ index = 0, icon, name, price, desc, features, featured }:
       position: 'relative', overflow: 'hidden', transform: featured ? 'scale(1.03)' : 'scale(1)',
     }}>
       {featured && (
-        <div className="font-display" style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', padding: '6px 20px', borderRadius: '0 0 16px 16px', background: 'linear-gradient(135deg,#ff6b35,#e55a24)', fontSize: 11, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', boxShadow: '0 4px 20px rgba(255,107,53,0.4)' }}>Best Value</div>
+        <div className="font-display" style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', padding: '6px 20px', borderRadius: '0 0 16px 16px', background: 'linear-gradient(135deg,#ff6b35,#e55a24)', fontSize: 11, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', boxShadow: '0 4px 20px rgba(255,107,53,0.4)' }}>Most Popular</div>
+      )}
+      {badge && !featured && (
+        <div className="font-display" style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', padding: '6px 20px', borderRadius: '0 0 16px 16px', background: 'linear-gradient(135deg,#10b981,#059669)', fontSize: 11, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', boxShadow: '0 4px 20px rgba(16,185,129,0.4)' }}>{badge}</div>
       )}
       {featured && <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,107,53,0.15)', filter: 'blur(30px)' }} />}
       <div className="icon-float" style={{ width: 52, height: 52, borderRadius: 18, background: featured ? 'rgba(255,107,53,0.2)' : 'rgba(255,255,255,0.06)', border: featured ? '1px solid rgba(255,107,53,0.3)' : '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: featured ? '#ff6b35' : 'rgba(255,255,255,0.6)', marginBottom: 24, marginTop: featured ? 24 : 0, animationDelay: `${index * 0.5}s` }}>

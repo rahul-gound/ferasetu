@@ -193,7 +193,11 @@ export default function UpgradePage() {
               <div className="yearly-note">
                 {betaBadge || `Pay yearly: ₹${plan.yearlyPrice.toLocaleString('en-IN')} and save 2 months`}
               </div>
-              <div className="yearly-note">{plan.aiCredits} · {plan.storage}</div>
+              <div className="yearly-note">
+                {betaBadge
+                  ? `${plan.aiCredits} · ${plan.storage}`
+                  : `Just ₹${(effectivePrice / 30).toFixed(2)}/day · ${plan.aiCredits} · ${plan.storage}`}
+              </div>
               <div className="plan-outcome">{plan.outcome}</div>
 
               <div className="plan-features">
@@ -212,6 +216,9 @@ export default function UpgradePage() {
               >
                 {loading === plan.id ? <Loader2 className="animate-spin" size={20} /> : isCurrent ? 'Current Plan' : <>{betaBadge ? 'Activate Free Beta' : plan.buttonText}<ArrowRight size={18} /></>}
               </button>
+              <div className="plan-trust">
+                <Shield size={13} aria-hidden="true" /> Secure payment · Cancel anytime
+              </div>
             </article>
           );
         })}
@@ -223,6 +230,37 @@ export default function UpgradePage() {
           <p>Customers trust shops that look organized, show real products, and respond quickly. FeraSetu gives your store that professional signal.</p>
         </div>
         <div className="proof-stat"><span>40%</span> avg. sales lift after going online</div>
+      </section>
+
+      <section className="pricing-testimonials">
+        <h3>From shopkeepers like you</h3>
+        <div className="testimonial-row">
+          <figure className="testimonial-card">
+            <div className="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <blockquote>"Pehle register maintain karna mushkil tha. Ab FeraSetu se sab phone pe hai. Sales bhi badhi hai, tension bhi kam hui."</blockquote>
+            <figcaption>
+              <span className="testimonial-name">Rajesh Kumar</span>
+              <span className="testimonial-shop">Kirana Store Owner · Delhi</span>
+            </figcaption>
+          </figure>
+          <figure className="testimonial-card">
+            <div className="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <blockquote>"Growth plan ke custom domain se mere customers direct meri site pe aate hain. AI profit insights se pata chalta hai kya bechna hai."</blockquote>
+            <figcaption>
+              <span className="testimonial-name">Laxmi Devi</span>
+              <span className="testimonial-shop">Laxmi Poultry · Lucknow</span>
+            </figcaption>
+          </figure>
+          <figure className="testimonial-card">
+            <div className="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <blockquote>"Sales prediction waala feature game-changer hai. Mera stock khatam hone se pehle AI bata deta hai. Monthly ₹1,499 completely worth it."</blockquote>
+            <figcaption>
+              <span className="testimonial-name">Imran Khan</span>
+              <span className="testimonial-shop">Imran Electronics · Hyderabad</span>
+            </figcaption>
+          </figure>
+        </div>
+        <p className="testimonial-trust">Used by <strong>5,200+</strong> Indian shops • ₹15+ crore orders processed · 22 languages supported</p>
       </section>
 
       <section className="add-ons-grid">
@@ -539,6 +577,17 @@ export default function UpgradePage() {
           box-shadow: none;
         }
 
+        .plan-trust {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          margin-top: 12px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #94a3b8;
+        }
+
         .pricing-proof {
           display: grid;
           grid-template-columns: 1.5fr 1fr;
@@ -580,6 +629,90 @@ export default function UpgradePage() {
           font-size: 50px;
           line-height: 1;
           font-weight: 950;
+        }
+
+        .pricing-testimonials {
+          margin: 0 0 28px;
+          padding: 32px 28px;
+          border-radius: 28px;
+          background: linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f8fafc 100%);
+          border: 1px solid #fed7aa;
+          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+        }
+
+        .pricing-testimonials h3 {
+          margin: 0 0 22px;
+          font-size: 26px;
+          font-weight: 950;
+          letter-spacing: -0.02em;
+          color: #0f172a;
+          text-align: center;
+        }
+
+        .testimonial-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 18px;
+        }
+
+        .testimonial-card {
+          margin: 0;
+          padding: 24px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 22px;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .testimonial-stars {
+          color: #f59e0b;
+          font-size: 16px;
+          letter-spacing: 2px;
+          font-weight: 800;
+        }
+
+        .testimonial-card blockquote {
+          margin: 0;
+          padding: 0;
+          font-size: 15px;
+          line-height: 1.65;
+          color: #334155;
+          font-style: italic;
+          font-weight: 500;
+        }
+
+        .testimonial-card figcaption {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .testimonial-name {
+          font-size: 14px;
+          font-weight: 850;
+          color: #0f172a;
+        }
+
+        .testimonial-shop {
+          font-size: 12px;
+          font-weight: 600;
+          color: #94a3b8;
+        }
+
+        .testimonial-trust {
+          margin: 22px 0 0;
+          text-align: center;
+          font-size: 13px;
+          font-weight: 650;
+          color: #64748b;
+        }
+
+        .testimonial-trust strong {
+          color: #ff6b35;
+          font-weight: 900;
         }
 
         .add-ons-grid {

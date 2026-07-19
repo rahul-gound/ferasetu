@@ -7,9 +7,10 @@ const plans = [
   {
     name: 'Starter',
     icon: <Smartphone size={22} />,
-    price: '₹0',
+    price: '₹299',
+    badge: 'Free during Beta',
     desc: 'Launch your catalog and accept local orders.',
-    features: ['50 products', 'FeraSetu shop link', 'Basic AI help', 'WhatsApp sharing', '1 user'],
+    features: ['100 products', 'FeraSetu shop link', '100 AI credits/mo', 'Basic AI help', 'Email support', '1 user'],
     featured: false,
     cta: 'Start Free',
     href: '/register',
@@ -17,9 +18,9 @@ const plans = [
   {
     name: 'Growth',
     icon: <TrendingUp size={22} />,
-    price: '₹299',
+    price: '₹699',
     desc: 'Custom domain, premium templates, growth analytics.',
-    features: ['Unlimited products', 'Custom domain', 'Advanced AI & analytics', 'AI profit insights', '5 users', 'Priority support'],
+    features: ['1,000 products', 'Custom domain', '500 AI credits/mo', 'Advanced AI & analytics', 'Priority WhatsApp support', '1 user'],
     featured: true,
     cta: 'Start Growing',
     href: '/register',
@@ -27,12 +28,12 @@ const plans = [
   {
     name: 'Scale',
     icon: <BarChart3 size={22} />,
-    price: '₹999',
-    desc: 'For retailers with multiple locations and staff.',
-    features: ['Everything in Growth', 'Multi-location', 'Sales prediction AI', 'Dedicated onboarding', 'Unlimited users', 'API access'],
+    price: '₹1,499',
+    desc: 'For serious retailers with more products and staff.',
+    features: ['5,000 products', 'Sales prediction & alerts', '2,000 AI credits/mo', 'Up to 5 staff accounts', 'Dedicated onboarding', 'Bulk imports'],
     featured: false,
-    cta: 'Contact Sales',
-    href: '/contact',
+    cta: 'Go Scale',
+    href: '/register',
   },
 ];
 
@@ -126,7 +127,29 @@ export default function Pricing() {
                       boxShadow: '0 4px 20px rgba(255, 107, 53, 0.4)',
                     }}
                   >
-                    Best Value
+                    Most Popular
+                  </div>
+                )}
+                {plan.badge && !plan.featured && (
+                  <div
+                    className="font-display"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '6px 20px',
+                      borderRadius: '0 0 16px 16px',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      color: '#fff',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
+                    }}
+                  >
+                    {plan.badge}
                   </div>
                 )}
 

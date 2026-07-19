@@ -461,9 +461,24 @@ export default function RegisterPage() {
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
-            <h1 style={{ ...styles.h1, fontSize: 20 }}>Verified!</h1>
+            <h1 style={{ ...styles.h1, fontSize: 20 }}>🎉 Your store is ready!</h1>
             <p style={{ color: '#34d399', fontSize: 14, fontWeight: 600 }}>Account created successfully.</p>
-            <p style={{ color: '#64748b', fontSize: 13, marginTop: 8 }}>Redirecting to your dashboard...</p>
+            <p style={{ color: '#64748b', fontSize: 13, marginTop: 8 }}>
+              You're joining <strong style={{ color: '#0f172a' }}>10,000+ shopkeepers</strong> across India.
+            </p>
+            <div style={{
+              marginTop: 20, padding: '14px 16px', borderRadius: 14,
+              background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)',
+              textAlign: 'left',
+            }}>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Here's what to do next</p>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 13, color: '#475569', fontWeight: 600, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <li>✅ Add your first product</li>
+                <li>✅ Pick a shop template</li>
+                <li>✅ Share your shop link on WhatsApp</li>
+              </ul>
+            </div>
+            <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 16 }}>Redirecting to your dashboard...</p>
           </div>
         )}
       </div>

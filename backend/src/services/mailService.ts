@@ -2,9 +2,30 @@ import { sendEmailViaBrevo, verifyBrevoConnection } from './brevoService';
 
 const BRAND_COLOR = '#FF6B35';
 const BRAND_NAME = 'FeraSetu';
+const DEFAULT_FROM_EMAIL = 'noreply@ferasetu.fera-search.tech';
+const DEFAULT_FROM_NAME = BRAND_NAME;
 
-function getFromAddress(): string {
-  return process.env.EMAIL_FROM || `"${BRAND_NAME}" <noreply@ferasetu.fera-search.tech>`;
+interface ParsedSender {
+  email: string;
+  name: string;
+}
+
+function parseFromAddress(raw: string): ParsedSender {
+  const s = raw.trim();
+  const match = s.match(/^"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (match) {
+    const name = match[1].trim() || DEFAULT_FROM_NAME;
+    const email = match[2].trim();
+    return { email, name };
+  }
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) {
+    return { email: s, name: DEFAULT_FROM_NAME };
+  }
+  return { email: DEFAULT_FROM_EMAIL, name: DEFAULT_FROM_NAME };
+}
+
+function getFromAddress(): ParsedSender {
+  return parseFromAddress(process.env.EMAIL_FROM || `"${BRAND_NAME}" <${DEFAULT_FROM_EMAIL}>`);
 }
 
 const BASE_STYLE = `
@@ -68,15 +89,18 @@ export async function sendOTPEmail(email: string, otp: string) {
   `;
 
   try {
+    const sender = getFromAddress();
     await sendEmailViaBrevo(
       email,
       `${otp} is your verification code for FeraSetu`,
       html,
-      getFromAddress()
+      sender.email,
+      sender.name
     );
     console.log(`OTP email sent successfully to: ${email}`);
   } catch (error: any) {
     console.error(`Failed to send OTP email to ${email}:`, error.message);
+    throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 }
 
@@ -138,11 +162,13 @@ export async function sendOnboardingEmail(email: string, name: string) {
   `;
 
   try {
+    const sender = getFromAddress();
     await sendEmailViaBrevo(
       email,
       `Welcome to FeraSetu, ${firstName}! Your store is ready to launch 🚀`,
       html,
-      getFromAddress()
+      sender.email,
+      sender.name
     );
     console.log(`Onboarding email sent successfully to: ${email}`);
   } catch (error: any) {
