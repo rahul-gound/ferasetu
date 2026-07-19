@@ -7,10 +7,10 @@ import { formatNumber, formatCurrency } from '@/lib/stats';
 
 export default function TrustBadges({ stats }: { stats: PlatformStats }) {
   const badges = [
-    { label: 'Shopkeeper Rating', value: '4.9/5', icon: <Star size={20} fill="currentColor" />, color: '#FF6B35' },
+    { label: 'Shopkeeper Rating', value: '4.9/5', icon: <Star size={20} fill="currentColor" />, color: '#0052FF' },
     { label: 'Revenue Processed', value: formatCurrency(stats.totalRevenue), icon: <IndianRupee size={20} />, color: '#10B981' },
     { label: 'Platform Uptime', value: `${stats.uptime}%`, icon: <Activity size={20} />, color: '#6366F1' },
-    { label: 'Active Shopkeepers', value: formatNumber(stats.totalUsers), icon: <Zap size={20} />, color: '#FF9A6C' },
+    { label: 'Active Shopkeepers', value: formatNumber(stats.totalUsers), icon: <Zap size={20} />, color: '#4D7CFF' },
     { label: 'Languages Supported', value: `${stats.languagesCount}+`, icon: <Globe size={20} />, color: '#06B6D4' },
     { label: 'SOC 2 Type II', value: 'Compliant', icon: <ShieldCheck size={20} />, color: '#34D399' },
     { label: 'ISO 27001', value: 'Certified', icon: <Lock size={20} />, color: '#F59E0B' },
@@ -32,12 +32,12 @@ export default function TrustBadges({ stats }: { stats: PlatformStats }) {
             style={{
               padding: '6px 16px',
               borderRadius: 50,
-              background: 'rgba(255, 107, 53, 0.1)',
-              border: '1px solid rgba(255, 107, 53, 0.2)',
+              background: 'rgba(0, 82, 255, 0.1)',
+              border: '1px solid rgba(0, 82, 255, 0.2)',
             }}
           >
-            <ShieldCheck size={13} style={{ color: '#FF9A6C' }} />
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#FF9A6C', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <ShieldCheck size={13} style={{ color: '#9EC5FF' }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#9EC5FF', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Built on Trust
             </span>
           </div>
@@ -50,7 +50,7 @@ export default function TrustBadges({ stats }: { stats: PlatformStats }) {
               margin: '20px 0 16px',
             }}
           >
-            Trusted by <span style={{ color: '#FF6B35' }}>{formatNumber(stats.totalUsers)}</span> shopkeepers.
+            Trusted by <span style={{ color: '#4D7CFF' }}>{formatNumber(stats.totalUsers)}</span> shopkeepers.
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.45)', fontWeight: 500 }}>
             Real data. Real security. Real growth.
@@ -120,11 +120,11 @@ export default function TrustBadges({ stats }: { stats: PlatformStats }) {
               width: 200,
               height: 200,
               borderRadius: '50%',
-              background: 'rgba(255, 107, 53, 0.1)',
+              background: 'rgba(0, 82, 255, 0.1)',
               filter: 'blur(50px)',
             }}
           />
-          <div style={{ display: 'flex', gap: 4, color: '#FF6B35', marginBottom: 28, position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', gap: 4, color: '#0052FF', marginBottom: 28, position: 'relative', zIndex: 1 }}>
             {[1, 2, 3, 4, 5].map((i) => (
               <Star key={i} size={22} fill="currentColor" />
             ))}
@@ -151,13 +151,13 @@ export default function TrustBadges({ stats }: { stats: PlatformStats }) {
                 width: 56,
                 height: 56,
                 borderRadius: 18,
-                background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+                background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 900,
                 fontSize: 18,
-                boxShadow: '0 8px 24px rgba(255, 107, 53, 0.35)',
+                boxShadow: '0 8px 24px rgba(0, 82, 255, 0.35)',
               }}
             >
               RK

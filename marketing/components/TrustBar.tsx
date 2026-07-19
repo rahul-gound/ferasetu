@@ -31,7 +31,7 @@ export default function TrustBar() {
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#FF6B35',
+                    background: '#0052FF',
                     opacity: 0.6,
                   }}
                 />

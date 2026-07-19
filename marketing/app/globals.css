@@ -44,7 +44,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Aurora background */
 .aurora {
   background:
-    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(255, 107, 53, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0, 82, 255, 0.22) 0%, transparent 60%),
     radial-gradient(ellipse 50% 40% at 85% 30%, rgba(99, 102, 241, 0.16) 0%, transparent 55%),
     radial-gradient(ellipse 60% 50% at 10% 70%, rgba(16, 185, 129, 0.10) 0%, transparent 55%),
     #060818;
@@ -55,7 +55,7 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   inset: -20%;
   background:
-    conic-gradient(from 0deg at 30% 30%, rgba(255, 107, 53, 0.10), transparent 40%),
+    conic-gradient(from 0deg at 30% 30%, rgba(0, 82, 255, 0.10), transparent 40%),
     conic-gradient(from 180deg at 70% 60%, rgba(99, 102, 241, 0.10), transparent 40%);
   filter: blur(60px);
   animation: auroraSpin 24s linear infinite;
@@ -72,8 +72,8 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateX(-50%) perspective(420px) rotateX(70deg);
   transform-origin: bottom center;
   background-image:
-    linear-gradient(rgba(255, 107, 53, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 107, 53, 0.18) 1px, transparent 1px);
+    linear-gradient(rgba(0, 82, 255, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 82, 255, 0.18) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: linear-gradient(to top, #000 0%, transparent 75%);
   -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 75%);
@@ -83,12 +83,12 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Glow text */
 .glow-text {
-  text-shadow: 0 0 60px rgba(255, 107, 53, 0.5);
+  text-shadow: 0 0 60px rgba(0, 82, 255, 0.5);
 }
 
 /* Animated gradient text */
 .animated-gradient {
-  background: linear-gradient(270deg, #ff6b35, #e55a24, #ff9a6c, #ff6b35);
+  background: linear-gradient(270deg, #0052FF, #4D7CFF, #9EC5FF, #0052FF);
   background-size: 300% 300%;
   animation: gradientShift 4s ease infinite;
   -webkit-background-clip: text;
@@ -200,8 +200,8 @@ h1, h2, h3, h4, h5, h6 {
   height: 3px;
   z-index: 60;
   transform-origin: 0%;
-  background: linear-gradient(90deg, #ff6b35, #ff9a6c, #6366f1);
-  box-shadow: 0 0 12px rgba(255, 107, 53, 0.6);
+  background: linear-gradient(90deg, #0052FF, #9EC5FF, #6366f1);
+  box-shadow: 0 0 12px rgba(0, 82, 255, 0.6);
 }
 
 /* Scanline */

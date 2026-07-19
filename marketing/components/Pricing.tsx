@@ -71,7 +71,7 @@ export default function Pricing() {
               margin: '20px 0 16px',
             }}
           >
-            Start small. Upgrade when <span style={{ color: '#FF6B35' }}>orders grow.</span>
+            Start small. Upgrade when <span style={{ color: '#4D7CFF' }}>orders grow.</span>
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.45)', fontWeight: 500 }}>
             Designed to feel safe for small shops and powerful at scale.
@@ -95,13 +95,13 @@ export default function Pricing() {
                   borderRadius: 32,
                   padding: 40,
                   background: plan.featured
-                    ? 'linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(229, 90, 36, 0.08))'
+                    ? 'linear-gradient(135deg, rgba(0, 82, 255, 0.15), rgba(77, 124, 255, 0.08))'
                     : 'linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02))',
                   border: plan.featured
-                    ? '1px solid rgba(255, 107, 53, 0.3)'
+                    ? '1px solid rgba(0, 82, 255, 0.3)'
                     : '1px solid rgba(255, 255, 255, 0.07)',
                   boxShadow: plan.featured
-                    ? '0 24px 60px rgba(255, 107, 53, 0.15), 0 0 0 1px rgba(255, 107, 53, 0.15)'
+                    ? '0 24px 60px rgba(0, 82, 255, 0.15), 0 0 0 1px rgba(0, 82, 255, 0.15)'
                     : 'none',
                   position: 'relative',
                   overflow: 'hidden',
@@ -118,13 +118,13 @@ export default function Pricing() {
                       transform: 'translateX(-50%)',
                       padding: '6px 20px',
                       borderRadius: '0 0 16px 16px',
-                      background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+                      background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
                       fontSize: 11,
                       fontWeight: 900,
                       color: '#fff',
                       textTransform: 'uppercase',
                       letterSpacing: '0.08em',
-                      boxShadow: '0 4px 20px rgba(255, 107, 53, 0.4)',
+                      boxShadow: '0 4px 20px rgba(0, 82, 255, 0.4)',
                     }}
                   >
                     Most Popular
@@ -154,18 +154,18 @@ export default function Pricing() {
                 )}
 
                 {plan.featured && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: -40,
-                      right: -40,
-                      width: 140,
-                      height: 140,
-                      borderRadius: '50%',
-                      background: 'rgba(255, 107, 53, 0.15)',
-                      filter: 'blur(30px)',
-                    }}
-                  />
+<div
+                  style={{
+                    position: 'absolute',
+                    top: -40,
+                    right: -40,
+                    width: 140,
+                    height: 140,
+                    borderRadius: '50%',
+                    background: 'rgba(0, 82, 255, 0.15)',
+                    filter: 'blur(30px)',
+                  }}
+                />
                 )}
 
                 <div
@@ -174,12 +174,12 @@ export default function Pricing() {
                     width: 52,
                     height: 52,
                     borderRadius: 18,
-                    background: plan.featured ? 'rgba(255, 107, 53, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                    border: plan.featured ? '1px solid rgba(255, 107, 53, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: plan.featured ? 'rgba(0, 82, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                    border: plan.featured ? '1px solid rgba(0, 82, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: plan.featured ? '#FF6B35' : 'rgba(255, 255, 255, 0.6)',
+                    color: plan.featured ? '#4D7CFF' : 'rgba(255, 255, 255, 0.6)',
                     marginBottom: 24,
                     marginTop: plan.featured ? 24 : 0,
                     animationDelay: `${index * 0.5}s`,
@@ -199,7 +199,7 @@ export default function Pricing() {
                   <span className="font-display" style={{ fontSize: 20, fontWeight: 900, color: 'rgba(255, 255, 255, 0.4)', lineHeight: 1.6 }}>
                     ₹
                   </span>
-                  <span className="font-display" style={{ fontSize: 56, fontWeight: 900, letterSpacing: '-0.04em', color: plan.featured ? '#FF6B35' : '#fff', lineHeight: 1 }}>
+                  <span className="font-display" style={{ fontSize: 56, fontWeight: 900, letterSpacing: '-0.04em', color: plan.featured ? '#4D7CFF' : '#fff', lineHeight: 1 }}>
                     {plan.price.replace('₹', '')}
                   </span>
                   <span style={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.3)', fontWeight: 700, marginBottom: 6 }}>
@@ -215,8 +215,8 @@ export default function Pricing() {
                           width: 20,
                           height: 20,
                           borderRadius: '50%',
-                          background: plan.featured ? 'rgba(255, 107, 53, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                          color: plan.featured ? '#FF6B35' : 'rgba(255, 255, 255, 0.5)',
+                          background: plan.featured ? 'rgba(0, 82, 255, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                          color: plan.featured ? '#0052FF' : 'rgba(255, 255, 255, 0.5)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -240,12 +240,12 @@ export default function Pricing() {
                     width: '100%',
                     padding: '14px 0',
                     borderRadius: 50,
-                    background: plan.featured ? 'linear-gradient(135deg, #FF6B35, #E55A24)' : 'rgba(255, 255, 255, 0.08)',
+                    background: plan.featured ? 'linear-gradient(135deg, #0052FF, #4D7CFF)' : 'rgba(255, 255, 255, 0.08)',
                     border: plan.featured ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#fff',
                     fontWeight: 800,
                     fontSize: 15,
-                    boxShadow: plan.featured ? '0 8px 30px rgba(255, 107, 53, 0.35)' : 'none',
+                    boxShadow: plan.featured ? '0 8px 30px rgba(0, 82, 255, 0.35)' : 'none',
                     transition: 'transform 0.2s',
                     textDecoration: 'none',
                   }}

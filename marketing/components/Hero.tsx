@@ -16,13 +16,13 @@ export default function Hero({ stats }: { stats: PlatformStats }) {
       className="aurora relative overflow-hidden"
       style={{ minHeight: '100vh', paddingTop: 150, paddingBottom: 120 }}
     >
-      <div
+<div
         className="orb"
-        style={{ width: 600, height: 600, top: -200, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,107,53,0.16)' }}
+        style={{ width: 600, height: 600, top: -200, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0, 82, 255, 0.16)' }}
       />
       <div
         className="orb"
-        style={{ width: 420, height: 420, bottom: -120, right: -100, background: 'rgba(99,102,241,0.12)' }}
+        style={{ width: 420, height: 420, bottom: -120, right: -100, background: 'rgba(77,124,255,0.12)' }}
       />
       <div className="grid-floor" />
 
@@ -36,13 +36,13 @@ export default function Hero({ stats }: { stats: PlatformStats }) {
           style={{
             padding: '8px 18px',
             borderRadius: 50,
-            background: 'rgba(255, 107, 53, 0.12)',
-            border: '1px solid rgba(255, 107, 53, 0.25)',
+            background: 'rgba(0, 82, 255, 0.12)',
+            border: '1px solid rgba(0, 82, 255, 0.25)',
             backdropFilter: 'blur(12px)',
           }}
         >
-          <Sparkles size={14} style={{ color: '#FF6B35' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#FF9A6C' }}>
+          <Sparkles size={14} style={{ color: '#0052FF' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#9EC5FF' }}>
             {formatNumber(stats.totalUsers)} shopkeepers trust FeraSetu
           </span>
         </div>
@@ -82,31 +82,35 @@ export default function Hero({ stats }: { stats: PlatformStats }) {
 
         {/* CTAs */}
         <div className="hero-visible stagger-4 flex flex-col sm:flex-row items-center justify-center gap-4 mb-24">
-          <Link
+<Link
             href="/register"
             className="shimmer-btn cursor-pointer"
             style={{
               padding: '18px 40px',
               borderRadius: 20,
-              background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+              background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
               color: '#fff',
               fontSize: 18,
               fontWeight: 900,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 10,
-              boxShadow: '0 8px 40px rgba(255, 107, 53, 0.45), 0 0 0 1px rgba(255, 107, 53, 0.2)',
+              boxShadow: '0 8px 40px rgba(0, 82, 255, 0.45), 0 0 0 1px rgba(0, 82, 255, 0.2)',
               transition: 'transform 0.2s, box-shadow 0.2s',
             }}
           >
             Start Your Shop Now <ChevronRight size={20} strokeWidth={3} />
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 24px' }}>
-            <div style={{ display: 'flex', color: '#FF6B35' }}>
+            <div style={{ display: 'flex', color: '#FFD700' }}>
               {[1, 2, 3, 4, 5].map((i) => (
                 <Star key={i} size={16} fill="currentColor" />
               ))}
             </div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>
+              4.9/5 Rating
+            </span>
+          </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>
               4.9/5 Rating
             </span>
@@ -211,7 +215,7 @@ export default function Hero({ stats }: { stats: PlatformStats }) {
                 <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>
                   {formatNumber(stats.totalOrders)}
                 </div>
-                <div style={{ fontSize: 12, color: '#FF6B35', fontWeight: 700, marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: '#4D7CFF', fontWeight: 700, marginTop: 2 }}>
                   <ShoppingBag size={10} className="inline" /> Across all shops
                 </div>
               </div>
@@ -282,15 +286,15 @@ export default function Hero({ stats }: { stats: PlatformStats }) {
                     width: 80,
                     height: 80,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.3), rgba(255, 107, 53, 0.05))',
-                    border: '2px solid rgba(255, 107, 53, 0.3)',
+                    background: 'linear-gradient(135deg, rgba(0, 82, 255, 0.3), rgba(0, 82, 255, 0.05))',
+                    border: '2px solid rgba(0, 82, 255, 0.3)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     animation: 'pulseRing 2s infinite',
                   }}
                 >
-                  <TrendingUp size={36} style={{ color: '#FF6B35' }} />
+                  <TrendingUp size={36} style={{ color: '#4D7CFF' }} />
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255, 255, 255, 0.4)' }}>
                   LIVE ANALYTICS

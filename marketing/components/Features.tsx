@@ -8,8 +8,8 @@ const features = [
     title: 'Real-time Analytics Dashboard',
     desc: 'Track revenue, orders, top products & customer trends live. Know your profit instantly.',
     icon: <TrendingUp size={24} />,
-    color: '#FF6B35',
-    glow: 'rgba(255, 107, 53, 0.2)',
+    color: '#0052FF',
+    glow: 'rgba(0, 82, 255, 0.2)',
   },
   {
     title: 'WhatsApp Sales Engine',
@@ -82,7 +82,7 @@ export default function Features() {
               margin: '20px 0 16px',
             }}
           >
-            Designed for the <span style={{ color: '#FF6B35' }}>modern shopkeeper.</span>
+            Designed for the <span style={{ color: '#4D7CFF' }}>modern shopkeeper.</span>
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.45)', fontWeight: 500 }}>
             No technical skills needed. Bilkul aasan.

@@ -7,7 +7,7 @@ import { formatNumber, formatCurrency } from '@/lib/stats';
 
 export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
   const showcaseStats = [
-    { label: 'Active Shopkeepers', value: formatNumber(stats.activeUsers || stats.totalUsers), icon: <Users size={16} />, color: '#FF6B35' },
+    { label: 'Active Shopkeepers', value: formatNumber(stats.activeUsers || stats.totalUsers), icon: <Users size={16} />, color: '#0052FF' },
     { label: 'Total Orders', value: formatNumber(stats.totalOrders), icon: <ShoppingBag size={16} />, color: '#10B981' },
     { label: 'Revenue Processed', value: formatCurrency(stats.totalRevenue), icon: <TrendingUp size={16} />, color: '#6366F1' },
     { label: 'Cities Served', value: stats.citiesCount > 0 ? `${stats.citiesCount}+` : '500+', icon: <Globe size={16} />, color: '#F59E0B' },
@@ -53,7 +53,7 @@ export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
               margin: '20px 0 16px',
             }}
           >
-            Real numbers. <span style={{ color: '#FF6B35' }}>Real impact.</span>
+            Real numbers. <span style={{ color: '#4D7CFF' }}>Real impact.</span>
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.45)', fontWeight: 500 }}>
             These stats update live from our database. No marketing fluff.
@@ -125,14 +125,14 @@ export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
               width: 200,
               height: 200,
               borderRadius: '50%',
-              background: 'rgba(255, 107, 53, 0.15)',
+              background: 'rgba(0, 82, 255, 0.15)',
               filter: 'blur(40px)',
             }}
           />
           <div style={{ position: 'relative', zIndex: 1 }} className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h3 className="font-display" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 20 }}>
-                See your business in <span style={{ color: '#FF6B35' }}>real-time</span>
+                See your business in <span style={{ color: '#4D7CFF' }}>real-time</span>
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {[
@@ -147,7 +147,7 @@ export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        background: '#FF6B35',
+                        background: '#0052FF',
                         marginTop: 8,
                         flexShrink: 0,
                       }}
@@ -166,8 +166,8 @@ export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
               style={{
                 borderRadius: 24,
                 padding: 40,
-                background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(6, 8, 24, 0.6))',
-                border: '1px solid rgba(255, 107, 53, 0.15)',
+                background: 'linear-gradient(135deg, rgba(0, 82, 255, 0.1), rgba(6, 8, 24, 0.6))',
+                border: '1px solid rgba(0, 82, 255, 0.15)',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -188,7 +188,7 @@ export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
                         width: '100%',
                         height: `${h}%`,
                         borderRadius: '8px 8px 0 0',
-                        background: 'linear-gradient(180deg, #FF6B35, rgba(255, 107, 53, 0.2))',
+                        background: 'linear-gradient(180deg, #0052FF, rgba(0, 82, 255, 0.2))',
                         minHeight: 8,
                       }}
                     />

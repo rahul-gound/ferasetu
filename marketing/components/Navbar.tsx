@@ -24,17 +24,17 @@ export default function Navbar() {
               width: 42,
               height: 42,
               borderRadius: 14,
-              background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+              background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(255, 107, 53, 0.4)',
+              boxShadow: '0 4px 20px rgba(0, 82, 255, 0.4)',
             }}
           >
             <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, fontStyle: 'italic' }}>F</span>
           </div>
           <span className="font-display text-xl font-black tracking-tight">
-            Fera<span style={{ color: '#FF6B35' }}>Setu</span>
+            Fera<span style={{ color: '#4D7CFF' }}>Setu</span>
           </span>
         </Link>
 
@@ -57,11 +57,11 @@ export default function Navbar() {
             style={{
               padding: '10px 22px',
               borderRadius: 50,
-              background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+              background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
               color: '#fff',
               fontSize: 14,
               fontWeight: 700,
-              boxShadow: '0 4px 20px rgba(255, 107, 53, 0.4)',
+              boxShadow: '0 4px 20px rgba(0, 82, 255, 0.4)',
               transition: 'transform 0.2s, box-shadow 0.2s',
               display: 'inline-block',
             }}

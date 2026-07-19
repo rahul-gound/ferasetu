@@ -20,9 +20,9 @@ export default function FinalCTA() {
             position: 'relative',
             overflow: 'hidden',
             background:
-              'linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(229, 90, 36, 0.15) 50%, rgba(99, 102, 241, 0.12))',
-            border: '1px solid rgba(255, 107, 53, 0.2)',
-            boxShadow: '0 40px 80px rgba(255, 107, 53, 0.12)',
+              'linear-gradient(135deg, rgba(0, 82, 255, 0.2), rgba(77, 124, 255, 0.15) 50%, rgba(99, 102, 241, 0.12))',
+            border: '1px solid rgba(0, 82, 255, 0.2)',
+            boxShadow: '0 40px 80px rgba(0, 82, 255, 0.12)',
           }}
         >
           <div
@@ -34,7 +34,7 @@ export default function FinalCTA() {
               width: 400,
               height: 400,
               borderRadius: '50%',
-              background: 'rgba(255, 107, 53, 0.15)',
+              background: 'rgba(0, 82, 255, 0.15)',
               filter: 'blur(80px)',
             }}
           />
@@ -50,7 +50,7 @@ export default function FinalCTA() {
             <IndianRupee
               className="icon-float"
               size={40}
-              style={{ color: '#FF6B35', margin: '0 auto 24px', display: 'block', opacity: 0.8 }}
+              style={{ color: '#4D7CFF', margin: '0 auto 24px', display: 'block', opacity: 0.8 }}
             />
             <h2 className="font-display" style={{ fontSize: 'clamp(32px, 5vw, 64px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 20 }}>
               Ab aapki baari hai.
@@ -66,11 +66,11 @@ export default function FinalCTA() {
                 gap: 12,
                 padding: '20px 52px',
                 borderRadius: 24,
-                background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+                background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
                 color: '#fff',
                 fontSize: 20,
                 fontWeight: 900,
-                boxShadow: '0 16px 60px rgba(255, 107, 53, 0.5)',
+                boxShadow: '0 16px 60px rgba(0, 82, 255, 0.5)',
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 textDecoration: 'none',
               }}

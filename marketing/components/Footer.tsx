@@ -13,17 +13,17 @@ export default function Footer() {
               width: 36,
               height: 36,
               borderRadius: 10,
-              background: 'linear-gradient(135deg, #FF6B35, #E55A24)',
+              background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(255, 107, 53, 0.3)',
+              boxShadow: '0 4px 12px rgba(0, 82, 255, 0.3)',
             }}
           >
             <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, fontStyle: 'italic' }}>F</span>
           </div>
           <span className="font-display" style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>
-            Fera<span style={{ color: '#FF6B35' }}>Setu</span>
+            Fera<span style={{ color: '#4D7CFF' }}>Setu</span>
           </span>
         </div>
         <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255, 255, 255, 0.25)' }}>

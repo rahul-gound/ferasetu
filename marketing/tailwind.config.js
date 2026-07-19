@@ -6,9 +6,9 @@ module.exports = {
   ],
   theme: {
     extend: {
-      colors: {
+colors: {
         ferasetu: {
-          orange: '#FF6B35',
+          blue: '#0052FF',
           dark: '#060818',
           surface: '#0B0F24',
         },
