@@ -8,6 +8,7 @@ import {
   Store, MessageCircle, BarChart3, Sparkles, IndianRupee, Building2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import SEO from '../components/SEO';
 
 // Heavy WebGL hero — code-split so three.js only loads when the scene renders.
 const HeroScene = lazy(() => import('../components/three/HeroScene'));
@@ -61,6 +62,24 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#060818] text-white overflow-x-hidden" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+      <SEO
+        title="FeraSetu — Your Shop's Digital Bridge"
+        description="Build your online store in minutes. Manage products, orders, and invoices with AI. Dukaan ko online lao, orders WhatsApp par pao. Free during beta!"
+        url="https://ferasetu.appwrite.network"
+        type="website"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'FeraSetu',
+          url: 'https://ferasetu.appwrite.network',
+          description: 'Build your online store in minutes. Manage products, orders, and invoices with AI.',
+          potentialAction: {
+            '@type': 'SearchAction',
+            target: 'https://ferasetu.appwrite.network/shop/{search_term_string}',
+            'query-input': 'required name=search_term_string',
+          },
+        }}
+      />
       <style>{`
         h1,h2,h3,h4,.font-display { font-family: 'Outfit', sans-serif; }
         body, p, span, a, div { font-family: 'Work Sans', 'Outfit', sans-serif; }

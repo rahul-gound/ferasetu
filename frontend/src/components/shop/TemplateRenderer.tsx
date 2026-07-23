@@ -7,6 +7,7 @@ import ProductGridSection from './sections/ProductGridSection';
 import ContactSection from './sections/ContactSection';
 import FooterSection from './sections/FooterSection';
 import TrackOrderModal from './TrackOrderModal';
+import Breadcrumb from './Breadcrumb';
 
 interface TemplateRendererProps {
   sections: TemplateSection[];
@@ -97,6 +98,8 @@ export default function TemplateRenderer({ sections, products, shopName, shopId,
           onClose={() => setShowTrackModal(false)} 
         />
       )}
+
+      {!isPreview && <Breadcrumb shopName={shopName} />}
 
       {sections.map((section, index) => {
         const key = `${section.type}-${index}`;

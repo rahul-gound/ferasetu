@@ -364,7 +364,7 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
                        {cart.map(item => (
                           <div key={item.id} style={{ display: 'flex', gap: '16px' }}>
                              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: '#f8fafc', overflow: 'hidden' }}>
-                                {item.image_url ? <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentColor, fontWeight: 800 }}>{item.name[0]}</div>}
+                                {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentColor, fontWeight: 800 }}>{item.name[0]}</div>}
                              </div>
                              <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 700, fontSize: '15px' }}>{item.name}</div>

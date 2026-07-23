@@ -19,6 +19,7 @@ import paymentRoutes from './routes/payment';
 import adminRoutes from './routes/admin';
 import ticketRoutes from './routes/tickets';
 import surveyRoutes from './routes/survey';
+import sitemapRoutes from './routes/sitemap';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -108,6 +109,9 @@ app.use('/api/survey', surveyRoutes);
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
 });
+
+// Sitemap — served before SPA catch-all
+app.get('/sitemap.xml', sitemapRoutes);
 
 // Serve frontend in production
 if (IS_PRODUCTION) {

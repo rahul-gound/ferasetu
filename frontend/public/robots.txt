@@ -1,0 +1,16 @@
+# FeraSetu — robots.txt
+# https://ferasetu.appwrite.network
+
+User-agent: *
+Allow: /
+Allow: /shop/*
+
+# Block non-public areas
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+
+# Sitemap
+Sitemap: https://ferasetu.appwrite.network/sitemap.xml
