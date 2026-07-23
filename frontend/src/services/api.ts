@@ -666,6 +666,44 @@ async function localPost(url: string, payload: Record<string, any>) {
     return createResponse(product, 201);
   }
 
+  if (path === '/orders' || path === '/orders/create') {
+    const userId = requireAuth();
+    const items = Array.isArray(payload.items)
+      ? payload.items.map((item: any) => ({
+          product_id: String(item.productId || item.product_id || ''),
+          product_name: String(item.product_name || 'Product'),
+          quantity: Number(item.quantity || 1),
+          price: Number(item.price || 0),
+        }))
+      : [];
+    const total = items.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0);
+    const order: LocalOrder = {
+      id: createId(),
+      user_id: userId,
+      customer_name: String(payload.customerName || payload.customer_name || 'Guest'),
+      customer_phone: String(payload.customerPhone || payload.customer_phone || ''),
+      customer_address: payload.deliveryAddress || payload.customer_address || undefined,
+      items,
+      total,
+      delivery_type: (payload.deliveryType === 'pickup' ? 'pickup' : 'delivery') as 'delivery' | 'pickup',
+      status: 'pending',
+      payment_status: 'pending',
+      notes: payload.notes || undefined,
+      created_at: now(),
+      updated_at: now(),
+    };
+    db.orders.push(order);
+    saveDb(db);
+    return createResponse({
+      order: {
+        ...order,
+        deliveryCode: Math.floor(1000 + Math.random() * 9000).toString(),
+        paymentOtp: undefined,
+      },
+      invoiceNumber: `FERA-${order.id.slice(0, 8).toUpperCase()}`,
+    }, 201);
+  }
+
   if (path === '/website') {
     const userId = requireAuth();
     const existing = db.websites.find(w => w.user_id === userId);
