@@ -121,7 +121,7 @@ export default function GetStartedPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      await api.put('/auth/profile', {
+      await api.put('/users/me', {
         business_name: data.business_name,
         preferredLanguage: data.preferred_language,
       });
@@ -254,7 +254,7 @@ export default function GetStartedPage() {
                   }}
                   onFocus={e => e.currentTarget.style.borderColor = '#667eea'}
                   onBlur={e => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  onKeyPress={e => e.key === 'Enter' && handleNext()}
+                  onKeyDown={e => e.key === 'Enter' && handleNext()}
                 />
               </div>
 
@@ -383,7 +383,7 @@ export default function GetStartedPage() {
                     type="text"
                     value={aiInput}
                     onChange={e => setAiInput(e.target.value)}
-                    onKeyPress={e => e.key === 'Enter' && sendAIMessage()}
+                    onKeyDown={e => e.key === 'Enter' && sendAIMessage()}
                     placeholder="Ask a question..."
                     disabled={aiLoading}
                     style={{
