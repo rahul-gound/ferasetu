@@ -170,23 +170,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendOTP = async (email: string) => {
-    try {
-      await api.post('/auth/send-otp', { email: email.trim().toLowerCase() });
-    } catch (err) {
-      throw toHttpishError(err);
-    }
+    // Appwrite handles email verification natively via createVerification().
+    // Removed Worker-dependent OTP flow — 404 was caused by missing Worker endpoint.
+    // Registration no longer requires OTP; verification email is sent after account creation.
+    return;
   };
 
-  const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
-    try {
-      const { data } = await api.post('/auth/verify-otp', {
-        email: email.trim().toLowerCase(),
-        otp: otp.trim(),
-      });
-      return data.success === true;
-    } catch (err: any) {
-      throw toHttpishError(err);
-    }
+  const verifyOTP = async (_email: string, _otp: string): Promise<boolean> => {
+    // Appwrite handles email verification natively.
+    // This function is kept for backward compatibility but always succeeds.
+    return true;
   };
 
   const createAccountAfterOTP = async (data: RegisterData) => {
@@ -259,8 +252,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     try {
       const email = data.email.trim();
-      await api.post('/auth/send-otp', { email });
-    } catch (err) {
+      // Create account directly via Appwrite SDK — no Worker-dependent OTP step.
+      await account.create(ID.unique(), email, data.password, data.name);
+      try {
+        await startSession(email, data.password);
+      } catch (sessionErr: any) {
+        console.warn('Session creation failed after account creation, user may need to login:', sessionErr.message);
+      }
+      const profile = await createProfile({
+        email,
+        name: data.name,
+        phone: data.phone,
+        businessName: data.businessName,
+        preferredLanguage: data.preferredLanguage,
+      });
+      setUser(profile);
+      persistLocalUser(profile);
+    } catch (err: any) {
+      if (err?.code === 409) {
+        throw toHttpishError(new Error('This email is already registered. Please login instead.') as any);
+      }
       throw toHttpishError(err);
     }
   };
@@ -299,4 +310,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-

@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { UserPlus, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LegalModal from '../components/LegalModal';
 
@@ -162,19 +162,13 @@ const styles = {
 };
 
 export default function RegisterPage() {
-  const { sendOTP, verifyOTP, createAccountAfterOTP, loginWithGoogle } = useAuth();
+  const { register: doRegister, sendVerificationEmail, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState<RegisterForm | null>(null);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [otpError, setOtpError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [legalModal, setLegalModal] = useState<{ open: boolean; type: 'privacy' | 'terms' }>({ open: false, type: 'terms' });
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: { preferredLanguage: 'en', email: searchParams.get('email') || '', agreedToTerms: false },
@@ -183,62 +177,21 @@ export default function RegisterPage() {
   const selectedLang = watch('preferredLanguage');
   const [langOpen, setLangOpen] = useState(false);
 
-  useEffect(() => {
-    if (step === 1) otpRefs.current[0]?.focus();
-  }, [step]);
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (value && !/^\d$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    setOtpError('');
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) otpRefs.current[index - 1]?.focus();
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted.length === 6) {
-      setOtp(pasted.split(''));
-      otpRefs.current[5]?.focus();
-    }
-  };
-
   const onSubmit = async (data: RegisterForm) => {
     setLoading(true);
     try {
-      await sendOTP(data.email);
-      setFormData(data);
-      setStep(1);
-      toast.success('OTP sent! Check your email.');
+      await doRegister({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        phone: data.phone,
+        businessName: data.businessName,
+        preferredLanguage: data.preferredLanguage,
+      });
+      toast.success('Account created! Welcome to FeraSetu.');
+      navigate(redirect);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (otp.join('').length !== 6) { setOtpError('Enter complete 6-digit OTP'); return; }
-    if (!formData) return;
-    setLoading(true);
-    setOtpError('');
-    try {
-      const verified = await verifyOTP(formData.email, otp.join(''));
-      if (!verified) {
-        setOtpError('Invalid OTP');
-        return;
-      }
-      await createAccountAfterOTP(formData);
-      setStep(2);
-      setTimeout(() => navigate(redirect), 2000);
-    } catch (err: any) {
-      setOtpError(err.response?.data?.error || 'Invalid OTP');
+      toast.error(err.response?.data?.message || err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -265,8 +218,7 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        {step === 0 && (
-          <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)}>
             <h1 style={styles.h1}>Create your store</h1>
             <p style={styles.p}>Beta Plan · Free for everyone</p>
 
@@ -388,99 +340,7 @@ export default function RegisterPage() {
               <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
             </p>
           </form>
-        )}
 
-        {step === 1 && (
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={() => { setStep(0); setOtp(['', '', '', '', '', '']); setOtpError(''); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: 0, marginBottom: 20, fontFamily: 'inherit' }}>
-              <ArrowLeft size={14} /> Back
-            </button>
-
-            <div style={{
-              width: 48, height: 48, borderRadius: 12,
-              background: 'rgba(0,82,255,0.1)', border: '1px solid rgba(0,82,255,0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-
-            <h1 style={styles.h1}>Verify your email</h1>
-            <p style={{ ...styles.p, marginBottom: 8 }}>Enter the 6-digit code sent to</p>
-            <p style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 700, marginBottom: 24 }}>{formData?.email}</p>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 8 }}>
-              {otp.map((digit, i) => (
-                <input key={i} ref={el => otpRefs.current[i] = el} type="text" inputMode="numeric" maxLength={1}
-                  aria-label={`OTP digit ${i + 1}`}
-                  value={digit} onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => handleOtpKeyDown(i, e)}
-                  onPaste={i === 0 ? handleOtpPaste : undefined}
-                  style={{ ...styles.otpInput, borderColor: otpError ? '#EF4444' : 'var(--border)' }}
-                  onFocus={e => { e.target.style.borderColor = styles.otpInputFocus.borderColor; e.target.style.boxShadow = styles.otpInputFocus.boxShadow; }}
-                  onBlur={e => { e.target.style.borderColor = otpError ? '#EF4444' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
-              ))}
-            </div>
-
-            {otpError && <p style={{ ...styles.error, marginBottom: 12 }}>{otpError}</p>}
-
-            <button type="button" onClick={handleVerifyOTP}
-              disabled={loading || otp.join('').length !== 6}
-              style={{ ...styles.btnPrimary, marginTop: 16, ...(loading || otp.join('').length !== 6 ? styles.btnDisabled : {}) }}>
-              {loading ? 'Verifying...' : 'Verify & Create Account'}
-            </button>
-
-            <button type="button" onClick={async () => {
-              if (!formData || resending) return;
-              setResending(true);
-              try {
-                await sendOTP(formData.email);
-                toast.success('OTP resent!');
-              } catch (err: any) {
-                toast.error(err.response?.data?.error || 'Failed to resend OTP');
-              } finally {
-                setResending(false);
-              }
-            }}
-              disabled={resending} style={{ background: 'none', border: 'none', cursor: resending ? 'not-allowed' : 'pointer', color: '#64748b', fontSize: 13, marginTop: 16, fontFamily: 'inherit' }}>
-              Didn't get it? <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Resend</span>
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div style={{ textAlign: 'center', padding: '16px 0' }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'rgba(16,185,129,0.1)', border: '2px solid rgba(16,185,129,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
-            }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            </div>
-            <h1 style={{ ...styles.h1, fontSize: 20 }}>🎉 Your store is ready!</h1>
-            <p style={{ color: '#34d399', fontSize: 14, fontWeight: 600 }}>Account created successfully.</p>
-            <p style={{ color: '#64748b', fontSize: 13, marginTop: 8 }}>
-              You're joining <strong style={{ color: '#0f172a' }}>10,000+ shopkeepers</strong> across India.
-            </p>
-            <div style={{
-              marginTop: 20, padding: '14px 16px', borderRadius: 14,
-              background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)',
-              textAlign: 'left',
-            }}>
-              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Here's what to do next</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 13, color: '#475569', fontWeight: 600, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <li>✅ Add your first product</li>
-                <li>✅ Pick a shop template</li>
-                <li>✅ Share your shop link on WhatsApp</li>
-              </ul>
-            </div>
-            <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 16 }}>Redirecting to your dashboard...</p>
-          </div>
-        )}
       </div>
 
       <LegalModal isOpen={legalModal.open} type={legalModal.type} onClose={() => setLegalModal(prev => ({ ...prev, open: false }))} />
