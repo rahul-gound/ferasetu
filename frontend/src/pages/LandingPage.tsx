@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
+import heroPreview from '../assets/hero.png';
 
 // Heavy WebGL hero — code-split so three.js only loads when the scene renders.
 const HeroScene = lazy(() => import('../components/three/HeroScene'));
@@ -223,6 +224,12 @@ export default function LandingPage() {
               Start Your Shop
             </Link>
           </div>
+          <div className="md:hidden flex items-center gap-3">
+            <Link to="/login" className="cursor-pointer" style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>Sign in</Link>
+            <Link to="/register" className="cursor-pointer" style={{ padding: '8px 16px', borderRadius: 50, background: 'linear-gradient(135deg,#ff6b35,#e55a24)', color: '#fff', fontSize: 13, fontWeight: 800, boxShadow: '0 4px 16px rgba(255,107,53,0.35)' }}>
+              Start
+            </Link>
+          </div>
         </div>
       </motion.nav>
 
@@ -324,7 +331,7 @@ export default function LandingPage() {
               boxShadow: '0 60px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)',
             }}>
               <div style={{ borderRadius: 28, overflow: 'hidden', position: 'relative', aspectRatio: '16/8', transformStyle: 'preserve-3d' }}>
-                <img src="/hero/dashboard.webp"
+                <img src={heroPreview}
                   onError={(e) => { const img = e.currentTarget; if (!img.dataset.fb) { img.dataset.fb = '1'; img.src = 'https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000'; } }}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.7) saturate(1.2)' }}
                   alt="FeraSetu seller dashboard preview" loading="lazy" />
@@ -508,8 +515,20 @@ export default function LandingPage() {
         <div style={{ textAlign: 'center', marginTop: 28 }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
             <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden="true" />
-            Annual billing saves ~2 months. Cancel anytime. Used by 5,200+ Indian shops.
+            Annual billing saves ~2 months. Cancel anytime. Used by 10,000+ Indian shops.
           </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4" style={{ marginTop: 20 }}>
+          {[
+            { title: 'Risk-free start', desc: 'Starter is free in beta, so you can launch without upfront pressure.' },
+            { title: 'Trust unlock', desc: 'Growth adds custom domain + premium storefront that builds buyer confidence.' },
+            { title: 'Revenue focus', desc: 'Advanced AI and analytics help you spot top-selling products faster.' },
+          ].map((item) => (
+            <div key={item.title} style={{ padding: '18px 20px', borderRadius: 18, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="font-display" style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>{item.title}</div>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>{item.desc}</p>
+            </div>
+          ))}
         </div>
       </Section>
 
@@ -759,10 +778,10 @@ function PricingCard({ index = 0, icon, name, price, desc, features, featured, b
           </div>
         ))}
       </div>
-      <Link to="/upgrade" className="cursor-pointer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px 0', borderRadius: 50, background: featured ? 'linear-gradient(135deg,#ff6b35,#e55a24)' : 'rgba(255,255,255,0.08)', border: featured ? 'none' : '1px solid rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800, fontSize: 15, boxShadow: featured ? '0 8px 30px rgba(255,107,53,0.35)' : 'none', transition: 'transform 0.2s' }}
+      <Link to="/register" className="cursor-pointer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px 0', borderRadius: 50, background: featured ? 'linear-gradient(135deg,#ff6b35,#e55a24)' : 'rgba(255,255,255,0.08)', border: featured ? 'none' : '1px solid rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800, fontSize: 15, boxShadow: featured ? '0 8px 30px rgba(255,107,53,0.35)' : 'none', transition: 'transform 0.2s' }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
-        View details <ArrowRight size={16} aria-hidden="true" />
+        {featured ? 'Choose Growth' : 'Get started'} <ArrowRight size={16} aria-hidden="true" />
       </Link>
     </div>
     </motion.div>
