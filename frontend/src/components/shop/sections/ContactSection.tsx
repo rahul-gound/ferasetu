@@ -1,7 +1,16 @@
 import type { SectionConfig } from '../../../types/template';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface ContactSectionProps {
   config: SectionConfig;
+}
+
+function sanitizeText(input: string): string {
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'span', 'br', 'p', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+    ALLOWED_URI_REGEXP: /^(?:https?|mailto|tel):/,
+  });
 }
 
 function InfoCard({ icon, label, value }: { icon: string; label: string; value: string }) {
@@ -17,7 +26,7 @@ function InfoCard({ icon, label, value }: { icon: string; label: string; value: 
           {label}
         </div>
         <div style={{ fontSize: '15px', color: '#1E293B', fontWeight: 500, lineHeight: 1.5 }}>
-          {value}
+          {sanitizeText(value)}
         </div>
       </div>
     </div>
@@ -25,7 +34,7 @@ function InfoCard({ icon, label, value }: { icon: string; label: string; value: 
 }
 
 export default function ContactSection({ config }: ContactSectionProps) {
-  const title = (config.title as string) || 'Find Us';
+  const title = sanitizeText((config.title as string) || 'Find Us');
   const address = config.address as string | undefined;
   const phone = config.phone as string | undefined;
   const email = config.email as string | undefined;

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
-  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins, MessageSquareText
+  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins, MessageSquareText,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -26,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/survey-feedback',icon: <MessageSquareText size={18} />,labelKey: 'surveyFeedback' },
   { path: '/website-builder',icon: <Globe size={18} />,           labelKey: 'websiteBuilder' },
   { path: '/support',        icon: <LifeBuoy size={18} />,        labelKey: 'support' },
+  { path: '/settings/email', icon: <Settings size={18} />,         labelKey: 'emailSettings' },
 ];
 
 const s = {

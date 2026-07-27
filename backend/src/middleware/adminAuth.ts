@@ -1,8 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'fallback-dev-secret-do-not-use-in-dev');
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be set in production environment');
+    }
+    return 'dev-only-' + crypto.randomBytes(32).toString('hex');
+  }
+  return secret;
+}
+
+const JWT_SECRET = getJwtSecret();
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fera.ai';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH; // bcrypt hash
 
 export interface AdminRequest extends Request {
   admin?: {
@@ -11,9 +25,14 @@ export interface AdminRequest extends Request {
   };
 }
 
-export const adminOnly = (req: AdminRequest, res: Response, next: NextFunction): void => {
+export const adminOnly = async (req: AdminRequest, res: Response, next: NextFunction): Promise<void> => {
   if (!JWT_SECRET) {
     res.status(500).json({ error: 'Admin authentication is not configured' });
+    return;
+  }
+
+  if (!ADMIN_PASSWORD_HASH) {
+    res.status(500).json({ error: 'Admin password not configured' });
     return;
   }
 
@@ -39,3 +58,17 @@ export const adminOnly = (req: AdminRequest, res: Response, next: NextFunction):
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
+
+// Admin login helper - to be used in admin routes
+export async function verifyAdminCredentials(email: string, password: string): Promise<{ id: string; email: string; role: string } | null> {
+  if (email !== ADMIN_EMAIL || !ADMIN_PASSWORD_HASH) {
+    return null;
+  }
+  
+  const valid = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+  if (!valid) {
+    return null;
+  }
+  
+  return { id: 'admin-root', email: ADMIN_EMAIL, role: 'admin' };
+}

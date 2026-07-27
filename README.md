@@ -57,15 +57,21 @@ Your experience matters—let’s make this work for you.
 
 ### Frontend
 
-React 19 + Vite + TypeScript, with modular components for every shop section and full CRUD pages.
+React 19 + Vite + TypeScript, deployed on **Cloudflare Pages**. Modular components for every shop section and full CRUD pages.
 
-### Backend
+### Backend API (Cloudflare Workers)
 
-Node.js with Express and TypeScript, handling auth, products, orders, analytics, website templates, AI, and voice features.
+Edge API on **Cloudflare Workers** with **D1 database** (SQLite at edge). Handles user profiles, products, orders. Authenticates via **Appwrite JWT** validation.
 
-MySQL (Oracle) for storage.
+### Backend Services (Node.js)
 
-JWT authentication, rate limiting, and separate context/providers for auth and language.
+Node.js with Express and TypeScript, handling AI, website templates, voice features, email services, and admin operations. MySQL/SQLite for storage.
+
+### Authentication
+
+**Appwrite Cloud** handles all authentication — email/password sessions, Google OAuth, JWT generation. No custom auth logic on the backend.
+
+Rate limiting, and separate context/providers for auth and language.
 
 Code is organized—see details above if you’re into structure.
 

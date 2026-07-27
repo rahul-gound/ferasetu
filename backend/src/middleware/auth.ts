@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../services/authService';
+import { createRequire } from 'module';
+import { resolve } from 'path';
+
+const requireModule = createRequire(resolve(__dirname, '..', '..', 'package.json'));
+const dns = requireModule('dns').promises;
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -11,13 +16,14 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Read token from HttpOnly cookie first, fall back to Authorization header for backward compatibility
+  const token = req.cookies?.access_token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null);
+  
+  if (!token) {
     res.status(401).json({ error: 'Authentication required' });
     return;
   }
 
-  const token = authHeader.substring(7);
   const decoded = verifyToken(token);
 
   if (!decoded) {
@@ -71,7 +77,7 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
  * Middleware to check if a shopkeeper's public website should be active.
  * Used in public website routes.
  */
-export function validatePublicShop(req: Request, res: Response, next: NextFunction): void {
+export async function validatePublicShop(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { shopName } = req.params;
   const { getDatabase } = require('../models/database');
   const db = getDatabase();
@@ -81,6 +87,25 @@ export function validatePublicShop(req: Request, res: Response, next: NextFuncti
   if (!user) {
     next(); // Let the route handle 404
     return;
+  }
+
+  // Subdomain takeover prevention: verify DNS still points to platform
+  const baseDomain = (process.env.BASE_DOMAIN || 'fera-search.tech').toLowerCase();
+  const host = (req.get('host') || '').toLowerCase();
+  
+  if (host && host !== baseDomain && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    try {
+      const cnames = await dns.resolveCname(host);
+      const isValidPlatform = cnames.some((c: string) => c.includes('ferasetu') || c.includes('ferasetu.pages.dev') || c.includes(baseDomain));
+      if (!isValidPlatform) {
+        console.warn(`Subdomain takeover attempt detected: ${host} (CNAMEs: ${cnames.join(', ')})`);
+        res.status(404).send('Shop not found');
+        return;
+      }
+    } catch (dnsErr) {
+      // DNS resolution failed - might be temporary, allow but log
+      console.warn(`DNS check failed for ${host}:`, dnsErr);
+    }
   }
 
   if (user.is_blocked) {

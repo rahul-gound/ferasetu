@@ -551,6 +551,31 @@ async function localGet(url: string) {
     return Promise.resolve(createResponse({ csv: `${header}${body}` }));
   }
 
+  if (path === '/settings/smtp') {
+    requireAuth();
+    const stored = localStorage.getItem('fera_local_smtp');
+    const settings = stored ? JSON.parse(stored) : null;
+    if (settings) {
+      return Promise.resolve(createResponse({ configured: true, settings: { ...settings, password: undefined }, defaults: { host: '', port: 587, ssl: false, tls: true } }));
+    }
+    return Promise.resolve(createResponse({
+      configured: false,
+      settings: {
+        provider: 'custom', host: '', port: 587, username: '', sender_name: '',
+        sender_email: '', reply_to_email: '', ssl_enabled: false, tls_enabled: true,
+        otp_enabled: true, otp_length: 6, otp_expiry_minutes: 10, otp_resend_cooldown: 60,
+        otp_max_attempts: 5, otp_subject: 'Verify your email • FeraSetu', otp_body_template: '',
+        is_active: false, has_password: false,
+      },
+      defaults: { host: '', port: 587, ssl: false, tls: true },
+    }));
+  }
+
+  if (path === '/settings/smtp/provider-defaults') {
+    requireAuth();
+    return Promise.resolve(createResponse({ host: '', port: 587, ssl: false, tls: true }));
+  }
+
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
@@ -587,6 +612,21 @@ async function localPost(url: string, payload: Record<string, any>) {
     delete map[email];
     localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(map));
     return Promise.resolve(createResponse({ success: true, message: 'OTP verified successfully.' }));
+  }
+
+  if (path === '/auth/send-verification-email') {
+    const email = String(payload.email || '').trim().toLowerCase();
+    const shopId = String(payload.shop_id || '');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw createHttpError(400, 'A valid email is required');
+    }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const raw = localStorage.getItem(LOCAL_OTP_KEY) || '{}';
+    const map = (() => { try { return JSON.parse(raw); } catch { return {}; } })();
+    map[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
+    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(map));
+    console.info(`[local mock] Verification email OTP for ${email}: ${otp} ${shopId ? `(shop: ${shopId})` : ''}`);
+    return Promise.resolve(createResponse({ success: true, message: 'Verification email sent. (local mock - check console)' }));
   }
 
   if (path === '/auth/register') {
@@ -822,6 +862,16 @@ async function localPost(url: string, payload: Record<string, any>) {
     return createResponse({ audio: null });
   }
 
+  if (path === '/settings/smtp/test') {
+    requireAuth();
+    const email = String(payload.email || '');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw createHttpError(400, 'Valid email is required');
+    }
+    console.info(`[local mock] Test SMTP email would be sent to: ${email}`);
+    return Promise.resolve(createResponse({ success: true, message: `Test email sent to ${email} (local mock)` }));
+  }
+
   if (path === '/survey/submissions') {
     const userId = requireAuth();
     const answers = Array.isArray(payload.answers) ? payload.answers : [];
@@ -963,6 +1013,23 @@ async function localPut(url: string, payload: Record<string, any>) {
     return Promise.resolve(createResponse(product));
   }
 
+  if (path === '/settings/smtp') {
+    const userId = requireAuth();
+    const stored = localStorage.getItem('fera_local_smtp');
+    const existing = stored ? JSON.parse(stored) : {};
+    const updated = {
+      ...existing,
+      ...payload,
+      password: payload.password || existing.password,
+      has_password: !!(payload.password || existing.password),
+      user_id: userId,
+      updated_at: now(),
+    };
+    localStorage.setItem('fera_local_smtp', JSON.stringify(updated));
+    const { password, ...publicSettings } = updated;
+    return Promise.resolve(createResponse({ success: true, settings: publicSettings }));
+  }
+
   throw createHttpError(404, `Unknown PUT endpoint: ${path}`);
 }
 
@@ -1020,16 +1087,8 @@ async function localDelete(url: string) {
 
 const remoteApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  headers: { 'Content-Type': 'application/json' }
-});
-
-// Attach auth token to all requests
-remoteApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('fera_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 // Handle 401 globally
@@ -1037,7 +1096,7 @@ remoteApi.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('fera_token');
+      // Clear any local user data
       localStorage.removeItem('fera_user');
       window.location.href = '/login';
     }

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { generateAIResponse, generateWebsiteConfig, ChatMessage } from '../services/sarvamAI';
 import { getDatabase } from '../models/database';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -12,6 +13,37 @@ const AI_CREDIT_COST: Record<string, number> = {
   website_ai: 3,
   customer_assistant: 2
 };
+
+// Zod schemas for AI action validation
+const AddProductAction = z.object({
+  action: z.literal('ADD_PRODUCT'),
+  data: z.object({
+    name: z.string().min(1).max(200),
+    price: z.number().positive(),
+    stock_quantity: z.number().int().min(0).optional(),
+    category: z.string().max(100).optional(),
+  }),
+});
+
+const EditProductAction = z.object({
+  action: z.literal('EDIT_PRODUCT'),
+  data: z.object({
+    search_name: z.string().min(1),
+    update: z.object({
+      sale_price: z.number().positive().optional(),
+    }),
+  }),
+});
+
+const RaiseTicketAction = z.object({
+  action: z.literal('RAISE_TICKET'),
+  data: z.object({
+    subject: z.string().min(5).max(200),
+    description: z.string().min(10).max(5000),
+  }),
+});
+
+const ActionSchema = z.discriminatedUnion('action', [AddProductAction, EditProductAction, RaiseTicketAction]);
 
 function chargeAiCredits(userId: string, usageType: string): { creditsUsed: number; balance: number } {
   const db = getDatabase();
@@ -125,15 +157,25 @@ Do not output the JSON until you have all information. Keep your conversation na
       if (jsonMatch && jsonMatch[1]) {
         try {
           const actionObj = JSON.parse(jsonMatch[1].trim());
-          if (actionObj.action === 'ADD_PRODUCT') {
-            const { name, price, stock_quantity, category } = actionObj.data;
+          
+          // Validate with Zod schema
+          const parseResult = ActionSchema.safeParse(actionObj);
+          if (!parseResult.success) {
+            console.warn('Invalid AI action schema:', parseResult.error.flatten());
+            throw new Error('Invalid action format');
+          }
+          
+          const validatedAction = parseResult.data;
+          
+          if (validatedAction.action === 'ADD_PRODUCT') {
+            const { name, price, stock_quantity, category } = validatedAction.data;
             db.prepare(`
               INSERT INTO products (id, user_id, name, price, stock_quantity, category)
               VALUES (?, ?, ?, ?, ?, ?)
             `).run(uuidv4(), req.user!.id, name, price || 0, stock_quantity || 0, category || 'General');
             finalContent = finalContent.replace(jsonMatch[0], '').trim() + `\n\n✅ Successfully added ${name} to your products.`;
-          } else if (actionObj.action === 'EDIT_PRODUCT') {
-            const { search_name, update } = actionObj.data;
+          } else if (validatedAction.action === 'EDIT_PRODUCT') {
+            const { search_name, update } = validatedAction.data;
             // Find most similar product
             const product = db.prepare('SELECT id, name, price FROM products WHERE user_id = ? AND name LIKE ? LIMIT 1').get(req.user!.id, `%${search_name}%`) as any;
             if (product) {
@@ -142,8 +184,8 @@ Do not output the JSON until you have all information. Keep your conversation na
                 finalContent = finalContent.replace(jsonMatch[0], '').trim() + `\n\n✅ Applied discount to ${product.name}. New sale price: ₹${update.sale_price}`;
               }
             }
-          } else if (actionObj.action === 'RAISE_TICKET') {
-            const { subject, description } = actionObj.data;
+          } else if (validatedAction.action === 'RAISE_TICKET') {
+            const { subject, description } = validatedAction.data;
             db.prepare(`
               INSERT INTO tickets (id, user_id, subject, description)
               VALUES (?, ?, ?, ?)
@@ -151,7 +193,7 @@ Do not output the JSON until you have all information. Keep your conversation na
             finalContent = finalContent.replace(jsonMatch[0], '').trim() + `\n\n🎟️ Support ticket "${subject}" has been raised. Our admin team will look into it.`;
           }
         } catch (e) {
-          console.error("Action parse error", e);
+          console.error("Action parse/validation error", e);
         }
       }
 

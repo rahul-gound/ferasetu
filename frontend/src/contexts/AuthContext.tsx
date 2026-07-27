@@ -33,9 +33,9 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   sendOTP: (email: string) => Promise<void>;
+  sendVerificationEmail: (email: string, shopId?: string) => Promise<void>;
   verifyOTP: (email: string, otp: string) => Promise<boolean>;
   createAccountAfterOTP: (data: RegisterData) => Promise<void>;
-  sendVerificationEmail: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -132,6 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await account.createVerification(window.location.origin + '/dashboard');
     } catch (err) {
+      throw toHttpishError(err);
+    }
+  };
+
+  const sendVerificationEmailWithSmtp = async (email: string, shopId?: string) => {
+    try {
+      await api.post('/auth/send-verification-email', { email, shop_id: shopId });
+    } catch (err: any) {
       throw toHttpishError(err);
     }
   };
@@ -299,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, sendOTP, verifyOTP, createAccountAfterOTP, sendVerificationEmail, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, sendOTP, sendVerificationEmail: sendVerificationEmailWithSmtp, verifyOTP, createAccountAfterOTP, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

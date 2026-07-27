@@ -1,21 +1,38 @@
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { getDatabase } from '../models/database';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface OTPSettings {
+  otp_length: number;
+  otp_expiry_minutes: number;
+  otp_resend_cooldown: number;
+  otp_max_attempts: number;
+}
+
+export const DEFAULT_OTP_SETTINGS: OTPSettings = {
+  otp_length: 6,
+  otp_expiry_minutes: 10,
+  otp_resend_cooldown: 60,
+  otp_max_attempts: 5,
+};
+
 export class OTPService {
-  private static OTP_EXPIRY_MINUTES = 10;
-  private static RESEND_COOLDOWN_SECONDS = 30;
-  private static MAX_ATTEMPTS = 3;
-
-  static generateOTP(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+  static generateOTP(length: number = 6): string {
+    const min = 10 ** (length - 1);
+    const max = 10 ** length - 1;
+    return crypto.randomInt(min, max + 1).toString().padStart(length, '0');
   }
 
-  static hashOTP(otp: string): string {
-    return crypto.createHash('sha256').update(otp).digest('hex');
+  static async hashOTP(otp: string): Promise<string> {
+    return bcrypt.hash(otp, 12);
   }
 
-  static async createOTP(email: string): Promise<{ otp: string; error?: string }> {
+  static async verifyOTPHash(otp: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(otp, hash);
+  }
+
+  static async createOTP(email: string, settings: OTPSettings = DEFAULT_OTP_SETTINGS): Promise<{ otp: string; error?: string }> {
     const db = getDatabase();
     
     // Check for cooldown
@@ -26,14 +43,14 @@ export class OTPService {
       const now = new Date().getTime();
       const diff = (now - lastTime) / 1000;
       
-      if (diff < this.RESEND_COOLDOWN_SECONDS) {
-        return { otp: '', error: `Please wait ${Math.ceil(this.RESEND_COOLDOWN_SECONDS - diff)} seconds before resending.` };
+      if (diff < settings.otp_resend_cooldown) {
+        return { otp: '', error: `Please wait ${Math.ceil(settings.otp_resend_cooldown - diff)} seconds before resending.` };
       }
     }
 
-    const otp = this.generateOTP();
-    const hash = this.hashOTP(otp);
-    const expiresAt = new Date(Date.now() + this.OTP_EXPIRY_MINUTES * 60000).toISOString();
+    const otp = this.generateOTP(settings.otp_length);
+    const hash = await this.hashOTP(otp);
+    const expiresAt = new Date(Date.now() + settings.otp_expiry_minutes * 60000).toISOString();
 
     // Clear old codes for this email
     db.prepare('DELETE FROM otp_codes WHERE email = ?').run(email);
@@ -47,7 +64,7 @@ export class OTPService {
     return { otp };
   }
 
-  static async verifyOTP(email: string, otp: string): Promise<{ success: boolean; message: string }> {
+  static async verifyOTP(email: string, otp: string, settings: OTPSettings = DEFAULT_OTP_SETTINGS): Promise<{ success: boolean; message: string }> {
     const db = getDatabase();
     const record = db.prepare('SELECT * FROM otp_codes WHERE email = ?').get(email) as any;
 
@@ -58,15 +75,15 @@ export class OTPService {
       return { success: false, message: 'OTP has expired.' };
     }
 
-    if (record.attempts >= this.MAX_ATTEMPTS) {
+    if (record.attempts >= settings.otp_max_attempts) {
       db.prepare('DELETE FROM otp_codes WHERE email = ?').run(email);
       return { success: false, message: 'Too many failed attempts. Please request a new OTP.' };
     }
 
-    const hash = this.hashOTP(otp);
-    if (hash !== record.otp_hash) {
+    const valid = await this.verifyOTPHash(otp, record.otp_hash);
+    if (!valid) {
       db.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?').run(email);
-      return { success: false, message: `Invalid OTP. ${this.MAX_ATTEMPTS - (record.attempts + 1)} attempts remaining.` };
+      return { success: false, message: `Invalid OTP. ${settings.otp_max_attempts - (record.attempts + 1)} attempts remaining.` };
     }
 
     // Success - delete the code

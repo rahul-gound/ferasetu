@@ -421,6 +421,16 @@ function getMySqlSchemaStatements(): string[] {
       rules_json LONGTEXT,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS tenant_feature_flags (
+      id VARCHAR(64) PRIMARY KEY,
+      tenant_id VARCHAR(64) NOT NULL,
+      flag_key VARCHAR(160) NOT NULL,
+      is_enabled TINYINT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_tenant_flag (tenant_id, flag_key),
+      FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     `CREATE TABLE IF NOT EXISTS admin_audit_logs (
       id VARCHAR(64) PRIMARY KEY,
       admin_email VARCHAR(255) NOT NULL,
@@ -461,6 +471,43 @@ function getMySqlSchemaStatements(): string[] {
       status VARCHAR(32) NOT NULL DEFAULT 'scheduled',
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS smtp_settings (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      provider VARCHAR(32) NOT NULL DEFAULT 'custom',
+      host VARCHAR(255),
+      port INT NOT NULL DEFAULT 587,
+      username VARCHAR(255),
+      password_encrypted TEXT,
+      sender_name VARCHAR(255),
+      sender_email VARCHAR(255),
+      reply_to_email VARCHAR(255),
+      ssl_enabled TINYINT NOT NULL DEFAULT 0,
+      tls_enabled TINYINT NOT NULL DEFAULT 1,
+      otp_enabled TINYINT NOT NULL DEFAULT 1,
+      otp_length INT NOT NULL DEFAULT 6,
+      otp_expiry_minutes INT NOT NULL DEFAULT 10,
+      otp_resend_cooldown INT NOT NULL DEFAULT 60,
+      otp_max_attempts INT NOT NULL DEFAULT 5,
+      otp_subject VARCHAR(500) DEFAULT 'Verify your email \\u2022 FeraSetu',
+      otp_body_template TEXT,
+      is_active TINYINT NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_smtp_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS tenant_feature_flags (
+      id VARCHAR(64) PRIMARY KEY,
+      tenant_id VARCHAR(64) NOT NULL,
+      flag_key VARCHAR(160) NOT NULL,
+      is_enabled TINYINT NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_tenant_flag (tenant_id, flag_key),
+      FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (flag_key) REFERENCES feature_flags(flag_key) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
   ];
 }
@@ -654,6 +701,16 @@ function getSqliteSchemaStatements(): string[] {
       rules_json TEXT,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS tenant_feature_flags (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      flag_key TEXT NOT NULL,
+      is_enabled INTEGER NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tenant_id, flag_key),
+      FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
     `CREATE TABLE IF NOT EXISTS admin_audit_logs (
       id TEXT PRIMARY KEY,
       admin_email TEXT NOT NULL,
@@ -692,6 +749,32 @@ function getSqliteSchemaStatements(): string[] {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS smtp_settings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'custom',
+      host TEXT,
+      port INTEGER NOT NULL DEFAULT 587,
+      username TEXT,
+      password_encrypted TEXT,
+      sender_name TEXT,
+      sender_email TEXT,
+      reply_to_email TEXT,
+      ssl_enabled INTEGER NOT NULL DEFAULT 0,
+      tls_enabled INTEGER NOT NULL DEFAULT 1,
+      otp_enabled INTEGER NOT NULL DEFAULT 1,
+      otp_length INTEGER NOT NULL DEFAULT 6,
+      otp_expiry_minutes INTEGER NOT NULL DEFAULT 10,
+      otp_resend_cooldown INTEGER NOT NULL DEFAULT 60,
+      otp_max_attempts INTEGER NOT NULL DEFAULT 5,
+      otp_subject TEXT DEFAULT 'Verify your email • FeraSetu',
+      otp_body_template TEXT,
+      is_active INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
     `CREATE INDEX IF NOT EXISTS idx_products_user ON products (user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_products_user_created ON products (user_id, created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id)`,
@@ -705,6 +788,8 @@ function getSqliteSchemaStatements(): string[] {
     `CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes (email)`,
     `CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_logs (created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_events (user_id, created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_survey_user_date ON survey_submissions (user_id, created_at)`
+    `CREATE INDEX IF NOT EXISTS idx_survey_user_date ON survey_submissions (user_id, created_at)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_smtp_user ON smtp_settings (user_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_feature_flag ON tenant_feature_flags (tenant_id, flag_key)`
   ];
 }

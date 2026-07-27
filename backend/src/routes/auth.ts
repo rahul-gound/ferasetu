@@ -2,26 +2,43 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../models/database';
 import { registerUser, loginUser, getUserById } from '../services/authService';
 import { sendOnboardingEmail, sendOTPEmail } from '../services/mailService';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { OTPService } from '../services/otpService';
+import { getSmtpSettings, sendOtpViaCustomSmtp } from '../services/smtpService';
 import { createRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-do-not-use-in-prod';
 
-// Rate limiter for OTP sending
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be set in production environment');
+    }
+    return 'dev-only-' + crypto.randomBytes(32).toString('hex');
+  }
+  return secret;
+}
+
+const JWT_SECRET = getJwtSecret();
+
+// Rate limiter for OTP sending (by IP for unauthenticated)
 const otpRateLimiter = createRateLimiter(5, 15);
+
+// Rate limiter for OTP sending (by user ID for authenticated)
+const otpRateLimiterAuth = createRateLimiter(5, 15, (req: any) => req.user?.id || req.ip);
 
 /**
  * PHASE 0: VERIFY OTP ONLY (no user creation - for frontend OTP step)
  */
 router.post('/verify-otp',
   body('email').isEmail().normalizeEmail(),
-  body('otp').isLength({ min: 6, max: 6 }).isNumeric().withMessage('Valid 6-digit OTP is required'),
+  body('otp').isLength({ min: 4, max: 8 }).isNumeric().withMessage('Valid 4-8 digit OTP is required'),
   async (req: Request, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -77,13 +94,78 @@ router.post('/send-otp',
 );
 
 /**
+ * PHASE 1b: SEND VERIFICATION EMAIL USING CUSTOM SMTP
+ * Uses shop owner's configured SMTP settings to send OTP
+ */
+router.post('/send-verification-email',
+  otpRateLimiter,
+  body('email').isEmail().normalizeEmail(),
+  body('shop_id').optional().isString(),
+  async (req: Request, res: Response): Promise<void> => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { email, shop_id } = req.body;
+
+    try {
+      let smtpSettings = null;
+      
+      // If shop_id provided, get that shop's SMTP settings
+      if (shop_id) {
+        smtpSettings = getSmtpSettings(shop_id);
+      }
+
+      // Use custom OTP settings if available
+      const otpSettings = {
+        otp_length: smtpSettings?.otp_length || 6,
+        otp_expiry_minutes: smtpSettings?.otp_expiry_minutes || 10,
+        otp_resend_cooldown: smtpSettings?.otp_resend_cooldown || 60,
+        otp_max_attempts: smtpSettings?.otp_max_attempts || 5,
+      };
+
+      // Create OTP with custom settings
+      const { otp, error } = await OTPService.createOTP(email, otpSettings);
+      if (error) {
+        res.status(429).json({ error });
+        return;
+      }
+
+      // Send email using custom SMTP if configured, otherwise use default mail service
+      let result;
+      if (smtpSettings && smtpSettings.is_active && smtpSettings.host && smtpSettings.sender_email && smtpSettings.has_password) {
+        result = await sendOtpViaCustomSmtp(shop_id!, email, otp, otpSettings.otp_expiry_minutes);
+      } else {
+        await sendOTPEmail(email, otp);
+        result = { success: true, message: 'OTP sent via default mail service.' };
+      }
+
+      if (result.success) {
+        res.status(200).json({ success: true, message: 'Verification email sent.' });
+      } else {
+        res.status(400).json({ success: false, error: result.message });
+      }
+    } catch (err: any) {
+      console.error('Send verification email error:', err);
+      res.status(500).json({ error: 'Failed to send verification email. Please try again later.' });
+    }
+  }
+);
+
+/**
  * PHASE 2: REGISTRATION (WITH OTP)
  */
 router.post('/register',
   body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('password')
+    .isLength({ min: 12 })
+    .withMessage('Password must be at least 12 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/)
+    .withMessage('Password must contain uppercase, lowercase, number, and special character (@$!%*?&)'),
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('otp').isLength({ min: 6, max: 6 }).isNumeric().withMessage('Valid 6-digit OTP is required'),
+  body('otp').isLength({ min: 4, max: 8 }).isNumeric().withMessage('Valid 4-8 digit OTP is required'),
   async (req: Request, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -131,9 +213,19 @@ router.post('/register',
         { expiresIn: '30d' }
       );
 
+      // Set JWT in HttpOnly cookie
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('access_token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
+      });
+      
+      // Return user data without token
       res.status(201).json({
         success: true,
-        token,
         user: { id: userId, email, name, plan: 'beta', ai_credits_balance: 20, ai_credits_monthly_limit: 20, ai_credits_used_month: 0, plan_expires_at: betaEndsAt.toISOString() }
       });
     } catch (err: any) {
@@ -158,13 +250,36 @@ router.post('/login',
 
     try {
       const result = await loginUser(req.body.email, req.body.password);
-      res.json(result);
+      
+      // Set JWT in HttpOnly cookie
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('access_token', result.token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
+      });
+      
+      // Return user data without token
+      const { token: _, ...userData } = result;
+      res.json({ user: userData });
     } catch (err: any) {
       console.error('Login error:', err);
       res.status(err.status || 500).json({ error: err.message });
     }
   }
 );
+
+router.post('/logout', (req: Request, res: Response): void => {
+  res.clearCookie('access_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
+  res.json({ success: true, message: 'Logged out successfully' });
+});
 
 router.get('/me', authenticate, (req: AuthenticatedRequest, res: Response): void => {
   const user = getUserById(req.user!.id);

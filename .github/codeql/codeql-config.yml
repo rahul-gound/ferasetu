@@ -1,0 +1,20 @@
+name: "FeraSetu CodeQL Config"
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+paths-ignore:
+  - "node_modules"
+  - "dist"
+  - "build"
+  - ".git"
+  - "*.min.js"
+  - "*.bundle.js"
+  - "coverage"
+  - "*.test.ts"
+  - "*.test.tsx"
+  - "*.spec.ts"
+  - "*.spec.tsx"
+paths:
+  - "backend/src"
+  - "frontend/src"
+  - "worker"

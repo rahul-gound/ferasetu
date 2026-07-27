@@ -2,14 +2,14 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
+import { verify, TOTP } from 'otplib';
 import os from 'os';
 import { getDatabase } from '../models/database';
-import { adminOnly, AdminRequest } from '../middleware/adminAuth';
+import { adminOnly, AdminRequest, verifyAdminCredentials } from '../middleware/adminAuth';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'fallback-dev-secret-do-not-use-in-dev');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fera.ai';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const VALID_PLANS = new Set(['free', 'trial', 'basic', 'standard', 'pro', 'premium']);
 
 const adminLoginLimiter = rateLimit({
@@ -33,24 +33,43 @@ function writeAuditLog(req: AdminRequest, action: string, targetType?: string, t
 }
 
 // Admin Login (Public)
-router.post('/login', adminLoginLimiter, (req: Request, res: Response): void => {
-  const { username, password } = req.body;
+router.post('/login', adminLoginLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { username, password, totp } = req.body;
 
-  if (!JWT_SECRET || !ADMIN_PASSWORD) {
-    res.status(500).json({ error: 'Admin login is not configured' });
+  if (!JWT_SECRET) {
+    res.status(500).json({ error: 'Admin authentication is not configured' });
     return;
   }
 
-  if (username === 'admin' && password === ADMIN_PASSWORD) {
-    const token = jwt.sign(
-      { id: 'admin-root', email: ADMIN_EMAIL, role: 'admin' },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    res.json({ success: true, token });
-  } else {
+  // Verify admin credentials
+  const isValid = await verifyAdminCredentials(username, password);
+  if (!isValid) {
     res.status(401).json({ error: 'Invalid admin credentials' });
+    return;
   }
+
+  // Check MFA if TOTP is configured
+  const adminTotpSecret = process.env.ADMIN_TOTP_SECRET;
+  if (adminTotpSecret) {
+    if (!totp) {
+      res.status(401).json({ error: 'MFA required', requireMFA: true });
+      return;
+    }
+    
+    // Verify TOTP
+    const isValidTotp = verify({ token: totp, secret: adminTotpSecret });
+    if (!isValidTotp) {
+      res.status(401).json({ error: 'Invalid MFA code' });
+      return;
+    }
+  }
+
+  const token = jwt.sign(
+    { id: 'admin-root', email: ADMIN_EMAIL, role: 'admin' },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+  res.json({ success: true, token });
 });
 
 // Use adminOnly middleware for all following routes
@@ -140,12 +159,20 @@ router.post('/users/:id/impersonate', (req: AdminRequest, res: Response) => {
   }
 
   const token = jwt.sign(
-    { id: user.id, email: user.email, plan: user.plan, businessName: user.business_name || user.name, impersonated: true },
+    { 
+      id: user.id, 
+      email: user.email, 
+      plan: user.plan, 
+      businessName: user.business_name || user.name, 
+      impersonated: true,
+      impersonator: req.admin?.id,
+      impersonated_at: Date.now()
+    },
     JWT_SECRET,
-    { expiresIn: '1h' }
+    { expiresIn: '15m' }
   );
 
-  writeAuditLog(req, 'user.impersonate', 'user', req.params.id, { email: user.email });
+  writeAuditLog(req, 'user.impersonate', 'user', req.params.id, { email: user.email, impersonator: req.admin?.id });
   res.json({ token, user });
 });
 
@@ -363,6 +390,75 @@ router.post('/feature-flags', (req: AdminRequest, res: Response) => {
   `).run(uuidv4(), flag_key, description, is_enabled ? 1 : 0, JSON.stringify(rules_json || {}));
 
   writeAuditLog(req, 'feature_flag.upsert', 'feature_flag', flag_key, { is_enabled: !!is_enabled });
+  res.json({ success: true });
+});
+
+// Tenant feature flag overrides
+interface FeatureFlag {
+  flag_key: string;
+  is_enabled: number;
+  description?: string;
+  rules_json?: string;
+  updated_at?: string;
+}
+
+interface TenantFeatureFlagOverride {
+  flag_key: string;
+  is_enabled: number;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+router.get('/feature-flags/tenant/:userId', (req: AdminRequest, res: Response) => {
+  const db = getDatabase();
+  const { userId } = req.params;
+  
+  const overrides = db.prepare('SELECT * FROM tenant_feature_flags WHERE tenant_id = ?').all(userId) as TenantFeatureFlagOverride[];
+  const globalFlags = db.prepare('SELECT * FROM feature_flags').all() as FeatureFlag[];
+  
+  // Merge global flags with tenant overrides
+  const mergedFlags = globalFlags.map(flag => {
+    const override = overrides.find(o => o.flag_key === flag.flag_key);
+    return {
+      ...flag,
+      is_enabled: override ? !!override.is_enabled : !!flag.is_enabled,
+      overridden: !!override,
+    };
+  });
+  
+  res.json({ flags: mergedFlags, overrides });
+});
+
+router.post('/feature-flags/tenant/:userId', (req: AdminRequest, res: Response) => {
+  const { flag_key, is_enabled } = req.body;
+  const { userId } = req.params;
+  const db = getDatabase();
+  
+  if (is_enabled === undefined || is_enabled === null) {
+    res.status(400).json({ error: 'is_enabled is required' });
+    return;
+  }
+  
+  db.prepare(`
+    INSERT INTO tenant_feature_flags (id, tenant_id, flag_key, is_enabled)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(tenant_id, flag_key) DO UPDATE SET
+    is_enabled = excluded.is_enabled,
+    updated_at = datetime('now')
+  `).run(uuidv4(), userId, flag_key, is_enabled ? 1 : 0);
+  
+  writeAuditLog(req, 'feature_flag.tenant_override', 'feature_flag', flag_key, { userId, is_enabled: !!is_enabled });
+  res.json({ success: true });
+});
+
+router.delete('/feature-flags/tenant/:userId/:flagKey', (req: AdminRequest, res: Response) => {
+  const { userId, flagKey } = req.params;
+  const db = getDatabase();
+  
+  db.prepare('DELETE FROM tenant_feature_flags WHERE tenant_id = ? AND flag_key = ?').run(userId, flagKey);
+  
+  writeAuditLog(req, 'feature_flag.tenant_override_remove', 'feature_flag', flagKey, { userId });
   res.json({ success: true });
 });
 

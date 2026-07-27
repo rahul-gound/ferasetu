@@ -1,15 +1,24 @@
 import type { SectionConfig } from '../../../types/template';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface HeroSectionProps {
   config: SectionConfig;
   shopName: string;
 }
 
+function sanitizeHtml(input: string): string {
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'span', 'br', 'p', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+    ALLOWED_URI_REGEXP: /^(?:https?|mailto|tel):/,
+  });
+}
+
 export default function HeroSection({ config, shopName }: HeroSectionProps) {
   const bgColor = (config.bgColor as string) || '#FF6B35';
-  const headline = (config.headline as string) || `Welcome to ${shopName}`;
-  const subheadline = (config.subheadline as string) || 'Your neighborhood shop, now online with quality and trust.';
-  const ctaText = (config.ctaText as string) || 'Shop Now';
+  const headline = sanitizeHtml((config.headline as string) || `Welcome to ${shopName}`);
+  const subheadline = sanitizeHtml((config.subheadline as string) || 'Your neighborhood shop, now online with quality and trust.');
+  const ctaText = sanitizeHtml((config.ctaText as string) || 'Shop Now');
   const ctaHref = (config.ctaHref as string) || '#products';
   const accentColor = (config.accentColor as string) || '#004E89';
   const imageUrl = (config.imageUrl as string) || '';

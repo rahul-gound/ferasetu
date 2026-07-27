@@ -1,13 +1,22 @@
 import type { SectionConfig } from '../../../types/template';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface BannerSectionProps {
   config: SectionConfig;
 }
 
+function sanitizeText(input: string): string {
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'span', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+    ALLOWED_URI_REGEXP: /^(?:https?|mailto|tel):/,
+  });
+}
+
 export default function BannerSection({ config }: BannerSectionProps) {
   const bgColor = (config.bgColor as string) || '#F59E0B';
   const textColor = (config.textColor as string) || '#fff';
-  const text = (config.text as string) || '🎉 Special offers available!';
+  const text = sanitizeText((config.text as string) || '🎉 Special offers available!');
 
   return (
     <>

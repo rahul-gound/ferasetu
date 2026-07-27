@@ -2,20 +2,21 @@ import { Request, Response, NextFunction } from 'express';
 
 export function errorHandler(
   err: Error & { status?: number; statusCode?: number },
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
   const status = err.status || err.statusCode || 500;
-  const message = err.message || 'Internal server error';
+  const message = status === 500 ? 'Internal server error' : err.message;
 
-  console.error(`[Error] ${status}: ${message}`);
-  if (process.env.NODE_ENV === 'development') {
-    console.error(err.stack);
-  }
+  console.error(`[Error] ${status}: ${message}`, {
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+  });
 
   res.status(status).json({
     error: message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    code: `ERR_${status}`,
   });
 }

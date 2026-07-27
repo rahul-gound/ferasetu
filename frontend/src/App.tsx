@@ -29,6 +29,7 @@ const AICreditsPage = lazy(() => import('./pages/AICreditsPage'));
 const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
 const SurveyFeedbackPage = lazy(() => import('./pages/SurveyFeedbackPage'));
+const EmailSettingsPage = lazy(() => import('./pages/EmailSettingsPage'));
 const ShopPage = lazy(() => import('./pages/ShopPage'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
@@ -131,6 +132,7 @@ function AppRoutes() {
                   <Route path="/ai-credits" element={<AICreditsPage />} />
                   <Route path="/website-builder" element={<WebsiteBuilderPage />} />
                   <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
+                  <Route path="/settings/email" element={<EmailSettingsPage />} />
                   <Route path="/upgrade" element={<UpgradePage />} />
                   <Route path="/support" element={<SupportPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

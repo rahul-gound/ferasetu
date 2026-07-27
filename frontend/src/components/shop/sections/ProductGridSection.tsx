@@ -6,6 +6,7 @@ import {
   ShoppingCart, Plus, Minus, ArrowRight
 } from 'lucide-react';
 import type { SectionConfig, ShopProduct } from '../../../types/template';
+import DOMPurify from 'isomorphic-dompurify';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -18,6 +19,13 @@ interface ProductGridSectionProps {
 
 interface CartItem extends ShopProduct {
   quantity: number;
+}
+
+function sanitizeText(input: string): string {
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'span', 'br', 'p'],
+    ALLOWED_ATTR: ['class', 'style'],
+  });
 }
 
 function ProductCard({ product, accentColor, showStock, onBuyNow, onAddToCart, shopPhone }: {
@@ -71,7 +79,7 @@ function ProductCard({ product, accentColor, showStock, onBuyNow, onAddToCart, s
         <div style={{ position: 'relative', height: '200px', overflow: 'hidden', background: '#f5f7fa' }}>
           <img
             src={product.image_url}
-            alt={product.name}
+            alt={sanitizeText(product.name)}
             style={{ 
               width: '100%', height: '100%', objectFit: 'cover',
               transition: 'transform 0.3s ease',
@@ -93,10 +101,10 @@ function ProductCard({ product, accentColor, showStock, onBuyNow, onAddToCart, s
       
       <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-          {product.category || 'General'}
+          {sanitizeText(product.category || 'General')}
         </div>
         <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px', lineHeight: 1.4, minHeight: '44px' }}>
-          {product.name}
+          {sanitizeText(product.name)}
         </h3>
         
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
