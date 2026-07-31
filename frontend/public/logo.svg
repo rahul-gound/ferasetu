@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500">
+  <!-- Logo background -->
+  <rect width="1500" height="500" fill="white"/>
+  
+  <!-- F with star icon -->
+  <g id="logo-mark">
+    <!-- Top leaf curve -->
+    <path d="M 250 150 Q 350 100 450 200 Q 400 250 300 280 Q 200 250 250 150" fill="#2563EB"/>
+    
+    <!-- Bottom leaf curve -->
+    <path d="M 200 300 Q 280 250 380 280 Q 350 350 250 380 Q 150 350 200 300" fill="#2563EB"/>
+    
+    <!-- Star in center -->
+    <path d="M 280 280 L 295 330 L 350 330 L 305 375 L 325 425 L 280 380 L 235 425 L 255 375 L 210 330 L 265 330 Z" fill="#2563EB"/>
+  </g>
+  
+  <!-- FeraSetu text -->
+  <g id="logo-text">
+    <text x="550" y="320" font-family="Arial, sans-serif" font-size="140" font-weight="700" fill="#2563EB" letter-spacing="-2">
+      FeraSetu
+    </text>
+    <text x="550" y="410" font-family="Arial, sans-serif" font-size="60" font-weight="500" fill="#60A5FA" letter-spacing="6">
+      BUILD.  MANAGE.  GROW.
+    </text>
+  </g>
+</svg>

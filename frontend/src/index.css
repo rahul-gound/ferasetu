@@ -3,11 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --primary: #FF6B35;
-  --primary-glow: rgba(255, 107, 53, 0.25);
-  --secondary: #4D7CFF;
-  --bg: #FAFAFA;
-  --bg2: #F1F5F9;
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --primary-light: #60A5FA;
+  --accent: #93C5FD;
+  --primary-glow: rgba(37, 99, 235, 0.25);
+  --bg: #FFFFFF;
+  --bg-section: #F8FAFC;
   --surface: #FFFFFF;
   --surface2: #F1F5F9;
   --border: #E2E8F0;
@@ -16,10 +18,11 @@
   --text-muted: #64748B;
   --text-subtle: #475569;
   --radius: 16px;
-  --shadow-glow: 0 4px 14px rgba(255, 107, 53, 0.25);
-  --shadow-accent: 0 4px 14px rgba(255, 107, 53, 0.25);
-  --shadow-accent-lg: 0 8px 24px rgba(255, 107, 53, 0.35);
-  --success: #10B981;
+  --shadow-glow: 0 4px 14px rgba(37, 99, 235, 0.25);
+  --shadow-accent: 0 4px 14px rgba(37, 99, 235, 0.25);
+  --shadow-accent-lg: 0 8px 24px rgba(37, 99, 235, 0.35);
+  --shadow-accent-xl: 0 12px 40px rgba(37, 99, 235, 0.4);
+  --success: #22C55E;
   --warning: #F59E0B;
 }
 
@@ -61,16 +64,16 @@ body {
 }
 
 /* Premium Gradients */
-.gradient-orange {
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8C5A 100%);
-}
-
 .gradient-blue {
-  background: linear-gradient(135deg, #4D7CFF 0%, #7BA8FF 100%);
+  background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%);
 }
 
-.gradient-warm {
-  background: linear-gradient(135deg, #FF6B35 0%, #FFA500 100%);
+.gradient-blue-dark {
+  background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
+}
+
+.gradient-blue-light {
+  background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 100%);
 }
 
 /* Frosted Glass Cards */

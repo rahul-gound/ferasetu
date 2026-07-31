@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
 import { Navbar } from '../components/landing/Navbar';
 import { Hero } from '../components/landing/Hero';
+import { TrustedBusinesses } from '../components/landing/TrustedBusinesses';
+import { WhyFeraSetu } from '../components/landing/WhyFeraSetu';
 import { Features } from '../components/landing/Features';
 import { Testimonials } from '../components/landing/Testimonials';
 import { Pricing } from '../components/landing/Pricing';
@@ -31,6 +33,8 @@ export default function LandingPage() {
       <main>
         <Navbar />
         <Hero />
+        <TrustedBusinesses />
+        <WhyFeraSetu />
         <Features />
         <Testimonials />
         <Pricing />

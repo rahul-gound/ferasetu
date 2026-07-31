@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Check } from 'lucide-react';
 
 const plans = [
@@ -54,14 +55,14 @@ const plans = [
   },
 ];
 
-export function Pricing() {
+export const Pricing = memo(function PricingComponent() {
   return (
     <section id="pricing" className="py-24 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Simple, <span className="text-orange-600">Transparent</span> Pricing
+            Simple, <span className="text-primary">Transparent</span> Pricing
           </h2>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
             Start free and upgrade as you grow. No hidden fees.
@@ -75,12 +76,12 @@ export function Pricing() {
               key={index}
               className={`relative rounded-2xl p-8 transition-all duration-300 ${
                 plan.highlighted
-                  ? 'bg-gradient-to-br from-orange-600 to-orange-700 text-white shadow-xl scale-105 md:scale-110'
-                  : 'bg-white border border-slate-200 hover:border-orange-200'
+                  ? 'bg-gradient-to-br from-primary to-blue-700 text-white shadow-glow-xl scale-105 md:scale-110'
+                  : 'bg-white border border-slate-200 hover:border-blue-200'
               }`}
             >
               {plan.highlighted && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-slate-900 px-4 py-1 rounded-full text-sm font-semibold">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-blue-300 text-slate-900 px-4 py-1 rounded-full text-sm font-semibold">
                   Most Popular
                 </div>
               )}
@@ -102,8 +103,8 @@ export function Pricing() {
               <button
                 className={`w-full py-3 px-4 rounded-lg font-semibold transition mb-8 ${
                   plan.highlighted
-                    ? 'bg-white text-orange-600 hover:bg-orange-50'
-                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                    ? 'bg-white text-primary hover:bg-blue-50'
+                    : 'bg-primary text-white hover:bg-blue-700'
                 }`}
               >
                 {plan.cta}
@@ -114,10 +115,9 @@ export function Pricing() {
                   <div key={idx} className="flex items-start gap-3">
                     <Check
                       size={20}
-                      className={plan.highlighted ? 'text-orange-100' : 'text-orange-600'}
-                      className="flex-shrink-0 mt-0.5"
+                      className={plan.highlighted ? 'text-blue-100' : 'text-primary'}
                     />
-                    <span className={plan.highlighted ? 'text-orange-50' : 'text-slate-700'}>
+                    <span className={plan.highlighted ? 'text-blue-50' : 'text-slate-700'}>
                       {feature}
                     </span>
                   </div>
@@ -131,7 +131,7 @@ export function Pricing() {
         <div className="mt-16 text-center">
           <p className="text-slate-600 mb-4">
             Have questions about pricing?{' '}
-            <button className="text-orange-600 font-semibold hover:text-orange-700">
+            <button className="text-primary font-semibold hover:text-blue-700">
               View FAQ
             </button>
           </p>
@@ -139,4 +139,4 @@ export function Pricing() {
       </div>
     </section>
   );
-}
+});

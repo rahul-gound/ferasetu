@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 const faqs = [
@@ -34,7 +34,7 @@ const faqs = [
   },
 ];
 
-export function FAQ() {
+export const FAQ = memo(function FAQComponent() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
@@ -90,4 +90,4 @@ export function FAQ() {
       </div>
     </section>
   );
-}
+});

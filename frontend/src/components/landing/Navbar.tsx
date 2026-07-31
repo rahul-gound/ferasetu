@@ -18,10 +18,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold">
-              <span className="text-orange-600">Fera</span>
-              <span className="text-slate-900">Setu</span>
-            </h1>
+            <img src="/logo.svg" alt="FeraSetu" className="h-10 w-auto" />
           </div>
 
           {/* Desktop Navigation */}
@@ -48,11 +45,11 @@ export function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <button className="px-6 py-2 text-slate-700 font-medium hover:text-slate-900 transition">
+            <button className="px-6 py-2 text-slate-600 font-medium hover:text-primary transition">
               Sign In
             </button>
-            <button className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-medium">
-              Start Free
+            <button className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-glow hover:shadow-glow-lg">
+              Launch Free
             </button>
           </div>
 
@@ -87,11 +84,11 @@ export function Navbar() {
               FAQ
             </button>
             <div className="flex gap-2 pt-2">
-              <button className="flex-1 px-4 py-2 text-slate-700 font-medium border border-neutral-300 rounded-lg">
+              <button className="flex-1 px-4 py-2 text-slate-600 font-medium border border-slate-200 rounded-lg hover:bg-slate-50">
                 Sign In
               </button>
-              <button className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg font-medium">
-                Start Free
+              <button className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-700">
+                Launch Free
               </button>
             </div>
           </div>

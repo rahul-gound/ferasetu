@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { Zap, Smartphone, BarChart3, MessageCircle, Package, Brain } from 'lucide-react';
 
 const features = [
@@ -33,14 +34,14 @@ const features = [
   },
 ];
 
-export function Features() {
+export const Features = memo(function FeatsComponent() {
   return (
     <section id="features" className="py-24 px-4 bg-slate-50">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Everything You Need to <span className="text-orange-600">Succeed</span>
+            Everything You Need to <span className="text-primary">Succeed</span>
           </h2>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
             Comprehensive tools designed specifically for Indian businesses going online.
@@ -54,10 +55,10 @@ export function Features() {
             return (
               <div
                 key={index}
-                className="p-8 bg-white rounded-xl border border-slate-200 hover:border-orange-300 hover:shadow-lg transition-all duration-300 group"
+                className="p-8 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:shadow-glow transition-all duration-300 group"
               >
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-lg flex items-center justify-center mb-4 group-hover:from-orange-200 group-hover:to-orange-100 transition">
-                  <Icon size={24} className="text-orange-600" />
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg flex items-center justify-center mb-4 group-hover:from-blue-200 group-hover:to-blue-100 transition">
+                  <Icon size={24} className="text-primary" />
                 </div>
                 <h3 className="text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
                 <p className="text-slate-600 leading-relaxed">{feature.description}</p>
@@ -68,11 +69,11 @@ export function Features() {
 
         {/* Bottom CTA */}
         <div className="mt-16 text-center">
-          <button className="px-8 py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition">
+          <button className="px-8 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-glow hover:shadow-glow-lg">
             Explore All Features
           </button>
         </div>
       </div>
     </section>
   );
-}
+});
