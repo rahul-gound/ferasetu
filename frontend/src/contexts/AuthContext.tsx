@@ -100,7 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { jwt } = await account.createJWT();
       localStorage.setItem('fera_token', jwt);
       return jwt;
-    } catch (err) {
+    } catch (err: any) {
+      console.warn('[AuthContext] syncToken failed:', err?.message || err);
       localStorage.removeItem('fera_token');
       return null;
     }
@@ -108,24 +109,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Fetch the profile from D1 (via Worker); create/init if missing.
   const loadProfile = async (): Promise<User> => {
-    await syncToken();
-    const me = await account.get();
-    const { data } = await api.get('/users/me');
-    
-    let profile: any;
-    if (data.needs_init) {
-      profile = await createProfile({
-        name: data.user.name,
-        email: data.user.email,
-      });
-    } else {
-      profile = data.user;
-    }
+    try {
+      await syncToken();
+      const me = await account.get();
+      const { data } = await api.get('/users/me');
+      
+      let profile: any;
+      if (data.needs_init) {
+        profile = await createProfile({
+          name: data.user.name,
+          email: data.user.email,
+        });
+      } else {
+        profile = data.user;
+      }
 
-    return {
-      ...profile,
-      is_verified: me.emailVerification,
-    };
+      return {
+        ...profile,
+        is_verified: me.emailVerification,
+      };
+    } catch (err: any) {
+      console.warn('[AuthContext] loadProfile failed:', err?.message || err);
+      throw err;
+    }
   };
 
   const sendVerificationEmail = async () => {
@@ -167,7 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(profile);
           persistLocalUser(profile);
         }
-      } catch {
+      } catch (err: any) {
+        console.warn('[AuthContext] initAuth failed:', err?.message || err);
         setUser(null);
         persistLocalUser(null);
       } finally {
