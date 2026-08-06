@@ -62,6 +62,7 @@ function getCorsHeaders(request) {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Appwrite-Project, X-Appwrite-JWT",
+    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -72,6 +73,7 @@ function json(data, status = 200, extraHeaders = {}, request = null) {
     "Access-Control-Allow-Origin": "https://ferasetu.com",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Appwrite-Project, X-Appwrite-JWT",
+    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 
@@ -860,7 +862,9 @@ export default {
         // D1 binding missing — usually wrangler.toml database_id not set.
         return errorResponse(
           "Database not configured. Set the D1 `database_id` in wrangler.toml and redeploy.",
-          503
+          503,
+          undefined,
+          request
         );
       }
 
@@ -868,11 +872,11 @@ export default {
       return await route(request, env);
     } catch (err) {
       if (err instanceof HttpError) {
-        return errorResponse(err.message, err.status, err.details);
+        return errorResponse(err.message, err.status, err.details, request);
       }
       // Unexpected — log for `wrangler tail`, return a generic JSON 500.
       console.error("Unhandled worker error:", err && err.stack ? err.stack : err);
-      return errorResponse("Internal server error", 500);
+      return errorResponse("Internal server error", 500, undefined, request);
     }
   },
 };
