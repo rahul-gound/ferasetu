@@ -4,13 +4,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    rollupOptions: {
-      external: ['react-is'],
-      output: {
-        globals: {
-          'react-is': 'ReactIs'
-        }
-      }
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
     }
   },
   server: {
