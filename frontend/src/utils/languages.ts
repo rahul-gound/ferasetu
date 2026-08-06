@@ -30,6 +30,7 @@ const EN_DICT: Record<string, string> = {
   products: 'Products',
   orders: 'Orders',
   analytics: 'Analytics',
+  feraAI: 'Fera AI ✨',
   aiAssistant: 'AI Assistant',
   aiCredits: 'AI Credits',
   surveyFeedback: 'Survey & Feedback',

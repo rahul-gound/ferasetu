@@ -4,6 +4,9 @@ import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { StatsigProvider, useClientAsyncInit } from '@statsig/react-bindings';
+import { StatsigAutoCapturePlugin } from '@statsig/web-analytics';
+import { StatsigSessionReplayPlugin } from '@statsig/session-replay';
 
 // Public, lightweight pages — kept eager so the first paint never waits on a second chunk.
 import LandingPage from './pages/LandingPage';
@@ -41,6 +44,9 @@ const AdminTicketsPage = lazy(() => import('./pages/AdminTicketsPage'));
 const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
+
+// Fera AI — new premium AI assistant page
+const FeraAIPage = lazy(() => import('./pages/FeraAIPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -129,6 +135,8 @@ function AppRoutes() {
                   <Route path="/orders" element={<OrdersPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/ai-assistant" element={<AIAssistantPage />} />
+                  {/* New Fera AI — premium AI assistant page */}
+                  <Route path="/fera-ai" element={<FeraAIPage />} />
                   <Route path="/ai-credits" element={<AICreditsPage />} />
                   <Route path="/website-builder" element={<WebsiteBuilderPage />} />
                   <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
@@ -146,7 +154,8 @@ function AppRoutes() {
   );
 }
 
-export default function App() {
+// Inner app content — all providers except Statsig
+function AppContent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -156,5 +165,20 @@ export default function App() {
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+// Root app — Statsig wraps everything to enable feature flags and session replay
+export default function App() {
+  const { client: statsigClient } = useClientAsyncInit(
+    'client-XOZr1YiFOBSi6y6elVRLgwEQSY44LvCVpRwTzdfbd98',
+    { userID: 'a-user' },
+    { plugins: [new StatsigAutoCapturePlugin(), new StatsigSessionReplayPlugin()] }
+  );
+
+  return (
+    <StatsigProvider client={statsigClient} loadingComponent={<div>Loading...</div>}>
+      <AppContent />
+    </StatsigProvider>
   );
 }

@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
   Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins, MessageSquareText,
-  Settings,
+  Settings, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/products',       icon: <Package size={18} />,         labelKey: 'products' },
   { path: '/orders',         icon: <ShoppingCart size={18} />,    labelKey: 'orders' },
   { path: '/analytics',      icon: <BarChart3 size={18} />,       labelKey: 'analytics' },
+  { path: '/fera-ai',        icon: <Sparkles size={18} />,        labelKey: 'feraAI' },
   { path: '/ai-assistant',   icon: <Bot size={18} />,             labelKey: 'aiAssistant' },
   { path: '/ai-credits',     icon: <Coins size={18} />,           labelKey: 'aiCredits' },
   { path: '/survey-feedback',icon: <MessageSquareText size={18} />,labelKey: 'surveyFeedback' },
