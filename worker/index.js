@@ -32,33 +32,63 @@
 // Everything else returns a JSON 404. Unexpected errors return a JSON 500.
 
 // ---------------------------------------------------------------------------
-// CORS
-// ---------------------------------------------------------------------------
-// Public API: allow any origin. Tighten `Access-Control-Allow-Origin` to your
-// frontend domain (e.g. "https://fera-search.tech") if you want to lock it down.
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
-  "Access-Control-Max-Age": "86400",
-};
+// Allowed origins for CORS validation (exact match)
+const ALLOWED_ORIGINS = [
+  "https://ferasetu.com",
+  "https://www.ferasetu.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+];
 
-// JSON response helper — always attaches CORS headers.
-function json(data, status = 200, extraHeaders = {}) {
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  
+  // Allow any subdomain of ferasetu.com or fera-search.tech
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    return host.endsWith(".ferasetu.com") || host.endsWith(".fera-search.tech");
+  } catch {
+    return false;
+  }
+}
+
+function getCorsHeaders(request) {
+  const origin = request.headers.get("Origin");
+  const allowedOrigin = isOriginAllowed(origin) ? origin : "https://ferasetu.com";
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Appwrite-Project, X-Appwrite-JWT",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+// JSON response helper — attaches dynamic CORS headers based on request origin.
+function json(data, status = 200, extraHeaders = {}, request = null) {
+  const corsHeaders = request ? getCorsHeaders(request) : {
+    "Access-Control-Allow-Origin": "https://ferasetu.com",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Appwrite-Project, X-Appwrite-JWT",
+    "Access-Control-Max-Age": "86400",
+  };
+
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      ...CORS_HEADERS,
+      ...corsHeaders,
       ...extraHeaders,
     },
   });
 }
 
-function errorResponse(message, status = 400, details) {
+function errorResponse(message, status = 400, details, request = null) {
   const body = { error: message };
   if (details !== undefined) body.details = details;
-  return json(body, status);
+  return json(body, status, {}, request);
 }
 
 // ---------------------------------------------------------------------------
@@ -822,7 +852,7 @@ export default {
   async fetch(request, env, ctx) {
     // CORS preflight — answer before doing any work.
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: getCorsHeaders(request) });
     }
 
     try {
