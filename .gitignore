@@ -42,3 +42,6 @@ Thumbs.db
 .wrangler/
 .dev.vars
 wrangler.local.toml
+
+# Experimental/Temporary
+testing-waste/
