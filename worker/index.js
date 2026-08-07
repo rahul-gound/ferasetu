@@ -275,12 +275,17 @@ async function updateProfile(request, env) {
     };
 
     await env.DB.prepare(
-      `INSERT INTO users (id, email, name, phone, business_name, plan, preferred_language, subdomain, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO users (
+        id, email, name, phone, business_name, plan, preferred_language, subdomain,
+        ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
+        storage_used_bytes, storage_limit_bytes, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
-        newUser.plan, newUser.preferred_language, newUser.subdomain, newUser.created_at, newUser.updated_at
+        newUser.plan, newUser.preferred_language, newUser.subdomain,
+        newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
+        newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
       )
       .run();
 
