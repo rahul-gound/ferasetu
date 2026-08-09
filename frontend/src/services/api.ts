@@ -1091,6 +1091,17 @@ const remoteApi = axios.create({
   withCredentials: true,
 });
 
+// Inject Authorization Bearer token automatically
+remoteApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('fera_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 // Handle 401 globally
 remoteApi.interceptors.response.use(
   (response) => response,

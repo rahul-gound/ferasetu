@@ -4,6 +4,9 @@ import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { StatsigProvider, useClientAsyncInit } from '@statsig/react-bindings';
+import { StatsigAutoCapturePlugin } from '@statsig/web-analytics';
+import { StatsigSessionReplayPlugin } from '@statsig/session-replay';
 
 // Public, lightweight pages — kept eager so the first paint never waits on a second chunk.
 import LandingPage from './pages/LandingPage';
@@ -42,6 +45,9 @@ const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
 
+// Fera AI — eager load to prevent navigation delay
+import FeraAIPage from './pages/FeraAIPage';
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
 });
@@ -65,8 +71,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  const isVerifyPage = window.location.pathname === '/verify-email';
+  if (!user.is_verified && !isVerifyPage) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
+  return <>{children}</>;
 }
+
+// Eager load VerifyEmailPage
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -118,6 +135,13 @@ function AppRoutes() {
           </AdminProtectedRoute>
         } />
 
+        {/* Verify Email Gate (Full Screen) */}
+        <Route path="/verify-email" element={
+          <ProtectedRoute>
+            <VerifyEmailPage />
+          </ProtectedRoute>
+        } />
+
         <Route path="/*" element={
           <ProtectedRoute>
             <LanguageProvider>
@@ -129,6 +153,8 @@ function AppRoutes() {
                   <Route path="/orders" element={<OrdersPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/ai-assistant" element={<AIAssistantPage />} />
+                  {/* New Fera AI — premium AI assistant page */}
+                  <Route path="/fera-ai" element={<FeraAIPage />} />
                   <Route path="/ai-credits" element={<AICreditsPage />} />
                   <Route path="/website-builder" element={<WebsiteBuilderPage />} />
                   <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
@@ -146,7 +172,8 @@ function AppRoutes() {
   );
 }
 
-export default function App() {
+// Inner app content — all providers except Statsig
+function AppContent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -156,5 +183,20 @@ export default function App() {
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+// Root app — Statsig wraps everything to enable feature flags and session replay
+export default function App() {
+  const { client: statsigClient } = useClientAsyncInit(
+    'client-XOZr1YiFOBSi6y6elVRLgwEQSY44LvCVpRwTzdfbd98',
+    { userID: 'a-user' },
+    { plugins: [new StatsigAutoCapturePlugin(), new StatsigSessionReplayPlugin()] }
+  );
+
+  return (
+    <StatsigProvider client={statsigClient}>
+      <AppContent />
+    </StatsigProvider>
   );
 }
