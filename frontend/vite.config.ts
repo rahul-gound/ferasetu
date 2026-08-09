@@ -2,7 +2,20 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'clerk-export-fix',
+      transform(code, id) {
+        if (id.includes('@clerk/react') && code.includes('loadClerkUiScript')) {
+          return {
+            code: code.replace(/\bloadClerkUiScript\b/g, 'loadClerkUIScript'),
+            map: null,
+          };
+        }
+      },
+    },
+  ],
   optimizeDeps: {
     include: ['react-is']
   },
