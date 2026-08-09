@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import OnboardingProgress from '../components/ui/OnboardingProgress';
+import { getPlanLimits, normalizePlanId, isFreePlan } from '../config/plans';
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -197,6 +199,24 @@ export default function DashboardPage() {
   const stats = data?.stats;
   const isNewUser = !data || data?.stats?.total_orders === 0;
 
+  const planLimits = getPlanLimits(user?.plan);
+  const userPlanId = normalizePlanId(user?.plan);
+
+  // Query product count for plan usage indicator
+  const { data: productsData } = useQuery<{ products: any[] }>({
+    queryKey: ['products-count'],
+    queryFn: async () => {
+      const res = await api.get('/products');
+      return res.data;
+    },
+    staleTime: 60000,
+  });
+  const productCount = productsData?.products?.length ?? 0;
+  const hasProducts = productCount > 0;
+  const hasOrders = (stats?.total_orders ?? 0) > 0;
+  // Check if user's website is published via localStorage flag
+  const storePublished = !!JSON.parse(localStorage.getItem('fera_setup_flags') || '{}').website_published;
+
   // Setup progress: endowed-progress checklist (goal-gradient psychology)
   const setupSteps = useMemo(() => {
     const done = new Set<string>();
@@ -296,20 +316,38 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Beta Promotion Banner — loss aversion + charm pricing */}
+      {/* OnboardingProgress — shown until all steps done, real data only */}
       {!isLoading && (
+        <OnboardingProgress
+          shopCreated={true}
+          hasProducts={hasProducts}
+          hasOrders={hasOrders}
+          storePublished={storePublished}
+        />
+      )}
+
+      {/* Plan usage indicator — only show for free plan users near the limit */}
+      {!isLoading && isFreePlan(user?.plan) && productCount >= Math.floor(planLimits.products * 0.75) && (
         <div style={{
-          marginBottom: 20,
-          padding: '12px 20px',
-          borderRadius: 16,
-          background: 'rgba(99,102,241,0.08)',
-          border: '1px solid rgba(99,102,241,0.2)',
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap'
+          marginBottom: 20, padding: '12px 18px', borderRadius: 14,
+          background: 'rgba(255,107,53,0.08)', border: '1px solid rgba(255,107,53,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
         }}>
-          <Zap size={18} style={{ color: '#6366f1' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-            Beta: ₹299 Starter plan is <span style={{ color: '#6366f1' }}>FREE</span> for now — it becomes ₹299/mo after beta. Lock in yours today and keep the free tier forever.
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+            ⚡ {productCount}/{planLimits.products} products on Free plan.
+            {productCount >= planLimits.products ? ' Limit reached.' : ` ${planLimits.products - productCount} spots left.`}
           </span>
+          <Link
+            to="/upgrade"
+            id="dashboard-upgrade-nudge"
+            style={{
+              fontSize: 12, fontWeight: 800, color: '#FF6B35',
+              textDecoration: 'none', whiteSpace: 'nowrap',
+              background: 'rgba(255,107,53,0.1)', padding: '6px 12px', borderRadius: 8,
+            }}
+          >
+            Upgrade → Growth
+          </Link>
         </div>
       )}
 

@@ -96,6 +96,33 @@ function errorResponse(message, status = 400, details, request = null) {
 // ---------------------------------------------------------------------------
 // Schema — created once per database (idempotent).
 // ---------------------------------------------------------------------------
+
+// Plan product limits — enforced server-side.
+const PLAN_PRODUCT_LIMITS = {
+  free:     25,
+  beta:     25,   // beta users treated as free
+  trial:    25,
+  basic:    500,  // legacy "Starter" maps to Growth limits
+  growth:   500,
+  standard: 500,  // legacy "Growth" maps to Growth limits
+  pro:      Infinity,
+  premium:  Infinity,
+  scale:    Infinity,  // legacy "Scale" maps to Pro limits
+  business: Infinity,
+};
+
+function getPlanProductLimit(plan) {
+  return PLAN_PRODUCT_LIMITS[plan] ?? 25; // default to free limit for unknown plans
+}
+
+// Founding Shopkeeper config (source of truth for the edge API).
+const FOUNDING_CONFIG = {
+  enabled: false,      // set to true when the program is live
+  totalSlots: 50,
+  offerPlan: 'growth',
+  offerMonths: 3,
+};
+
 let schemaReady = false;
 
 async function ensureSchema(db) {
@@ -109,7 +136,7 @@ async function ensureSchema(db) {
         name              TEXT NOT NULL,
         phone             TEXT,
         business_name     TEXT,
-        plan              TEXT NOT NULL DEFAULT 'beta',
+        plan              TEXT NOT NULL DEFAULT 'free',
         preferred_language TEXT NOT NULL DEFAULT 'en',
         subdomain         TEXT UNIQUE,
         custom_domain      TEXT UNIQUE,
@@ -120,10 +147,15 @@ async function ensureSchema(db) {
         ai_credits_reset_at TEXT,
         storage_used_bytes INTEGER NOT NULL DEFAULT 0,
         storage_limit_bytes INTEGER NOT NULL DEFAULT 52428800,
+        founding_member   INTEGER NOT NULL DEFAULT 0,
         created_at        TEXT NOT NULL,
         updated_at        TEXT NOT NULL
       )`
     ),
+    // Add founding_member column to existing databases (idempotent — D1 ignores errors for existing columns)
+    db.prepare(`ALTER TABLE users ADD COLUMN founding_member INTEGER NOT NULL DEFAULT 0`).catch ? 
+      db.prepare(`ALTER TABLE users ADD COLUMN founding_member INTEGER NOT NULL DEFAULT 0`) :
+      db.prepare(`SELECT 1`), // fallback no-op
     db.prepare(
       `CREATE TABLE IF NOT EXISTS products (
         id          TEXT PRIMARY KEY,
@@ -346,6 +378,32 @@ async function createProduct(request, env) {
   const stock = Number.isFinite(Number(body.stock)) ? Math.trunc(Number(body.stock)) : 0;
   const description = typeof body.description === "string" ? body.description : null;
 
+  // -----------------------------------------------------------------------
+  // SERVER-SIDE PLAN LIMIT ENFORCEMENT
+  // Never trust the frontend for this check.
+  // -----------------------------------------------------------------------
+  const userRow = await env.DB.prepare("SELECT plan FROM users WHERE id = ?")
+    .bind(me.$id)
+    .first();
+  const userPlan = userRow?.plan ?? "free";
+  const productLimit = getPlanProductLimit(userPlan);
+
+  if (productLimit !== Infinity) {
+    const countRow = await env.DB.prepare(
+      "SELECT COUNT(*) as cnt FROM products WHERE user_id = ?"
+    ).bind(me.$id).first();
+    const currentCount = countRow?.cnt ?? 0;
+
+    if (currentCount >= productLimit) {
+      throw new HttpError(
+        `Product limit reached. Your ${userPlan} plan supports up to ${productLimit} products. Upgrade to add more.`,
+        403,
+        { limit: productLimit, current: currentCount, plan: userPlan, code: "PRODUCT_LIMIT_REACHED" }
+      );
+    }
+  }
+  // -----------------------------------------------------------------------
+
   const product = {
     id: crypto.randomUUID(),
     user_id: me.$id,
@@ -365,6 +423,7 @@ async function createProduct(request, env) {
 
   return json({ product }, 201);
 }
+
 
 async function listOrders(request, env) {
   const me = await getAuthenticatedUser(request, env);
@@ -848,8 +907,37 @@ async function route(request, env) {
     return json({ status: "ok", version: "2.0.0", service: "fera-ai", timestamp: new Date().toISOString() });
   }
 
+  // Founding shopkeeper offer info — public endpoint, no auth required
+  if (path === "/api/pricing/founding-offer" && method === "GET") {
+    if (!FOUNDING_CONFIG.enabled) {
+      return json({
+        enabled: false,
+        slotsTotal: FOUNDING_CONFIG.totalSlots,
+        slotsUsed: 0,
+        slotsRemaining: null, // don't show a number if the offer isn't active
+        plan: FOUNDING_CONFIG.offerPlan,
+        months: FOUNDING_CONFIG.offerMonths,
+      }, 200, {}, request);
+    }
+    // Count founding members from D1 (real count, never fake)
+    const countRow = await env.DB.prepare(
+      "SELECT COUNT(*) as cnt FROM users WHERE founding_member = 1"
+    ).first();
+    const slotsUsed = countRow?.cnt ?? 0;
+    const slotsRemaining = Math.max(0, FOUNDING_CONFIG.totalSlots - slotsUsed);
+    return json({
+      enabled: true,
+      slotsTotal: FOUNDING_CONFIG.totalSlots,
+      slotsUsed,
+      slotsRemaining,
+      plan: FOUNDING_CONFIG.offerPlan,
+      months: FOUNDING_CONFIG.offerMonths,
+    }, 200, {}, request);
+  }
+
   return errorResponse(`Not found: ${method} ${path}`, 404);
 }
+
 
 
 // ---------------------------------------------------------------------------

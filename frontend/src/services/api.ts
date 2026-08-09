@@ -644,7 +644,7 @@ async function localPost(url: string, payload: Record<string, any>) {
       name,
       phone: payload.phone ? String(payload.phone) : undefined,
       business_name: businessName || undefined,
-      plan: 'trial',
+      plan: 'free',
       preferred_language: String(payload.preferredLanguage || 'en'),
       subdomain: generateSubdomain(businessName || name || 'my-store'),
       custom_domain: undefined,
@@ -686,6 +686,24 @@ async function localPost(url: string, payload: Record<string, any>) {
 
   if (path === '/products') {
     const userId = requireAuth();
+
+    // Enforce plan product limit in local mock (mirrors Worker enforcement)
+    const user = db.users.find(u => u.id === userId);
+    const MOCK_PLAN_LIMITS: Record<string, number> = {
+      free: 25, beta: 25, trial: 25,
+      basic: 500, growth: 500, standard: 500,
+      pro: Infinity, premium: Infinity, scale: Infinity, business: Infinity,
+    };
+    const userPlan = user?.plan ?? 'free';
+    const productLimit = MOCK_PLAN_LIMITS[userPlan] ?? 25;
+    const currentCount = db.products.filter(p => p.user_id === userId).length;
+    if (productLimit !== Infinity && currentCount >= productLimit) {
+      throw createHttpError(
+        403,
+        `Product limit reached. Your ${userPlan} plan supports up to ${productLimit} products. Upgrade to add more.`
+      );
+    }
+
     const product: LocalProduct = {
       id: createId(),
       user_id: userId,
@@ -860,6 +878,19 @@ async function localPost(url: string, payload: Record<string, any>) {
 
   if (path === '/voice/text-to-speech') {
     return createResponse({ audio: null });
+  }
+
+  // Founding shopkeeper offer — mirrors the Worker endpoint.
+  // In local dev, always returns disabled=false so no fake counts appear.
+  if (path === '/pricing/founding-offer' && method === 'GET') {
+    return createResponse({
+      enabled: false,
+      slotsTotal: 50,
+      slotsUsed: 0,
+      slotsRemaining: null,
+      plan: 'growth',
+      months: 3,
+    });
   }
 
   if (path === '/settings/smtp/test') {

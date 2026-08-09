@@ -18,6 +18,7 @@ const OnlineDukaanBanaye = lazy(() => import('./pages/OnlineDukaanBanaye'));
 const FreeOnlineStore = lazy(() => import('./pages/FreeOnlineStore'));
 const ShopifyAlternativeIndia = lazy(() => import('./pages/ShopifyAlternativeIndia'));
 const KiranaStoreOnline = lazy(() => import('./pages/KiranaStoreOnline'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
 
 // Everything below is code-split: the landing page no longer ships the dashboard,
 // charts (recharts), AI, website builder, or admin panel in its initial bundle.
@@ -111,7 +112,8 @@ function AppRoutes() {
         <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
         <Route path="/shop/:shopName" element={<ShopPage />} />
 
-        {/* SEO landing pages */}
+        {/* SEO landing pages & public pages */}
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
         <Route path="/free-online-store" element={<FreeOnlineStore />} />
         <Route path="/shopify-alternative-india" element={<ShopifyAlternativeIndia />} />

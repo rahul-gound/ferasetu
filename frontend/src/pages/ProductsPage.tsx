@@ -9,6 +9,8 @@ import {
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import UpgradePrompt from '../components/ui/UpgradePrompt';
+import { getPlanLimits, normalizePlanId, hasReachedProductLimit } from '../config/plans';
 
 interface Product {
   id: string;
@@ -38,7 +40,8 @@ interface ProductForm {
 
 const CATEGORIES = ['Grocery', 'Fashion', 'Electronics', 'Food & Beverages', 'Medical', 'Home & Kitchen', 'Sports', 'Beauty', 'Books', 'Other'];
 
-const FREE_LIMIT = 50;
+// Legacy constant kept for reference; actual limits come from plans.ts
+// const FREE_LIMIT = 50;
 
 function Shimmer() {
   return (
@@ -54,6 +57,9 @@ export default function ProductsPage() {
   const { user } = useAuth();
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
+
+  const planLimits = getPlanLimits(user?.plan);
+  const productLimit = planLimits.products; // Infinity for pro
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -107,9 +113,16 @@ export default function ProductsPage() {
     return matchSearch && matchCat;
   });
 
+  const atLimit = hasReachedProductLimit(user?.plan, products.length);
+  const nearLimit = !atLimit && productLimit !== Infinity && products.length >= Math.floor(productLimit * 0.8);
+
   const openAdd = () => {
-    if (user?.plan === 'free' && products.length >= FREE_LIMIT) {
-      toast.error(`Free plan is limited to ${FREE_LIMIT} products. Upgrade to Premium!`);
+    if (atLimit) {
+      // Show the upgrade prompt below — don't just toast, give a contextual path
+      toast.error(
+        `Product limit reached (${products.length}/${productLimit === Infinity ? '∞' : productLimit}). Upgrade your plan to add more.`,
+        { duration: 4000 }
+      );
       return;
     }
     setEditProduct(null);
@@ -190,7 +203,7 @@ export default function ProductsPage() {
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>{translate('products')}</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
             {products.length} products
-            {user?.plan === 'free' && ` · ${FREE_LIMIT - products.length} remaining on free plan`}
+            {productLimit !== Infinity && ` · ${Math.max(0, productLimit - products.length)} of ${productLimit} remaining on your plan`}
           </p>
         </div>
         <button onClick={openAdd} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -198,18 +211,25 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      {/* Free plan banner */}
-      {user?.plan === 'free' && products.length >= FREE_LIMIT * 0.8 && (
-        <div style={{
-          marginBottom: '20px', padding: '14px 18px', borderRadius: '10px',
-          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
-          display: 'flex', alignItems: 'center', gap: '12px',
-        }}>
-          <AlertTriangle size={18} color="#F59E0B" />
-          <span style={{ fontSize: '13px', color: 'var(--text)' }}>
-            You're using <strong>{products.length}/{FREE_LIMIT}</strong> products on the free plan.
-            <Link to="/upgrade" style={{ color: 'var(--primary)', fontWeight: 600, marginLeft: '6px' }}>Upgrade to Premium →</Link>
-          </span>
+      {/* Plan limit prompt — uses real limit from plans.ts */}
+      {atLimit && (
+        <div style={{ marginBottom: 20 }}>
+          <UpgradePrompt
+            variant="banner"
+            reason="You've reached your product limit."
+            benefit={`Your plan supports up to ${productLimit === Infinity ? 'unlimited' : productLimit} products. Upgrade to add more.`}
+            currentPlan={user?.plan}
+          />
+        </div>
+      )}
+      {nearLimit && !atLimit && (
+        <div style={{ marginBottom: 20 }}>
+          <UpgradePrompt
+            variant="inline"
+            reason={`Getting close — ${Math.max(0, productLimit - products.length)} product slots left.`}
+            benefit="Upgrade to Growth for up to 500 products, advanced analytics, and more."
+            currentPlan={user?.plan}
+          />
         </div>
       )}
 
