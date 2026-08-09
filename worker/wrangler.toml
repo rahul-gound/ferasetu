@@ -1,0 +1,23 @@
+# Cloudflare Worker config for the FeraSetu Worker API.
+# This Worker implements the core shopkeeper routes backed by Cloudflare D1.
+
+name = "ferasetu"
+main = "index.js"
+compatibility_date = "2025-06-01"
+
+# D1 database binding.
+[[d1_databases]]
+binding = "DB"
+database_name = "fera-shopkeeper"
+database_id = "ac0e07fa-8183-4a99-b744-c095027f61d6"
+
+# Observability configuration
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
