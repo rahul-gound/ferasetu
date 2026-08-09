@@ -9,6 +9,7 @@
 
 name = "ferasetu"
 main = "worker/index.js"
+pages_build_output_dir = "frontend/dist"
 compatibility_date = "2025-06-01"
 
 # D1 database binding. The Worker creates its tables automatically on first
