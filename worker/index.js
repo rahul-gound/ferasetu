@@ -19,10 +19,10 @@
 //   PUT  /api/users/me  -> create/update the logged-in user's profile (auth required)
 //   POST /api/ai/chat   -> Sarvam AI chat, deducts AI credits (auth required)
 //
-// Auth: login itself lives in Appwrite (frontend uses the Appwrite web SDK).
-// Authenticated routes expect `Authorization: Bearer <appwrite-jwt>`; the
-// Worker verifies the JWT against the Appwrite API and uses the account $id
-// as the D1 users.id. Profile data itself lives in D1, NOT in Appwrite.
+// Auth: login itself lives in Clerk (frontend uses the Clerk React SDK).
+// Authenticated routes expect `Authorization: Bearer <clerk-jwt>`; the
+// Worker verifies the JWT against Clerk JWKS keys and uses the account ID
+// as the D1 users.id. Profile data itself lives in D1, NOT in Clerk.
 //
 // Secrets/config (see wrangler.toml):
 //   SARVAM_API_KEY       -> secret, set with `npx wrangler secret put SARVAM_API_KEY`
@@ -61,7 +61,7 @@ function getCorsHeaders(request) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Appwrite-Project, X-Appwrite-JWT",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
@@ -72,7 +72,7 @@ function json(data, status = 200, extraHeaders = {}, request = null) {
   const corsHeaders = request ? getCorsHeaders(request) : {
     "Access-Control-Allow-Origin": "https://ferasetu.com",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Appwrite-Project, X-Appwrite-JWT",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
@@ -195,7 +195,7 @@ async function ensureSchema(db) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth — verifies Appwrite JWTs.
+// Auth — verifies Clerk JWTs.
 // ---------------------------------------------------------------------------
 // Base64Url decode helper
 function base64UrlDecode(str) {
@@ -654,7 +654,7 @@ async function updateMeeting(request, env) {
 /**
  * Load a minimal shop context snapshot from D1 for the authenticated user.
  * Only fetches aggregated data — never raw customer PII.
- * @param {string} userId - verified Appwrite user ID
+ * @param {string} userId - verified Clerk user ID
  * @param {D1Database} db
  */
 async function loadShopContextFromD1(userId, db) {

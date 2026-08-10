@@ -92,14 +92,14 @@ export default function PricingPage() {
       <SEO
         title={pageTitle}
         description={pageDescription}
-        url="https://ferasetu.appwrite.network/pricing"
+        url="https://fera-search.tech/pricing"
         type="website"
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
           name: 'FeraSetu Pricing',
           description: pageDescription,
-          url: 'https://ferasetu.appwrite.network/pricing',
+          url: 'https://fera-search.tech/pricing',
         }}
       />
 

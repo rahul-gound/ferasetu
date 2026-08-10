@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 
-const BASE_URL = 'https://ferasetu.appwrite.network';
+const BASE_URL = 'https://fera-search.tech';
 
 const faqSchema = {
   '@context': 'https://schema.org',

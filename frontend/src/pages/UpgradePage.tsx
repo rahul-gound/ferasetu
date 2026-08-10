@@ -73,7 +73,7 @@ export default function UpgradePage() {
       <SEO
         title="Upgrade Your Plan — FeraSetu"
         description="Choose the right plan for your shop. Honest pricing, no hidden fees."
-        url="https://ferasetu.appwrite.network/upgrade"
+        url="https://fera-search.tech/upgrade"
         type="website"
       />
 

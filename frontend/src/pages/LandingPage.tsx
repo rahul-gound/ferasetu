@@ -65,17 +65,17 @@ export default function LandingPage() {
       <SEO
         title="FeraSetu — Your Shop's Digital Bridge"
         description="Build your online store in minutes. Manage products, orders, and invoices with AI. Dukaan ko online lao, orders WhatsApp par pao. Free during beta!"
-        url="https://ferasetu.appwrite.network"
+        url="https://fera-search.tech"
         type="website"
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: 'FeraSetu',
-          url: 'https://ferasetu.appwrite.network',
+          url: 'https://fera-search.tech',
           description: 'Build your online store in minutes. Manage products, orders, and invoices with AI.',
           potentialAction: {
             '@type': 'SearchAction',
-            target: 'https://ferasetu.appwrite.network/shop/{search_term_string}',
+            target: 'https://fera-search.tech/shop/{search_term_string}',
             'query-input': 'required name=search_term_string',
           },
         }}

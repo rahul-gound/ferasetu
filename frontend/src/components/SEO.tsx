@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 
-const BASE_URL = 'https://ferasetu.appwrite.network';
+const BASE_URL = 'https://fera-search.tech';
 const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
 
 interface SEOProps {

@@ -6,7 +6,7 @@ import TemplateRenderer from '../components/shop/TemplateRenderer';
 import SEO from '../components/SEO';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const BASE_URL = 'https://ferasetu.appwrite.network';
+const BASE_URL = 'https://fera-search.tech';
 const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
 
 export default function ShopPage() {
