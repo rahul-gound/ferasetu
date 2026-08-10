@@ -162,12 +162,14 @@ const styles = {
 };
 
 export default function RegisterPage() {
-  const { register: doRegister, sendVerificationEmail, loginWithGoogle } = useAuth();
+  const { register: doRegister, sendVerificationEmail, loginWithGoogle, verifyOTP, createAccountAfterOTP } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   const [legalModal, setLegalModal] = useState<{ open: boolean; type: 'privacy' | 'terms' }>({ open: false, type: 'terms' });
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<RegisterForm>({
@@ -188,10 +190,38 @@ export default function RegisterPage() {
         businessName: data.businessName,
         preferredLanguage: data.preferredLanguage,
       });
-      toast.success('Account created! Welcome to FeraSetu.');
-      navigate(redirect);
+      setVerifyingEmail(true);
+      toast.success('Verification email sent! Please check your inbox.');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Registration failed');
+      const msg = err?.errors?.[0]?.message || err?.message || 'Registration failed';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const success = await verifyOTP(watch('email'), verificationCode);
+      if (success) {
+        await createAccountAfterOTP({
+          email: watch('email'),
+          password: watch('password'),
+          name: watch('name'),
+          phone: watch('phone'),
+          businessName: watch('businessName'),
+          preferredLanguage: watch('preferredLanguage'),
+        });
+        toast.success('Account verified and logged in successfully!');
+        navigate(redirect);
+      } else {
+        toast.error('Invalid verification code. Please try again.');
+      }
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.message || err?.message || 'Verification failed';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -218,7 +248,38 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        {verifyingEmail ? (
+          <form onSubmit={handleVerifyOTP}>
+            <h1 style={styles.h1}>Verify your email</h1>
+            <p style={styles.p}>We have sent a verification code to {watch('email')}</p>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={styles.label}>Verification Code</label>
+              <input
+                type="text"
+                maxLength={6}
+                value={verificationCode}
+                onChange={e => setVerificationCode(e.target.value)}
+                style={{ ...styles.input, textAlign: 'center', fontSize: 18, letterSpacing: '0.2em', fontWeight: 'bold' }}
+                placeholder="000000"
+                required
+              />
+            </div>
+
+            <button type="submit" disabled={loading} style={{ ...styles.btnPrimary, ...(loading ? styles.btnDisabled : {}) }}>
+              {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => sendVerificationEmail(watch('email'))}
+              style={{ ...styles.btnSecondary, marginTop: 12 }}
+            >
+              Resend Code
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)}>
             <h1 style={styles.h1}>Create your store</h1>
             <p style={styles.p}>Beta Plan · Free for everyone</p>
 
@@ -340,7 +401,7 @@ export default function RegisterPage() {
               <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
             </p>
           </form>
-
+        )}
       </div>
 
       <LegalModal isOpen={legalModal.open} type={legalModal.type} onClose={() => setLegalModal(prev => ({ ...prev, open: false }))} />

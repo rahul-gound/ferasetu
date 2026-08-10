@@ -1,9 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import {
-  account,
-  ID,
-  OAuthProvider,
-} from '../lib/appwrite';
+import { useUser, useAuth as useClerkAuth, useSignIn, useSignUp } from '@clerk/react';
 import api from '../services/api';
 
 interface User {
@@ -51,7 +47,6 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Profile fields stored in D1.
 const PROFILE_KEYS: (keyof User)[] = [
   'email', 'name', 'phone', 'business_name', 'plan', 'preferred_language',
   'subdomain', 'custom_domain', 'plan_expires_at', 'ai_credits_balance',
@@ -69,18 +64,6 @@ function generateSubdomain(value: string): string {
     .slice(0, 60) || 'my-store';
 }
 
-// Re-shape an Appwrite error so the existing pages (which read
-// err.response.data.message / .error) can surface a useful message.
-function toHttpishError(err: any): Error {
-  const message = err?.response?.data?.message || err?.message || 'Something went wrong. Please try again.';
-  const wrapped = new Error(message) as Error & {
-    response: { data: { message: string; error: string } };
-  };
-  wrapped.response = { data: { message, error: message } };
-  return wrapped;
-}
-
-// Keep the rest of the app (local data layer reads `fera_user`) working.
 function persistLocalUser(user: User | null) {
   if (user) {
     localStorage.setItem('fera_user', JSON.stringify(user));
@@ -91,57 +74,27 @@ function persistLocalUser(user: User | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { isLoaded: isClerkLoaded, isSignedIn, userId, signOut, getToken } = useClerkAuth();
+  const { user: clerkUser } = useUser();
+  const { signIn, isLoaded: isSignInLoaded } = useSignIn();
+  const { signUp, isLoaded: isSignUpLoaded } = useSignUp();
+
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync JWT from Appwrite to localStorage for the `api` service to use.
+  // Sync token from Clerk to localStorage
   const syncToken = async () => {
     try {
-      const { jwt } = await account.createJWT();
-      localStorage.setItem('fera_token', jwt);
-      return jwt;
+      const token = await getToken();
+      if (token) {
+        localStorage.setItem('fera_token', token);
+        return token;
+      }
     } catch (err) {
-      localStorage.removeItem('fera_token');
-      return null;
+      console.error('Failed to get Clerk token:', err);
     }
-  };
-
-  // Fetch the profile from D1 (via Worker); create/init if missing.
-  const loadProfile = async (): Promise<User> => {
-    await syncToken();
-    const me = await account.get();
-    const { data } = await api.get('/users/me');
-    
-    let profile: any;
-    if (data.needs_init) {
-      profile = await createProfile({
-        name: data.user.name,
-        email: data.user.email,
-      });
-    } else {
-      profile = data.user;
-    }
-
-    return {
-      ...profile,
-      is_verified: me.emailVerification,
-    };
-  };
-
-  const sendVerificationEmail = async () => {
-    try {
-      await account.createVerification(window.location.origin + '/dashboard');
-    } catch (err) {
-      throw toHttpishError(err);
-    }
-  };
-
-  const sendVerificationEmailWithSmtp = async (email: string, shopId?: string) => {
-    try {
-      await api.post('/auth/send-verification-email', { email, shop_id: shopId });
-    } catch (err: any) {
-      throw toHttpishError(err);
-    }
+    localStorage.removeItem('fera_token');
+    return null;
   };
 
   const createProfile = async (
@@ -158,134 +111,150 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.user;
   };
 
+  const loadProfile = async (): Promise<User> => {
+    await syncToken();
+    const { data } = await api.get('/users/me');
+    
+    let profile: any;
+    if (data.needs_init) {
+      profile = await createProfile({
+        name: clerkUser?.fullName || clerkUser?.firstName || 'Shopkeeper',
+        email: clerkUser?.primaryEmailAddress?.emailAddress || '',
+      });
+    } else {
+      profile = data.user;
+    }
+
+    return {
+      ...profile,
+      is_verified: clerkUser?.primaryEmailAddress?.verification.status === 'verified',
+    };
+  };
+
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        const me = await account.get();
-        if (me) {
+      if (!isClerkLoaded) return;
+
+      if (isSignedIn && clerkUser) {
+        try {
           const profile = await loadProfile();
           setUser(profile);
           persistLocalUser(profile);
+        } catch (err) {
+          console.error('Failed to load profile from backend:', err);
+          setUser(null);
+          persistLocalUser(null);
+        } finally {
+          setIsLoading(false);
         }
-      } catch {
+      } else {
         setUser(null);
         persistLocalUser(null);
-      } finally {
         setIsLoading(false);
       }
     };
+
     initAuth();
-  }, []);
-
-  const sendOTP = async (email: string) => {
-    // Appwrite handles email verification natively via createVerification().
-    // Removed Worker-dependent OTP flow — 404 was caused by missing Worker endpoint.
-    // Registration no longer requires OTP; verification email is sent after account creation.
-    return;
-  };
-
-  const verifyOTP = async (_email: string, _otp: string): Promise<boolean> => {
-    // Appwrite handles email verification natively.
-    // This function is kept for backward compatibility but always succeeds.
-    return true;
-  };
-
-  const createAccountAfterOTP = async (data: RegisterData) => {
-    try {
-      const email = data.email.trim();
-      await account.create(ID.unique(), email, data.password, data.name);
-      try {
-        await startSession(email, data.password);
-      } catch (sessionErr: any) {
-        console.warn('Session creation failed after account creation, user may need to login:', sessionErr.message);
-      }
-      const profile = await createProfile({
-        email,
-        name: data.name,
-        phone: data.phone,
-        businessName: data.businessName,
-        preferredLanguage: data.preferredLanguage,
-      });
-      setUser(profile);
-      persistLocalUser(profile);
-    } catch (err: any) {
-      if (err?.code === 409) {
-        const emailErr = new Error('This email is already registered. Please login instead.') as Error & {
-          response: { data: { message: string; error: string } };
-        };
-        emailErr.response = { data: { message: 'This email is already registered. Please login instead.', error: 'This email is already registered. Please login instead.' } };
-        throw emailErr;
-      }
-      throw toHttpishError(err);
-    }
-  };
-
-  const startSession = async (email: string, password: string) => {
-    try {
-      await account.createEmailPasswordSession(email, password);
-    } catch (err: any) {
-      // A stale session can block a fresh login; clear it and retry once.
-      if (err?.type === 'user_session_already_exists') {
-        await account.deleteSession('current').catch(() => {});
-        await account.createEmailPasswordSession(email, password);
-      } else {
-        throw err;
-      }
-    }
-  };
+  }, [isClerkLoaded, isSignedIn, clerkUser]);
 
   const login = async (email: string, password: string) => {
+    if (!isSignInLoaded) throw new Error('SignIn SDK not loaded');
     try {
-      await startSession(email.trim(), password);
-      const profile = await loadProfile();
-      setUser(profile);
-      persistLocalUser(profile);
-    } catch (err) {
-      throw toHttpishError(err);
+      const result = await signIn.create({
+        identifier: email,
+        password,
+      });
+
+      if (result.status === 'complete') {
+        // Active session is automatically set, useEffect will sync profile.
+        await syncToken();
+      } else {
+        throw new Error(`Login requires verification step: ${result.status}`);
+      }
+    } catch (err: any) {
+      console.error('Clerk login error:', err);
+      throw err;
     }
   };
 
   const loginWithGoogle = async () => {
+    if (!isSignInLoaded) throw new Error('SignIn SDK not loaded');
     try {
-      await account.createOAuth2Session(
-        OAuthProvider.Google,
-        window.location.origin + '/dashboard',
-        window.location.origin + '/login'
-      );
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/dashboard',
+        redirectUrlComplete: '/dashboard',
+      });
     } catch (err) {
-      throw toHttpishError(err);
+      console.error('Google OAuth error:', err);
+      throw err;
     }
   };
 
   const register = async (data: RegisterData) => {
+    if (!isSignUpLoaded) throw new Error('SignUp SDK not loaded');
     try {
-      const email = data.email.trim();
-      // Create account directly via Appwrite SDK — no Worker-dependent OTP step.
-      await account.create(ID.unique(), email, data.password, data.name);
-      try {
-        await startSession(email, data.password);
-      } catch (sessionErr: any) {
-        console.warn('Session creation failed after account creation, user may need to login:', sessionErr.message);
-      }
-      const profile = await createProfile({
-        email,
-        name: data.name,
-        phone: data.phone,
-        businessName: data.businessName,
-        preferredLanguage: data.preferredLanguage,
+      // Create user signup in Clerk
+      const result = await signUp.create({
+        emailAddress: data.email,
+        password: data.password,
+        firstName: data.name,
       });
-      setUser(profile);
-      persistLocalUser(profile);
-    } catch (err: any) {
-      if (err?.code === 409) {
-        throw toHttpishError(new Error('This email is already registered. Please login instead.') as any);
+
+      if (result.status === 'complete') {
+        // Automatically sync session and profile
+        await syncToken();
+      } else if (result.status === 'missing_requirements') {
+        // By default, Clerk might require email verification (OTP code).
+        // Initiate verification:
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       }
-      throw toHttpishError(err);
+    } catch (err) {
+      console.error('Clerk register error:', err);
+      throw err;
     }
   };
 
+  const sendOTP = async (email: string) => {
+    // If we are in the registration flow, we can trigger verification code
+    if (signUp) {
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
+    if (!signUp) return false;
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: otp,
+      });
+      return result.status === 'complete';
+    } catch (err) {
+      console.error('Verification code error:', err);
+      return false;
+    }
+  };
+
+  const createAccountAfterOTP = async (data: RegisterData) => {
+    // Already created in sign-up flow, just need to sync profile
+    const profile = await createProfile({
+      email: data.email,
+      name: data.name,
+      phone: data.phone,
+      businessName: data.businessName,
+      preferredLanguage: data.preferredLanguage,
+    });
+    setUser(profile);
+    persistLocalUser(profile);
+  };
+
+  const sendVerificationEmail = async (email: string, shopId?: string) => {
+    // Handled by Clerk natively during registration or via Clerk user dashboard
+    await clerkUser?.primaryEmailAddress?.prepareVerification({ strategy: 'email_code' });
+  };
+
   const logout = async () => {
-    await account.deleteSession('current').catch(() => {});
+    await signOut();
     setUser(null);
     persistLocalUser(null);
   };
@@ -296,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
     persistLocalUser(updated);
 
-    // Sync to D1 (best-effort).
+    // Sync to D1
     const payload: Record<string, any> = {};
     for (const key of PROFILE_KEYS) {
       if (key in updates) payload[key] = (updates as any)[key];
@@ -307,7 +276,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, sendOTP, sendVerificationEmail: sendVerificationEmailWithSmtp, verifyOTP, createAccountAfterOTP, logout, updateUser }}>
+    <AuthContext.Provider value={{
+      user,
+      isLoading: !isClerkLoaded || isLoading,
+      login,
+      loginWithGoogle,
+      register,
+      sendOTP,
+      sendVerificationEmail,
+      verifyOTP,
+      createAccountAfterOTP,
+      logout,
+      updateUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );

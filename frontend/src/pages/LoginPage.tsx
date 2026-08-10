@@ -118,9 +118,8 @@ export default function LoginPage() {
       await login(data.email, data.password);
       toast.success('Logged in successfully!');
       navigate(redirect);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || 'Login failed. Please check your credentials.';
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.message || err?.message || 'Login failed. Please check your credentials.';
       toast.error(msg);
     } finally {
       setLoading(false);

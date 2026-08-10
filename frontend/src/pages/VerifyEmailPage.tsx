@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Mail, RefreshCw, LogOut, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { account } from '../lib/appwrite';
+import { useUser } from '@clerk/react';
 
 const styles = {
   page: {
@@ -76,6 +76,7 @@ const styles = {
 
 export default function VerifyEmailPage() {
   const { user, sendVerificationEmail, logout } = useAuth();
+  const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -90,10 +91,10 @@ export default function VerifyEmailPage() {
   const handleSendEmail = async () => {
     setSending(true);
     try {
-      await sendVerificationEmail();
+      await sendVerificationEmail(clerkUser?.primaryEmailAddress?.emailAddress || '');
       toast.success('Verification link sent! Check your inbox.');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to send email');
+      toast.error(err.message || 'Failed to send verification email');
     } finally {
       setSending(false);
     }
@@ -102,15 +103,20 @@ export default function VerifyEmailPage() {
   const handleCheckStatus = async () => {
     setChecking(true);
     try {
-      const me = await account.get();
-      if (me.emailVerification) {
+      if (!isLoaded || !clerkUser) {
+        toast.error('Session loading, please try again.');
+        return;
+      }
+      
+      await clerkUser.reload();
+      if (clerkUser.primaryEmailAddress?.verification.status === 'verified') {
         toast.success('Email verified successfully! 🎉');
-        // Force reload page to refresh session state
+        // Reload to refresh the local state
         window.location.reload();
       } else {
-        toast.error('Email not verified yet. Please check your inbox or resend the link.');
+        toast.error('Email not verified yet. Please check your inbox or resend the verification.');
       }
-    } catch {
+    } catch (err: any) {
       toast.error('Failed to verify status. Try again.');
     } finally {
       setChecking(false);
