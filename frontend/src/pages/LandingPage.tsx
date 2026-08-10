@@ -199,13 +199,8 @@ export default function LandingPage() {
         initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
         className="fixed top-0 w-full z-50" style={{ background: 'rgba(6,8,24,0.7)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between" style={{ height: 72 }}>
-          <div className="flex items-center gap-3">
-            <div style={{ width: 42, height: 42, borderRadius: 14, background: 'linear-gradient(135deg,#0052FF,#4D7CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,82,255,0.4)' }}>
-              <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, fontStyle: 'italic' }}>F</span>
-            </div>
-            <span className="font-display" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em' }}>
-              Fera<span style={{ color: '#4D7CFF' }}>Setu</span>
-            </span>
+          <div className="flex items-center">
+            <img src="/logo.png" alt="FeraSetu Logo" style={{ height: 40, width: 'auto' }} />
           </div>
           <div className="hidden md:flex items-center gap-8">
             {['How it works', 'Benefits', 'Pricing'].map((item, i) => (
@@ -542,11 +537,8 @@ export default function LandingPage() {
         initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.7 }}
         style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '40px 0' }}>
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#0052FF,#4D7CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,82,255,0.3)' }}>
-              <span style={{ color: '#fff', fontWeight: 900, fontSize: 16, fontStyle: 'italic' }}>F</span>
-            </div>
-            <span className="font-display" style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>Fera<span style={{ color: '#4D7CFF' }}>Setu</span></span>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src="/logo.png" alt="FeraSetu Logo" style={{ height: 32, width: 'auto' }} />
           </div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.25)' }}>
             © {new Date().getFullYear()} FeraSetu. Your shop's digital bridge.

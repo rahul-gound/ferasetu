@@ -80,22 +80,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const sidebarContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '28px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 14, flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 6px 20px rgba(0,82,255,0.35)',
-          }}>
-            <span style={{ color: '#fff', fontWeight: 900, fontSize: 18, fontStyle: 'italic' }}>F</span>
-          </div>
+      <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/favicon.png" alt="FeraSetu Logo" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0 }} />
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: '-0.03em', lineHeight: 1, color: '#fff' }}>
+            <div style={{ fontWeight: 900, fontSize: 16, letterSpacing: '-0.03em', lineHeight: 1, color: '#fff' }}>
               Fera<span style={{ color: 'var(--primary)' }}>Setu</span>
             </div>
             <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 3 }}>
-              Your shop's digital bridge
+              Your Business. Our Bridge.
             </div>
           </div>
         </div>

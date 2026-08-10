@@ -124,14 +124,8 @@ export default function PricingPage() {
           }}
         >
           <div style={{ maxWidth: 1200, margin: '0 auto', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 32, height: 32, borderRadius: 10,
-                background: 'linear-gradient(135deg, #FF6B35, #f97316)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: 16,
-              }} aria-hidden="true">ফ</span>
-              <span style={{ fontWeight: 900, fontSize: 18, color: '#0f172a', letterSpacing: '-0.03em' }}>FeraSetu</span>
+            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+              <img src="/logo.png" alt="FeraSetu Logo" style={{ height: 32, width: 'auto' }} />
             </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               {user ? (
