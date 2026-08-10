@@ -270,14 +270,14 @@ export default function LandingPage() {
           {/* Headline */}
           <h1 className={`font-display ${isVisible ? 'hero-visible stagger-2' : 'hero-hidden'}`}
             style={{ fontSize: 'clamp(44px,8vw,96px)', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-0.05em', marginBottom: 28 }}>
-            Grow your business
+            Apni dukaan. Online.
             <br />
-            <span className="animated-gradient glow-text">online in 2 minutes.</span>
+            <span className="animated-gradient glow-text">Apni sharte par.</span>
           </h1>
 
           <p className={`${isVisible ? 'hero-visible stagger-3' : 'hero-hidden'}`}
-            style={{ maxWidth: 560, margin: '0 auto 40px', fontSize: 18, fontWeight: 500, color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
-            Build your shop website, manage products, and grow orders with AI.{' '}
+            style={{ maxWidth: 580, margin: '0 auto 40px', fontSize: 18, fontWeight: 500, color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
+            No marketplace dependency. No technical skills needed. Your store, your customers, your data.{' '}
             <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>Dukaan ko online lao, orders WhatsApp par pao.</span>
           </p>
 
@@ -499,11 +499,10 @@ export default function LandingPage() {
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>Designed to feel safe for small shops and powerful at scale.</p>
         </motion.div>
-        <div className="grid lg:grid-cols-4 gap-6 items-stretch">
-          <PricingCard index={0} icon={<Smartphone size={22} />} name="Starter" price="299" desc="Launch your online catalog and accept local orders." features={['100 products', 'FeraSetu shop link', 'Basic AI help', 'Email support']} featured={false} badge="Free during Beta" />
-          <PricingCard index={1} icon={<TrendingUp size={22} />} name="Growth" price="699" desc="Custom domain, premium templates, and growth analytics." features={['1,000 products', 'Custom domain support', 'Advanced AI & analytics', 'Priority WhatsApp support']} featured={true} />
-          <PricingCard index={2} icon={<BarChart3 size={22} />} name="Scale" price="1,499" desc="For serious retailers with more products and staff." features={['5,000 products', 'Sales prediction & alerts', 'Up to 5 staff accounts', 'Dedicated onboarding']} featured={false} />
-          <PricingCard index={3} icon={<Building2 size={22} />} name="Enterprise" price="2,999+" desc="For chains and large operations with custom needs." features={['Unlimited products', 'Custom integrations', 'SLA & dedicated manager', 'Bulk import & API access']} featured={false} />
+        <div className="grid md:grid-cols-3 gap-6 items-stretch">
+          <PricingCard index={0} icon={<Smartphone size={22} />} name="Free (Apni Shuruwaat)" price="0" desc="Start your digital journey with zero cost and zero risk." features={['Up to 25 products', 'WhatsApp ordering link', 'FeraSetu shop link', 'Basic order management']} featured={false} badge="Free Forever" />
+          <PricingCard index={1} icon={<TrendingUp size={22} />} name="Growth (Apna Business)" price="299" desc="Run your shop seriously and track your profit." features={['Up to 500 products', 'Profit & sales analytics', '200 Fera AI messages/mo', 'Priority support']} featured={true} />
+          <PricingCard index={2} icon={<Sparkles size={22} />} name="Pro (Apna Empire)" price="799" desc="Scale your business with unlimited power." features={['Unlimited products', '1,000 Fera AI messages/mo', 'Advanced AI insights', 'Remove FeraSetu branding']} featured={false} />
         </div>
         <div style={{ textAlign: 'center', marginTop: 28 }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
@@ -759,10 +758,10 @@ function PricingCard({ index = 0, icon, name, price, desc, features, featured, b
           </div>
         ))}
       </div>
-      <Link to="/upgrade" className="cursor-pointer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px 0', borderRadius: 50, background: featured ? 'linear-gradient(135deg,#ff6b35,#e55a24)' : 'rgba(255,255,255,0.08)', border: featured ? 'none' : '1px solid rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800, fontSize: 15, boxShadow: featured ? '0 8px 30px rgba(255,107,53,0.35)' : 'none', transition: 'transform 0.2s' }}
+      <Link to={price === '0' ? '/register' : price === '299' ? '/register?plan=growth' : '/register?plan=pro'} className="cursor-pointer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px 0', borderRadius: 50, background: featured ? 'linear-gradient(135deg,#ff6b35,#e55a24)' : 'rgba(255,255,255,0.08)', border: featured ? 'none' : '1px solid rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800, fontSize: 15, boxShadow: featured ? '0 8px 30px rgba(255,107,53,0.35)' : 'none', transition: 'transform 0.2s' }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
-        View details <ArrowRight size={16} aria-hidden="true" />
+        Start Now <ArrowRight size={16} aria-hidden="true" />
       </Link>
     </div>
     </motion.div>

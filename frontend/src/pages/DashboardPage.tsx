@@ -5,13 +5,14 @@ import {
   XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
-import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package, ArrowRight, Zap, Check, Gift, Flame } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Clock, AlertTriangle, Plus, Bot, Package, ArrowRight, Zap, Check, Gift, Flame, Download, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import OnboardingProgress from '../components/ui/OnboardingProgress';
 import { getPlanLimits, normalizePlanId, isFreePlan } from '../config/plans';
+import { exportMerchantData } from '../utils/dataExporter';
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -165,8 +166,22 @@ export default function DashboardPage() {
   const { user, sendVerificationEmail } = useAuth();
   const { translate } = useLanguage();
   const [showRating, setShowRating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const streakInfo = useMemo(() => bumpStreak(), []);
   const greeting = useMemo(() => getGreeting(), []);
+
+  const handleExportData = async () => {
+    if (!user) return;
+    setExporting(true);
+    try {
+      await exportMerchantData(user.name, user.email);
+      toast.success('Your store data was exported successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to export data.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -705,7 +720,7 @@ export default function DashboardPage() {
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
                 {stats && stats.total_revenue > 0
                   ? <>You've earned <strong style={{ color: '#fff' }}>₹{stats.total_revenue.toLocaleString('en-IN')}</strong> — on Free (Beta) we keep these reports for 30 days. <strong style={{ color: '#FF6B35' }}>Upgrade to keep unlimited history</strong> and unlock sales forecasts that find your best profit-makers.</>
-                  : <>Unlock AI predictions, custom domains, and up to 5,000 products. Growth plan starts at <strong style={{ color: '#FF6B35' }}>₹699/mo</strong> (just ₹23/day).</>}
+                  : <>Unlock AI predictions, custom domains, and up to 5,000 products. Growth plan starts at <strong style={{ color: '#FF6B35' }}>₹299/mo</strong> (just ₹10/day).</>}
               </p>
               <Link to="/upgrade" style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -720,6 +735,34 @@ export default function DashboardPage() {
               </Link>
             </div>
           )}
+
+          {/* Data Portability/Export Card */}
+          <div style={{
+            marginTop: 16, padding: '18px 18px 16px', borderRadius: 18,
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <ShieldCheck size={14} style={{ color: '#10B981' }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>
+                Your Data is Yours
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
+              We believe in complete freedom. Download your full catalog and order database in a clean JSON format at any time.
+            </p>
+            <button onClick={handleExportData} disabled={exporting} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              width: '100%', padding: '10px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+              color: '#fff', fontSize: 13, fontWeight: 800, cursor: exporting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+              onMouseEnter={e => { if(!exporting) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+              onMouseLeave={e => { if(!exporting) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}>
+              <Download size={14} /> {exporting ? 'Exporting...' : 'Export My Data'}
+            </button>
+          </div>
         </div>
       </div>
 
