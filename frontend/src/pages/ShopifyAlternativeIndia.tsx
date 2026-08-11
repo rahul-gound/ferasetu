@@ -97,7 +97,7 @@ export default function ShopifyAlternativeIndia() {
             { feature: 'Languages', shopify: 'English-first', fera: '22 Indian languages' },
             { feature: 'AI Assistant', shopify: 'Add-on (extra $/mo)', fera: 'Included (Hindi)' },
             { feature: 'WhatsApp Orders', shopify: 'Via app ($$$)', fera: 'Built-in' },
-            { feature: 'Setup Time', shopify: 'Hours to days', fera: '2 minutes' },
+            { feature: 'Setup Time', shopify: 'Hours to days', fera: 'Instant' },
             { feature: 'Target User', shopify: 'Global sellers', fera: 'Indian shopkeepers' },
             { feature: 'Subdomain', shopify: 'Your .myshopify.com', fera: 'Your .ferasetu subdomain' },
             { feature: 'Custom Domain', shopify: 'Paid plan', fera: '₹499/month plan' },

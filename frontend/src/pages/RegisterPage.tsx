@@ -22,6 +22,7 @@ const styles = {
 export default function RegisterPage() {
   return (
     <div style={styles.page}>
+      <SEO title="Start Free Trial" noindex />
       <div style={styles.logoContainer}>
         <Link to="/">
           <img src="/logo.png" alt="FeraSetu Logo" style={{ height: 48, width: 'auto' }} />
@@ -32,6 +33,12 @@ export default function RegisterPage() {
         path="/register"
         signInUrl="/login"
         forceRedirectUrl="/dashboard"
+        appearance={{
+          elements: {
+            headerTitle: 'Apni dukaan shuru karo',
+            headerSubtitle: 'Build your independent digital business today.',
+          }
+        }}
       />
     </div>
   );

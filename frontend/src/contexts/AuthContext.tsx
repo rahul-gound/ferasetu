@@ -120,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile = await createProfile({
         name: clerkUser?.fullName || clerkUser?.firstName || 'Shopkeeper',
         email: clerkUser?.primaryEmailAddress?.emailAddress || '',
+        preferredLanguage: localStorage.getItem('fera_language') || 'en',
       });
     } else {
       profile = data.user;

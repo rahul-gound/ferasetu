@@ -9,7 +9,7 @@ interface FAQItem {
 const FAQ_ITEMS: FAQItem[] = [
   {
     question: 'Do I need technical knowledge?',
-    answer: 'No. FeraSetu is built for shopkeepers, not developers. If you can use WhatsApp, you can use FeraSetu. Adding products, managing orders, and sharing your store link takes minutes — no coding, no design skills.',
+    answer: 'No. FeraSetu is built for shopkeepers, not developers. If you can use WhatsApp, you can use FeraSetu. Adding products, managing orders, and sharing your store link is fast and simple — no coding, no design skills.',
   },
   {
     question: 'Can I continue using WhatsApp?',

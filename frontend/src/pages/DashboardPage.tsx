@@ -427,7 +427,7 @@ export default function DashboardPage() {
                 🎉 Welcome to FeraSetu, {user?.name?.split(' ')[0]}!
               </h3>
               <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>
-                You're already {Math.round((setupSteps.completed / setupSteps.total) * 100)}% done. Finish setup in 2 minutes — your buyers are waiting.
+                You're already {Math.round((setupSteps.completed / setupSteps.total) * 100)}% done. Finish your setup now — your buyers are waiting.
               </p>
             </div>
             <Link to="/get-started" style={{
@@ -532,8 +532,11 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', marginBottom: 6 }}>
             {greeting}, {user?.name?.split(' ')[0] || 'shopkeeper'} <span aria-hidden="true">👋</span>
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: 500, margin: 0 }}>
-            Real-time performance for <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{user?.business_name || 'your store'}</span>.
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: 500, margin: 0, maxWidth: 600, lineHeight: 1.5 }}>
+            {stats && stats.total_orders > 0 
+              ? `Kal ${stats.total_orders} order aaye aur ₹${stats.total_revenue.toLocaleString('en-IN')} ki sale hui. Aaj ka tip: Apne top product ka price ₹10 badhao — margin improve hoga.`
+              : `Real-time performance for `}
+            {(!stats || stats.total_orders === 0) && <span style={{ color: '#fff', fontWeight: 700 }}>{user?.business_name || 'your store'}</span>}
           </p>
         </div>
         {streakInfo.count > 1 && (
@@ -700,8 +703,8 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Upgrade nudge — outcome-framed + loss aversion + milestone trigger (A/B-ready) */}
-          {(user?.plan === 'beta' || user?.plan === 'trial') && !isNewUser && (
+          {/* Upgrade nudge — outcome-framed + milestone trigger */}
+          {isFreePlan(user?.plan) && !isNewUser && (
             <div style={{
               marginTop: 20, padding: '18px 18px 16px', borderRadius: 18,
               background: 'linear-gradient(135deg,rgba(255,107,53,0.12),rgba(99,102,241,0.08))',
@@ -711,16 +714,14 @@ export default function DashboardPage() {
                 <Zap size={14} style={{ color: '#ff6b35' }} />
                 <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>
                   {stats && stats.total_orders >= 3
-                    ? `🎉 You've processed ${stats.total_orders} orders! Your shop is growing.`
-                    : stats && stats.low_stock_count > 0
-                      ? `📦 ${stats.low_stock_count} product${stats.low_stock_count > 1 ? 's are' : ' is'} running low.`
-                      : 'Scale Your Business'}
+                    ? `Aapke ${productCount} products ho gaye — bahut accha!`
+                    : 'Apne business ko seriously chalao'}
                 </span>
               </div>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
-                {stats && stats.total_revenue > 0
-                  ? <>You've earned <strong style={{ color: '#fff' }}>₹{stats.total_revenue.toLocaleString('en-IN')}</strong> — on Free (Beta) we keep these reports for 30 days. <strong style={{ color: '#FF6B35' }}>Upgrade to keep unlimited history</strong> and unlock sales forecasts that find your best profit-makers.</>
-                  : <>Unlock AI predictions, custom domains, and up to 5,000 products. Growth plan starts at <strong style={{ color: '#FF6B35' }}>₹299/mo</strong> (just ₹10/day).</>}
+                {stats && stats.total_orders >= 3
+                  ? <>Growth plan mein aap unlimited products add kar sakte ho, plus profit analytics se jaanoge kaunsa product sabse zyada kamata hai.</>
+                  : <>Unlock profit analytics, inventory tracking, and up to 500 products. Growth plan starts at <strong style={{ color: '#FF6B35' }}>₹299/mo</strong>.</>}
               </p>
               <Link to="/upgrade" style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -730,7 +731,7 @@ export default function DashboardPage() {
                 fontSize: 13, fontWeight: 800,
                 boxShadow: '0 6px 20px rgba(255,107,53,0.3)',
               }}>
-                <Gift size={14} aria-hidden="true" /> {stats && stats.total_orders >= 3 ? 'Keep Your Reports — View Plans' : 'View Upgrade Plans'}
+                <Gift size={14} aria-hidden="true" /> View Upgrade Plans
                 <ArrowRight size={15} aria-hidden="true" />
               </Link>
             </div>

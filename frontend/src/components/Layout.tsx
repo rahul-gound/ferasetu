@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { SUPPORTED_LANGUAGES } from '../utils/languages';
+import { ENABLED_LANGUAGES } from '../i18n';
 import { getPlanBadge } from '../config/beta';
 import FeedbackWidget from './FeedbackWidget';
 
@@ -68,15 +68,23 @@ const s = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { language, setLanguage, translate } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langDropOpen, setLangDropOpen] = useState(false);
   const planBadge = user?.plan ? getPlanBadge(user.plan) : null;
 
-  const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === language);
+  const currentLang = ENABLED_LANGUAGES.find(l => l.code === language);
   const handleLogout = () => { logout(); navigate('/login'); };
+  
+  const handleLanguageChange = (code: string) => {
+    setLanguage(code);
+    if (user && user.preferred_language !== code) {
+      updateUser({ preferred_language: code });
+    }
+    setLangDropOpen(false);
+  };
 
   const sidebarContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -202,16 +210,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.12)',
                   zIndex: 100, width: 200, maxHeight: 300, overflowY: 'auto',
                 }}>
-                  {SUPPORTED_LANGUAGES.map(lang => (
-                    <button key={lang.code} onClick={() => { setLanguage(lang.code); setLangDropOpen(false); }}
+                  {ENABLED_LANGUAGES.map(lang => (
+                    <button key={lang.code} onClick={() => handleLanguageChange(lang.code)}
                       className="lang-item"
                       style={{
                         background: lang.code === language ? 'rgba(0,82,255,0.08)' : 'none',
                         color: lang.code === language ? 'var(--primary)' : 'var(--text-muted)',
                         ...s.langItem,
                       }}>
-                      <span>{lang.name}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{lang.nativeName}</span>
+                      <span>{lang.nativeName}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{lang.code.toUpperCase()}</span>
                     </button>
                   ))}
                 </div>

@@ -27,11 +27,18 @@ export default function LoginPage() {
           <img src="/logo.png" alt="FeraSetu Logo" style={{ height: 48, width: 'auto' }} />
         </Link>
       </div>
+      <SEO title="Sign In" noindex />
       <SignIn
         routing="path"
         path="/login"
         signUpUrl="/register"
         forceRedirectUrl="/dashboard"
+        appearance={{
+          elements: {
+            headerTitle: 'Welcome back',
+            headerSubtitle: 'Sign in to manage your FeraSetu shop.',
+          }
+        }}
       />
     </div>
   );

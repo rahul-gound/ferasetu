@@ -45,6 +45,8 @@ const AdminTicketsPage = lazy(() => import('./pages/AdminTicketsPage'));
 const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
 // Fera AI — eager load to prevent navigation delay
 import FeraAIPage from './pages/FeraAIPage';
@@ -107,17 +109,21 @@ function AppRoutes() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
-        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-        <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
         <Route path="/shop/:shopName" element={<ShopPage />} />
-
-        {/* SEO landing pages & public pages */}
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
-        <Route path="/free-online-store" element={<FreeOnlineStore />} />
-        <Route path="/shopify-alternative-india" element={<ShopifyAlternativeIndia />} />
-        <Route path="/kirana-store-online" element={<KiranaStoreOnline />} />
+        <Route path="/:lang?">
+          <Route index element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+          <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+          <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+          
+          {/* SEO landing pages & public pages */}
+          <Route path="pricing" element={<PricingPage />} />
+          <Route path="online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
+          <Route path="free-online-store" element={<FreeOnlineStore />} />
+          <Route path="shopify-alternative-india" element={<ShopifyAlternativeIndia />} />
+          <Route path="kirana-store-online" element={<KiranaStoreOnline />} />
+          <Route path="terms" element={<TermsPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
+        </Route>
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLogin />} />
@@ -146,27 +152,25 @@ function AppRoutes() {
 
         <Route path="/*" element={
           <ProtectedRoute>
-            <LanguageProvider>
-              <Layout>
-                <Routes>
-                  <Route path="/get-started" element={<GetStartedPage />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/products" element={<ProductsPage />} />
-                  <Route path="/orders" element={<OrdersPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/ai-assistant" element={<AIAssistantPage />} />
-                  {/* New Fera AI — premium AI assistant page */}
-                  <Route path="/fera-ai" element={<FeraAIPage />} />
-                  <Route path="/ai-credits" element={<AICreditsPage />} />
-                  <Route path="/website-builder" element={<WebsiteBuilderPage />} />
-                  <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
-                  <Route path="/settings/email" element={<EmailSettingsPage />} />
-                  <Route path="/upgrade" element={<UpgradePage />} />
-                  <Route path="/support" element={<SupportPage />} />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-              </Layout>
-            </LanguageProvider>
+            <Layout>
+              <Routes>
+                <Route path="/get-started" element={<GetStartedPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/ai-assistant" element={<AIAssistantPage />} />
+                {/* New Fera AI — premium AI assistant page */}
+                <Route path="/fera-ai" element={<FeraAIPage />} />
+                <Route path="/ai-credits" element={<AICreditsPage />} />
+                <Route path="/website-builder" element={<WebsiteBuilderPage />} />
+                <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
+                <Route path="/settings/email" element={<EmailSettingsPage />} />
+                <Route path="/upgrade" element={<UpgradePage />} />
+                <Route path="/support" element={<SupportPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Layout>
           </ProtectedRoute>
         } />
       </Routes>
@@ -180,8 +184,10 @@ function AppContent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <AppRoutes />
-          <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+          <LanguageProvider>
+            <AppRoutes />
+            <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+          </LanguageProvider>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

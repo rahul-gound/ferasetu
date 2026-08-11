@@ -138,7 +138,7 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'free',
     displayName: 'Free',
-    tagline: 'For shopkeepers getting started.',
+    tagline: 'Shuruwaat karo, bina kisi risk ke.',
     outcome: 'Put your shop online and start taking orders — no cost, no tech skills needed.',
     price: PLAN_PRICES.free,
     limits: PLAN_LIMITS.free,
@@ -162,7 +162,7 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'growth',
     displayName: 'Growth',
-    tagline: 'For serious shopkeepers ready to grow.',
+    tagline: 'Apne business ko seriously chalao.',
     outcome: 'Sell more without being at your shop all day. Understand what\'s working.',
     price: PLAN_PRICES.growth,
     limits: PLAN_LIMITS.growth,
@@ -187,7 +187,7 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'pro',
     displayName: 'Pro',
-    tagline: 'For growing businesses that need more.',
+    tagline: 'Scale karo, grow karo.',
     outcome: 'Run your shop like a proper online business — unlimited products, advanced AI, priority help.',
     price: PLAN_PRICES.pro,
     limits: PLAN_LIMITS.pro,

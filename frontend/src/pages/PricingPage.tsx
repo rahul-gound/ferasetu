@@ -192,7 +192,7 @@ export default function PricingPage() {
               border: '1px solid rgba(255,107,53,0.2)',
             }}
           >
-            Honest, Simple Pricing
+            Sahi plan chunein
           </motion.p>
 
           <motion.h1
@@ -203,14 +203,14 @@ export default function PricingPage() {
               color: '#0f172a', margin: '0 0 20px',
             }}
           >
-            Your shop deserves to be{' '}
+            Koi hidden fees{' '}
             <span style={{
               background: 'linear-gradient(135deg, #FF6B35, #f97316)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              open 24/7.
+              nahi.
             </span>
           </motion.h1>
 

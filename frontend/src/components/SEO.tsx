@@ -1,4 +1,7 @@
 import { Helmet } from 'react-helmet-async';
+import { ENABLED_LANGUAGES, getLanguagePath } from '../i18n';
+import { useLocation } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const BASE_URL = 'https://fera-search.tech';
 const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
@@ -7,44 +10,72 @@ interface SEOProps {
   title?: string;
   description?: string;
   image?: string;
-  url?: string;
   type?: 'website' | 'product' | 'business.business';
   shopName?: string;
   structuredData?: Record<string, unknown>;
+  noindex?: boolean;
 }
 
 export default function SEO({
-  title = 'FeraSetu — Your Shop\'s Digital Bridge',
-  description = 'Build your shop website, manage products, and grow orders with AI. Dukaan ko online lao, orders WhatsApp par pao.',
+  title,
+  description,
   image = DEFAULT_IMAGE,
-  url = BASE_URL,
   type = 'website',
   structuredData,
+  noindex = false,
 }: SEOProps) {
-  const fullTitle = title.includes('FeraSetu') ? title : `${title} | FeraSetu`;
+  const { language, translate } = useLanguage();
+  const location = useLocation();
+  
+  // Use translated defaults if props aren't provided
+  const finalTitle = title || translate('seo.landing.title');
+  const finalDesc = description || translate('seo.landing.desc');
+  const fullTitle = finalTitle.includes('FeraSetu') ? finalTitle : `${finalTitle} | FeraSetu`;
   const ogImage = image || DEFAULT_IMAGE;
 
+  // Calculate canonical and hreflang URLs
+  const cleanPath = location.pathname.replace(/\/$/, '') || '/';
+  
+  // Determine if it's a public route for hreflang generation
+  const isPublicRoute = !cleanPath.includes('/dashboard') && !cleanPath.includes('/admin') && !cleanPath.includes('/settings');
+  
+  const currentUrl = `${BASE_URL}${cleanPath}`;
+
   return (
-    <Helmet>
+    <Helmet htmlAttributes={{ lang: language }}>
       <title>{fullTitle}</title>
-      <meta name="description" content={description} />
+      <meta name="description" content={finalDesc} />
+      {noindex && <meta name="robots" content="noindex, follow" />}
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={fullTitle} />
-      <meta property="og:description" content={description} />
+      <meta property="og:description" content={finalDesc} />
       <meta property="og:image" content={ogImage} />
-      <meta property="og:url" content={url} />
+      <meta property="og:url" content={currentUrl} />
       <meta property="og:site_name" content="FeraSetu" />
 
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:description" content={finalDesc} />
       <meta name="twitter:image" content={ogImage} />
 
-      {/* Canonical */}
-      <link rel="canonical" href={url} />
+      {/* Canonical URL matches exact language URL */}
+      <link rel="canonical" href={currentUrl} />
+
+      {/* Bidirectional Hreflang Tags (only for indexable public pages) */}
+      {isPublicRoute && ENABLED_LANGUAGES.map(lang => {
+        const langPath = getLanguagePath(cleanPath, lang.code);
+        const hreflangUrl = `${BASE_URL}${langPath}`;
+        return (
+          <link key={lang.code} rel="alternate" hreflang={lang.code} href={hreflangUrl} />
+        );
+      })}
+      
+      {isPublicRoute && (
+        <link rel="alternate" hreflang="x-default" href={`${BASE_URL}${getLanguagePath(cleanPath, 'en')}`} />
+      )}
 
       {/* JSON-LD Structured Data */}
       {structuredData && (
