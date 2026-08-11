@@ -32,6 +32,9 @@
 // Everything else returns a JSON 404. Unexpected errors return a JSON 500.
 
 // ---------------------------------------------------------------------------
+import { handleAdminRoutes } from "./routes/admin.js";
+
+// ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
 const ALLOWED_ORIGINS = [
   "https://ferasetu.com",
@@ -123,76 +126,7 @@ const FOUNDING_CONFIG = {
   offerMonths: 3,
 };
 
-let schemaReady = false;
-
-async function ensureSchema(db) {
-  if (schemaReady) return;
-  // D1 batch runs these atomically. IF NOT EXISTS makes it safe to repeat.
-  await db.batch([
-    db.prepare(
-      `CREATE TABLE IF NOT EXISTS users (
-        id                TEXT PRIMARY KEY,
-        email             TEXT UNIQUE NOT NULL,
-        name              TEXT NOT NULL,
-        phone             TEXT,
-        business_name     TEXT,
-        plan              TEXT NOT NULL DEFAULT 'free',
-        preferred_language TEXT NOT NULL DEFAULT 'en',
-        subdomain         TEXT UNIQUE,
-        custom_domain      TEXT UNIQUE,
-        plan_expires_at    TEXT,
-        ai_credits_balance INTEGER NOT NULL DEFAULT 20,
-        ai_credits_monthly_limit INTEGER NOT NULL DEFAULT 20,
-        ai_credits_used_month INTEGER NOT NULL DEFAULT 0,
-        ai_credits_reset_at TEXT,
-        storage_used_bytes INTEGER NOT NULL DEFAULT 0,
-        storage_limit_bytes INTEGER NOT NULL DEFAULT 52428800,
-        founding_member   INTEGER NOT NULL DEFAULT 0,
-        created_at        TEXT NOT NULL,
-        updated_at        TEXT NOT NULL
-      )`
-    ),
-    // Add founding_member column to existing databases (idempotent — D1 ignores errors for existing columns)
-    db.prepare(`ALTER TABLE users ADD COLUMN founding_member INTEGER NOT NULL DEFAULT 0`).catch ? 
-      db.prepare(`ALTER TABLE users ADD COLUMN founding_member INTEGER NOT NULL DEFAULT 0`) :
-      db.prepare(`SELECT 1`), // fallback no-op
-    db.prepare(
-      `CREATE TABLE IF NOT EXISTS products (
-        id          TEXT PRIMARY KEY,
-        user_id     TEXT NOT NULL,
-        name        TEXT NOT NULL,
-        price       REAL NOT NULL DEFAULT 0,
-        stock       INTEGER NOT NULL DEFAULT 0,
-        description TEXT,
-        created_at  TEXT NOT NULL
-      )`
-    ),
-    db.prepare(
-      `CREATE TABLE IF NOT EXISTS orders (
-        id            TEXT PRIMARY KEY,
-        user_id       TEXT NOT NULL,
-        customer_name TEXT NOT NULL,
-        items         TEXT NOT NULL DEFAULT '[]',
-        total         REAL NOT NULL DEFAULT 0,
-        status        TEXT NOT NULL DEFAULT 'pending',
-        created_at    TEXT NOT NULL
-      )`
-    ),
-    db.prepare(
-      `CREATE TABLE IF NOT EXISTS meetings (
-        id              TEXT PRIMARY KEY,
-        user_id         TEXT NOT NULL,
-        customer_name   TEXT NOT NULL,
-        customer_email  TEXT NOT NULL,
-        meeting_date    TEXT NOT NULL,
-        topic           TEXT,
-        status          TEXT NOT NULL DEFAULT 'scheduled',
-        created_at      TEXT NOT NULL
-      )`
-    ),
-  ]);
-  schemaReady = true;
-}
+// Schema migrations are now managed via D1 migrations in the migrations/ folder.
 
 // ---------------------------------------------------------------------------
 // Auth — verifies Clerk JWTs.
@@ -1048,6 +982,11 @@ async function route(request, env) {
     }, 200, {}, request);
   }
 
+  // Admin Dashboard routes
+  if (path.startsWith("/api/admin")) {
+    return handleAdminRoutes(request, env);
+  }
+
   return errorResponse(`Not found: ${method} ${path}`, 404);
 }
 
@@ -1074,7 +1013,6 @@ export default {
         );
       }
 
-      await ensureSchema(env.DB);
       return await route(request, env);
     } catch (err) {
       if (err instanceof HttpError) {
