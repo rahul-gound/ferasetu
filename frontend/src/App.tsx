@@ -92,9 +92,13 @@ function AppRoutes() {
   const { user } = useAuth();
   const hostname = window.location.hostname;
 
-  const platformDomain = 'fera-search.tech';
+  const platformDomains = ['ferasetu.com', 'fera-search.tech'];
   const isLocalOrPreview = hostname === 'localhost' || hostname.includes('127.0.0.1') || hostname.includes('app.github.dev');
-  const isShopSubdomain = hostname.endsWith(`.${platformDomain}`) && hostname !== platformDomain && !isLocalOrPreview;
+  
+  // Check if hostname ends with any of our platform domains but is not the root domain itself
+  const isShopSubdomain = platformDomains.some(domain => 
+    hostname.endsWith(`.${domain}`) && hostname !== domain
+  ) && !isLocalOrPreview;
 
   if (isShopSubdomain) {
     return (

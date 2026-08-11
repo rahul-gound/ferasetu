@@ -90,7 +90,7 @@ export async function validatePublicShop(req: Request, res: Response, next: Next
   }
 
   // Subdomain takeover prevention: verify DNS still points to platform
-  const baseDomain = (process.env.BASE_DOMAIN || 'fera-search.tech').toLowerCase();
+  const baseDomain = (process.env.BASE_DOMAIN || 'ferasetu.com').toLowerCase();
   const host = (req.get('host') || '').toLowerCase();
   
   if (host && host !== baseDomain && !host.includes('localhost') && !host.includes('127.0.0.1')) {

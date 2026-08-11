@@ -151,7 +151,7 @@ export const PLANS: PlanDefinition[] = [
       { label: 'Order management dashboard', included: true },
       { label: 'WhatsApp ordering link', included: true },
       { label: 'Basic sales overview', included: true },
-      { label: 'FeraSetu subdomain (yourshop.fera-search.tech)', included: true },
+      { label: 'FeraSetu subdomain (yourshop.ferasetu.com)', included: true },
       { label: '20 Fera AI messages/month', included: true },
       { label: 'Basic invoices', included: true },
       { label: 'Advanced analytics', included: false },

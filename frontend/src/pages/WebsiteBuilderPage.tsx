@@ -365,7 +365,7 @@ export default function WebsiteBuilderPage() {
     display: 'flex', flexDirection: 'column',
   };
 
-  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'fera-search.tech';
+  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'ferasetu.com';
   const liveUrl = `https://${user?.subdomain || shopName.toLowerCase().replace(/\s+/g, '-')}.${baseDomain}`;
 
   return (

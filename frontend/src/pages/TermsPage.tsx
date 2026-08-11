@@ -5,7 +5,7 @@ import SEO from '../components/SEO';
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#060818] text-white selection:bg-[#FF6B35] selection:text-white font-sans">
-      <SEO title="Terms of Service — FeraSetu" description="Terms of Service for FeraSetu users." url="https://fera-search.tech/terms" type="website" />
+      <SEO title="Terms of Service — FeraSetu" description="Terms of Service for FeraSetu users." url="https://ferasetu.com/terms" type="website" />
       <div className="max-w-3xl mx-auto px-6 py-20">
         <Link to="/" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-8 transition-colors">
           <ArrowLeft size={16} /> Back to Home

@@ -13,7 +13,7 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
   const db = getDatabase();
   const { shopName } = req.params;
   const host = (req.get('host') || '').toLowerCase();
-  const baseDomain = (process.env.BASE_DOMAIN || 'fera-search.tech').toLowerCase();
+  const baseDomains = ['ferasetu.com', 'fera-search.tech'];
 
   let user;
 
@@ -25,18 +25,21 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
   }
 
   // 2. If not found by slug, or if accessed via a subdomain/custom domain directly
-  if (!user && host && host !== baseDomain && !host.includes('localhost') && !host.includes('github.dev')) {
+  if (!user && host && !baseDomains.includes(host) && !host.includes('localhost') && !host.includes('github.dev')) {
     // Try matching the whole host as a custom domain
     user = db.prepare(
       'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE custom_domain = ?'
     ).get(host) as any;
 
-    // 3. Try matching as a subdomain (e.g. user.fera-search.tech)
-    if (!user && host.endsWith('.' + baseDomain)) {
-      const subdomain = host.replace('.' + baseDomain, '');
-      user = db.prepare(
-        'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE subdomain = ?'
-      ).get(subdomain) as any;
+    // 3. Try matching as a subdomain against any of the supported base domains
+    if (!user) {
+      const matchingBase = baseDomains.find(domain => host.endsWith('.' + domain));
+      if (matchingBase) {
+        const subdomain = host.replace('.' + matchingBase, '');
+        user = db.prepare(
+          'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE subdomain = ?'
+        ).get(subdomain) as any;
+      }
     }
   }
 

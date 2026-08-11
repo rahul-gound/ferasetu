@@ -3,7 +3,7 @@ import { ENABLED_LANGUAGES, getLanguagePath } from '../i18n';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const BASE_URL = 'https://fera-search.tech';
+const BASE_URL = 'https://ferasetu.com';
 const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
 
 interface SEOProps {

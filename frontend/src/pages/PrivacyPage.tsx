@@ -5,7 +5,7 @@ import SEO from '../components/SEO';
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[#060818] text-white selection:bg-[#FF6B35] selection:text-white font-sans">
-      <SEO title="Privacy Policy — FeraSetu" description="Privacy Policy for FeraSetu users." url="https://fera-search.tech/privacy" type="website" />
+      <SEO title="Privacy Policy — FeraSetu" description="Privacy Policy for FeraSetu users." url="https://ferasetu.com/privacy" type="website" />
       <div className="max-w-3xl mx-auto px-6 py-20">
         <Link to="/" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-8 transition-colors">
           <ArrowLeft size={16} /> Back to Home
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           </section>
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">5. Contact Us</h2>
-            <p>If you have any questions about this Privacy Policy, please contact us at support@fera-search.tech.</p>
+            <p>If you have any questions about this Privacy Policy, please contact us at support@ferasetu.com.</p>
           </section>
         </div>
       </div>

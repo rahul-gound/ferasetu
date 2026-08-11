@@ -17,7 +17,7 @@ const FAQ_ITEMS: FAQItem[] = [
   },
   {
     question: 'Do I need a domain or website?',
-    answer: 'No. You get a free store link (yourshop.fera-search.tech) from day one. Custom domain support is coming soon for Growth and Pro plans. Most shopkeepers start with the free link and upgrade later.',
+    answer: 'No. You get a free store link (yourshop.ferasetu.com) from day one. Custom domain support is coming soon for Growth and Pro plans. Most shopkeepers start with the free link and upgrade later.',
   },
   {
     question: 'Can I start without paying?',

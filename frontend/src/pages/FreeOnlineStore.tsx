@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 
-const BASE_URL = 'https://fera-search.tech';
+const BASE_URL = 'https://ferasetu.com';
 
 const faqSchema = {
   '@context': 'https://schema.org',
@@ -84,7 +84,7 @@ export default function FreeOnlineStore() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
           {[
-            { icon: '🌐', title: 'Free Subdomain', desc: 'apni-dukaan.ferasetu.fera-search.tech — apna naam, apni dukaan.' },
+            { icon: '🌐', title: 'Free Subdomain', desc: 'apni-dukaan.ferasetu.com — apna naam, apni dukaan.' },
             { icon: '📦', title: '19 Products Tak', desc: 'Products add karo with photos, prices, descriptions. Sab free.' },
             { icon: '🧾', title: 'Invoices', desc: 'Har order pe automatic tax invoice. Professional lagta hai.' },
             { icon: '📊', title: 'Order Management', desc: 'Orders track karo, status update karo, customers ko inform karo.' },

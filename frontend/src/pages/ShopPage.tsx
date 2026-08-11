@@ -6,7 +6,7 @@ import TemplateRenderer from '../components/shop/TemplateRenderer';
 import SEO from '../components/SEO';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const BASE_URL = 'https://fera-search.tech';
+const BASE_URL = 'https://ferasetu.com';
 const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
 
 export default function ShopPage() {
@@ -19,16 +19,23 @@ export default function ShopPage() {
 
   useEffect(() => {
     const hostname = window.location.hostname;
-    const isMainPlatform = hostname.includes('fera-shop.fera-search.tech') || 
-                           hostname.includes('fera-search.tech') ||
-                           hostname.includes('app.github.dev') ||
-                           hostname.includes('localhost');
+    const platformDomains = ['ferasetu.com', 'fera-search.tech'];
+    const isLocalOrPreview = hostname.includes('app.github.dev') || hostname.includes('localhost') || hostname.includes('127.0.0.1');
 
     if (params.shopName) {
       setShopName(params.shopName);
-    } else if (!isMainPlatform) {
-      // If we are on a custom domain like mykiranastore.com
-      setShopName(hostname);
+    } else if (!isLocalOrPreview) {
+      // Find which platform domain this belongs to, if any
+      const matchingPlatform = platformDomains.find(domain => hostname === domain || hostname.endsWith(`.${domain}`));
+      
+      if (matchingPlatform && hostname !== matchingPlatform) {
+        // It's a subdomain (e.g., shopA.ferasetu.com)
+        const subdomain = hostname.replace(`.${matchingPlatform}`, '');
+        setShopName(subdomain);
+      } else {
+        // It's a custom domain (e.g., mykiranastore.com)
+        setShopName(hostname);
+      }
     }
   }, [params.shopName]);
 

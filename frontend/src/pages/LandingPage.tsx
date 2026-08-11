@@ -32,7 +32,7 @@ export default function LandingPage() {
       <SEO
         title="FeraSetu — Your Shop's Digital Bridge"
         description="FeraSetu gives every shopkeeper the power to sell online — without depending on any marketplace."
-        url="https://fera-search.tech"
+        url="https://ferasetu.com"
         type="website"
       />
 

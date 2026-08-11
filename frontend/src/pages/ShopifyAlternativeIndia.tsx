@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 
-const BASE_URL = 'https://fera-search.tech';
+const BASE_URL = 'https://ferasetu.com';
 
 const faqSchema = {
   '@context': 'https://schema.org',
@@ -28,7 +28,7 @@ const faqSchema = {
       name: 'Kya FeraSetu pe custom domain lag sakta hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Haan, premium plan (₹499/month) me custom domain support hai. Free me bhi subdomain milta hai — apni-dukaan.ferasetu.fera-search.tech.',
+        text: 'Haan, premium plan (₹499/month) me custom domain support hai. Free me bhi subdomain milta hai — apni-dukaan.ferasetu.com.',
       },
     },
     {

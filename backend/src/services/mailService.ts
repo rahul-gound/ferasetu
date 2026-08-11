@@ -2,7 +2,7 @@ import { sendEmailViaBrevo, verifyBrevoConnection } from './brevoService';
 
 const BRAND_COLOR = '#FF6B35';
 const BRAND_NAME = 'FeraSetu';
-const DEFAULT_FROM_EMAIL = 'noreply@ferasetu.fera-search.tech';
+const DEFAULT_FROM_EMAIL = 'noreply@ferasetu.com';
 const DEFAULT_FROM_NAME = BRAND_NAME;
 
 interface ParsedSender {

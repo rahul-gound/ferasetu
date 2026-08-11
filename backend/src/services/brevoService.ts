@@ -73,7 +73,7 @@ export async function verifyBrevoConnection(): Promise<boolean> {
       to: [{ email: 'test@example.com' }],
       subject: 'Brevo Connection Test',
       htmlContent: '<p>This is a test email to verify Brevo API connection.</p>',
-      sender: { email: 'noreply@ferasetu.fera-search.tech' },
+      sender: { email: 'noreply@ferasetu.com' },
     };
 
     await axios.post(BREVO_API_URL, testPayload, {
