@@ -21,7 +21,7 @@ const PUBLIC_ROUTES = [
 const BASE_URL = 'https://fera-search.tech';
 
 function generateSitemap() {
-  const urls: string[] = [];
+  const urls = [];
 
   // Generate URL for each public route in each enabled language
   PUBLIC_ROUTES.forEach(route => {
