@@ -1,25 +1,37 @@
-import en from './en';
-import hi from './hi';
-import mr from './mr';
-import gu from './gu';
-import { SUPPORTED_LANGUAGES } from './config';
+import type { Dictionary, TranslationKey } from './types';
+import enDict from './en';
+import { SUPPORTED_LANGUAGES, ENABLED_LANGUAGES } from './config';
 
-const dictionaries: Record<string, Record<string, string>> = {
-  en,
-  hi,
-  mr,
-  gu
+export const loadDictionary = async (langCode: string): Promise<Dictionary> => {
+  switch (langCode) {
+    case 'en': return (await import('./en')).default;
+    case 'hi': return (await import('./hi')).default;
+    case 'mr': return (await import('./mr')).default;
+    case 'gu': return (await import('./gu')).default;
+    case 'as': return (await import('./as')).default;
+    case 'bn': return (await import('./bn')).default;
+    case 'brx': return (await import('./brx')).default;
+    case 'doi': return (await import('./doi')).default;
+    case 'kn': return (await import('./kn')).default;
+    case 'ks': return (await import('./ks')).default;
+    case 'gom': return (await import('./gom')).default;
+    case 'mai': return (await import('./mai')).default;
+    case 'ml': return (await import('./ml')).default;
+    case 'mni': return (await import('./mni')).default;
+    case 'ne': return (await import('./ne')).default;
+    case 'or': return (await import('./or')).default;
+    case 'pa': return (await import('./pa')).default;
+    case 'sa': return (await import('./sa')).default;
+    case 'sat': return (await import('./sat')).default;
+    case 'sd': return (await import('./sd')).default;
+    case 'ta': return (await import('./ta')).default;
+    case 'te': return (await import('./te')).default;
+    case 'ur': return (await import('./ur')).default;
+    default: return enDict;
+  }
 };
 
-export function t(key: string, langCode: string): string {
-  // If the language is supported and enabled, look for the translation
-  const langConfig = SUPPORTED_LANGUAGES.find(l => l.code === langCode);
-  if (langConfig && langConfig.enabled && dictionaries[langCode] && dictionaries[langCode][key]) {
-    return dictionaries[langCode][key];
-  }
-  
-  // Fallback to English
-  return dictionaries.en[key] || key;
-}
+export const fallbackDictionary: Dictionary = enDict;
 
 export * from './config';
+export * from './types';

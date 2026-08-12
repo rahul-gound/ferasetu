@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet-async';
-import { ENABLED_LANGUAGES, getLanguagePath } from '../i18n';
+import { SUPPORTED_LANGUAGES, getLanguagePath } from '../i18n';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -27,6 +27,12 @@ export default function SEO({
   const { language, translate } = useLanguage();
   const location = useLocation();
   
+  // Find current language config
+  const currentLangConfig = SUPPORTED_LANGUAGES.find(l => l.code === language);
+  // Force noindex if current language is a draft
+  const isDraftLanguage = currentLangConfig?.status === 'draft';
+  const finalNoIndex = noindex || isDraftLanguage;
+
   // Use translated defaults if props aren't provided
   const finalTitle = title || translate('seo.landing.title');
   const finalDesc = description || translate('seo.landing.desc');
@@ -41,11 +47,13 @@ export default function SEO({
   
   const currentUrl = `${BASE_URL}${cleanPath}`;
 
+  const publishedLanguages = SUPPORTED_LANGUAGES.filter(l => l.status === 'published');
+
   return (
     <Helmet htmlAttributes={{ lang: language }}>
       <title>{fullTitle}</title>
       <meta name="description" content={finalDesc} />
-      {noindex && <meta name="robots" content="noindex, follow" />}
+      {finalNoIndex && <meta name="robots" content="noindex, follow" />}
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />
@@ -64,8 +72,8 @@ export default function SEO({
       {/* Canonical URL matches exact language URL */}
       <link rel="canonical" href={currentUrl} />
 
-      {/* Bidirectional Hreflang Tags (only for indexable public pages) */}
-      {isPublicRoute && ENABLED_LANGUAGES.map(lang => {
+      {/* Bidirectional Hreflang Tags (only for published public pages) */}
+      {isPublicRoute && publishedLanguages.map(lang => {
         const langPath = getLanguagePath(cleanPath, lang.code);
         const hreflangUrl = `${BASE_URL}${langPath}`;
         return (
