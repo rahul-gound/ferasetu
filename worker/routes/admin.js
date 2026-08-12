@@ -120,6 +120,11 @@ export async function handleAdminRoutes(request, env) {
     const adminEmail = adminPayload.sub;
 
     // 3. Protected Admin Routes
+
+    // VERIFY TOKEN
+    if (path === "/api/admin/verify" && method === "GET") {
+      return json({ success: true, user: { email: adminEmail } });
+    }
     
     // DASHBOARD STATS
     if (path === "/api/admin/dashboard-stats" && method === "GET") {
@@ -291,22 +296,13 @@ export async function handleAdminRoutes(request, env) {
     }
 
     // Fallback for missing admin route
-    return new Response(JSON.stringify({ error: "Admin route not found" }), {
-      status: 404,
-      headers: { "Content-Type": "application/json" }
-    });
+    return json({ error: "Admin route not found" }, 404);
 
   } catch (err) {
     if (err instanceof HttpError) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: err.status,
-        headers: { "Content-Type": "application/json" }
-      });
+      return json({ error: err.message }, err.status);
     }
     console.error("Admin route error:", err && err.stack ? err.stack : err);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return json({ error: "Internal Server Error" }, 500);
   }
 }
