@@ -32,8 +32,15 @@ function PointerTracker() {
       pointer.x = e.clientX / window.innerWidth - 0.5;
       pointer.y = e.clientY / window.innerHeight - 0.5;
     };
+    let scrollTicking = false;
     const onScroll = () => {
-      pointer.scroll = window.scrollY;
+      if (!scrollTicking) {
+        window.requestAnimationFrame(() => {
+          pointer.scroll = window.scrollY;
+          scrollTicking = false;
+        });
+        scrollTicking = true;
+      }
     };
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('scroll', onScroll, { passive: true });

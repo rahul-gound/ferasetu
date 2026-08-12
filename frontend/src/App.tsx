@@ -20,8 +20,7 @@ const ShopifyAlternativeIndia = lazy(() => import('./pages/ShopifyAlternativeInd
 const KiranaStoreOnline = lazy(() => import('./pages/KiranaStoreOnline'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 
-// Everything below is code-split: the landing page no longer ships the dashboard,
-// charts (recharts), AI, website builder, or admin panel in its initial bundle.
+// Everything below is code-split
 const GetStartedPage = lazy(() => import('./pages/GetStartedPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
@@ -48,8 +47,11 @@ const Layout = lazy(() => import('./components/Layout'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
-// Fera AI — eager load to prevent navigation delay
-import FeraAIPage from './pages/FeraAIPage';
+// Fera AI — lazy load
+const FeraAIPage = lazy(() => import('./pages/FeraAIPage'));
+
+// VerifyEmailPage — lazy load
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -84,9 +86,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-
-// Eager load VerifyEmailPage
-import VerifyEmailPage from './pages/VerifyEmailPage';
 
 function AppRoutes() {
   const { user } = useAuth();

@@ -24,8 +24,6 @@
 // Worker verifies the JWT against Clerk JWKS keys and uses the account ID
 // as the D1 users.id. Profile data itself lives in D1, NOT in Clerk.
 //
-// Secrets/config (see wrangler.toml):
-//   SARVAM_API_KEY       -> secret, set with `npx wrangler secret put SARVAM_API_KEY`
 //   APPWRITE_ENDPOINT    -> plain var (public)
 //   APPWRITE_PROJECT_ID  -> plain var (public)
 //
@@ -129,48 +127,8 @@ const FOUNDING_CONFIG = {
 // Schema migrations are now managed via D1 migrations in the migrations/ folder.
 
 // ---------------------------------------------------------------------------
-// Auth — verifies Clerk JWTs.
+// Auth — verifies Appwrite JWTs.
 // ---------------------------------------------------------------------------
-// Base64Url decode helper
-function base64UrlDecode(str) {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) {
-    str += "=";
-  }
-  try {
-    return atob(str);
-  } catch (err) {
-    throw new HttpError("Malformed JWT base64 payload", 400);
-  }
-}
-
-// Convert string to array buffer
-function str2ab(str) {
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
-  }
-  return buf;
-}
-
-// Convert JWK to CryptoKey
-async function importJwk(jwk) {
-  return await crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256",
-    },
-    false,
-    ["verify"]
-  );
-}
-
-// Global cache for Clerk public keys
-let jwksCache = null;
-let jwksLastFetched = 0;
 
 async function getAuthenticatedUser(request, env) {
   const authHeader = request.headers.get("Authorization");
@@ -179,95 +137,37 @@ async function getAuthenticatedUser(request, env) {
   }
 
   const jwt = authHeader.substring(7);
-  const parts = jwt.split(".");
-  if (parts.length !== 3) {
-    throw new HttpError("Unauthorized: Malformed JWT token structure", 401);
+  
+  if (!env.APPWRITE_ENDPOINT || !env.APPWRITE_PROJECT_ID) {
+    throw new HttpError("Server configuration missing Appwrite credentials", 500);
   }
-
-  const [headerStr, payloadStr, signatureStr] = parts;
-  let header, payload;
-  try {
-    header = JSON.parse(base64UrlDecode(headerStr));
-    payload = JSON.parse(base64UrlDecode(payloadStr));
-  } catch (err) {
-    throw new HttpError("Unauthorized: Invalid JSON in JWT headers/claims", 401);
-  }
-
-  // 1. Verify token expiration
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && now >= payload.exp) {
-    throw new HttpError("Unauthorized: Session token has expired", 401);
-  }
-
-  // 2. Decode the Clerk publishable key to get the correct JWKS instance domain
-  let clerkDomain = "";
-  const pubKey = env.CLERK_PUBLISHABLE_KEY;
-  if (pubKey) {
-    const rawKey = pubKey.split("_").pop();
-    try {
-      const decoded = atob(rawKey);
-      clerkDomain = decoded.replace(/\$$/, "");
-    } catch {
-      throw new HttpError("Configuration Error: Invalid CLERK_PUBLISHABLE_KEY format", 500);
-    }
-  } else {
-    // Fallback to token issuer claim
-    if (!payload.iss) {
-      throw new HttpError("Unauthorized: Missing JWT issuer claim", 401);
-    }
-    clerkDomain = new URL(payload.iss).hostname;
-  }
-
-  // 3. Fetch/retrieve Clerk keys
-  const jwksUrl = `https://${clerkDomain}/.well-known/jwks.json`;
 
   try {
-    if (!jwksCache || (Date.now() - jwksLastFetched > 3600000)) {
-      const res = await fetch(jwksUrl);
-      if (!res.ok) {
-        throw new Error("Unable to contact Clerk JWKS server");
+    const res = await fetch(`${env.APPWRITE_ENDPOINT}/account`, {
+      method: "GET",
+      headers: {
+        "X-Appwrite-Project": env.APPWRITE_PROJECT_ID,
+        "X-Appwrite-JWT": jwt,
+        "Content-Type": "application/json"
       }
-      jwksCache = await res.json();
-      jwksLastFetched = Date.now();
+    });
+
+    if (!res.ok) {
+      throw new HttpError("Unauthorized: Invalid session signature or expired token", 401);
     }
-  } catch (jwkErr) {
-    console.error("JWKS fetch error:", jwkErr);
+
+    const payload = await res.json();
+
+    return {
+      $id: payload.$id,
+      email: payload.email || "",
+      name: payload.name || ""
+    };
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    console.error("Appwrite JWT verification error:", err);
     throw new HttpError("Authentication service unavailable", 503);
   }
-
-  const kid = header.kid;
-  const jwk = jwksCache.keys.find(k => k.kid === kid);
-  if (!jwk) {
-    throw new HttpError("Unauthorized: No matching signature key found", 401);
-  }
-
-  // 4. Verify signature
-  try {
-    const key = await importJwk(jwk);
-    const signatureInput = str2ab(`${headerStr}.${payloadStr}`);
-    const signature = str2ab(base64UrlDecode(signatureStr));
-
-    const isValid = await crypto.subtle.verify(
-      "RSASSA-PKCS1-v1_5",
-      key,
-      signature,
-      signatureInput
-    );
-
-    if (!isValid) {
-      throw new HttpError("Unauthorized: Invalid session signature", 401);
-    }
-  } catch (verifyErr) {
-    console.error("Signature verification error:", verifyErr);
-    throw new HttpError("Unauthorized: Failed to verify signature", 401);
-  }
-
-  // Return formatted account payload matching the old Appwrite signature ($id, email, name)
-  return {
-    $id: payload.sub,
-    email: payload.email || "",
-    name: payload.name || ""
-  };
 }
 
 // ---------------------------------------------------------------------------

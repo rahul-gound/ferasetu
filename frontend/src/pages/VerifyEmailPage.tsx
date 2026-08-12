@@ -1,175 +1,124 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Mail, RefreshCw, LogOut, ShieldAlert } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useUser } from '@clerk/react';
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#060818',
-    padding: 16,
-    fontFamily: 'Inter, sans-serif',
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    background: '#090d1e',
-    borderRadius: 24,
-    padding: 32,
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
-    textAlign: 'center' as const,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    lineHeight: 1.6,
-    marginBottom: 24,
-  },
-  btnPrimary: {
-    width: '100%',
-    padding: '12px 16px',
-    fontSize: 14,
-    fontWeight: 700,
-    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 12,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    transition: 'transform 0.2s',
-    marginBottom: 12,
-  },
-  btnSecondary: {
-    width: '100%',
-    padding: '12px 16px',
-    fontSize: 14,
-    fontWeight: 600,
-    background: 'transparent',
-    color: 'rgba(255, 255, 255, 0.4)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    transition: 'all 0.2s',
-    marginBottom: 20,
-  },
-};
+import { Loader2, MailCheck, AlertCircle } from 'lucide-react';
+import SEO from '../components/SEO';
 
 export default function VerifyEmailPage() {
-  const { user, sendVerificationEmail, logout } = useAuth();
-  const { user: clerkUser, isLoaded } = useUser();
+  const { user, sendVerificationEmail, verifyOTP, logout } = useAuth();
   const navigate = useNavigate();
-  const [sending, setSending] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const [searchParams] = useSearchParams();
+  
+  const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
+  const [error, setError] = useState('');
+  const [resending, setResending] = useState(false);
 
-  // If user somehow gets here but is already verified, redirect immediately
+  // Appwrite sends userId and secret in the verification URL
+  const userId = searchParams.get('userId');
+  const secret = searchParams.get('secret');
+
   useEffect(() => {
-    if (user && user.is_verified) {
-      navigate('/dashboard', { replace: true });
+    // If the user lands here with userId and secret from an email link, verify them automatically
+    if (userId && secret && status === 'idle') {
+      verifyLink(userId, secret);
+    } else if (user?.is_verified) {
+      // If already verified, go to dashboard
+      navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [userId, secret, user, status]);
 
-  const handleSendEmail = async () => {
-    setSending(true);
+  const verifyLink = async (uId: string, s: string) => {
+    setStatus('verifying');
     try {
-      await sendVerificationEmail(clerkUser?.primaryEmailAddress?.emailAddress || '');
-      toast.success('Verification link sent! Check your inbox.');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send verification email');
-    } finally {
-      setSending(false);
+      const success = await verifyOTP(uId, s);
+      if (success) {
+        setStatus('success');
+        setTimeout(() => navigate('/dashboard'), 2000);
+      } else {
+        setStatus('error');
+        setError('Verification link is invalid or has expired.');
+      }
+    } catch (err) {
+      setStatus('error');
+      setError('An error occurred during verification.');
     }
   };
 
-  const handleCheckStatus = async () => {
-    setChecking(true);
+  const handleResend = async () => {
+    if (!user?.email) return;
+    setResending(true);
     try {
-      if (!isLoaded || !clerkUser) {
-        toast.error('Session loading, please try again.');
-        return;
-      }
-      
-      await clerkUser.reload();
-      if (clerkUser.primaryEmailAddress?.verification.status === 'verified') {
-        toast.success('Email verified successfully! 🎉');
-        // Reload to refresh the local state
-        window.location.reload();
-      } else {
-        toast.error('Email not verified yet. Please check your inbox or resend the verification.');
-      }
+      await sendVerificationEmail(user.email);
+      alert('Verification email sent! Please check your inbox.');
     } catch (err: any) {
-      toast.error('Failed to verify status. Try again.');
+      setError(err.message || 'Failed to send verification email.');
     } finally {
-      setChecking(false);
+      setResending(false);
     }
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={{
-          width: 56, height: 56, borderRadius: 16,
-          background: 'rgba(245, 158, 11, 0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#F59E0B', margin: '0 auto',
-        }}>
-          <ShieldAlert size={28} />
-        </div>
-        
-        <h2 style={styles.title}>Email Verification Required</h2>
-        
-        <p style={styles.description}>
-          We've sent a verification link to <strong style={{ color: '#fff' }}>{user?.email}</strong>. 
-          Please verify your email address to unlock your account dashboard.
-        </p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#060818] p-6 text-white font-sans">
+      <SEO title="Verify Email" noindex />
 
-        <button 
-          onClick={handleCheckStatus}
-          disabled={checking}
-          style={styles.btnPrimary}
-        >
-          {checking ? 'Checking...' : <><RefreshCw size={16} /> I've Verified My Email</>}
-        </button>
+      <div className="w-full max-w-md p-8 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl shadow-2xl text-center">
+        {status === 'verifying' ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-[#FF6B35]/20 flex items-center justify-center mx-auto mb-6">
+              <Loader2 size={32} className="text-[#FF6B35] animate-spin" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Verifying your email</h1>
+            <p className="text-white/60">Please wait while we confirm your email address...</p>
+          </>
+        ) : status === 'success' ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+              <MailCheck size={32} className="text-emerald-400" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Email Verified!</h1>
+            <p className="text-white/60">Taking you to your dashboard...</p>
+          </>
+        ) : status === 'error' ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={32} className="text-red-400" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Verification Failed</h1>
+            <p className="text-red-400/80 mb-8">{error}</p>
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors font-medium mb-3"
+            >
+              Back to Login
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center mx-auto mb-6">
+              <MailCheck size={32} className="text-indigo-400" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2 font-outfit">Check your email</h1>
+            <p className="text-white/60 mb-8 leading-relaxed">
+              We sent a verification link to <strong>{user?.email}</strong>. 
+              Please click the link in the email to activate your account.
+            </p>
 
-        <button 
-          onClick={handleSendEmail}
-          disabled={sending}
-          style={styles.btnSecondary}
-        >
-          {sending ? 'Sending...' : <><Mail size={16} /> Resend Verification Email</>}
-        </button>
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              className="w-full py-3.5 mb-4 rounded-xl bg-[#FF6B35] text-white font-bold hover:bg-[#e55a24] transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+            >
+              {resending ? <Loader2 size={20} className="animate-spin" /> : 'Resend Verification Email'}
+            </button>
 
-        <div style={{ height: 1, background: 'rgba(255, 255, 255, 0.08)', marginBottom: 20 }} />
-
-        <button 
-          onClick={logout}
-          style={{
-            background: 'none', border: 'none', color: '#EF4444',
-            display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 13, fontWeight: 700, cursor: 'pointer', margin: '0 auto'
-          }}
-        >
-          <LogOut size={14} /> Log out
-        </button>
+            <button
+              onClick={() => logout()}
+              className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors font-medium text-white/80"
+            >
+              Sign in with a different account
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

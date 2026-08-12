@@ -24,5 +24,6 @@ invocation_logs = true
 
 # Environment variables
 [vars]
-CLERK_PUBLISHABLE_KEY = "pk_test_dmlhYmxlLWZpcmVmbHktMjUuY2xlcmsuYWNjb3VudHMuZGV2JA"
+APPWRITE_ENDPOINT = "YOUR_APPWRITE_ENDPOINT_HERE"
+APPWRITE_PROJECT_ID = "YOUR_APPWRITE_PROJECT_ID_HERE"
 

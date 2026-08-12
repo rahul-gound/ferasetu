@@ -63,7 +63,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-white/5 transition-all">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="FeraSetu" className="h-8 w-auto" />
+            <img src="/logo.webp" alt="FeraSetu" fetchpriority="high" width="128" height="32" className="h-8 w-auto" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#how-it-works" className="text-sm font-medium text-white/60 hover:text-white transition-colors">{translate('nav.howItWorks')}</a>
@@ -174,7 +174,7 @@ export default function LandingPage() {
             
             <div className="relative">
               <div className="glass-panel p-2 rounded-3xl overflow-hidden shadow-2xl">
-                <img src="/hero/dashboard.webp" alt="FeraSetu Dashboard" className="w-full h-auto rounded-2xl opacity-90 hover:opacity-100 transition-opacity" 
+                <img src="/hero/dashboard.webp" alt="FeraSetu Dashboard" loading="lazy" width="800" height="450" className="w-full h-auto rounded-2xl opacity-90 hover:opacity-100 transition-opacity" 
                   onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000' }}
                 />
               </div>
@@ -296,7 +296,7 @@ export default function LandingPage() {
       <footer className="py-10 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="FeraSetu" className="h-6 w-auto opacity-80" />
+            <img src="/logo.webp" alt="FeraSetu" loading="lazy" width="96" height="24" className="h-6 w-auto opacity-80" />
           </div>
           <div className="flex flex-col items-center md:items-end gap-2">
             <p className="text-sm text-white/40 font-medium">

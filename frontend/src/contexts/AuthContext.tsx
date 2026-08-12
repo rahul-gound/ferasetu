@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { useUser, useAuth as useClerkAuth, useSignIn, useSignUp } from '@clerk/react';
+import { account } from '../lib/appwrite';
+import { AppwriteException, OAuthProvider } from 'appwrite';
 import api from '../services/api';
 
 interface User {
@@ -74,24 +75,19 @@ function persistLocalUser(user: User | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { isLoaded: isClerkLoaded, isSignedIn, userId, signOut, getToken } = useClerkAuth();
-  const { user: clerkUser } = useUser();
-  const { signIn, isLoaded: isSignInLoaded } = useSignIn();
-  const { signUp, isLoaded: isSignUpLoaded } = useSignUp();
-
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync token from Clerk to localStorage
+  // Appwrite requires us to create a JWT to pass to our backend
   const syncToken = async () => {
     try {
-      const token = await getToken();
-      if (token) {
-        localStorage.setItem('fera_token', token);
-        return token;
+      const jwtResult = await account.createJWT();
+      if (jwtResult && jwtResult.jwt) {
+        localStorage.setItem('fera_token', jwtResult.jwt);
+        return jwtResult.jwt;
       }
     } catch (err) {
-      console.error('Failed to get Clerk token:', err);
+      console.error('Failed to get Appwrite JWT:', err);
     }
     localStorage.removeItem('fera_token');
     return null;
@@ -111,81 +107,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.user;
   };
 
-  const loadProfile = async (): Promise<User> => {
-    await syncToken();
-    const { data } = await api.get('/users/me');
-    
-    let profile: any;
-    if (data.needs_init) {
-      profile = await createProfile({
-        name: clerkUser?.fullName || clerkUser?.firstName || 'Shopkeeper',
-        email: clerkUser?.primaryEmailAddress?.emailAddress || '',
-        preferredLanguage: localStorage.getItem('fera_language') || 'en',
-      });
-    } else {
-      profile = data.user;
-    }
+  const loadProfile = async (): Promise<User | null> => {
+    try {
+      // 1. Get the current user from Appwrite
+      const appwriteUser = await account.get();
+      
+      // 2. Sync their JWT so the backend can verify them
+      await syncToken();
 
-    return {
-      ...profile,
-      is_verified: clerkUser?.primaryEmailAddress?.verification.status === 'verified',
-    };
+      // 3. Get or create their profile in our D1 backend
+      const { data } = await api.get('/users/me');
+      
+      let profile: any;
+      if (data.needs_init) {
+        profile = await createProfile({
+          name: appwriteUser.name || 'Shopkeeper',
+          email: appwriteUser.email,
+          preferredLanguage: localStorage.getItem('fera_language') || 'en',
+        });
+      } else {
+        profile = data.user;
+      }
+
+      return {
+        ...profile,
+        is_verified: appwriteUser.emailVerification,
+      };
+    } catch (error) {
+      // User is not logged into Appwrite
+      return null;
+    }
   };
 
   useEffect(() => {
     const initAuth = async () => {
-      if (!isClerkLoaded) return;
-
-      if (isSignedIn && clerkUser) {
-        try {
-          const profile = await loadProfile();
-          setUser(profile);
-          persistLocalUser(profile);
-        } catch (err) {
-          console.error('Failed to load profile from backend:', err);
-          setUser(null);
-          persistLocalUser(null);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
+      try {
+        const profile = await loadProfile();
+        setUser(profile);
+        persistLocalUser(profile);
+      } catch (err) {
+        console.error('Failed to load profile from backend:', err);
         setUser(null);
         persistLocalUser(null);
+      } finally {
         setIsLoading(false);
       }
     };
 
     initAuth();
-  }, [isClerkLoaded, isSignedIn, clerkUser]);
+  }, []);
 
   const login = async (email: string, password: string) => {
-    if (!isSignInLoaded) throw new Error('SignIn SDK not loaded');
     try {
-      const result = await signIn.create({
-        identifier: email,
-        password,
-      });
-
-      if (result.status === 'complete') {
-        // Active session is automatically set, useEffect will sync profile.
-        await syncToken();
-      } else {
-        throw new Error(`Login requires verification step: ${result.status}`);
-      }
+      await account.createEmailPasswordSession(email, password);
+      const profile = await loadProfile();
+      setUser(profile);
+      persistLocalUser(profile);
     } catch (err: any) {
-      console.error('Clerk login error:', err);
+      console.error('Appwrite login error:', err);
       throw err;
     }
   };
 
   const loginWithGoogle = async () => {
-    if (!isSignInLoaded) throw new Error('SignIn SDK not loaded');
     try {
-      await signIn.authenticateWithRedirect({
-        strategy: 'oauth_google',
-        redirectUrl: '/dashboard',
-        redirectUrlComplete: '/dashboard',
-      });
+      account.createOAuth2Session(
+          OAuthProvider.Google,
+          `${window.location.origin}/dashboard`, // Success URL
+          `${window.location.origin}/login` // Failure URL
+      );
     } catch (err) {
       console.error('Google OAuth error:', err);
       throw err;
@@ -193,43 +183,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (data: RegisterData) => {
-    if (!isSignUpLoaded) throw new Error('SignUp SDK not loaded');
     try {
-      // Create user signup in Clerk
-      const result = await signUp.create({
-        emailAddress: data.email,
-        password: data.password,
-        firstName: data.name,
-      });
-
-      if (result.status === 'complete') {
-        // Automatically sync session and profile
-        await syncToken();
-      } else if (result.status === 'missing_requirements') {
-        // By default, Clerk might require email verification (OTP code).
-        // Initiate verification:
-        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      // 1. Create account in Appwrite
+      // ID.unique() is the default ID pattern, but the JS SDK exposes 'unique()' if imported. 
+      // It's safer to let Appwrite auto-generate if we pass 'unique()'.
+      await account.create('unique()', data.email, data.password, data.name);
+      
+      // 2. Immediately log them in
+      await account.createEmailPasswordSession(data.email, data.password);
+      
+      // 3. Send verification email (Appwrite specific)
+      try {
+        await account.createVerification(`${window.location.origin}/verify-email`);
+      } catch (verifyErr) {
+        console.warn('Could not send verification email immediately:', verifyErr);
       }
+      
+      // 4. Load their new profile
+      const profile = await loadProfile();
+      setUser(profile);
+      persistLocalUser(profile);
     } catch (err) {
-      console.error('Clerk register error:', err);
+      console.error('Appwrite register error:', err);
       throw err;
     }
   };
 
   const sendOTP = async (email: string) => {
-    // If we are in the registration flow, we can trigger verification code
-    if (signUp) {
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-    }
+    // Appwrite doesn't use generic OTP by default for basic accounts without phone auth
+    // We fallback to creating an email verification link
+    await sendVerificationEmail(email);
   };
 
-  const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
-    if (!signUp) return false;
+  const verifyOTP = async (userId: string, secret: string): Promise<boolean> => {
+    // Appwrite uses updateVerification(userId, secret) for email verification URLs.
+    // The query params from the URL are passed here.
     try {
-      const result = await signUp.attemptEmailAddressVerification({
-        code: otp,
-      });
-      return result.status === 'complete';
+      await account.updateVerification(userId, secret);
+      // Reload profile to update is_verified flag
+      const profile = await loadProfile();
+      setUser(profile);
+      persistLocalUser(profile);
+      return true;
     } catch (err) {
       console.error('Verification code error:', err);
       return false;
@@ -237,25 +232,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const createAccountAfterOTP = async (data: RegisterData) => {
-    // Already created in sign-up flow, just need to sync profile
-    const profile = await createProfile({
-      email: data.email,
-      name: data.name,
-      phone: data.phone,
-      businessName: data.businessName,
-      preferredLanguage: data.preferredLanguage,
-    });
-    setUser(profile);
-    persistLocalUser(profile);
+    // Deprecated for Appwrite standard flow, but kept for interface compatibility
+    await register(data);
   };
 
   const sendVerificationEmail = async (email: string, shopId?: string) => {
-    // Handled by Clerk natively during registration or via Clerk user dashboard
-    await clerkUser?.primaryEmailAddress?.prepareVerification({ strategy: 'email_code' });
+    try {
+      await account.createVerification(`${window.location.origin}/verify-email`);
+    } catch (err) {
+      console.error('Failed to send verification email:', err);
+    }
   };
 
   const logout = async () => {
-    await signOut();
+    try {
+      await account.deleteSession('current');
+    } catch (err) {
+      console.warn('Appwrite logout failed (might already be logged out):', err);
+    }
     setUser(null);
     persistLocalUser(null);
   };
@@ -279,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user,
-      isLoading: !isClerkLoaded || isLoading,
+      isLoading,
       login,
       loginWithGoogle,
       register,

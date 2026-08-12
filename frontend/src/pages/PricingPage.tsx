@@ -125,7 +125,7 @@ export default function PricingPage() {
         >
           <div style={{ maxWidth: 1200, margin: '0 auto', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-              <img src="/logo.png" alt="FeraSetu Logo" style={{ height: 32, width: 'auto' }} />
+              <img src="/logo.webp" alt="FeraSetu Logo" fetchpriority="high" width="128" height="32" style={{ height: 32, width: 'auto' }} />
             </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               {user ? (
