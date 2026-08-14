@@ -1,16 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
   const { login, user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const hasAttempted = useRef(false);
 
   useEffect(() => {
     if (isLoading) return;
     if (user) {
       navigate('/dashboard');
-    } else {
+    } else if (!hasAttempted.current) {
+      hasAttempted.current = true;
       login();
     }
   }, [login, user, isLoading, navigate]);
