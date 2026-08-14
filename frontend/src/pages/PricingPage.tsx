@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ShoppingBag, Clock, BarChart3, Bot, ArrowRight, Check,
-  ShieldCheck, Package, Zap, IndianRupee,
+  ShoppingBag, BarChart3, Bot, ArrowRight, Check,
+  Package, Zap,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
+import PublicLayout from '../components/public/PublicLayout';
 import PricingCard from '../components/pricing/PricingCard';
 import FeatureComparison from '../components/pricing/FeatureComparison';
 import FoundingOfferBanner from '../components/pricing/FoundingOfferBanner';
@@ -18,22 +19,22 @@ import type { PlanDefinition } from '../config/plans';
 /** Outcome value prop items */
 const OUTCOMES = [
   {
-    icon: <ShoppingBag size={22} color="#FF6B35" aria-hidden="true" />,
+    icon: <ShoppingBag size={22} color="#2563EB" aria-hidden="true" />,
     title: 'Sell without being there all day',
     desc: 'Your store takes orders 24 hours a day, even when you\'re at home, sleeping, or at the shop doing other work. Customers browse your products and place orders — you just manage and fulfill.',
   },
   {
-    icon: <BarChart3 size={22} color="#FF6B35" aria-hidden="true" />,
+    icon: <BarChart3 size={22} color="#2563EB" aria-hidden="true" />,
     title: 'Know what\'s actually making you money',
     desc: 'See which products sell, which sit on the shelf, and what your profit looks like — all in one clear dashboard. No spreadsheets, no guesswork.',
   },
   {
-    icon: <Package size={22} color="#FF6B35" aria-hidden="true" />,
+    icon: <Package size={22} color="#2563EB" aria-hidden="true" />,
     title: 'Stop managing orders on WhatsApp',
     desc: 'When orders come in, you get a clear list — not 30 chat threads. Update status, print invoice, track what\'s pending. All in one place.',
   },
   {
-    icon: <Bot size={22} color="#FF6B35" aria-hidden="true" />,
+    icon: <Bot size={22} color="#2563EB" aria-hidden="true" />,
     title: 'An AI that knows your shop',
     desc: 'Fera AI uses your actual data. Ask it "what should I restock?" or "write a promo for Diwali" and it answers with context. No generic answers.',
   },
@@ -62,7 +63,6 @@ export default function PricingPage() {
   const [searchParams] = useSearchParams();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [selectingPlan, setSelectingPlan] = useState<string | null>(null);
-  const [showAnnualTooltip, setShowAnnualTooltip] = useState(false);
 
   const currentPlan = user ? normalizePlanId(user.plan) : null;
 
@@ -103,72 +103,7 @@ export default function PricingPage() {
         }}
       />
 
-      <div
-        style={{
-          fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-          background: '#fafafa',
-          minHeight: '100vh',
-          color: '#0f172a',
-        }}
-      >
-        {/* ================================================================
-          NAV BAR (minimal, public)
-        ================================================================ */}
-        <nav
-          style={{
-            position: 'sticky', top: 0, zIndex: 50,
-            background: 'rgba(255,255,255,0.92)',
-            backdropFilter: 'blur(16px)',
-            borderBottom: '1px solid rgba(226,232,240,0.8)',
-            padding: '0 24px',
-          }}
-        >
-          <div style={{ maxWidth: 1200, margin: '0 auto', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-              <img src="/logo.webp" alt="FeraSetu Logo" fetchpriority="high" width="128" height="32" style={{ height: 32, width: 'auto' }} />
-            </Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {user ? (
-                <Link
-                  to="/dashboard"
-                  id="pricing-nav-dashboard"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '8px 16px', borderRadius: 12,
-                    background: '#0f172a', color: '#fff',
-                    fontWeight: 700, fontSize: 13, textDecoration: 'none',
-                    transition: 'opacity 0.2s',
-                  }}
-                >
-                  Dashboard <ArrowRight size={14} />
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    id="pricing-nav-login"
-                    style={{ fontSize: 14, fontWeight: 700, color: '#475569', textDecoration: 'none' }}
-                  >
-                    Sign in
-                  </Link>
-                  <Link
-                    to="/register"
-                    id="pricing-nav-register"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '8px 16px', borderRadius: 12,
-                      background: '#FF6B35', color: '#fff',
-                      fontWeight: 700, fontSize: 13, textDecoration: 'none',
-                    }}
-                  >
-                    Start Free
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </nav>
-
+      <PublicLayout>
         {/* ================================================================
           HERO
         ================================================================ */}
@@ -187,9 +122,9 @@ export default function PricingPage() {
             style={{
               display: 'inline-block', fontSize: 12, fontWeight: 800,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: '#FF6B35', marginBottom: 20,
-              background: 'rgba(255,107,53,0.08)', padding: '6px 16px', borderRadius: 999,
-              border: '1px solid rgba(255,107,53,0.2)',
+              color: '#2563EB', marginBottom: 20,
+              background: 'rgba(37,99,235,0.08)', padding: '6px 16px', borderRadius: 999,
+              border: '1px solid rgba(37,99,235,0.2)',
             }}
           >
             Sahi plan chunein
@@ -205,7 +140,7 @@ export default function PricingPage() {
           >
             Koi hidden fees{' '}
             <span style={{
-              background: 'linear-gradient(135deg, #FF6B35, #f97316)',
+              background: 'linear-gradient(135deg, #2563EB, #3b82f6)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -313,7 +248,7 @@ export default function PricingPage() {
         </section>
 
         {/* ================================================================
-          FOUNDING OFFER BANNER (only shows if enabled in backend config)
+          FOUNDING OFFER BANNER
         ================================================================ */}
         <section style={{ padding: '0 24px 80px', maxWidth: 1100, margin: '0 auto' }}>
           <FoundingOfferBanner />
@@ -336,8 +271,8 @@ export default function PricingPage() {
               <p style={{
                 display: 'inline-block', fontSize: 12, fontWeight: 800,
                 letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: '#FF6B35', marginBottom: 16,
-                background: 'rgba(255,107,53,0.08)', padding: '4px 12px', borderRadius: 999,
+                color: '#2563EB', marginBottom: 16,
+                background: 'rgba(37,99,235,0.08)', padding: '4px 12px', borderRadius: 999,
               }}>
                 What You'll Be Able To Do
               </p>
@@ -382,7 +317,7 @@ export default function PricingPage() {
                 >
                   <div style={{
                     width: 44, height: 44, borderRadius: 14,
-                    background: 'rgba(255,107,53,0.08)',
+                    background: 'rgba(37,99,235,0.08)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     marginBottom: 16,
                   }}>
@@ -429,8 +364,8 @@ export default function PricingPage() {
             <p style={{
               display: 'inline-block', fontSize: 12, fontWeight: 800,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: '#FF6B35', marginBottom: 20,
-              background: 'rgba(255,107,53,0.15)', padding: '4px 12px', borderRadius: 999,
+              color: '#3b82f6', marginBottom: 20,
+              background: 'rgba(59,130,246,0.15)', padding: '4px 12px', borderRadius: 999,
             }}>
               Try it first
             </p>
@@ -440,7 +375,7 @@ export default function PricingPage() {
             }}>
               Start for free.<br />
               <span style={{
-                background: 'linear-gradient(135deg, #FF6B35, #f97316)',
+                background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -458,9 +393,9 @@ export default function PricingPage() {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '14px 28px', borderRadius: 16,
-                  background: '#FF6B35', color: '#fff',
+                  background: '#2563EB', color: '#fff',
                   fontWeight: 800, fontSize: 15, textDecoration: 'none',
-                  boxShadow: '0 10px 30px rgba(255,107,53,0.3)',
+                  boxShadow: '0 10px 30px rgba(37,99,235,0.3)',
                   transition: 'filter 0.2s ease',
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)'; }}
@@ -505,36 +440,7 @@ export default function PricingPage() {
             <PricingFAQ />
           </div>
         </section>
-
-        {/* ================================================================
-          FOOTER
-        ================================================================ */}
-        <footer style={{
-          borderTop: '1px solid #f1f5f9',
-          padding: '32px 24px',
-          textAlign: 'center',
-        }}>
-          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 28, height: 28, borderRadius: 8,
-                background: 'linear-gradient(135deg, #FF6B35, #f97316)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: 13,
-              }} aria-hidden="true">ফ</span>
-              <span style={{ fontWeight: 800, fontSize: 16, color: '#0f172a', letterSpacing: '-0.02em' }}>FeraSetu</span>
-            </div>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <Link to="/" style={{ fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 600 }}>Home</Link>
-              <Link to="/login" style={{ fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
-              <Link to="/register" style={{ fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 600 }}>Get started</Link>
-            </div>
-            <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-              © {new Date().getFullYear()} FeraSetu · Made for Indian shopkeepers
-            </p>
-          </div>
-        </footer>
-      </div>
+      </PublicLayout>
     </>
   );
 }

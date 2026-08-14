@@ -1,314 +1,263 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import {
-  Store, ShoppingBag, MessageCircle, BarChart3,
-  Bot, ShieldCheck, ArrowRight, Zap, Check, ChevronDown, TrendingUp
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, MessageSquare, ShoppingCart, Zap, BarChart3, Store } from 'lucide-react';
+import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
-import LanguageSelector from '../components/LanguageSelector';
-import SEO from '../components/SEO';
-
-// Minimal, restrained design using FeraSetu's color palette:
-// Background: #060818 (Deep navy/black)
-// Primary: #FF6B35 (Brand Orange)
-// Secondary: #6366f1 (Indigo)
-// Success: #10b981 (Emerald)
-// Text: rgba(255,255,255, 0.85) for body, #fff for headings
 
 export default function LandingPage() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { language, translate, getLocalizedLink } = useLanguage();
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+  const { getLocalizedLink } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-[#060818] text-white selection:bg-[#FF6B35] selection:text-white font-sans">
-      <SEO
-        title="FeraSetu — Your Shop's Digital Bridge"
-        description="FeraSetu gives every shopkeeper the power to sell online — without depending on any marketplace."
-        url="https://ferasetu.com"
-        type="website"
-      />
-
-      <style>{`
-        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
-        body { font-family: 'Inter', sans-serif; }
-        .glass-panel {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-        }
-        .text-gradient {
-          background: linear-gradient(135deg, #FF6B35, #f97316);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .subtle-grid {
-          background-image: 
-            linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 40px 40px;
-        }
-      `}</style>
-
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 glass-panel border-b border-white/5 transition-all">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.webp" alt="FeraSetu" fetchpriority="high" width="128" height="32" className="h-8 w-auto" />
-          </Link>
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="text-sm font-medium text-white/60 hover:text-white transition-colors">{translate('nav.howItWorks')}</a>
-            <a href="#features" className="text-sm font-medium text-white/60 hover:text-white transition-colors">{translate('nav.features')}</a>
-            <a href="#pricing" className="text-sm font-medium text-white/60 hover:text-white transition-colors">{translate('nav.pricing')}</a>
-          </div>
-          <div className="flex items-center gap-4">
-            <LanguageSelector />
-            <Link to={getLocalizedLink('/login')} className="text-sm font-semibold text-white/80 hover:text-white transition-colors">
-              {translate('nav.signIn')}
-            </Link>
-            <Link to={getLocalizedLink('/register')} className="px-5 py-2.5 rounded-full bg-[#FF6B35] text-white text-sm font-bold shadow-lg shadow-[#FF6B35]/20 hover:bg-[#e55a24] transition-all hover:-translate-y-0.5">
-              {translate('nav.startFree')}
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <PublicLayout>
       {/* Hero Section */}
-      <section className="relative pt-40 pb-32 overflow-hidden subtle-grid">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[#FF6B35]/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel mb-8"
-          >
-            <Store size={14} className="text-[#FF6B35]" />
-            <span className="text-xs font-semibold tracking-wide text-white/80 uppercase">{translate('hero.badge')}</span>
-          </motion.div>
+      <section className="relative pt-24 pb-32 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-white pointer-events-none" />
+        
+        <div className="max-w-[1000px] mx-auto px-6 relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100/50 border border-blue-200/50 text-blue-700 text-sm font-semibold tracking-wide mb-8">
+            INDEPENDENT DIGITAL COMMERCE
+          </div>
           
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-5xl md:text-7xl lg:text-[80px] font-bold leading-[1.05] tracking-tight mb-8"
-          >
-            {translate('hero.title')}
-            <br />
-            <span className="text-gradient">{translate('hero.titleHighlight')}</span>
-          </motion.h1>
-
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-12 font-medium"
-          >
-            {translate('hero.subtitle')}
-          </motion.p>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <Link to={getLocalizedLink('/register')} className="px-8 py-4 rounded-full bg-[#FF6B35] text-white font-bold text-lg shadow-xl shadow-[#FF6B35]/20 hover:bg-[#e55a24] transition-all hover:-translate-y-1 flex items-center gap-2">
-              {translate('hero.cta')} <ArrowRight size={20} />
+          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.1] mb-8">
+            Your business deserves a <br className="hidden md:block" />
+            <span className="text-blue-600">better way</span> to sell online.
+          </h1>
+          
+          <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+            Stop giving away your profits to marketplaces and losing track of orders on WhatsApp. Launch your own independent store, own your customers, and grow your business on your terms.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link 
+              to={getLocalizedLink('/register')} 
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all hover:-translate-y-0.5"
+            >
+              Start Free Today
             </Link>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* The Problem */}
-      <section className="py-24 border-t border-white/5 bg-white/[0.01]">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Kya aap bhi yeh problems face kar rahe ho?</h2>
-            <p className="text-white/50 text-lg">Running a modern shop shouldn't feel this chaotic.</p>
+            <a 
+              href="#how-it-works"
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-200 text-slate-700 font-bold text-lg hover:bg-slate-50 transition-colors"
+            >
+              See how it works
+            </a>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { title: "WhatsApp Chaos", desc: "Taking orders on WhatsApp means scrolling through chats, losing track, and manual mistakes.", icon: <MessageCircle size={24} className="text-[#EF4444]" /> },
-              { title: "Marketplace Control", desc: "Big e-commerce apps take your customers, hide your data, and charge high commissions.", icon: <Store size={24} className="text-[#F59E0B]" /> },
-              { title: "Digital Confusion", desc: "Building a website feels too technical, too expensive, or just not made for Indian shops.", icon: <Zap size={24} className="text-[#6366f1]" /> }
-            ].map((prob, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="glass-panel p-8 rounded-3xl">
-                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6">{prob.icon}</div>
-                <h3 className="text-xl font-bold mb-3">{prob.title}</h3>
-                <p className="text-white/60 leading-relaxed">{prob.desc}</p>
-              </motion.div>
-            ))}
+          <div className="mt-6 flex items-center justify-center gap-6 text-sm font-medium text-slate-500">
+            <span className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-blue-500" /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-blue-500" /> Setup in 5 minutes</span>
+          </div>
+        </div>
+
+        {/* Dashboard Preview */}
+        <div className="max-w-[1200px] mx-auto px-6 mt-20 relative">
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10 pointer-events-none h-full" />
+          <div className="rounded-2xl border border-slate-200 shadow-2xl overflow-hidden bg-white">
+            <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
+              <div className="w-3 h-3 rounded-full bg-slate-300" />
+              <div className="w-3 h-3 rounded-full bg-slate-300" />
+              <div className="w-3 h-3 rounded-full bg-slate-300" />
+            </div>
+            {/* We assume /hero/dashboard.webp or a fallback UI structure */}
+            <div className="aspect-[16/9] bg-slate-100 flex items-center justify-center relative overflow-hidden">
+              <img src="/hero/dashboard.webp" alt="FeraSetu Dashboard" className="w-full h-full object-cover" onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = '<div class="text-slate-400 font-medium">Dashboard Interface Placeholder</div>';
+              }} />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* The Solution */}
-      <section className="py-32 relative">
-        <div className="absolute top-1/2 right-0 w-[600px] h-[600px] bg-[#6366f1]/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-6">
+      {/* Problem Section */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Running a business is hard enough without fighting your tools.</h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center mb-6">
+                <MessageSquare size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">The WhatsApp Chaos</h3>
+              <p className="text-slate-600 leading-relaxed">Orders lost in endless chats. Manual payment tracking. Customers asking for prices over and over again.</p>
+            </div>
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="w-12 h-12 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center mb-6">
+                <ShoppingCart size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Marketplace Control</h3>
+              <p className="text-slate-600 leading-relaxed">Aggregators control your visibility, steal your customer relationships, and take massive commissions on every sale.</p>
+            </div>
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center mb-6">
+                <Zap size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Digital Confusion</h3>
+              <p className="text-slate-600 leading-relaxed">Building an independent website traditionally requires hiring agencies, learning code, and paying expensive monthly fees.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Solution Split Section */}
+      <section className="py-24 bg-white" id="how-it-works">
+        <div className="max-w-[1280px] mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className="text-3xl md:text-5xl font-bold mb-6 leading-tight">FeraSetu sab <span className="text-gradient">simple kar deta hai.</span></h2>
-              <p className="text-lg text-white/60 mb-8 leading-relaxed">
-                We built FeraSetu so you can have the same digital power as a large retailer, without the complexity. Everything you need to run your business is right on your phone.
+              <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">Regain control with an independent storefront.</h2>
+              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                FeraSetu gives you everything you need to sell online professionally, without the complexity or aggregator fees.
               </p>
               
-              <ul className="space-y-6">
-                {[
-                  "Share a professional store link, not a PDF catalog.",
-                  "Orders arrive in a clean dashboard, not WhatsApp messages.",
-                  "Keep 100% of your profits and customer data."
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-4">
-                    <div className="mt-1 w-6 h-6 rounded-full bg-[#10b981]/10 flex items-center justify-center flex-shrink-0">
-                      <Check size={14} className="text-[#10b981]" />
-                    </div>
-                    <span className="text-white/80 font-medium">{item}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">1</div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-lg">Add your products</h4>
+                    <p className="text-slate-600">Upload your catalog with images, prices, and inventory limits in minutes.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">2</div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-lg">Share your link</h4>
+                    <p className="text-slate-600">Post your custom store link on Instagram, WhatsApp, or Facebook.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">3</div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-lg">Receive orders securely</h4>
+                    <p className="text-slate-600">Customers buy directly. You get paid directly. You own the relationship.</p>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div className="relative">
-              <div className="glass-panel p-2 rounded-3xl overflow-hidden shadow-2xl">
-                <img src="/hero/dashboard.webp" alt="FeraSetu Dashboard" loading="lazy" width="800" height="450" className="w-full h-auto rounded-2xl opacity-90 hover:opacity-100 transition-opacity" 
-                  onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=2000' }}
-                />
+              <div className="absolute inset-0 bg-blue-600 transform translate-x-4 translate-y-4 rounded-2xl opacity-10" />
+              <div className="aspect-[4/3] bg-slate-100 rounded-2xl border border-slate-200 relative overflow-hidden flex items-center justify-center shadow-lg">
+                <Store size={48} className="text-slate-300" />
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works */}
-      <section id="how-it-works" className="py-24 bg-white/[0.02] border-y border-white/5">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">3 steps mein online ho jao</h2>
-            <p className="text-white/50 text-lg">No developer required. Set up from your phone.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-             {[
-                { num: '01', title: 'Apni dukaan ka naam batao', desc: 'Create your account securely.', icon: <Store size={24} /> },
-                { num: '02', title: 'Pehla product add karo', desc: 'Upload a photo and set your price.', icon: <ShoppingBag size={24} /> },
-                { num: '03', title: 'WhatsApp pe share karo', desc: 'Share your store link and accept orders.', icon: <Zap size={24} /> }
-              ].map((step, i) => (
-                <div key={i} className="relative glass-panel p-8 rounded-3xl">
-                  <div className="text-[#FF6B35]/20 font-bold text-5xl absolute top-6 right-6">{step.num}</div>
-                  <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-white mb-6">
-                    {step.icon}
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{step.title}</h3>
-                  <p className="text-white/60">{step.desc}</p>
-                </div>
-              ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Social Proof (Verified / Real quotes) */}
-      <section className="py-24">
-        <div className="max-w-5xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold mb-12">Yeh dukandar already online hain</h2>
-          <div className="glass-panel p-10 md:p-14 rounded-[40px] text-left relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF6B35]/10 rounded-full blur-[80px]" />
-             <div className="relative z-10">
-                <blockquote className="text-2xl md:text-3xl font-medium leading-relaxed mb-8 text-white/90">
-                  "Pehle register maintain karna mushkil tha. Ab FeraSetu se sab phone pe hai. Customers direct link se order karte hain."
-                </blockquote>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#e55a24] flex items-center justify-center font-bold text-lg">
-                    RK
-                  </div>
-                  <div>
-                    <div className="font-bold text-lg">Rajesh Kumar</div>
-                    <div className="text-sm text-white/50 tracking-wide uppercase">Kirana Store Owner</div>
-                  </div>
-                </div>
-             </div>
           </div>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-24 bg-white/[0.02] border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Sab kuch ek jagah</h2>
-            <p className="text-white/50 text-lg">Everything you need, nothing you don't.</p>
+      <section className="py-24 bg-slate-50 border-y border-slate-200" id="features">
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Everything you need to grow</h2>
+            <p className="text-lg text-slate-600">Simple, powerful features designed specifically for Indian merchants.</p>
           </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { title: 'Online Storefront', desc: 'A beautiful, mobile-friendly shop that represents your brand.', icon: <Store size={20} className="text-[#FF6B35]" /> },
-              { title: 'Order Management', desc: 'Accept, prepare, and complete orders clearly without confusion.', icon: <ShoppingBag size={20} className="text-[#6366f1]" /> },
-              { title: 'Profit Tracking', desc: 'Know exactly what you earn. FeraSetu tracks your margins automatically.', icon: <BarChart3 size={20} className="text-[#10b981]" /> },
-              { title: 'Fera AI Assistant', desc: 'Ask your AI questions about your shop, inventory, and sales.', icon: <Bot size={20} className="text-[#F59E0B]" /> },
-              { title: 'WhatsApp Integration', desc: 'Share products and receive order alerts right where you spend your time.', icon: <MessageCircle size={20} className="text-[#3B82F6]" /> },
-              { title: 'Data Ownership', desc: 'Your customers are yours. Export your data securely at any time.', icon: <ShieldCheck size={20} className="text-white" /> }
-            ].map((feat, i) => (
-              <div key={i} className="glass-panel p-6 rounded-2xl flex flex-col">
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-4">
-                  {feat.icon}
+              { title: "Custom Domain", desc: "Connect your own domain (yourstore.com) for a professional brand presence.", icon: <Globe /> },
+              { title: "Zero Commissions", desc: "We never take a cut of your sales. What you earn is entirely yours.", icon: <BarChart3 /> },
+              { title: "UPI Payments", desc: "Seamless integration with Razorpay for UPI, Cards, and Netbanking.", icon: <Zap /> },
+              { title: "Inventory Management", desc: "Track stock levels automatically and prevent overselling.", icon: <Store /> },
+              { title: "WhatsApp Ordering", desc: "Allow customers to build a cart and send the final order via WhatsApp.", icon: <MessageSquare /> },
+              { title: "AI Assistant", desc: "Generate product descriptions and setup your store instantly with Fera AI.", icon: <Zap /> },
+            ].map((feature, i) => (
+              <div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                  {feature.icon}
                 </div>
-                <h4 className="font-bold text-lg mb-2">{feat.title}</h4>
-                <p className="text-white/50 text-sm leading-relaxed">{feat.desc}</p>
+                <h4 className="font-bold text-slate-900 mb-2">{feature.title}</h4>
+                <p className="text-slate-600 text-sm leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Pricing Header */}
-      <section id="pricing" className="pt-32 pb-16 text-center">
-        <div className="max-w-3xl mx-auto px-6">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Sahi plan chunein. Koi hidden fees nahi.</h2>
-          <p className="text-lg text-white/60 mb-10">Start with zero risk. Upgrade only when your business needs it.</p>
-          <div className="flex justify-center">
-            <Link to="/pricing" className="px-6 py-3 rounded-full glass-panel hover:bg-white/5 transition-colors font-semibold flex items-center gap-2">
-              View full pricing details <ArrowRight size={16} />
+      {/* Social Proof */}
+      <section className="py-24 bg-white">
+        <div className="max-w-[1280px] mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold text-slate-900 mb-12">Trusted by independent merchants</h2>
+          
+          <div className="max-w-3xl mx-auto bg-slate-50 border border-slate-200 rounded-2xl p-8 md:p-12 relative">
+            <p className="text-xl md:text-2xl text-slate-700 italic font-medium leading-relaxed mb-8">
+              "Before FeraSetu, I was losing track of orders on WhatsApp and paying huge fees to aggregators. Now, my customers order directly from my own website, and my profits are up 40%."
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">
+                R
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-slate-900">Rajesh Kumar</p>
+                <p className="text-sm text-slate-500">Owner, Electronics Hub</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Preview */}
+      <section className="py-24 bg-slate-900 text-white">
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Simple, transparent pricing</h2>
+            <p className="text-slate-400">Start for free, upgrade when you need to grow.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-12">
+            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+              <h3 className="font-bold text-xl mb-2">Free</h3>
+              <p className="text-3xl font-bold mb-4">₹0<span className="text-base font-normal text-slate-400">/mo</span></p>
+              <ul className="text-sm text-slate-300 space-y-2">
+                <li>• 50 Products</li>
+                <li>• Standard Theme</li>
+                <li>• 0% Commission</li>
+              </ul>
+            </div>
+            <div className="bg-blue-600 rounded-2xl p-6 border border-blue-500 relative transform md:-translate-y-4 shadow-xl shadow-blue-900/50">
+              <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                RECOMMENDED
+              </div>
+              <h3 className="font-bold text-xl mb-2">Growth</h3>
+              <p className="text-3xl font-bold mb-4">₹299<span className="text-base font-normal text-blue-200">/mo</span></p>
+              <ul className="text-sm text-blue-100 space-y-2">
+                <li>• Unlimited Products</li>
+                <li>• Custom Domain</li>
+                <li>• Premium Themes</li>
+              </ul>
+            </div>
+            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+              <h3 className="font-bold text-xl mb-2">Pro</h3>
+              <p className="text-3xl font-bold mb-4">₹999<span className="text-base font-normal text-slate-400">/mo</span></p>
+              <ul className="text-sm text-slate-300 space-y-2">
+                <li>• Fera AI Assistant</li>
+                <li>• Advanced Analytics</li>
+                <li>• Priority Support</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link to={getLocalizedLink('/pricing')} className="text-blue-400 font-medium hover:text-blue-300 transition-colors inline-flex items-center gap-1">
+              View all pricing details <ArrowRight size={16} />
             </Link>
           </div>
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="py-32">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="glass-panel rounded-[40px] p-12 md:p-20 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#FF6B35]/10 to-transparent opacity-50" />
-            <div className="relative z-10">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">{translate('cta.title')}</h2>
-              <p className="text-xl text-white/60 mb-10 font-medium">{translate('cta.subtitle')}</p>
-              <Link to={getLocalizedLink('/register')} className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[#FF6B35] text-white font-bold text-lg shadow-xl shadow-[#FF6B35]/20 hover:bg-[#e55a24] transition-transform hover:-translate-y-1">
-                {translate('hero.cta')} <ArrowRight size={20} />
-              </Link>
-            </div>
-          </div>
+      <section className="py-24 bg-white text-center">
+        <div className="max-w-2xl mx-auto px-6">
+          <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">Your business is ready for its next step.</h2>
+          <p className="text-lg text-slate-600 mb-10">Join thousands of independent Indian merchants taking control of their online sales.</p>
+          <Link 
+            to={getLocalizedLink('/register')} 
+            className="inline-block px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all hover:-translate-y-0.5"
+          >
+            Create Your Free Store
+          </Link>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="py-10 border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="FeraSetu" loading="lazy" width="96" height="24" className="h-6 w-auto opacity-80" />
-          </div>
-          <div className="flex flex-col items-center md:items-end gap-2">
-            <p className="text-sm text-white/40 font-medium">
-              © {new Date().getFullYear()} FeraSetu. Independent digital commerce.
-            </p>
-            <div className="flex gap-4 text-sm text-white/40 font-medium">
-              <Link to={getLocalizedLink('/terms')} className="hover:text-white transition-colors">Terms of Service</Link>
-              <Link to={getLocalizedLink('/privacy')} className="hover:text-white transition-colors">Privacy Policy</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </PublicLayout>
   );
 }
