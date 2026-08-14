@@ -115,7 +115,10 @@ router.post('/chat',
     // Detect if this is a complex task (website creation, major changes)
     const isWebsiteJsonRequest = /Generate website sections JSON for:/i.test(message) || /json/i.test(message);
     const isComplexTask = /create|build|generate|make.*website|redesign|restructure/i.test(message) || isWebsiteJsonRequest;
-    const usageType = req.body.usageType || (isWebsiteJsonRequest ? 'website_ai' : 'shopkeeper_assistant');
+    // FS-04 FIX: usageType is determined server-side from request context,
+    // NOT from req.body.usageType which the client controls.
+    // This prevents a client from claiming a cheap usageType for an expensive operation.
+    const usageType = isWebsiteJsonRequest ? 'website_ai' : 'shopkeeper_assistant';
 
     let creditCharge: { creditsUsed: number; balance: number } | null = null;
     try {

@@ -1,12 +1,19 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    login();
-  }, [login]);
+    if (isLoading) return;
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      login();
+    }
+  }, [login, user, isLoading, navigate]);
 
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50">

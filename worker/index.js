@@ -463,16 +463,24 @@ async function createMeeting(request, env) {
 }
 
 async function updateMeeting(request, env) {
-  await getAuthenticatedUser(request, env); // Ensure authed
+  const me = await getAuthenticatedUser(request, env); // Ensure authed
   const body = await readJsonBody(request);
   const url = new URL(request.url);
   const id = url.pathname.split('/').pop();
 
   if (!body.status) throw new HttpError("Status is required", 422);
 
-  await env.DB.prepare("UPDATE meetings SET status = ? WHERE id = ?")
-    .bind(body.status, id)
+  // FS-01 FIX: Always scope update to authenticated user's own meetings.
+  // If the meeting belongs to a different user, 0 rows are updated (silent 404).
+  const result = await env.DB.prepare(
+    "UPDATE meetings SET status = ? WHERE id = ? AND user_id = ?"
+  )
+    .bind(body.status, id, me.$id)
     .run();
+
+  if (result.changes === 0) {
+    throw new HttpError("Meeting not found", 404);
+  }
 
   return json({ success: true });
 }
