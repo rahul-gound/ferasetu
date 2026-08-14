@@ -181,18 +181,22 @@ function AppRoutes() {
   );
 }
 
+import { AuthKitProvider } from '@workos-inc/authkit-react';
+
 // Inner app content — all providers except Statsig
 function AppContent() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <LanguageProvider>
-            <AppRoutes />
-            <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
-          </LanguageProvider>
-        </BrowserRouter>
-      </AuthProvider>
+      <AuthKitProvider clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}>
+        <AuthProvider>
+          <BrowserRouter>
+            <LanguageProvider>
+              <AppRoutes />
+              <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+            </LanguageProvider>
+          </BrowserRouter>
+        </AuthProvider>
+      </AuthKitProvider>
     </QueryClientProvider>
   );
 }

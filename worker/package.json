@@ -1,0 +1,10 @@
+{
+  "name": "ferasetu-worker",
+  "version": "1.0.0",
+  "description": "FeraSetu Worker API",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "jose": "^5.9.6"
+  }
+}

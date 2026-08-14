@@ -1122,9 +1122,11 @@ const remoteApi = axios.create({
   withCredentials: true,
 });
 
+import { getWorkOSToken } from '../contexts/AuthContext';
+
 // Inject Authorization Bearer token automatically
-remoteApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('fera_token');
+remoteApi.interceptors.request.use(async (config) => {
+  const token = await getWorkOSToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -24,8 +24,8 @@
 // Worker verifies the JWT against Clerk JWKS keys and uses the account ID
 // as the D1 users.id. Profile data itself lives in D1, NOT in Clerk.
 //
-//   APPWRITE_ENDPOINT    -> plain var (public)
-//   APPWRITE_PROJECT_ID  -> plain var (public)
+//   WORKOS_CLIENT_ID    -> plain var (public)
+//   WORKOS_API_KEY      -> secret
 //
 // Everything else returns a JSON 404. Unexpected errors return a JSON 500.
 
@@ -126,9 +126,13 @@ const FOUNDING_CONFIG = {
 
 // Schema migrations are now managed via D1 migrations in the migrations/ folder.
 
+import * as jose from 'jose';
+
 // ---------------------------------------------------------------------------
-// Auth — verifies Appwrite JWTs.
+// Auth — verifies WorkOS JWTs locally via Web Crypto API.
 // ---------------------------------------------------------------------------
+
+let jwksCache = null;
 
 async function getAuthenticatedUser(request, env) {
   const authHeader = request.headers.get("Authorization");
@@ -138,35 +142,29 @@ async function getAuthenticatedUser(request, env) {
 
   const jwt = authHeader.substring(7);
   
-  if (!env.APPWRITE_ENDPOINT || !env.APPWRITE_PROJECT_ID) {
-    throw new HttpError("Server configuration missing Appwrite credentials", 500);
+  if (!env.WORKOS_CLIENT_ID) {
+    throw new HttpError("Server configuration missing WorkOS credentials", 500);
+  }
+
+  if (!jwksCache) {
+    jwksCache = jose.createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${env.WORKOS_CLIENT_ID}`));
   }
 
   try {
-    const res = await fetch(`${env.APPWRITE_ENDPOINT}/account`, {
-      method: "GET",
-      headers: {
-        "X-Appwrite-Project": env.APPWRITE_PROJECT_ID,
-        "X-Appwrite-JWT": jwt,
-        "Content-Type": "application/json"
-      }
+    const { payload } = await jose.jwtVerify(jwt, jwksCache, {
+      // Typically the audience is the Client ID
+      audience: env.WORKOS_CLIENT_ID,
     });
 
-    if (!res.ok) {
-      throw new HttpError("Unauthorized: Invalid session signature or expired token", 401);
-    }
-
-    const payload = await res.json();
-
     return {
-      $id: payload.$id,
-      email: payload.email || "",
-      name: payload.name || ""
+      $id: payload.sub,
+      email: typeof payload.email === 'string' ? payload.email : "",
+      name: typeof payload.name === 'string' ? payload.name : ""
     };
   } catch (err) {
     if (err instanceof HttpError) throw err;
-    console.error("Appwrite JWT verification error:", err);
-    throw new HttpError("Authentication service unavailable", 503);
+    console.error("WorkOS JWT verification error:", err);
+    throw new HttpError("Unauthorized: Invalid session signature or expired token", 401);
   }
 }
 
@@ -204,7 +202,7 @@ async function getProfile(request, env) {
     .first();
 
   if (!user) {
-    // Return a shell profile if they exist in Appwrite but not yet in D1.
+    // Return a shell profile if they exist in WorkOS but not yet in D1.
     return json({
       user: {
         id: me.$id,

@@ -3,7 +3,7 @@ import { getDatabase } from '../models/database';
 
 const router = Router();
 
-const BASE_URL = process.env.FRONTEND_URL || 'https://ferasetu.appwrite.network';
+const BASE_URL = process.env.FRONTEND_URL || 'https://ferasetu.com';
 
 router.get('/', (_req: Request, res: Response): void => {
   try {
