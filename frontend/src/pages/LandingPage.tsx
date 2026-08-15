@@ -56,9 +56,9 @@ export default function LandingPage() {
               <div className="w-3 h-3 rounded-full bg-slate-300" />
               <div className="w-3 h-3 rounded-full bg-slate-300" />
             </div>
-            {/* We assume /hero/dashboard.webp or a fallback UI structure */}
+            {/* We assume /hero/dashboard.png or a fallback UI structure */}
             <div className="aspect-[16/9] bg-slate-100 flex items-center justify-center relative overflow-hidden">
-              <img src="/hero/dashboard.webp" alt="FeraSetu Dashboard" className="w-full h-full object-cover" onError={(e) => {
+              <img src="/hero/dashboard.png" alt="FeraSetu Dashboard" className="w-full h-full object-cover" onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 e.currentTarget.parentElement!.innerHTML = '<div class="text-slate-400 font-medium">Dashboard Interface Placeholder</div>';
               }} />
