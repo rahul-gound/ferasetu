@@ -5,7 +5,7 @@ import { Send, Mic, MicOff, Bot, User, Globe, BrainCircuit, Store, Package, Clip
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { SUPPORTED_LANGUAGES } from '../utils/languages';
+import { SUPPORTED_LANGUAGES } from '../i18n';
 
 interface Message {
   id: string;
