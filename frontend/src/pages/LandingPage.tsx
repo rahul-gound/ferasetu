@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, MessageSquare, ShoppingCart, Zap, BarChart3, Store } from 'lucide-react';
+import { ArrowRight, CheckCircle2, MessageSquare, ShoppingCart, Zap, BarChart3, Store, Globe } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
 
