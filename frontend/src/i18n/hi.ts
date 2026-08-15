@@ -1,4 +1,8 @@
-export default {
+import type { Dictionary } from './types';
+import en from './en';
+
+const dict: Dictionary = {
+  ...en,
   // Navigation
   "nav.howItWorks": "यह कैसे काम करता है",
   "nav.features": "विशेषताएं",
@@ -66,6 +70,8 @@ export default {
   "actions": "कार्रवाई",
   "finish": "समाप्त करें",
   "next": "अगला",
-  "skip": "छोड़ें",
+  "skip": "स्किप",
   "welcome": "FeraSetu में आपका स्वागत है"
 };
+
+export default dict;

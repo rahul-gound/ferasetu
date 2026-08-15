@@ -2,14 +2,17 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import SEO from '../components/SEO';
 import PublicLayout from '../components/public/PublicLayout';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function TermsPage() {
+  const { translate: t } = useLanguage();
+
   return (
     <PublicLayout>
       <SEO title="Terms of Service — FeraSetu" description="Terms of Service for FeraSetu users." url="https://ferasetu.com/terms" type="website" />
       <div className="max-w-3xl mx-auto px-6 py-20 bg-white shadow-sm border border-slate-200 rounded-2xl my-12">
         <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-8 transition-colors font-medium">
-          <ArrowLeft size={16} /> Back to Home
+          <ArrowLeft size={16} /> {t('common.backToHome')}
         </Link>
         <h1 className="text-4xl font-extrabold text-slate-900 mb-8 tracking-tight">Terms of Service</h1>
         <div className="text-slate-600 space-y-8 leading-relaxed text-lg">

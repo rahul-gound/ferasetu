@@ -75,6 +75,26 @@ export default {
   "cta.subtitle": "Join thousands of independent Indian merchants taking control of their online sales.",
   "cta.createStore": "Create Your Free Store",
   
+  // Navigation & Footer
+  "nav.howItWorks": "How it works",
+  "nav.features": "Features",
+  "nav.pricing": "Pricing",
+  "nav.dashboard": "Dashboard",
+  "nav.signIn": "Sign in",
+  "nav.startFree": "Start Free",
+  "footer.tagline": "Independent digital commerce for Indian small businesses. Own your customers, keep your profits.",
+  "footer.product": "Product",
+  "footer.account": "Account",
+  "footer.legal": "Legal",
+  "footer.createStore": "Create Free Store",
+  "footer.privacy": "Privacy Policy",
+  "footer.terms": "Terms of Service",
+  "footer.rights": "© {{year}} FeraSetu. All rights reserved.",
+
+  // Auth Pages
+  "auth.redirectLogin": "Redirecting to secure login...",
+  "auth.redirectSignup": "Redirecting to secure signup...",
+
   // Value Calculator
   "calc.tag": "Think About It",
   "calc.title": "Would FeraSetu pay for itself?",
@@ -139,6 +159,11 @@ export default {
   "delete": "Delete",
   "edit": "Edit",
   "search": "Search",
+  "common.loading": "Loading...",
+  "common.error": "An error occurred.",
+  "common.save": "Save",
+  "common.cancel": "Cancel",
+  "common.backToHome": "Back to Home",
   "loading": "Loading...",
   "noData": "No data found",
   "free": "Beta Plan",

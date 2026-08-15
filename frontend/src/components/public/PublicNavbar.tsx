@@ -70,7 +70,7 @@ function LightLanguageSelector() {
 
 export default function PublicNavbar() {
   const { user } = useAuth();
-  const { getLocalizedLink } = useLanguage();
+  const { getLocalizedLink, translate: t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -82,9 +82,9 @@ export default function PublicNavbar() {
           </Link>
           
           <div className="hidden md:flex items-center gap-8">
-            <a href="/#how-it-works" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">How it works</a>
-            <a href="/#features" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Features</a>
-            <Link to={getLocalizedLink('/pricing')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Pricing</Link>
+            <a href="/#how-it-works" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.howItWorks')}</a>
+            <a href="/#features" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.features')}</a>
+            <Link to={getLocalizedLink('/pricing')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.pricing')}</Link>
           </div>
           
           <div className="hidden md:flex items-center gap-4">
@@ -95,15 +95,15 @@ export default function PublicNavbar() {
                 to="/dashboard"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm font-bold shadow-sm hover:bg-slate-800 transition-all"
               >
-                Dashboard <ArrowRight size={14} />
+                {t('nav.dashboard')} <ArrowRight size={14} />
               </Link>
             ) : (
               <>
                 <Link to={getLocalizedLink('/login')} className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
-                  Sign in
+                  {t('nav.signIn')}
                 </Link>
                 <Link to={getLocalizedLink('/register')} className="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all hover:-translate-y-0.5">
-                  Start Free
+                  {t('nav.startFree')}
                 </Link>
               </>
             )}
@@ -122,23 +122,23 @@ export default function PublicNavbar() {
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-white pt-20 px-6 overflow-y-auto">
           <div className="flex flex-col gap-6 py-6">
-            <a href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">How it works</a>
-            <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">Features</a>
-            <Link to={getLocalizedLink('/pricing')} onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">Pricing</Link>
+            <a href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.howItWorks')}</a>
+            <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.features')}</a>
+            <Link to={getLocalizedLink('/pricing')} onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.pricing')}</Link>
             
             <div className="pt-4 border-t border-slate-100 flex flex-col gap-4">
               <LightLanguageSelector />
               {user ? (
                 <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="w-full py-4 flex justify-center items-center gap-2 rounded-xl bg-slate-900 text-white font-bold">
-                  Dashboard <ArrowRight size={16} />
+                  {t('nav.dashboard')} <ArrowRight size={16} />
                 </Link>
               ) : (
                 <>
                   <Link to={getLocalizedLink('/login')} onClick={() => setMobileMenuOpen(false)} className="w-full py-4 text-center rounded-xl bg-slate-50 text-slate-900 font-bold">
-                    Sign in
+                    {t('nav.signIn')}
                   </Link>
                   <Link to={getLocalizedLink('/register')} onClick={() => setMobileMenuOpen(false)} className="w-full py-4 text-center rounded-xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20">
-                    Start Free
+                    {t('nav.startFree')}
                   </Link>
                 </>
               )}
