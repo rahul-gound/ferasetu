@@ -5,6 +5,7 @@ import { SUPPORTED_LANGUAGES, ENABLED_LANGUAGES } from './config';
 export const loadDictionary = async (langCode: string): Promise<Dictionary> => {
   switch (langCode) {
     case 'en': return (await import('./en')).default;
+    case 'hg': return (await import('./hg')).default;
     case 'hi': return (await import('./hi')).default;
     case 'mr': return (await import('./mr')).default;
     case 'gu': return (await import('./gu')).default;

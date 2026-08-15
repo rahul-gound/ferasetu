@@ -48,6 +48,8 @@ const TRUST_SIGNALS = [
   'No hidden fees, ever',
 ];
 
+import { useLanguage } from '../contexts/LanguageContext';
+
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
@@ -60,6 +62,7 @@ const stagger = {
 export default function PricingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { translate: t } = useLanguage();
   const [searchParams] = useSearchParams();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [selectingPlan, setSelectingPlan] = useState<string | null>(null);
@@ -127,7 +130,7 @@ export default function PricingPage() {
               border: '1px solid rgba(37,99,235,0.2)',
             }}
           >
-            Sahi plan chunein
+            {t('pricing.tag')}
           </motion.p>
 
           <motion.h1
@@ -138,14 +141,14 @@ export default function PricingPage() {
               color: '#0f172a', margin: '0 0 20px',
             }}
           >
-            Koi hidden fees{' '}
+            {t('pricing.title').replace('.', '')}{' '}
             <span style={{
               background: 'linear-gradient(135deg, #2563EB, #3b82f6)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              nahi.
+              .
             </span>
           </motion.h1>
 
@@ -156,8 +159,7 @@ export default function PricingPage() {
               lineHeight: 1.7, margin: '0 0 32px', fontWeight: 500,
             }}
           >
-            Create your online store, accept orders, and manage your business —
-            without needing technical knowledge or a big budget.
+            {t('pricing.subtitle')}
           </motion.p>
 
           {/* Trust signals */}
@@ -168,7 +170,13 @@ export default function PricingPage() {
               display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 20px',
             }}
           >
-            {TRUST_SIGNALS.map(signal => (
+            {[
+              t('pricing.trust1'),
+              t('pricing.trust2'),
+              t('pricing.trust3'),
+              t('pricing.trust4'),
+              t('pricing.trust5')
+            ].map(signal => (
               <li
                 key={signal}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', fontWeight: 600 }}
@@ -205,14 +213,14 @@ export default function PricingPage() {
                   transition: 'all 0.2s ease',
                 }}
               >
-                {cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                {cycle === 'monthly' ? t('pricing.monthly') : t('pricing.annual')}
                 {cycle === 'yearly' && (
                   <span style={{
                     marginLeft: 8, fontSize: 11, fontWeight: 900,
                     color: '#10b981', background: 'rgba(16,185,129,0.1)',
                     padding: '2px 6px', borderRadius: 6,
                   }}>
-                    2 months free
+                    {t('pricing.save2Months')}
                   </span>
                 )}
               </button>
@@ -274,16 +282,16 @@ export default function PricingPage() {
                 color: '#2563EB', marginBottom: 16,
                 background: 'rgba(37,99,235,0.08)', padding: '4px 12px', borderRadius: 999,
               }}>
-                What You'll Be Able To Do
+                {t('pricing.outcomes.tag')}
               </p>
               <h2 style={{
                 fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 900,
                 letterSpacing: '-0.03em', margin: '0 0 14px', lineHeight: 1.1,
               }}>
-                Not features. Outcomes.
+                {t('pricing.outcomes.title')}
               </h2>
               <p style={{ color: '#64748b', fontSize: 17, fontWeight: 500, maxWidth: 600, margin: '0 auto' }}>
-                The real question isn't what FeraSetu does. It's what you'll be able to do because of it.
+                {t('pricing.outcomes.subtitle')}
               </p>
             </div>
 
@@ -346,7 +354,7 @@ export default function PricingPage() {
           VALUE CALCULATOR
         ================================================================ */}
         <section style={{ padding: '0 24px 80px', maxWidth: 1100, margin: '0 auto' }}>
-          <ValueCalculator monthlyPlanCost={299} />
+          <ValueCalculator billingCycle={billing} />
         </section>
 
         {/* ================================================================
@@ -367,24 +375,24 @@ export default function PricingPage() {
               color: '#3b82f6', marginBottom: 20,
               background: 'rgba(59,130,246,0.15)', padding: '4px 12px', borderRadius: 999,
             }}>
-              Try it first
+              {t('pricing.cta.tag')}
             </p>
             <h2 style={{
               fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 900, color: '#fff',
               letterSpacing: '-0.04em', lineHeight: 1.1, margin: '0 0 20px',
             }}>
-              Start for free.<br />
+              {t('pricing.cta.title')}<br />
               <span style={{
                 background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
-                Upgrade when you're ready.
+                {t('pricing.cta.titleHighlight')}
               </span>
             </h2>
             <p style={{ color: '#94a3b8', fontSize: 17, margin: '0 0 36px', lineHeight: 1.7, fontWeight: 500 }}>
-              The Free plan isn't a trick to get you to pay. It's a complete, working store for up to 25 products. When your shop grows, Growth is there at ₹299/month.
+              {t('pricing.cta.desc')}
             </p>
             <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
               <Link
@@ -401,7 +409,7 @@ export default function PricingPage() {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'none'; }}
               >
-                Create Free Store
+                {t('pricing.cta.free')}
                 <ArrowRight size={16} />
               </Link>
               <Link
@@ -419,11 +427,11 @@ export default function PricingPage() {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
               >
-                Already have an account? Sign in
+                {t('pricing.cta.login')}
               </Link>
             </div>
             <p style={{ color: '#475569', fontSize: 13, margin: '20px 0 0', fontWeight: 600 }}>
-              No credit card · No setup fee · No lock-in
+              {t('pricing.cta.footer')}
             </p>
           </div>
         </section>

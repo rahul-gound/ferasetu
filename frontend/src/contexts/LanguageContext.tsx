@@ -29,9 +29,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }
   
   // State holds the user's preferred or local storage language.
-  const [localLanguage, setLocalLanguage] = useState(
-    localStorage.getItem('fera_language') || 'en'
-  );
+  const getInitialLanguage = () => {
+    const stored = localStorage.getItem('fera_language');
+    if (stored) return stored;
+    
+    // Check browser languages
+    if (typeof navigator !== 'undefined' && navigator.languages) {
+      for (const navLang of navigator.languages) {
+        const code = navLang.split('-')[0].toLowerCase();
+        if (ENABLED_LANGUAGES.some(l => l.code === code)) {
+          return code;
+        }
+      }
+    }
+    return 'en';
+  };
+
+  const [localLanguage, setLocalLanguage] = useState(getInitialLanguage);
 
   // Sync with user profile if authenticated
   useEffect(() => {

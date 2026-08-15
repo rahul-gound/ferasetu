@@ -8,6 +8,7 @@ export interface LanguageConfig {
 
 export const SUPPORTED_LANGUAGES: LanguageConfig[] = [
   { code: 'en', nativeName: 'English', locale: 'en-IN', status: 'published', direction: 'ltr' },
+  { code: 'hg', nativeName: 'Hinglish', locale: 'hi-Latn', status: 'published', direction: 'ltr' },
   { code: 'hi', nativeName: 'हिन्दी', locale: 'hi-IN', status: 'published', direction: 'ltr' },
   { code: 'mr', nativeName: 'मराठी', locale: 'mr-IN', status: 'published', direction: 'ltr' },
   { code: 'gu', nativeName: 'ગુજરાતી', locale: 'gu-IN', status: 'published', direction: 'ltr' },

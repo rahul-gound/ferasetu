@@ -1,5 +1,6 @@
 import { Check, X, ArrowRight, Loader2 } from 'lucide-react';
 import type { PlanDefinition } from '../../config/plans';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PricingCardProps {
   plan: PlanDefinition;
@@ -10,15 +11,6 @@ interface PricingCardProps {
   isAuthenticated?: boolean;
 }
 
-/**
- * PricingCard — a single plan card for the pricing page.
- *
- * Design principles:
- * - Outcome-focused (benefit language, not feature-list jargon)
- * - No fake urgency, no countdown timers
- * - Accessible: keyboard-navigable, aria-labels, good contrast
- * - Mobile-first: works beautifully on small screens
- */
 export default function PricingCard({
   plan,
   isCurrentPlan,
@@ -27,6 +19,7 @@ export default function PricingCard({
   onSelect,
   isAuthenticated,
 }: PricingCardProps) {
+  const { translate: t } = useLanguage();
   const price = billingCycle === 'yearly' ? plan.price.yearlyPerMonth : plan.price.monthly;
   const totalYearly = plan.price.yearly;
   const isFree = plan.price.monthly === 0;
@@ -58,8 +51,8 @@ export default function PricingCard({
   const cardStyle = CARD_STYLES[plan.id] ?? CARD_STYLES.free;
 
   const getButtonLabel = () => {
-    if (isCurrentPlan) return 'Current plan';
-    if (isFree) return isAuthenticated ? 'Current plan' : 'Start Free';
+    if (isCurrentPlan) return t('card.current');
+    if (isFree) return isAuthenticated ? t('card.current') : plan.ctaText;
     if (!isAuthenticated) return plan.ctaText;
     return plan.ctaText;
   };
@@ -102,7 +95,7 @@ export default function PricingCard({
             whiteSpace: 'nowrap',
           }}
         >
-          MOST POPULAR
+          {t('card.popular')}
         </div>
       )}
 
@@ -139,17 +132,17 @@ export default function PricingCard({
             background: 'rgba(16,185,129,0.1)', padding: '3px 8px',
             borderRadius: 999, display: 'inline-block',
           }}>
-            ₹{totalYearly.toLocaleString('en-IN')}/year — save 2 months
+            {t('card.save', { total: totalYearly.toLocaleString('en-IN') })}
           </p>
         )}
         {!isFree && billingCycle === 'monthly' && (
           <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-            ₹{Math.round(price / 30).toLocaleString('en-IN')}/day
+            {t('card.day', { price: Math.round(price / 30).toLocaleString('en-IN') })}
           </p>
         )}
       </div>
 
-      {/* Outcome (benefit-focused hook) */}
+      {/* Outcome */}
       <div style={{
         margin: '16px 0', padding: '12px 14px', borderRadius: 12,
         background: `rgba(${accentColor === '#FF6B35' ? '255,107,53' : accentColor === '#7c3aed' ? '124,58,237' : '100,116,139'},0.06)`,
@@ -244,7 +237,7 @@ export default function PricingCard({
           textAlign: 'center', margin: '10px 0 0',
           fontSize: 11, color: '#94a3b8', fontWeight: 600,
         }}>
-          Cancel anytime · No hidden fees
+          {t('card.cancel')}
         </p>
       )}
     </article>
