@@ -54,19 +54,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white w-[260px] flex-shrink-0 border-r border-gray-100 shadow-sm overflow-y-auto">
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-gray-50 flex items-center gap-3">
-        <div className="relative">
-          <div className="w-8 h-8 bg-[#0052FF] rounded-lg rotate-12 flex items-center justify-center text-white font-bold italic text-lg shadow-md shadow-blue-500/20">f</div>
-          <div className="w-8 h-8 bg-[#FF6B35] rounded-lg -rotate-12 flex items-center justify-center text-white font-bold italic text-lg absolute top-0 mix-blend-multiply opacity-90"></div>
-        </div>
-        <div>
-          <div className="font-extrabold text-xl tracking-tight leading-none text-gray-900 font-outfit">
-            Fera<span className="text-[#0052FF]">Setu</span>
-          </div>
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-            Your Business. Our Bridge.
-          </div>
-        </div>
+      <div className="px-6 py-5 border-b border-gray-50 flex items-center">
+        <img src="/logo-official.png" alt="FeraSetu — Your Business. Our Bridge." className="h-10 w-auto object-contain" />
       </div>
 
       {/* Navigation */}
