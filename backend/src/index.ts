@@ -24,6 +24,7 @@ import ticketRoutes from './routes/tickets';
 import surveyRoutes from './routes/survey';
 import sitemapRoutes from './routes/sitemap';
 import settingsRoutes from './routes/settings';
+import usersRoutes from './routes/users';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -206,6 +207,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/survey', surveyRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/users', usersRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

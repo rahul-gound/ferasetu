@@ -193,6 +193,14 @@ function initializeMySqlDatabase(host: string, user: string, database: string): 
     }
   }
 
+  // Safe migration: add workos_user_id to pre-existing tables
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN workos_user_id VARCHAR(120) UNIQUE`);
+  } catch { /* Column already exists — safe to ignore */ }
+  try {
+    db.exec(`ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''`);
+  } catch { /* No-op if already correct */ }
+
   console.log(`✅ MySQL database initialized successfully (${database})`);
 }
 
@@ -218,6 +226,11 @@ function initializeSqliteDatabase(reason: string): void {
     }
   }
 
+  // Safe migration: add workos_user_id to pre-existing tables
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN workos_user_id TEXT UNIQUE`);
+  } catch { /* Column already exists — safe to ignore */ }
+
   console.log(`⚠️ ${reason} Falling back to SQLite at ${resolvedPath}`);
 }
 
@@ -225,8 +238,9 @@ function getMySqlSchemaStatements(): string[] {
   return [
     `CREATE TABLE IF NOT EXISTS users (
       id VARCHAR(64) PRIMARY KEY,
+      workos_user_id VARCHAR(120) UNIQUE,
       email VARCHAR(255) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL DEFAULT '',
       name VARCHAR(255) NOT NULL,
       phone VARCHAR(40),
       business_name VARCHAR(255),
@@ -516,8 +530,9 @@ function getSqliteSchemaStatements(): string[] {
   return [
     `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
+      workos_user_id TEXT UNIQUE,
       email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT NOT NULL DEFAULT '',
       name TEXT NOT NULL,
       phone TEXT,
       business_name TEXT,

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth as useWorkOSAuth } from '@workos-inc/authkit-react';
+import axios from 'axios';
 import api from '../services/api';
 
 interface User {
@@ -88,28 +89,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const { data } = await api.get('/users/me');
-        let currentProfile = data.user;
-        
-        if (data.needs_init) {
-          const { data: updateData } = await api.put('/users/me', {
-            name: workosUser.firstName && workosUser.lastName ? `${workosUser.firstName} ${workosUser.lastName}` : (workosUser.email || 'Shopkeeper'),
-            email: workosUser.email,
-            preferred_language: localStorage.getItem('fera_language') || 'en',
-          });
-          currentProfile = updateData.user;
-        }
+        // Get the WorkOS access token and exchange it for a FeraSetu session.
+        // The backend verifies the WorkOS JWT, provisions the user if new,
+        // and sets an HttpOnly access_token cookie for all subsequent API calls.
+        const workosAccessToken = await getAccessToken();
+        if (!workosAccessToken) throw new Error('No WorkOS access token available');
+
+        // Use axios directly so we can set the Authorization header and
+        // receive the HttpOnly session cookie that the backend sets.
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const { data } = await axios.post(
+          `${apiBase}/users/workos-session`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${workosAccessToken}` },
+            withCredentials: true,
+          }
+        );
 
         if (mounted) {
           setProfile({
-            ...currentProfile,
-            is_verified: workosUser.emailVerified,
+            ...data.user,
+            is_verified: workosUser.emailVerified ?? Boolean(data.user.is_verified),
           });
         }
       } catch (err) {
-        console.error('Failed to load profile from backend:', err);
+        console.error('Failed to establish WorkOS session with backend:', err);
         if (mounted) setProfile(null);
-        // Prevent infinite redirect loops if the backend rejects the token (e.g. env mismatch)
+        // Prevent infinite redirect loops if the backend rejects the token
         signOut();
       } finally {
         if (mounted) setIsProfileLoading(false);
