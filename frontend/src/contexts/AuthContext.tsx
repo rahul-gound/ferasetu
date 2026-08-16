@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Failed to load profile from backend:', err);
         if (mounted) setProfile(null);
+        // Prevent infinite redirect loops if the backend rejects the token (e.g. env mismatch)
+        signOut();
       } finally {
         if (mounted) setIsProfileLoading(false);
       }
