@@ -117,6 +117,7 @@ function AppRoutes() {
           <Route index element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+          <Route path="callback" element={<PageLoader />} />
           
           {/* SEO landing pages & public pages */}
           <Route path="pricing" element={<PricingPage />} />
@@ -187,7 +188,10 @@ import { AuthKitProvider } from '@workos-inc/authkit-react';
 function AppContent() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthKitProvider clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}>
+      <AuthKitProvider 
+        clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
+        redirectUri={window.location.origin + '/callback'}
+      >
         <AuthProvider>
           <BrowserRouter>
             <LanguageProvider>
