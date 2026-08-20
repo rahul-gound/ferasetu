@@ -191,6 +191,7 @@ function AppContent() {
       <AuthKitProvider 
         clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
         redirectUri={window.location.origin + '/callback'}
+        onRedirectCallback={() => window.location.replace('/dashboard')}
       >
         <AuthProvider>
           <BrowserRouter>

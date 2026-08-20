@@ -107,7 +107,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
             border: '1px solid #FFEDD5', marginTop: '16px'
           }}>
             <p style={{ fontSize: '13px', color: '#9A3412', fontWeight: 600, margin: 0 }}>
-              Questions? Contact us at support@fera.ai
+              Questions? Contact us at <a href={type === 'privacy' ? 'mailto:privacy@ferasetu.com' : 'mailto:support@ferasetu.com'} style={{ color: '#9A3412', textDecoration: 'underline' }}>{type === 'privacy' ? 'privacy@ferasetu.com' : 'support@ferasetu.com'}</a>
             </p>
           </div>
         </div>
