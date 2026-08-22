@@ -22,16 +22,13 @@ export default function SEO({
   image = DEFAULT_IMAGE,
   type = 'website',
   structuredData,
-  noindex = false,
+  noindex = true,
 }: SEOProps) {
   const { language, translate } = useLanguage();
   const location = useLocation();
   
-  // Find current language config
-  const currentLangConfig = SUPPORTED_LANGUAGES.find(l => l.code === language);
-  // Force noindex if current language is a draft
-  const isDraftLanguage = currentLangConfig?.status === 'draft';
-  const finalNoIndex = noindex || isDraftLanguage;
+  // During development, enforce noindex, nofollow platform-wide
+  const finalNoIndex = true;
 
   // Use translated defaults if props aren't provided
   const finalTitle = title || translate('seo.landing.title');
@@ -53,7 +50,7 @@ export default function SEO({
     <Helmet htmlAttributes={{ lang: language }}>
       <title>{fullTitle}</title>
       <meta name="description" content={finalDesc} />
-      {finalNoIndex && <meta name="robots" content="noindex, follow" />}
+      {finalNoIndex && <meta name="robots" content="noindex, nofollow" />}
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />

@@ -1,14 +1,2 @@
 User-agent: *
-Disallow: /login
-Disallow: /register
-Disallow: /dashboard
-Disallow: /settings
-Disallow: /admin
-Disallow: /verify-email
-Disallow: /products
-Disallow: /orders
-Disallow: /analytics
-Disallow: /ai-assistant
-Disallow: /website-builder
-
-Sitemap: https://fera-search.tech/sitemap.xml
+Disallow: /
