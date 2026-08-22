@@ -188,7 +188,24 @@ const hg: Dictionary = {
   "finish": "Finish Karein",
   "next": "Next",
   "skip": "Skip Karein",
-  "welcome": "FeraSetu mein aapka swagat hai"
+  "welcome": "FeraSetu mein aapka swagat hai",
+
+  // Plans & Features
+  "plan.free.name": "Free",
+  "plan.growth.name": "Growth",
+  "plan.pro.name": "Pro",
+  "plan.feature.storefront": "Apne link ke saath online store",
+  "plan.feature.products25": "25 products tak",
+  "plan.feature.productMgmt": "Product aur inventory management",
+  "plan.feature.orderDashboard": "Order management dashboard",
+  "plan.feature.everythingFree": "Free plan ke saare features",
+  "plan.feature.products500": "500 products tak",
+  "plan.feature.analytics": "Advanced analytics aur profit tracking",
+  "plan.feature.inventoryAlerts": "Inventory management aur low-stock alerts",
+  "plan.feature.everythingGrowth": "Growth plan ke saare features",
+  "plan.feature.unlimitedProducts": "Unlimited products",
+  "plan.feature.aiMessages1000": "1,000 Fera AI messages/mahina",
+  "plan.feature.advancedAI": "Advanced AI (complex analysis, forecasting)"
 };
 
 export default hg;

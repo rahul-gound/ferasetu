@@ -186,5 +186,23 @@ export default {
   "finish": "Finish",
   "next": "Next",
   "skip": "Skip",
-  "welcome": "Welcome to FeraSetu"
+  "welcome": "Welcome to FeraSetu",
+
+  // Plans & Features
+  "plan.free.name": "Free",
+  "plan.growth.name": "Growth",
+  "plan.pro.name": "Pro",
+  "plan.feature.storefront": "Online storefront with your own link",
+  "plan.feature.products25": "Up to 25 products",
+  "plan.feature.productMgmt": "Product & inventory management",
+  "plan.feature.orderDashboard": "Order management dashboard",
+  "plan.feature.everythingFree": "Everything in Free",
+  "plan.feature.products500": "Up to 500 products",
+  "plan.feature.analytics": "Advanced analytics & profit tracking",
+  "plan.feature.inventoryAlerts": "Inventory management & low-stock alerts",
+  "plan.feature.everythingGrowth": "Everything in Growth",
+  "plan.feature.unlimitedProducts": "Unlimited products",
+  "plan.feature.aiMessages1000": "1,000 Fera AI messages/month",
+  "plan.feature.advancedAI": "Advanced AI (complex analysis, forecasting)",
+
 };

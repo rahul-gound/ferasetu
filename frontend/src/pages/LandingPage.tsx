@@ -228,7 +228,7 @@ export default function LandingPage() {
                     {t('pricingPreview.recommended')}
                   </div>
                 )}
-                <h3 className="font-bold text-xl mb-2">{plan.displayName}</h3>
+                <h3 className="font-bold text-xl mb-2">{t(`plan.${plan.id}.name` as any) || plan.displayName}</h3>
                 <p className="text-3xl font-bold mb-4">
                   ₹{plan.price.monthly.toLocaleString('en-IN')}
                   <span className={`text-base font-normal ${plan.highlighted ? 'text-blue-200' : 'text-slate-400'}`}>
@@ -236,11 +236,29 @@ export default function LandingPage() {
                   </span>
                 </p>
                 <ul className={`text-sm space-y-2 ${plan.highlighted ? 'text-blue-100' : 'text-slate-300'}`}>
-                  {plan.features.slice(0, 4).map((feature, idx) => (
-                    <li key={idx} className={!feature.included ? 'opacity-50 line-through' : ''}>
-                      • {feature.label}
-                    </li>
-                  ))}
+                  {plan.features.slice(0, 4).map((feature, idx) => {
+                    const featureKeyMap: Record<string, string> = {
+                      'Online storefront with your own link': 'plan.feature.storefront',
+                      'Up to 25 products': 'plan.feature.products25',
+                      'Product & inventory management': 'plan.feature.productMgmt',
+                      'Order management dashboard': 'plan.feature.orderDashboard',
+                      'Everything in Free': 'plan.feature.everythingFree',
+                      'Up to 500 products': 'plan.feature.products500',
+                      'Advanced analytics & profit tracking': 'plan.feature.analytics',
+                      'Inventory management & low-stock alerts': 'plan.feature.inventoryAlerts',
+                      'Everything in Growth': 'plan.feature.everythingGrowth',
+                      'Unlimited products': 'plan.feature.unlimitedProducts',
+                      '1,000 Fera AI messages/month': 'plan.feature.aiMessages1000',
+                      'Advanced AI (complex analysis, forecasting)': 'plan.feature.advancedAI',
+                    };
+                    const key = featureKeyMap[feature.label];
+                    const translatedLabel = key ? t(key as any) : feature.label;
+                    return (
+                      <li key={idx} className={!feature.included ? 'opacity-50 line-through' : ''}>
+                        • {translatedLabel}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
