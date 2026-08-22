@@ -59,7 +59,18 @@ export default function LandingPage() {
               <div className="w-3 h-3 rounded-full bg-slate-300" />
             </div>
             <div className="aspect-[16/9] bg-slate-100 flex items-center justify-center relative overflow-hidden">
-              <img src="/hero/dashboard.png" alt="FeraSetu Dashboard" className="w-full h-full object-cover" />
+              <picture className="w-full h-full">
+                <source srcSet="/hero/dashboard.webp" type="image/webp" />
+                <img
+                  src="/hero/dashboard.png"
+                  alt="FeraSetu Dashboard Preview"
+                  width={1200}
+                  height={675}
+                  loading="eager"
+                  fetchPriority="high"
+                  className="w-full h-full object-cover"
+                />
+              </picture>
             </div>
           </div>
         </div>

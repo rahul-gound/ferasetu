@@ -4,17 +4,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [
     react(),
-    {
-      name: 'clerk-export-fix',
-      transform(code, id) {
-        if (id.includes('@clerk/react') && code.includes('loadClerkUiScript')) {
-          return {
-            code: code.replace(/\bloadClerkUiScript\b/g, 'loadClerkUIScript'),
-            map: null,
-          };
-        }
-      },
-    },
   ],
   optimizeDeps: {
     include: ['react-is']
@@ -27,8 +16,26 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react-is')) {
-            return 'react-is-vendor';
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/lucide-react/')) {
+            return 'vendor-icons';
+          }
+          if (id.includes('node_modules/framer-motion/')) {
+            return 'vendor-motion';
+          }
+          if (id.includes('node_modules/recharts/')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('node_modules/@tanstack/react-query/')) {
+            return 'vendor-query';
+          }
+          if (id.includes('node_modules/@workos-inc/')) {
+            return 'vendor-auth';
+          }
+          if (id.includes('node_modules/@statsig/')) {
+            return 'vendor-statsig';
           }
         }
       }

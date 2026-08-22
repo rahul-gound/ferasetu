@@ -82,6 +82,9 @@ function json(data, status = 200, extraHeaders = {}, request = null) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
       ...corsHeaders,
       ...extraHeaders,
     },
