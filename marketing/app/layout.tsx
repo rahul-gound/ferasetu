@@ -17,7 +17,16 @@ export const metadata: Metadata = {
     description: 'Build your shop website, manage products, and grow orders with AI.',
   },
   viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
-  robots: { index: true, follow: true },
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

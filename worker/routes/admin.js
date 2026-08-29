@@ -16,6 +16,7 @@ function json(data, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json",
+      "X-Robots-Tag": "noindex, nofollow",
       "Access-Control-Allow-Origin": "https://ferasetu.com",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",

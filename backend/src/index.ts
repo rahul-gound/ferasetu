@@ -86,6 +86,7 @@ app.use(helmet({
 // Permissions Policy (Feature Policy) - separate middleware for helmet 7+
 app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   next();
 });
 
