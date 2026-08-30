@@ -140,9 +140,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const contextValue: AuthContextType = {
     user: profile,
     isLoading: isWorkOSLoading || isProfileLoading,
-    login: () => signIn(),
-    loginWithGoogle: () => signIn(),
-    register: () => signUp(),
+    login: async () => {
+      try {
+        if (typeof signIn === 'function') {
+          await signIn();
+        }
+      } catch (err) {
+        console.error('WorkOS signIn failed:', err);
+      }
+    },
+    loginWithGoogle: async () => {
+      try {
+        if (typeof signIn === 'function') {
+          await signIn();
+        }
+      } catch (err) {
+        console.error('WorkOS Google signIn failed:', err);
+      }
+    },
+    register: async () => {
+      try {
+        if (typeof signUp === 'function') {
+          await signUp();
+        } else if (typeof signIn === 'function') {
+          await signIn({ screenHint: 'sign-up' as any });
+        }
+      } catch (err) {
+        console.warn('WorkOS signUp failed or screen_hint unsupported, falling back to signIn:', err);
+        try {
+          if (typeof signIn === 'function') {
+            await signIn();
+          }
+        } catch (fallbackErr) {
+          console.error('WorkOS signIn fallback failed:', fallbackErr);
+        }
+      }
+    },
     logout: () => signOut(),
     sendOTP: async () => {}, // Handled by WorkOS
     sendVerificationEmail: async () => {}, // Handled by WorkOS
