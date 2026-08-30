@@ -691,8 +691,8 @@ async function localPost(url: string, payload: Record<string, any>) {
     const user = db.users.find(u => u.id === userId);
     const MOCK_PLAN_LIMITS: Record<string, number> = {
       free: 25, beta: 25, trial: 25,
-      basic: 500, growth: 500, standard: 500,
-      pro: Infinity, premium: Infinity, scale: Infinity, business: Infinity,
+      basic: 500, growth: 500, standard: 500, business: 500,
+      pro: Infinity, premium: Infinity, scale: Infinity, enterprise: Infinity,
     };
     const userPlan = user?.plan ?? 'free';
     const productLimit = MOCK_PLAN_LIMITS[userPlan] ?? 25;
@@ -837,31 +837,68 @@ async function localPost(url: string, payload: Record<string, any>) {
   if (path === '/payment/initialize') {
     const userId = getCurrentUserId();
     const user = userId ? db.users.find(u => u.id === userId) : null;
-    const plan = String(payload.plan || 'basic') as LocalUser['plan'];
-    const creditsByPlan: Record<string, number> = { basic: 100, standard: 500, pro: 2000, premium: 500 };
-    const basePriceByPlan: Record<string, number> = { basic: 299, standard: 699, pro: 1499, premium: 699 };
-    const expectedAmount = getEffectivePlanPrice(plan, basePriceByPlan[plan] || 0);
-    if (Number(payload.amount) !== expectedAmount) {
-      throw createHttpError(400, 'Invalid amount for selected plan');
-    }
+    const planRaw = String(payload.plan || 'business').toLowerCase();
+    const plan = (planRaw === 'pro' || planRaw === 'premium' ? 'pro' : planRaw === 'free' ? 'free' : 'business') as LocalUser['plan'];
+    const billingCycle = payload.billingCycle || payload.billing || 'monthly';
+    const creditsByPlan: Record<string, number> = { free: 20, business: 200, pro: 1000 };
+    const priceByPlan: Record<string, { monthly: number; yearly: number }> = {
+      free: { monthly: 0, yearly: 0 },
+      business: { monthly: 399, yearly: 3990 },
+      pro: { monthly: 999, yearly: 9990 },
+    };
+    const expectedAmount = billingCycle === 'yearly'
+      ? priceByPlan[plan]?.yearly ?? 3990
+      : priceByPlan[plan]?.monthly ?? 399;
+
     if (user) {
       user.plan = plan;
       user.ai_credits_balance = (user.ai_credits_balance || 0) + (creditsByPlan[plan] || 0);
-      user.ai_credits_monthly_limit = creditsByPlan[plan] || user.ai_credits_monthly_limit || 20;
+      user.ai_credits_monthly_limit = creditsByPlan[plan] || 200;
       user.ai_credits_used_month = 0;
       saveDb(db);
+      try {
+        const rawUser = localStorage.getItem('fera_user');
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          parsed.plan = plan;
+          localStorage.setItem('fera_user', JSON.stringify(parsed));
+        }
+      } catch { /* ignore */ }
     }
     return createResponse({
       success: true,
       id: createId(),
-      plan,
+      orderId: `order_${createId().substring(0, 14)}`,
       providerOrderId: `order_${createId().substring(0, 14)}`,
+      plan,
       amount: expectedAmount,
       currency: 'INR',
       key: LOCAL_PAYMENT_PROVIDER_KEY,
-      betaFreePlan: isBetaFreePlan(plan),
-      betaMode: BETA_MODE
+      keyId: 'mock_key',
+      status: 'created',
     }, 201);
+  }
+
+  if (path === '/payment/downgrade' || path === '/payment/cancel-subscription') {
+    const userId = getCurrentUserId();
+    const user = userId ? db.users.find(u => u.id === userId) : null;
+    if (user) {
+      user.plan = 'free';
+      saveDb(db);
+      try {
+        const rawUser = localStorage.getItem('fera_user');
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          parsed.plan = 'free';
+          localStorage.setItem('fera_user', JSON.stringify(parsed));
+        }
+      } catch { /* ignore */ }
+    }
+    return createResponse({
+      success: true,
+      message: 'Subscription cancelled. You have been switched to the Free plan.',
+      plan: 'free',
+    });
   }
 
   if (path === '/payment/verify') {

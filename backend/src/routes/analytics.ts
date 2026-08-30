@@ -4,6 +4,34 @@ import { getDatabase } from '../models/database';
 import { predictSales } from '../services/sarvamAI';
 
 const router = Router();
+
+// Ingest lifecycle analytics event (public/authenticated)
+router.post('/events', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id || req.body.user_id || 'anonymous';
+    const { event_type, event_data } = req.body;
+
+    if (!event_type) {
+      res.status(400).json({ error: 'event_type is required' });
+      return;
+    }
+
+    const id = (req.body.id as string) || Math.random().toString(36).substring(2, 15);
+    const dataString = typeof event_data === 'object' ? JSON.stringify(event_data) : (event_data || '{}');
+
+    db.prepare(`
+      INSERT INTO analytics_events (id, user_id, event_type, event_data, created_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).run(id, userId, event_type, dataString);
+
+    res.status(201).json({ success: true, logged: true, event_type });
+  } catch (err: any) {
+    console.error('Analytics event ingestion error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.use(authenticate);
 
 // Get dashboard summary — shape matches DashboardPage expectations

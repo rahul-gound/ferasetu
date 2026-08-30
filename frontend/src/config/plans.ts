@@ -1,84 +1,152 @@
 /**
- * FeraSetu Plan Configuration
- * ============================
+ * FeraSetu Canonical Plan Configuration (Frontend)
+ * ================================================
  * Single source of truth for all plan-related logic on the frontend.
  *
- * Plan ID mapping (reconciling three naming systems in the codebase):
- *   DB / backend:   beta | trial | basic | standard | pro
- *   shared-types:   free | starter | business | beta
- *   Public display: Free | Growth | Pro
- *
- * For new users, we treat 'beta' as 'free' for display purposes.
- * The canonical plan IDs used going forward are: 'free' | 'growth' | 'pro'
- * (matching the new pricing structure).
+ * Tiers:
+ * - Free: ₹0/mo, ₹0/yr (Acquisition tier)
+ * - Business: ₹399/mo, ₹3,990/yr (Main growth tier - Most Popular)
+ * - Pro: ₹999/mo, ₹9,990/yr (High-volume / scale tier)
  */
 
 // ---------------------------------------------------------------------------
-// Founding Shopkeeper Program Configuration
-// ---------------------------------------------------------------------------
-// Change FOUNDING_OFFER_ENABLED to true when you are ready to run the offer.
-// All other values are sourced from the API when the offer is active.
-
-export const FOUNDING_OFFER_ENABLED = false; // ← set to true to activate
-export const FOUNDING_SHOP_LIMIT = 50;
-export const FOUNDING_OFFER_PLAN = 'growth' as const;
-export const FOUNDING_OFFER_MONTHS = 3;
-
-// ---------------------------------------------------------------------------
-// Plan IDs
+// Canonical Plan IDs
 // ---------------------------------------------------------------------------
 
-export type PlanId = 'free' | 'growth' | 'pro';
+export type PlanId = 'free' | 'business' | 'pro';
 
-/** Maps legacy backend/DB plan IDs to the canonical display plan ID. */
+/**
+ * Legacy Plan Aliases Map
+ * Normalizes all legacy backend/DB plan IDs to canonical 3-tier PlanId.
+ */
 export const LEGACY_PLAN_MAP: Record<string, PlanId> = {
+  // Free tier aliases
+  free: 'free',
   beta: 'free',
   trial: 'free',
-  free: 'free',
-  basic: 'growth',
-  starter: 'growth',
-  standard: 'growth',
-  growth: 'growth',
+
+  // Business tier aliases (mapped from basic, starter, standard, growth, business)
+  business: 'business',
+  growth: 'business',
+  basic: 'business',
+  starter: 'business',
+  standard: 'business',
+
+  // Pro tier aliases (mapped from pro, premium, scale, enterprise)
   pro: 'pro',
   premium: 'pro',
-  business: 'pro',
   scale: 'pro',
+  enterprise: 'pro',
 };
 
-/** Resolve any plan string (including legacy IDs) to canonical PlanId. */
+/**
+ * Resolve any plan identifier (including legacy aliases) to a canonical PlanId.
+ * Defaults to 'free' for unknown or empty values.
+ */
 export function normalizePlanId(plan: string | undefined | null): PlanId {
   if (!plan) return 'free';
-  return LEGACY_PLAN_MAP[plan.toLowerCase()] ?? 'free';
+  const clean = String(plan).toLowerCase().trim();
+  return LEGACY_PLAN_MAP[clean] ?? 'free';
 }
 
 // ---------------------------------------------------------------------------
-// Plan Pricing
+// Plan Pricing & A/B Experimentation Engine
 // ---------------------------------------------------------------------------
 
 export interface PlanPrice {
-  monthly: number;    // INR per month
-  yearly: number;     // INR per year (≈ 10 months price = 2 months free)
+  monthly: number;        // INR per month
+  yearly: number;         // INR per year (≈ 10 months price = 2 months free)
   yearlyPerMonth: number; // effective monthly rate when billed annually
 }
 
+/** Default canonical pricing */
 export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
-  free: { monthly: 0, yearly: 0, yearlyPerMonth: 0 },
-  growth: { monthly: 299, yearly: 2990, yearlyPerMonth: 249 },
-  pro: { monthly: 799, yearly: 7990, yearlyPerMonth: 666 },
+  free: {
+    monthly: 0,
+    yearly: 0,
+    yearlyPerMonth: 0,
+  },
+  business: {
+    monthly: 399,
+    yearly: 3990,
+    yearlyPerMonth: 332,
+  },
+  pro: {
+    monthly: 999,
+    yearly: 9990,
+    yearlyPerMonth: 832,
+  },
 };
 
+/**
+ * A/B Pricing Variants for Business Plan
+ * Supports ₹299 vs ₹399 vs ₹499 experimentation.
+ */
+export const BUSINESS_PRICE_VARIANTS: Record<string, PlanPrice> = {
+  variant_299: {
+    monthly: 299,
+    yearly: 2990,
+    yearlyPerMonth: 249,
+  },
+  control_399: {
+    monthly: 399,
+    yearly: 3990,
+    yearlyPerMonth: 332,
+  },
+  variant_499: {
+    monthly: 499,
+    yearly: 4990,
+    yearlyPerMonth: 416,
+  },
+};
+
+/**
+ * Get Business plan price supporting A/B test variants.
+ * Handles 'variant_299', 'variant_499', 'control_399', '299', '499', '399', etc.
+ */
+export function getBusinessPlanPrice(variant?: string | null): PlanPrice {
+  if (!variant) return PLAN_PRICES.business;
+  const key = variant.toLowerCase().trim();
+  if (key === 'variant_299' || key === '299' || key === 'v299') {
+    return BUSINESS_PRICE_VARIANTS.variant_299;
+  }
+  if (key === 'variant_499' || key === '499' || key === 'v499') {
+    return BUSINESS_PRICE_VARIANTS.variant_499;
+  }
+  if (key === 'control_399' || key === '399' || key === 'v399') {
+    return BUSINESS_PRICE_VARIANTS.control_399;
+  }
+  return BUSINESS_PRICE_VARIANTS[key] ?? PLAN_PRICES.business;
+}
+
+/**
+ * Get pricing for any plan with optional billing cycle and A/B variant support.
+ */
+export function getPlanPricing(
+  planId: string | undefined | null,
+  billing?: 'monthly' | 'yearly',
+  variant?: string | null
+): PlanPrice {
+  const normalized = normalizePlanId(planId);
+  if (normalized === 'business' && variant) {
+    return getBusinessPlanPrice(variant);
+  }
+  return PLAN_PRICES[normalized] ?? PLAN_PRICES.free;
+}
+
 // ---------------------------------------------------------------------------
-// Plan Limits (enforced server-side in Worker; mirrored here for UI gating)
+// Plan Limits (Enforced across Backend, Cloudflare Worker, and Frontend UI)
 // ---------------------------------------------------------------------------
 
 export interface PlanLimits {
-  products: number;        // max products (Infinity = unlimited)
-  aiCreditsPerMonth: number;
-  storageBytes: number;    // bytes
-  customDomain: boolean;
-  advancedAnalytics: boolean;
-  staffAccounts: number;   // 1 = owner only
-  removeBranding: boolean;
+  products: number;          // max products (Infinity = unlimited)
+  aiCreditsPerMonth: number; // AI messages/credits per month
+  storageBytes: number;      // media/invoice storage in bytes
+  customDomain: boolean;     // custom domain connection
+  advancedAnalytics: boolean;// profit tracking & advanced reports
+  staffAccounts: number;     // number of staff/collaborator logins
+  removeBranding: boolean;   // remove FeraSetu branding from store
+  prioritySupport: boolean;  // priority WhatsApp & phone support
 }
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
@@ -90,56 +158,60 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     advancedAnalytics: false,
     staffAccounts: 1,
     removeBranding: false,
+    prioritySupport: false,
   },
-  growth: {
+  business: {
     products: 500,
     aiCreditsPerMonth: 200,
     storageBytes: 1 * 1024 * 1024 * 1024, // 1 GB
-    customDomain: false, // coming soon
+    customDomain: true,
     advancedAnalytics: true,
-    staffAccounts: 1,
-    removeBranding: false, // coming soon
+    staffAccounts: 2,
+    removeBranding: true,
+    prioritySupport: true,
   },
   pro: {
     products: Infinity,
     aiCreditsPerMonth: 1000,
     storageBytes: 5 * 1024 * 1024 * 1024, // 5 GB
-    customDomain: false, // coming soon
+    customDomain: true,
     advancedAnalytics: true,
-    staffAccounts: 1, // coming soon: up to 5
+    staffAccounts: 5,
     removeBranding: true,
+    prioritySupport: true,
   },
 };
 
 // ---------------------------------------------------------------------------
-// Plan Feature Descriptions (for pricing cards and comparison table)
+// Plan Feature Descriptions & Conversion Metadata
 // ---------------------------------------------------------------------------
 
 export interface PlanFeature {
   label: string;
   included: boolean;
-  note?: string; // e.g. "Coming soon"
+  note?: string;
 }
 
 export interface PlanDefinition {
   id: PlanId;
   displayName: string;
   tagline: string;
-  outcome: string;    // outcome-focused benefit statement
+  outcome: string;          // Customer outcome-oriented copy
   price: PlanPrice;
   limits: PlanLimits;
   features: PlanFeature[];
-  highlighted?: boolean; // show "Most Popular" badge
+  highlighted?: boolean;    // "Most Popular" highlight
+  badge?: string;
   ctaText: string;
-  ctaHref: string;     // href for unauthenticated users
+  ctaHref: string;
 }
 
 export const PLANS: PlanDefinition[] = [
   {
     id: 'free',
     displayName: 'Free',
-    tagline: 'Shuruwaat karo, bina kisi risk ke.',
-    outcome: 'Put your shop online and start taking orders — no cost, no tech skills needed.',
+    tagline: 'Start your online store with zero risk.',
+    outcome: 'Put your shop online, share your catalog, and receive direct WhatsApp and online orders.',
     price: PLAN_PRICES.free,
     limits: PLAN_LIMITS.free,
     ctaText: 'Start Free',
@@ -152,77 +224,86 @@ export const PLANS: PlanDefinition[] = [
       { label: 'WhatsApp ordering link', included: true },
       { label: 'Basic sales overview', included: true },
       { label: 'FeraSetu subdomain (yourshop.ferasetu.com)', included: true },
-      { label: '20 Fera AI messages/month', included: true },
-      { label: 'Basic invoices', included: true },
-      { label: 'Advanced analytics', included: false },
-      { label: 'Custom domain', included: false, note: 'Coming soon' },
+      { label: '20 Fera AI credits/month', included: true },
+      { label: '50MB storage', included: true },
+      { label: '1 staff account', included: true },
+      { label: 'Custom domain connection', included: false },
+      { label: 'Advanced analytics & profit tracking', included: false },
       { label: 'Remove FeraSetu branding', included: false },
+      { label: 'Priority customer support', included: false },
     ],
   },
   {
-    id: 'growth',
-    displayName: 'Growth',
-    tagline: 'Apne business ko seriously chalao.',
-    outcome: 'Sell more without being at your shop all day. Understand what\'s working.',
-    price: PLAN_PRICES.growth,
-    limits: PLAN_LIMITS.growth,
+    id: 'business',
+    displayName: 'Business',
+    tagline: 'Run and grow your retail business efficiently.',
+    outcome: 'Expand your catalog, track profits, automate stock alerts, and use your AI assistant daily.',
+    price: PLAN_PRICES.business,
+    limits: PLAN_LIMITS.business,
     highlighted: true,
-    ctaText: 'Get Growth',
-    ctaHref: '/register?plan=growth',
+    badge: 'Most Popular',
+    ctaText: 'Get Business',
+    ctaHref: '/register?plan=business',
     features: [
       { label: 'Everything in Free', included: true },
       { label: 'Up to 500 products', included: true },
+      { label: '200 Fera AI credits/month', included: true },
+      { label: '1GB media & invoice storage', included: true },
       { label: 'Advanced analytics & profit tracking', included: true },
       { label: 'Inventory management & low-stock alerts', included: true },
-      { label: '200 Fera AI messages/month', included: true },
-      { label: 'Professional invoices', included: true },
-      { label: 'Store customization', included: true },
-      { label: 'Better order automation', included: true },
-      { label: 'Priority support', included: true },
-      { label: 'Custom domain', included: false, note: 'Coming soon' },
-      { label: 'Remove FeraSetu branding', included: false, note: 'Coming soon' },
-      { label: 'Multiple staff accounts', included: false, note: 'Coming soon' },
+      { label: '2 staff accounts', included: true },
+      { label: 'Connect custom domain', included: true },
+      { label: 'Remove FeraSetu branding', included: true },
+      { label: 'Priority WhatsApp & phone support', included: true },
     ],
   },
   {
     id: 'pro',
     displayName: 'Pro',
-    tagline: 'Scale karo, grow karo.',
-    outcome: 'Run your shop like a proper online business — unlimited products, advanced AI, priority help.',
+    tagline: 'Complete power and scale for serious merchants.',
+    outcome: 'Unlimited catalog capacity, advanced predictive AI forecasting, multiple staff, and top priority support.',
     price: PLAN_PRICES.pro,
     limits: PLAN_LIMITS.pro,
     ctaText: 'Get Pro',
     ctaHref: '/register?plan=pro',
     features: [
-      { label: 'Everything in Growth', included: true },
+      { label: 'Everything in Business', included: true },
       { label: 'Unlimited products', included: true },
-      { label: '1,000 Fera AI messages/month', included: true },
-      { label: 'Advanced AI (complex analysis, forecasting)', included: true },
-      { label: 'Advanced automation', included: true },
-      { label: 'Remove FeraSetu branding', included: true },
-      { label: 'Priority support', included: true },
-      { label: 'Custom domain', included: false, note: 'Coming soon' },
-      { label: 'Multiple staff accounts (up to 5)', included: false, note: 'Coming soon' },
+      { label: '1,000 Fera AI credits/month', included: true },
+      { label: '5GB media & backup storage', included: true },
+      { label: 'Advanced predictive AI & forecasting', included: true },
+      { label: 'Up to 5 staff accounts', included: true },
+      { label: 'Custom domain & white-label store', included: true },
+      { label: 'Dedicated priority support (24/7)', included: true },
     ],
   },
 ];
 
 // ---------------------------------------------------------------------------
-// Helper functions
+// Helper Functions
 // ---------------------------------------------------------------------------
 
-/** Get the canonical plan definition for a given plan ID (handles legacy IDs). */
-export function getPlan(planId: string | undefined | null): PlanDefinition {
+/** Get plan definition by ID (handles legacy aliases and optional A/B pricing variant). */
+export function getPlan(planId: string | undefined | null, variant?: string | null): PlanDefinition {
   const normalized = normalizePlanId(planId);
-  return PLANS.find(p => p.id === normalized) ?? PLANS[0];
+  const base = PLANS.find(p => p.id === normalized) ?? PLANS[0];
+  if (normalized === 'business' && variant) {
+    const variantPrice = getBusinessPlanPrice(variant);
+    return {
+      ...base,
+      price: variantPrice,
+    };
+  }
+  return base;
 }
 
-/** Get limits for a given plan (handles legacy IDs). */
+/** Get limits for a given plan (handles legacy aliases). */
 export function getPlanLimits(planId: string | undefined | null): PlanLimits {
-  return getPlan(planId).limits;
+  const normalized = normalizePlanId(planId);
+  return PLAN_LIMITS[normalized] ?? PLAN_LIMITS.free;
 }
 
-/** Check if a user on a given plan can use a feature. */
+/** Check if a user on a given plan can use a specific feature. */
 export function canUseFeature(
   planId: string | undefined | null,
   feature: keyof PlanLimits
@@ -261,25 +342,57 @@ export function getPlanDisplayName(planId: string | undefined | null): string {
   return getPlan(planId).displayName;
 }
 
+/** Helper to extract pricing variant parameter from search string or URLSearchParams. */
+export function extractPricingVariant(input?: string | URLSearchParams | null): string | undefined {
+  if (!input) return undefined;
+  if (typeof input === 'string') {
+    if (input.includes('variant_299') || input.includes('299')) return 'variant_299';
+    if (input.includes('variant_499') || input.includes('499')) return 'variant_499';
+    if (input.includes('control_399') || input.includes('399')) return 'control_399';
+    try {
+      const search = input.startsWith('?') ? input : `?${input}`;
+      const params = new URLSearchParams(search);
+      const v = params.get('variant') || params.get('plan_variant') || params.get('pricing_variant');
+      return v || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  if (input instanceof URLSearchParams) {
+    const v = input.get('variant') || input.get('plan_variant') || input.get('pricing_variant');
+    return v || undefined;
+  }
+  return undefined;
+}
+
 // ---------------------------------------------------------------------------
-// Legacy compatibility — keep importing from beta.ts working
-// (beta.ts re-exports from here so nothing breaks)
+// Founding Shopkeeper Program Configuration (Optional Promotion)
 // ---------------------------------------------------------------------------
-export const BETA_MODE = import.meta.env.VITE_BETA_MODE !== 'false';
+export const FOUNDING_OFFER_ENABLED = false;
+export const FOUNDING_SHOP_LIMIT = 50;
+export const FOUNDING_OFFER_PLAN = 'business' as const;
+export const FOUNDING_OFFER_MONTHS = 3;
+
+// ---------------------------------------------------------------------------
+// Legacy Compatibility Exports
+// ---------------------------------------------------------------------------
+export const BETA_MODE = typeof process !== 'undefined' && process.env?.VITE_BETA_MODE
+  ? process.env.VITE_BETA_MODE !== 'false'
+  : (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BETA_MODE !== 'false');
 
 /** @deprecated Use getPlanLimits() and isFreePlan() instead */
-export function isBetaFreePlan(planId: string): boolean {
+export function isBetaFreePlan(planId: string | undefined | null): boolean {
   return normalizePlanId(planId) === 'free';
 }
 
-/** @deprecated Use PLAN_PRICES instead */
-export function getEffectivePlanPrice(planId: string, _basePrice: number): number {
+/** @deprecated Use PLAN_PRICES or getPlanPricing() instead */
+export function getEffectivePlanPrice(planId: string | undefined | null, _basePrice?: number): number {
   const normalized = normalizePlanId(planId);
   return PLAN_PRICES[normalized]?.monthly ?? 0;
 }
 
 /** @deprecated Use getPlanDisplayName() instead */
-export function getPlanBadge(planId: string): string | null {
+export function getPlanBadge(planId: string | undefined | null): string | null {
   const normalized = normalizePlanId(planId);
   if (normalized === 'free') return BETA_MODE ? 'Free (Beta)' : 'Free';
   return null;

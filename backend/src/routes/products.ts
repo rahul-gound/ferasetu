@@ -90,23 +90,35 @@ router.post('/',
 
       const db = getDatabase();
 
-      // Check product limits based on plan
-      const planLimits: Record<string, number> = {
-        'trial': parseInt(process.env.FREE_TIER_MAX_PRODUCTS || '50'),
-        'beta': parseInt(process.env.FREE_TIER_MAX_PRODUCTS || '50'),
-        'basic': 100,
-        'standard': 1000,
-        'pro': Infinity
+      // Check product limits based on canonical & legacy plan mapping
+      const PLAN_LIMITS: Record<string, number> = {
+        free: 25,
+        beta: 25,
+        trial: 25,
+        basic: 500,
+        starter: 500,
+        standard: 500,
+        growth: 500,
+        business: 500,
+        pro: Infinity,
+        premium: Infinity,
+        scale: Infinity,
+        enterprise: Infinity,
       };
 
-      const userPlan = req.user!.plan;
-      const limit = planLimits[userPlan] || 50;
+      const userPlan = (req.user?.plan || 'free').toLowerCase().trim();
+      const limit = PLAN_LIMITS[userPlan] !== undefined ? PLAN_LIMITS[userPlan] : 25;
 
       if (limit !== Infinity) {
         const count = (db.prepare('SELECT COUNT(*) as count FROM products WHERE user_id = ?').get(req.user!.id) as { count: number }).count;
         if (count >= limit) {
           res.status(403).json({
+            success: false,
             error: `${userPlan.charAt(0).toUpperCase() + userPlan.slice(1)} plan allows up to ${limit} products. Upgrade your plan for more.`,
+            code: 'PRODUCT_LIMIT_REACHED',
+            limit,
+            current: count,
+            plan: userPlan,
             upgradeRequired: true
           });
           return;

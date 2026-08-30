@@ -88,7 +88,7 @@ export default function PricingPage() {
 
   const pageTitle = 'Pricing — FeraSetu | Online Store for Indian Shopkeepers';
   const pageDescription =
-    'Free forever for the basics. ₹299/month to grow. Honest, simple pricing with no hidden fees. Start building your online shop today.';
+    'Free forever for the basics. ₹399/month for Business. Honest, simple pricing with no hidden fees. Start building your online shop today.';
 
   return (
     <>

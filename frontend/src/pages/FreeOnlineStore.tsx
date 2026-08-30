@@ -20,7 +20,7 @@ const faqSchema = {
       name: 'Kya free plan me products add kar sakte hain?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Haan! Free beta plan me 19 products add kar sakte ho, subdomain milta hai, order management, invoices, aur AI assistant sab included hai.',
+        text: 'Haan! Free plan me 25 products add kar sakte ho, custom subdomain milta hai, order management, invoices, aur Fera AI assistant sab included hai.',
       },
     },
     {
@@ -112,12 +112,12 @@ export default function FreeOnlineStore() {
           <div style={{ background: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             {[
               { feature: 'Website + Subdomain', free: '✅', paid: '✅' },
-              { feature: 'Products', free: '19 tak', paid: 'Unlimited' },
-              { feature: 'AI Assistant', free: 'Starter credits', paid: 'Advanced (105B)' },
+              { feature: 'Products', free: '25 tak', paid: '500 / Unlimited' },
+              { feature: 'AI Assistant', free: '20 messages/mo', paid: 'Full access (200+)' },
               { feature: 'Custom Domain', free: '❌', paid: '✅' },
-              { feature: 'Sales Predictions', free: '❌', paid: '✅' },
-              { feature: 'Invoices', free: '✅', paid: '✅' },
-              { feature: 'Price', free: '₹0 (beta)', paid: '₹499/month' },
+              { feature: 'Sales Analytics & Stock Alerts', free: 'Basic', paid: 'Advanced' },
+              { feature: 'Invoices & WhatsApp Bills', free: '✅', paid: '✅' },
+              { feature: 'Price', free: '₹0/month', paid: 'From ₹399/month' },
             ].map((row, i) => (
               <div key={row.feature} style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',

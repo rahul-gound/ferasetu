@@ -9,12 +9,15 @@ const router = Router();
 router.use(authenticate);
 
 const PLAN_CONFIG: Record<string, { amount: number; monthlyCredits: number; trialDays?: number }> = {
+  free: { amount: 0, monthlyCredits: 20 },
   beta: { amount: 0, monthlyCredits: 20, trialDays: 3650 },
   trial: { amount: 0, monthlyCredits: 20, trialDays: 7 },
+  business: { amount: 399, monthlyCredits: 200 },
+  growth: { amount: 399, monthlyCredits: 200 },
   basic: { amount: 299, monthlyCredits: 100 },
   standard: { amount: 699, monthlyCredits: 500 },
-  pro: { amount: 1499, monthlyCredits: 2000 },
-  premium: { amount: 699, monthlyCredits: 500 }
+  pro: { amount: 999, monthlyCredits: 1000 },
+  premium: { amount: 999, monthlyCredits: 1000 }
 };
 
 const CREDIT_PACKS: Record<string, { credits: number; amount: number; label: string }> = {
@@ -31,7 +34,7 @@ const EXTRA_STORAGE_PRICE_PER_GB = 20;
  * @access  Private
  */
 router.post('/initialize',
-  body('plan').isIn(['basic', 'standard', 'pro']).withMessage('Invalid plan selected'),
+  body('plan').isIn(['free', 'beta', 'trial', 'business', 'growth', 'basic', 'standard', 'pro', 'premium']).withMessage('Invalid plan selected'),
   body('amount').isFloat({ min: 0 }).withMessage('Amount must be zero or positive'),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const errors = validationResult(req);

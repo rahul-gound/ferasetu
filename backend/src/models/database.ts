@@ -207,9 +207,11 @@ function initializeMySqlDatabase(host: string, user: string, database: string): 
 function initializeSqliteDatabase(reason: string): void {
   const { DatabaseSync } = require('node:sqlite');
   const configuredPath = process.env.DATABASE_PATH || './data/fera_shopkeeper.db';
-  const resolvedPath = path.resolve(process.cwd(), configuredPath);
+  const resolvedPath = configuredPath === ':memory:' ? ':memory:' : path.resolve(process.cwd(), configuredPath);
 
-  fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+  if (resolvedPath !== ':memory:') {
+    fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+  }
 
   const sqliteConnection = new DatabaseSync(resolvedPath) as SqliteConnection;
   sqliteConnection.exec('PRAGMA foreign_keys = ON;');
@@ -224,6 +226,49 @@ function initializeSqliteDatabase(reason: string): void {
     } catch (err: unknown) {
       console.warn(`SQLite schema statement failed: ${getErrorMessage(err)}`);
     }
+  }
+
+  // Safe migrations for pre-existing SQLite database tables
+  try {
+    const tableInfo = sqliteConnection.prepare("PRAGMA table_info(users)").all() as Array<{ name: string; notnull: number; dflt_value: string | null }>;
+    const passCol = tableInfo.find(c => c.name === 'password_hash');
+    if (passCol && passCol.notnull === 1 && passCol.dflt_value === null) {
+      sqliteConnection.exec(`
+        PRAGMA foreign_keys = OFF;
+        DROP TABLE IF EXISTS users_new;
+        CREATE TABLE users_new (
+          id TEXT PRIMARY KEY,
+          workos_user_id TEXT UNIQUE,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL DEFAULT '',
+          name TEXT NOT NULL,
+          phone TEXT,
+          business_name TEXT,
+          logo_url TEXT,
+          plan TEXT NOT NULL DEFAULT 'free',
+          plan_expires_at DATETIME,
+          preferred_language TEXT NOT NULL DEFAULT 'en',
+          subdomain TEXT UNIQUE,
+          custom_domain TEXT UNIQUE,
+          is_blocked INTEGER NOT NULL DEFAULT 0,
+          is_verified INTEGER NOT NULL DEFAULT 0,
+          ai_credits_balance INTEGER NOT NULL DEFAULT 20,
+          ai_credits_monthly_limit INTEGER NOT NULL DEFAULT 20,
+          ai_credits_used_month INTEGER NOT NULL DEFAULT 0,
+          ai_credits_reset_at DATETIME,
+          storage_used_bytes INTEGER NOT NULL DEFAULT 0,
+          storage_limit_bytes INTEGER NOT NULL DEFAULT 52428800,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users_new SELECT id, workos_user_id, email, COALESCE(password_hash, ''), name, phone, business_name, logo_url, plan, plan_expires_at, preferred_language, subdomain, custom_domain, is_blocked, is_verified, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, storage_used_bytes, storage_limit_bytes, created_at, updated_at FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+        PRAGMA foreign_keys = ON;
+      `);
+    }
+  } catch (migErr) {
+    console.warn('SQLite user schema migration check:', migErr);
   }
 
   // Safe migration: add workos_user_id to pre-existing tables
@@ -245,7 +290,7 @@ function getMySqlSchemaStatements(): string[] {
       phone VARCHAR(40),
       business_name VARCHAR(255),
       logo_url TEXT,
-      plan VARCHAR(32) NOT NULL DEFAULT 'beta',
+      plan VARCHAR(32) NOT NULL DEFAULT 'free',
       plan_expires_at DATETIME,
       preferred_language VARCHAR(16) NOT NULL DEFAULT 'en',
       subdomain VARCHAR(120) UNIQUE,
@@ -461,7 +506,6 @@ function getMySqlSchemaStatements(): string[] {
       event_type VARCHAR(120) NOT NULL,
       event_data LONGTEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       INDEX idx_analytics_user_date (user_id, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
     `CREATE TABLE IF NOT EXISTS survey_submissions (
@@ -537,7 +581,7 @@ function getSqliteSchemaStatements(): string[] {
       phone TEXT,
       business_name TEXT,
       logo_url TEXT,
-      plan TEXT NOT NULL DEFAULT 'beta',
+      plan TEXT NOT NULL DEFAULT 'free',
       plan_expires_at DATETIME,
       preferred_language TEXT NOT NULL DEFAULT 'en',
       subdomain TEXT UNIQUE,
@@ -740,8 +784,7 @@ function getSqliteSchemaStatements(): string[] {
       user_id TEXT NOT NULL,
       event_type TEXT NOT NULL,
       event_data TEXT,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS survey_submissions (
       id TEXT PRIMARY KEY,

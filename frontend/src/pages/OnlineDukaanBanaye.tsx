@@ -20,7 +20,7 @@ const faqSchema = {
       name: 'Kya dukaan ka website banana free hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Haan! FeraSetu ka beta plan bilkul free hai — ₹299/month ka plan abhi zero me mil raha hai. Isme subdomain, products, orders, invoices, aur AI sab included hai.',
+        text: 'Haan! FeraSetu ka Free plan bilkul ₹0 me available hai. Isme aapko apna custom subdomain, products add karne ki suvidha, direct WhatsApp orders, invoices, aur Fera AI assistant sab milta hai.',
       },
     },
     {
@@ -28,7 +28,7 @@ const faqSchema = {
       name: 'Shopify se FeraSetu kya fark hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Shopify ₹2,000+/month se shuru hota hai aur English-first hai. FeraSetu ₹0 (beta) me hai, 22 Indian languages support karta hai, aur Indian shopkeepers ke liye banaya gaya hai — WhatsApp orders, local payments, Hindi me AI assistant.',
+        text: 'Shopify ₹2,000+/month se shuru hota hai aur English-first hai. FeraSetu ₹0 se start hota hai, 22 Indian languages support karta hai, aur Indian shopkeepers ke liye banaya gaya hai — direct WhatsApp orders, UPI payments, aur Hindi/Hinglish me AI assistant.',
       },
     },
     {
@@ -116,7 +116,7 @@ export default function OnlineDukaanBanaye() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
             {[
-              { icon: '💰', title: 'Free Beta', desc: '₹299/month ka plan abhi ₹0 me mil raha hai. No hidden charges.' },
+              { icon: '💰', title: 'Free Plan (₹0)', desc: 'Apni online dukaan ₹0 me shuru karein. No credit card, no hidden charges.' },
               { icon: '🇮🇳', title: '22 Indian Languages', desc: 'Hindi, Tamil, Bengali, Marathi — apni bhasha me website aur AI assistant.' },
               { icon: '📱', title: 'WhatsApp Orders', desc: 'Customers ko WhatsApp pe order karo. Indian shopkeepers ke liye banaya gaya.' },
               { icon: '🤖', title: 'AI-Powered', desc: 'Website khud banti hai. Products suggest hoti hain. Sales predict hoti hain.' },

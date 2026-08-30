@@ -4,45 +4,46 @@ import { PLANS, type PlanId } from '../../config/plans';
 interface CompareRow {
   feature: string;
   free: string | boolean;
-  growth: string | boolean;
+  business: string | boolean;
+  growth?: string | boolean;
   pro: string | boolean;
   category?: string;
 }
 
 const COMPARISON_ROWS: CompareRow[] = [
   // Products & Store
-  { feature: 'Products', free: 'Up to 25', growth: 'Up to 500', pro: 'Unlimited', category: 'Store' },
-  { feature: 'Online storefront', free: true, growth: true, pro: true },
-  { feature: 'FeraSetu subdomain', free: true, growth: true, pro: true },
-  { feature: 'Custom domain', free: false, growth: 'Coming soon', pro: 'Coming soon' },
-  { feature: 'Remove FeraSetu branding', free: false, growth: 'Coming soon', pro: true },
-  { feature: 'Store customization', free: false, growth: true, pro: true },
+  { feature: 'Products', free: 'Up to 25', business: 'Up to 500', pro: 'Unlimited', category: 'Store' },
+  { feature: 'Online storefront', free: true, business: true, pro: true },
+  { feature: 'FeraSetu subdomain', free: true, business: true, pro: true },
+  { feature: 'Custom domain', free: false, business: true, pro: true },
+  { feature: 'Remove FeraSetu branding', free: false, business: true, pro: true },
+  { feature: 'Store customization', free: false, business: true, pro: true },
   // Orders & Operations
-  { feature: 'Order management', free: true, growth: true, pro: true, category: 'Operations' },
-  { feature: 'WhatsApp ordering link', free: true, growth: true, pro: true },
-  { feature: 'Invoices', free: 'Basic', growth: 'Professional', pro: 'Professional' },
-  { feature: 'Inventory management', free: false, growth: true, pro: true },
-  { feature: 'Low-stock alerts', free: false, growth: true, pro: true },
-  { feature: 'Order automation', free: false, growth: 'Better', pro: 'Advanced' },
+  { feature: 'Order management', free: true, business: true, pro: true, category: 'Operations' },
+  { feature: 'WhatsApp ordering link', free: true, business: true, pro: true },
+  { feature: 'Invoices', free: 'Basic', business: 'Professional', pro: 'Professional' },
+  { feature: 'Inventory management', free: false, business: true, pro: true },
+  { feature: 'Low-stock alerts', free: false, business: true, pro: true },
+  { feature: 'Order automation', free: false, business: 'Standard', pro: 'Advanced' },
   // Analytics
-  { feature: 'Sales overview', free: 'Basic', growth: 'Advanced', pro: 'Advanced', category: 'Analytics' },
-  { feature: 'Profit tracking', free: false, growth: true, pro: true },
-  { feature: 'Sales trends', free: false, growth: true, pro: true },
-  { feature: 'AI sales forecasting', free: false, growth: false, pro: true },
+  { feature: 'Sales overview', free: 'Basic', business: 'Advanced', pro: 'Advanced', category: 'Analytics' },
+  { feature: 'Profit tracking', free: false, business: true, pro: true },
+  { feature: 'Sales trends', free: false, business: true, pro: true },
+  { feature: 'AI sales forecasting', free: false, business: false, pro: true },
   // Fera AI
-  { feature: 'Fera AI messages/month', free: '20', growth: '200', pro: '1,000', category: 'Fera AI' },
-  { feature: 'Product descriptions', free: true, growth: true, pro: true },
-  { feature: 'WhatsApp promo drafts', free: true, growth: true, pro: true },
-  { feature: 'Advanced analysis & forecasting', free: false, growth: false, pro: true },
+  { feature: 'Fera AI credits/month', free: '20', business: '200', pro: '1,000', category: 'Fera AI' },
+  { feature: 'Product descriptions', free: true, business: true, pro: true },
+  { feature: 'WhatsApp promo drafts', free: true, business: true, pro: true },
+  { feature: 'Advanced analysis & forecasting', free: false, business: false, pro: true },
   // Support
-  { feature: 'Support', free: 'Community', growth: 'Priority', pro: 'Priority', category: 'Support' },
+  { feature: 'Support', free: 'Community', business: 'Priority', pro: '24/7 Priority', category: 'Support' },
   // Staff
-  { feature: 'Staff accounts', free: '1 (owner)', growth: '1 (Coming soon: more)', pro: 'Coming soon: up to 5', category: 'Team' },
+  { feature: 'Staff accounts', free: '1 (owner)', business: '2 accounts', pro: 'Up to 5 accounts', category: 'Team' },
 ];
 
-function CellContent({ value }: { value: string | boolean }) {
+function CellContent({ value }: { value: string | boolean | undefined }) {
   if (value === true) return <Check size={18} color="#10b981" strokeWidth={3} aria-label="Included" />;
-  if (value === false) return <span aria-label="Not included" style={{ color: '#e2e8f0', fontSize: 18 }}>—</span>;
+  if (value === false || value === undefined) return <span aria-label="Not included" style={{ color: '#e2e8f0', fontSize: 18 }}>—</span>;
   return (
     <span style={{
       fontSize: 13, fontWeight: 600, color: '#334155',
@@ -95,7 +96,7 @@ export default function FeatureComparison() {
                   scope="col"
                   style={{
                     padding: '18px 16px', textAlign: 'center',
-                    color: plan.id === 'growth' ? '#FF6B35' : '#fff',
+                    color: plan.highlighted || plan.id === 'business' ? '#FF6B35' : '#fff',
                     fontSize: 15, fontWeight: 900,
                   }}
                 >
@@ -141,7 +142,7 @@ export default function FeatureComparison() {
                       <CellContent value={row.free} />
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'center', background: 'rgba(255,107,53,0.03)' }}>
-                      <CellContent value={row.growth} />
+                      <CellContent value={row.business ?? row.growth} />
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <CellContent value={row.pro} />

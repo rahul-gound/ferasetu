@@ -11,10 +11,10 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
   const [ordersPerWeek, setOrdersPerWeek] = useState(10);
   const [avgOrderValue, setAvgOrderValue] = useState(350);
 
-  // Derive the active plan cost from the Growth plan using the SSOT
+  // Derive the active plan cost from the Business plan using the SSOT
   const monthlyPlanCost = billingCycle === 'yearly' 
-    ? PLAN_PRICES.growth.yearlyPerMonth 
-    : PLAN_PRICES.growth.monthly;
+    ? PLAN_PRICES.business.yearlyPerMonth 
+    : PLAN_PRICES.business.monthly;
 
   const weeklyRevenue = ordersPerWeek * avgOrderValue;
   const monthlyRevenue = weeklyRevenue * 4;

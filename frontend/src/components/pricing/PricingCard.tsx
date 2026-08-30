@@ -29,6 +29,12 @@ export default function PricingCard({
       background: '#fff',
       border: '1px solid #e2e8f0',
     },
+    business: {
+      background: 'linear-gradient(160deg, #fff7ed 0%, #ffffff 50%)',
+      border: '2px solid #FF6B35',
+      transform: 'translateY(-8px)',
+      boxShadow: '0 24px 60px rgba(255,107,53,0.15)',
+    },
     growth: {
       background: 'linear-gradient(160deg, #fff7ed 0%, #ffffff 50%)',
       border: '2px solid #FF6B35',
@@ -43,6 +49,7 @@ export default function PricingCard({
 
   const ACCENT_COLORS: Record<string, string> = {
     free: '#64748b',
+    business: '#FF6B35',
     growth: '#FF6B35',
     pro: '#7c3aed',
   };
@@ -71,13 +78,13 @@ export default function PricingCard({
         ...cardStyle,
       }}
       onMouseEnter={e => {
-        if (plan.id !== 'growth') {
+        if (!plan.highlighted && plan.id !== 'business' && plan.id !== 'growth') {
           (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
           (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 50px rgba(15,23,42,0.1)';
         }
       }}
       onMouseLeave={e => {
-        if (plan.id !== 'growth') {
+        if (!plan.highlighted && plan.id !== 'business' && plan.id !== 'growth') {
           (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
           (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(15,23,42,0.06)';
         }

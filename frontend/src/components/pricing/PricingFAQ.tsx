@@ -17,15 +17,15 @@ const FAQ_ITEMS: FAQItem[] = [
   },
   {
     question: 'Do I need a domain or website?',
-    answer: 'No. You get a free store link (yourshop.ferasetu.com) from day one. Custom domain support is coming soon for Growth and Pro plans. Most shopkeepers start with the free link and upgrade later.',
+    answer: 'No. You get a free store link (yourshop.ferasetu.com) from day one. Custom domain connection is available on Business and Pro plans. Most shopkeepers start with the free link and upgrade later.',
   },
   {
     question: 'Can I start without paying?',
-    answer: 'Yes. The Free plan costs nothing — no credit card required. You can add up to 25 products, manage orders, and share your store. When your shop grows and you need more, Growth is ₹299/month.',
+    answer: 'Yes. The Free plan costs nothing — no credit card required. You can add up to 25 products, manage orders, and share your store. When your shop grows and you need more, Business is ₹399/month.',
   },
   {
     question: 'What happens after the free plan?',
-    answer: 'Nothing changes without you taking action. Your store stays up, your products stay visible, and your orders continue to work. When you need more than 25 products or want advanced analytics, you upgrade at ₹299/month. We\'ll always tell you before charging anything.',
+    answer: 'Nothing changes without you taking action. Your store stays up, your products stay visible, and your orders continue to work. When you need more than 25 products or want advanced analytics, you upgrade at ₹399/month. We\'ll always tell you before charging anything.',
   },
   {
     question: 'Can I cancel anytime?',

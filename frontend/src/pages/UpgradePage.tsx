@@ -46,23 +46,21 @@ export default function UpgradePage() {
       const res = await api.post('/payment/initialize', {
         plan: plan.id,
         amount: price,
-        billing,
+        billingCycle: billing,
       });
 
-      if (res.data.betaFreePlan) {
-        // Beta activation: plan is free during beta, just update user state
-        toast.success(`${plan.displayName} plan activated!`);
+      if (res.data.success) {
+        toast.success(`${plan.displayName} plan activated successfully!`);
         if (updateUser) await updateUser({ plan: plan.id });
         navigate('/dashboard');
         return;
       }
 
-      // Real payment flow (Razorpay / UPI) — placeholder for when integrated
-      toast.success(`${plan.displayName} plan activated! (Payment integration coming soon)`);
+      toast.success(`${plan.displayName} plan activated!`);
       if (updateUser) await updateUser({ plan: plan.id });
       navigate('/dashboard');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Something went wrong. Please try again.');
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Something went wrong. Please try again.');
     } finally {
       setUpgrading(null);
     }
@@ -207,7 +205,7 @@ export default function UpgradePage() {
 
         {/* Value Calculator */}
         <section style={{ padding: '0 24px 80px', maxWidth: 1100, margin: '0 auto' }}>
-          <ValueCalculator monthlyPlanCost={299} />
+          <ValueCalculator billingCycle={billing} />
         </section>
 
         {/* FAQ */}

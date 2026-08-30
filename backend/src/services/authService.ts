@@ -4,18 +4,17 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../models/database';
 
-function getJwtSecret(): string {
+export function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('JWT_SECRET must be set in production environment');
     }
-    return 'dev-only-' + crypto.randomBytes(32).toString('hex');
+    return 'dev-only-secret-ferasetu-2026';
   }
   return secret;
 }
 
-const JWT_SECRET = getJwtSecret();
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 export interface User {
@@ -99,7 +98,7 @@ export async function registerUser(data: {
 
   const token = jwt.sign(
     { id: userId, email: data.email, plan: 'beta', businessName: data.businessName || data.name },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '30d' } as jwt.SignOptions
   );
 
@@ -141,7 +140,7 @@ export async function loginUser(emailOrUsername: string, password: string): Prom
 
   const token = jwt.sign(
     { id: user.id, email: user.email, plan: user.plan, businessName: user.business_name || user.name },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
 
@@ -150,7 +149,7 @@ export async function loginUser(emailOrUsername: string, password: string): Prom
 
 export function verifyToken(token: string): Record<string, unknown> | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as Record<string, unknown>;
+    return jwt.verify(token, getJwtSecret()) as Record<string, unknown>;
   } catch {
     return null;
   }

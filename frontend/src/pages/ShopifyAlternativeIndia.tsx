@@ -9,10 +9,10 @@ const faqSchema = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'Shopify ka sasta alternative kya hai India me?',
+      name: 'Shopify ka best Indian alternative kaunsa hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'FeraSetu — ₹0 (beta) me online store, Shopify jaise features but Indian shopkeepers ke liye banaya gaya. Hindi + 22 languages, WhatsApp orders, AI assistant.',
+        text: 'FeraSetu — ₹0 me online store, Shopify jaise features but Indian shopkeepers ke liye banaya gaya. Hindi + 22 languages, WhatsApp orders, AI assistant.',
       },
     },
     {
@@ -20,7 +20,7 @@ const faqSchema = {
       name: 'Shopify vs FeraSetu — kya fark hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Shopify ₹2,000+/month, English-first, international payments. FeraSetu ₹0 (beta), Hindi + 22 Indian languages, WhatsApp-first, Indian payment methods. Shopify international sellers ke liye hai, FeraSetu Indian dukaan ke liye.',
+        text: 'Shopify ₹2,000+/month, English-first, international payments. FeraSetu ₹0 se start, Hindi + 22 Indian languages, WhatsApp-first, Indian UPI payments. Shopify international sellers ke liye hai, FeraSetu Indian dukaan ke liye.',
       },
     },
     {
@@ -28,7 +28,7 @@ const faqSchema = {
       name: 'Kya FeraSetu pe custom domain lag sakta hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Haan, premium plan (₹499/month) me custom domain support hai. Free me bhi subdomain milta hai — apni-dukaan.ferasetu.com.',
+        text: 'Haan, Business plan (₹399/month) me custom domain support hai. Free me bhi custom subdomain milta hai — yourshop.ferasetu.com.',
       },
     },
     {
@@ -100,7 +100,7 @@ export default function ShopifyAlternativeIndia() {
             { feature: 'Setup Time', shopify: 'Hours to days', fera: 'Instant' },
             { feature: 'Target User', shopify: 'Global sellers', fera: 'Indian shopkeepers' },
             { feature: 'Subdomain', shopify: 'Your .myshopify.com', fera: 'Your .ferasetu subdomain' },
-            { feature: 'Custom Domain', shopify: 'Paid plan', fera: '₹499/month plan' },
+            { feature: 'Custom Domain', shopify: 'Paid plan', fera: 'Business plan (₹399)' },
             { feature: 'Invoices', shopify: 'App install', fera: 'Built-in' },
           ].map((row, i) => (
             <div key={row.feature} style={{
@@ -124,9 +124,9 @@ export default function ShopifyAlternativeIndia() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
             {[
-              { icon: '🇮🇳', title: 'Made for India', desc: 'Shopify Silicon Valley ke liye bana hai. FeraSetu Indian shopkeepers ke liye — Hindi, WhatsApp, local payments.' },
+              { icon: '🇮🇳', title: 'Made for India', desc: 'Shopify Silicon Valley ke liye bana hai. FeraSetu Indian shopkeepers ke liye — Hindi, WhatsApp, local UPI payments.' },
               { icon: '🤖', title: 'Hindi AI', desc: 'Shopify ka AI English me hai. FeraSetu ka AI Hindi me baat kare — "Mere grocery store ke liye 10 products suggest karo."' },
-              { icon: '💰', title: 'Price', desc: 'Shopify ₹2,000+ se shuru. FeraSetu free. Period. Beta ke baad bhi ₹299 — Shopify ka 1/7th.' },
+              { icon: '💰', title: 'Price', desc: 'Shopify ₹2,000+ se shuru. FeraSetu ₹0 se start. Business plan sirf ₹399/mo — Shopify ka 1/5th.' },
               { icon: '📱', title: 'WhatsApp First', desc: 'Indian customers WhatsApp pe order karna chahte hain. FeraSetu ye built-in deta hai — Shopify me alag se app lagana padta hai.' },
             ].map((item) => (
               <div key={item.title} style={{

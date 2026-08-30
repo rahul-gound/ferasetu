@@ -31,7 +31,7 @@ export type RiskLevel = 'read_only' | 'reversible_write' | 'sensitive';
 
 export type AIProvider = 'sarvam' | 'deepseek' | 'openai' | 'anthropic' | 'fallback';
 
-export type UserPlan = 'free' | 'starter' | 'business' | 'beta';
+export type UserPlan = 'free' | 'business' | 'pro' | 'beta';
 
 // ---------------------------------------------------------------------------
 // AI Provider Interface (provider-agnostic contract)
@@ -411,8 +411,150 @@ export interface AuditLogEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Plan Entitlements
+// Plan Entitlements & Configuration
 // ---------------------------------------------------------------------------
+
+export type PlanId = 'free' | 'business' | 'pro';
+
+export interface PlanPrice {
+  monthly: number;        // INR per month
+  yearly: number;         // INR per year (≈ 10 months price = 2 months free)
+  yearlyPerMonth: number; // effective monthly rate when billed annually
+}
+
+export interface PlanLimits {
+  products: number;          // max products (Infinity = unlimited)
+  aiCreditsPerMonth: number; // AI messages/credits per month
+  storageBytes: number;      // media/invoice storage in bytes
+  customDomain: boolean;     // custom domain connection
+  advancedAnalytics: boolean;// profit tracking & advanced reports
+  staffAccounts: number;     // number of staff/collaborator logins
+  removeBranding: boolean;   // remove FeraSetu branding from store
+  prioritySupport: boolean;  // priority WhatsApp & phone support
+}
+
+export interface PlanFeature {
+  label: string;
+  included: boolean;
+  note?: string;
+}
+
+export interface PlanDefinition {
+  id: PlanId;
+  displayName: string;
+  tagline: string;
+  outcome: string;
+  price: PlanPrice;
+  limits: PlanLimits;
+  features: PlanFeature[];
+  highlighted?: boolean;
+  badge?: string;
+  ctaText: string;
+  ctaHref: string;
+}
+
+export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
+  free: { monthly: 0, yearly: 0, yearlyPerMonth: 0 },
+  business: { monthly: 399, yearly: 3990, yearlyPerMonth: 332 },
+  pro: { monthly: 999, yearly: 9990, yearlyPerMonth: 832 },
+};
+
+export const BUSINESS_PRICE_VARIANTS: Record<string, PlanPrice> = {
+  variant_299: { monthly: 299, yearly: 2990, yearlyPerMonth: 249 },
+  control_399: { monthly: 399, yearly: 3990, yearlyPerMonth: 332 },
+  variant_499: { monthly: 499, yearly: 4990, yearlyPerMonth: 416 },
+};
+
+export const LEGACY_PLAN_MAP: Record<string, PlanId> = {
+  free: 'free',
+  beta: 'free',
+  trial: 'free',
+  business: 'business',
+  growth: 'business',
+  basic: 'business',
+  starter: 'business',
+  standard: 'business',
+  pro: 'pro',
+  premium: 'pro',
+  scale: 'pro',
+  enterprise: 'pro',
+};
+
+export function normalizePlanId(plan: string | undefined | null): PlanId {
+  if (!plan) return 'free';
+  const clean = String(plan).toLowerCase().trim();
+  return LEGACY_PLAN_MAP[clean] ?? 'free';
+}
+
+export function getBusinessPlanPrice(variant?: string | null): PlanPrice {
+  if (!variant) return PLAN_PRICES.business;
+  const key = variant.toLowerCase().trim();
+  if (key === 'variant_299' || key === '299' || key === 'v299') return BUSINESS_PRICE_VARIANTS.variant_299;
+  if (key === 'variant_499' || key === '499' || key === 'v499') return BUSINESS_PRICE_VARIANTS.variant_499;
+  if (key === 'control_399' || key === '399' || key === 'v399') return BUSINESS_PRICE_VARIANTS.control_399;
+  return BUSINESS_PRICE_VARIANTS[key] ?? PLAN_PRICES.business;
+}
+
+export function getPlanPricing(
+  planId: string | undefined | null,
+  billing?: 'monthly' | 'yearly',
+  variant?: string | null
+): PlanPrice {
+  const normalized = normalizePlanId(planId);
+  if (normalized === 'business' && variant) {
+    return getBusinessPlanPrice(variant);
+  }
+  return PLAN_PRICES[normalized] ?? PLAN_PRICES.free;
+}
+
+export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
+  free: {
+    products: 25,
+    aiCreditsPerMonth: 20,
+    storageBytes: 50 * 1024 * 1024,
+    customDomain: false,
+    advancedAnalytics: false,
+    staffAccounts: 1,
+    removeBranding: false,
+    prioritySupport: false,
+  },
+  business: {
+    products: 500,
+    aiCreditsPerMonth: 200,
+    storageBytes: 1 * 1024 * 1024 * 1024,
+    customDomain: true,
+    advancedAnalytics: true,
+    staffAccounts: 2,
+    removeBranding: true,
+    prioritySupport: true,
+  },
+  pro: {
+    products: Infinity,
+    aiCreditsPerMonth: 1000,
+    storageBytes: 5 * 1024 * 1024 * 1024,
+    customDomain: true,
+    advancedAnalytics: true,
+    staffAccounts: 5,
+    removeBranding: true,
+    prioritySupport: true,
+  },
+};
+
+export function getPlanLimits(planId: string | undefined | null): PlanLimits {
+  const normalized = normalizePlanId(planId);
+  return PLAN_LIMITS[normalized] ?? PLAN_LIMITS.free;
+}
+
+export function canUseFeature(
+  planId: string | undefined | null,
+  feature: keyof PlanLimits
+): boolean {
+  const limits = getPlanLimits(planId);
+  const value = limits[feature];
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  return false;
+}
 
 export interface PlanEntitlement {
   plan: UserPlan;
@@ -433,20 +575,8 @@ export const PLAN_ENTITLEMENTS: Record<UserPlan, PlanEntitlement> = {
     monthlyAIRequests: 20,
     monthlyTokens: 50_000,
     allowedSkills: ['content', 'translation', 'business_coach'],
-    maxProducts: 10,
+    maxProducts: 25,
     maxAutomations: 0,
-    voiceEnabled: false,
-    shoppingAssistantEnabled: false,
-    advancedAnalytics: false,
-    priorityProcessing: false,
-  },
-  starter: {
-    plan: 'starter',
-    monthlyAIRequests: 200,
-    monthlyTokens: 500_000,
-    allowedSkills: ['content', 'translation', 'marketing', 'inventory', 'support', 'business_coach', 'analytics'],
-    maxProducts: 100,
-    maxAutomations: 3,
     voiceEnabled: false,
     shoppingAssistantEnabled: false,
     advancedAnalytics: false,
@@ -454,14 +584,30 @@ export const PLAN_ENTITLEMENTS: Record<UserPlan, PlanEntitlement> = {
   },
   business: {
     plan: 'business',
-    monthlyAIRequests: 2000,
+    monthlyAIRequests: 200,
+    monthlyTokens: 1_000_000,
+    allowedSkills: [
+      'content', 'translation', 'marketing', 'inventory', 'support',
+      'business_coach', 'analytics', 'sales', 'finance', 'design',
+      'seo', 'security', 'shopping_assistant', 'automation',
+    ],
+    maxProducts: 500,
+    maxAutomations: 10,
+    voiceEnabled: false,
+    shoppingAssistantEnabled: true,
+    advancedAnalytics: true,
+    priorityProcessing: true,
+  },
+  pro: {
+    plan: 'pro',
+    monthlyAIRequests: 1000,
     monthlyTokens: 5_000_000,
     allowedSkills: [
       'content', 'translation', 'marketing', 'inventory', 'support',
       'business_coach', 'analytics', 'sales', 'finance', 'design',
       'seo', 'security', 'shopping_assistant', 'automation', 'voice',
     ],
-    maxProducts: 5000,
+    maxProducts: Infinity,
     maxAutomations: 50,
     voiceEnabled: true,
     shoppingAssistantEnabled: true,
@@ -470,13 +616,13 @@ export const PLAN_ENTITLEMENTS: Record<UserPlan, PlanEntitlement> = {
   },
   beta: {
     plan: 'beta',
-    monthlyAIRequests: 100,
-    monthlyTokens: 250_000,
+    monthlyAIRequests: 20,
+    monthlyTokens: 50_000,
     allowedSkills: [
-      'content', 'translation', 'marketing', 'inventory', 'business_coach', 'analytics', 'support',
+      'content', 'translation', 'business_coach',
     ],
-    maxProducts: 100,
-    maxAutomations: 5,
+    maxProducts: 25,
+    maxAutomations: 0,
     voiceEnabled: false,
     shoppingAssistantEnabled: false,
     advancedAnalytics: false,

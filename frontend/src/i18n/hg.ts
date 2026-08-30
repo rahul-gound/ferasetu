@@ -129,7 +129,7 @@ const hg: Dictionary = {
   "pricing.cta.tag": "Pehle try karein",
   "pricing.cta.title": "Free mein shuru karein.",
   "pricing.cta.titleHighlight": "Jab zaroorat ho, upgrade karein.",
-  "pricing.cta.desc": "Free plan aapse paise nikalwane ki koi chaal nahi hai. Yeh 25 products tak ke liye ek complete, chalne wala store hai. Jab aapka shop bada hoga, tab Growth plan ₹299/month mein available hai.",
+  "pricing.cta.desc": "Free plan aapse paise nikalwane ki koi chaal nahi hai. Yeh 25 products tak ke liye ek complete, chalne wala store hai. Jab aapka shop bada hoga, tab Business plan ₹399/month mein available hai.",
   "pricing.cta.free": "Free Store Banayein",
   "pricing.cta.login": "Pehle se account hai? Sign in karein",
   "pricing.cta.footer": "No credit card · No setup fee · No lock-in",

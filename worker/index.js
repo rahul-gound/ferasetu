@@ -104,20 +104,23 @@ function errorResponse(message, status = 400, details, request = null) {
 
 // Plan product limits — enforced server-side.
 const PLAN_PRODUCT_LIMITS = {
-  free:     25,
-  beta:     25,   // beta users treated as free
-  trial:    25,
-  basic:    500,  // legacy "Starter" maps to Growth limits
-  growth:   500,
-  standard: 500,  // legacy "Growth" maps to Growth limits
-  pro:      Infinity,
-  premium:  Infinity,
-  scale:    Infinity,  // legacy "Scale" maps to Pro limits
-  business: Infinity,
+  free:       25,
+  beta:       25,   // beta users treated as free
+  trial:      25,
+  business:   500,  // canonical Business tier
+  growth:     500,  // legacy aliases
+  basic:      500,
+  starter:    500,
+  standard:   500,
+  pro:        Infinity, // canonical Pro tier
+  premium:    Infinity, // legacy aliases
+  scale:      Infinity,
+  enterprise: Infinity,
 };
 
 function getPlanProductLimit(plan) {
-  return PLAN_PRODUCT_LIMITS[plan] ?? 25; // default to free limit for unknown plans
+  const clean = typeof plan === 'string' ? plan.toLowerCase().trim() : '';
+  return PLAN_PRODUCT_LIMITS[clean] ?? 25; // default to free limit for unknown plans
 }
 
 // Founding Shopkeeper config (source of truth for the edge API).

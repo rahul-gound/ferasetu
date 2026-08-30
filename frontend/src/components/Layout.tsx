@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import PlanBadge from './ui/PlanBadge';
 import { ENABLED_LANGUAGES } from '../i18n';
-import { getPlanBadge } from '../config/beta';
+import { normalizePlanId, getPlan, isFreePlan } from '../config/plans';
 import FeedbackWidget from './FeedbackWidget';
 
 interface NavItem {
@@ -29,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/survey-feedback',icon: <MessageSquareText size={20} />,labelKey: 'surveyFeedback' },
   { path: '/website-builder',icon: <Globe size={20} />,           labelKey: 'websiteBuilder' },
   { path: '/support',        icon: <LifeBuoy size={20} />,        labelKey: 'support' },
-  { path: '/settings/email', icon: <Settings size={20} />,         labelKey: 'emailSettings' },
+  { path: '/settings',       icon: <Settings size={20} />,        labelKey: 'settings' },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -38,7 +39,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langDropOpen, setLangDropOpen] = useState(false);
-  const planBadge = user?.plan ? getPlanBadge(user.plan) : null;
+  const activePlanId = normalizePlanId(user?.plan);
+  const activePlan = getPlan(user?.plan);
 
   const currentLang = ENABLED_LANGUAGES.find(l => l.code === language);
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -85,15 +87,62 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </nav>
 
-      {/* Upgrade Box */}
-      <div className="px-6 py-4">
+      {/* Dynamic Upgrade / Subscription Box */}
+      <div className="px-5 py-4">
         <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 mb-1">Current Plan</p>
-          <p className="text-lg font-bold text-[#0052FF] mb-1">Pro</p>
-          <p className="text-xs font-medium text-gray-400 mb-4">Unlimited Access</p>
-          <button className="w-full py-2.5 rounded-xl bg-[#0052FF] text-white text-sm font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-600 transition-colors">
-            Upgrade Plan
-          </button>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-500">Current Plan</span>
+            <PlanBadge plan={user?.plan} size="sm" />
+          </div>
+          
+          {isFreePlan(user?.plan) ? (
+            <>
+              <p className="text-xs font-medium text-gray-500 mb-3">
+                Up to 25 products & basic AI.
+              </p>
+              <button
+                id="sidebar-upgrade-cta"
+                onClick={() => navigate('/upgrade')}
+                className="w-full py-2.5 rounded-xl bg-[#0052FF] text-white text-xs font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-600 transition-colors flex items-center justify-center gap-1.5"
+              >
+                Upgrade to Business (₹399/mo)
+              </button>
+            </>
+          ) : activePlanId === 'business' ? (
+            <>
+              <p className="text-xs font-medium text-gray-500 mb-3">
+                500 products · AI assistant · Analytics
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  id="sidebar-manage-plan-cta"
+                  onClick={() => navigate('/settings/subscription')}
+                  className="w-full py-2 rounded-xl bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 transition-colors"
+                >
+                  Manage Subscription
+                </button>
+                <button
+                  onClick={() => navigate('/upgrade')}
+                  className="w-full py-1 text-xs text-[#0052FF] font-semibold hover:underline text-center"
+                >
+                  Upgrade to Pro (₹999/mo)
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs font-medium text-gray-500 mb-3">
+                Unlimited products & full AI power.
+              </p>
+              <button
+                id="sidebar-manage-plan-cta"
+                onClick={() => navigate('/settings/subscription')}
+                className="w-full py-2 rounded-xl bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 transition-colors"
+              >
+                Manage Subscription
+              </button>
+            </>
+          )}
         </div>
       </div>
 

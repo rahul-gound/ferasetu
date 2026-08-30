@@ -13,7 +13,7 @@ const PLAN_STYLES: Record<PlanId, { bg: string; text: string; border: string; em
     border: 'rgba(100,116,139,0.3)',
     emoji: '',
   },
-  growth: {
+  business: {
     bg: 'rgba(255,107,53,0.12)',
     text: '#ea580c',
     border: 'rgba(255,107,53,0.35)',
