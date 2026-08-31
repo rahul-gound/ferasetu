@@ -12,6 +12,7 @@ import { StatsigSessionReplayPlugin } from '@statsig/session-replay';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 
 // SEO landing pages — public, code-split
 const OnlineDukaanBanaye = lazy(() => import('./pages/OnlineDukaanBanaye'));
@@ -117,7 +118,7 @@ function AppRoutes() {
           <Route index element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
-          <Route path="callback" element={<PageLoader />} />
+          <Route path="callback" element={<AuthCallbackPage />} />
           
           {/* SEO landing pages & public pages */}
           <Route path="pricing" element={<PricingPage />} />
@@ -191,7 +192,6 @@ function AppContent() {
       <AuthKitProvider 
         clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
         redirectUri={window.location.origin + '/callback'}
-        onRedirectCallback={() => window.location.replace('/dashboard')}
       >
         <AuthProvider>
           <BrowserRouter>

@@ -103,6 +103,14 @@ The implementation is centralized in `frontend/src/components/SEO.tsx`.
 - MySQL with SQLite fallback
 - Appwrite storage
 
+## Authentication Flow
+
+- WorkOS AuthKit uses the current origin with `/callback` as the OAuth redirect URI.
+- `frontend/src/pages/AuthCallbackPage.tsx` waits for both the WorkOS session and the FeraSetu merchant profile, then replaces the callback URL with `/dashboard`.
+- If code exchange or profile provisioning fails, the callback page shows a recoverable sign-in retry instead of remaining on a silent spinner or creating a redirect loop.
+- Registration calls the WorkOS SDK `signUp` method directly. If signup cannot start, the existing Register page fallback can attempt sign-in.
+- Google OAuth and the full production WorkOS-to-dashboard journey have not been verified from this environment because an interactive authenticated browser session is required.
+
 ## Repository Structure
 
 ```text
@@ -199,11 +207,13 @@ Current known status:
 - Frontend stricter app-scoped TypeScript check (`tsc --noEmit -p tsconfig.app.json`): 59 pre-existing errors remain in unrelated files.
 - Frontend production build: passing.
 - Backend test suite: 69 tests passing.
+- WorkOS callback route smoke check: `/`, `/register`, `/login`, `/callback`, `/hi/register`, `/hi/login`, and `/hi/callback` returned HTTP 200 from the local production preview.
+- Focused auth lint: `AuthCallbackPage.tsx` is clean; five pre-existing errors remain in `AuthContext.tsx`, plus two pre-existing hook warnings in `LoginPage.tsx` and `RegisterPage.tsx`.
 - Compiled language bundles: all 21 non-English bundles import successfully, contain the 224 English fallback keys, and have no missing or undefined values.
 - Local preview: `/`, `/hi`, `/mr/login`, `/ta/register`, `/pricing`, `/login`, and `/register` returned HTTP 200.
 - Terms route validation: `/terms`, `/hi/terms`, `/privacy`, `/`, `/login`, `/register`, and `/pricing` returned HTTP 200; all 25 Terms section IDs are present in the production bundle.
 - Terms page lint: passing. Mobile/browser visual QA remains not verified in this environment.
-- Frontend lint: 206 pre-existing problems remain across unrelated files.
+- Frontend lint: 205 pre-existing problems remain across unrelated files.
 - Browser visual QA: not verified in this environment because headless Chromium could not start its GPU process.
 - GitHub reports repository security alerts that still require review.
 
