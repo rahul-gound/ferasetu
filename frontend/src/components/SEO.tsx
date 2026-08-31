@@ -10,6 +10,7 @@ interface SEOProps {
   title?: string;
   description?: string;
   image?: string;
+  url?: string;
   type?: 'website' | 'product' | 'business.business';
   shopName?: string;
   structuredData?: Record<string, unknown>;
@@ -20,15 +21,15 @@ export default function SEO({
   title,
   description,
   image = DEFAULT_IMAGE,
+  url,
   type = 'website',
   structuredData,
-  noindex = true,
+  noindex = false,
 }: SEOProps) {
   const { language, translate } = useLanguage();
   const location = useLocation();
   
-  // During development, enforce noindex, nofollow platform-wide
-  const finalNoIndex = true;
+  const finalNoIndex = noindex ?? false;
 
   // Use translated defaults if props aren't provided
   const finalTitle = title || translate('seo.landing.title');
@@ -42,7 +43,7 @@ export default function SEO({
   // Determine if it's a public route for hreflang generation
   const isPublicRoute = !cleanPath.includes('/dashboard') && !cleanPath.includes('/admin') && !cleanPath.includes('/settings');
   
-  const currentUrl = `${BASE_URL}${cleanPath}`;
+  const currentUrl = url || `${BASE_URL}${cleanPath}`;
 
   const publishedLanguages = SUPPORTED_LANGUAGES.filter(l => l.status === 'published');
 
@@ -50,7 +51,7 @@ export default function SEO({
     <Helmet htmlAttributes={{ lang: language }}>
       <title>{fullTitle}</title>
       <meta name="description" content={finalDesc} />
-      {finalNoIndex && <meta name="robots" content="noindex, nofollow" />}
+      <meta name="robots" content={finalNoIndex ? "noindex, nofollow" : "index, follow"} />
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />

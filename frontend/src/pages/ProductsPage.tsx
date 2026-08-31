@@ -267,9 +267,12 @@ export default function ProductsPage() {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
           <Package size={48} style={{ marginBottom: '12px', opacity: 0.3 }} />
-          <p style={{ fontSize: '16px', fontWeight: 600 }}>No products found</p>
+          <p style={{ fontSize: '16px', fontWeight: 600 }}>Your store needs products</p>
           <p style={{ fontSize: '14px', marginTop: '4px' }}>
             {search ? 'Try a different search term' : 'Add your first product to get started!'}
+          </p>
+          <p style={{ fontSize: '13px', marginTop: '8px', color: '#64748B' }}>
+            Next: add one product with a name, price, and photo so customers have something to browse.
           </p>
         </div>
       ) : (

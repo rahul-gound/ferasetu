@@ -821,8 +821,11 @@ export default function WebsiteBuilderPage() {
                       height: '600px', color: '#94A3B8', flexDirection: 'column', gap: '16px',
                     }}>
                       <Globe size={48} style={{ opacity: 0.3 }} />
-                      <p style={{ fontSize: '20px', fontWeight: 600 }}>Your website preview will appear here</p>
-                      <p style={{ fontSize: '14px' }}>Select a template or add sections to get started</p>
+                      <p style={{ fontSize: '20px', fontWeight: 600 }}>Your storefront preview will appear here</p>
+                      <p style={{ fontSize: '14px' }}>Pick a template or let Fera AI create your first sections.</p>
+                      <p style={{ fontSize: '13px', color: '#64748B' }}>
+                        Next: choose a starting point. Your preview updates as you add sections.
+                      </p>
                     </div>
                   ) : (
                     <TemplateRenderer

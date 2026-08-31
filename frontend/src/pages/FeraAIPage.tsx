@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import AIWorkflowStrip from '../components/marketing/AIWorkflowStrip';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -627,7 +628,7 @@ export default function FeraAIPage() {
                 background: '#10B981',
                 display: 'inline-block',
               }} />
-              Online · Your Business Assistant
+              Online · Knows your shop data
             </div>
           </div>
         </div>
@@ -666,6 +667,12 @@ export default function FeraAIPage() {
           scrollbarColor: 'rgba(255,255,255,0.08) transparent',
         }}
       >
+        {messages.length === 1 && (
+          <div style={{ marginBottom: 24 }}>
+            <AIWorkflowStrip />
+          </div>
+        )}
+
         {/* Render messages */}
         {messages.map(msg => (
           <ChatBubble key={msg.id} message={msg} />

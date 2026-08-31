@@ -6,6 +6,7 @@ import {
   Menu, LogOut, ChevronRight, Zap, Terminal
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SEO from '../SEO';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -36,6 +37,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-[#F4F7FE] font-sans">
+      <SEO title="FeraSetu Admin" noindex />
       {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div 

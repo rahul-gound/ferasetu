@@ -17,6 +17,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import OnboardingProgress from '../components/ui/OnboardingProgress';
+import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getPlanLimits, normalizePlanId, isFreePlan } from '../config/plans';
 import { exportMerchantData } from '../utils/dataExporter';
 
@@ -130,7 +131,6 @@ export default function DashboardPage() {
   const productCount = productsData?.products?.length ?? 0;
   const hasProducts = productCount > 0;
   const hasOrders = (stats?.total_orders ?? 0) > 0;
-  const isNewUser = !data || data?.stats?.total_orders === 0;
   const planLimits = getPlanLimits(user?.plan);
   const storePublished = !!JSON.parse(localStorage.getItem('fera_setup_flags') || '{}').website_published;
 
@@ -175,7 +175,12 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-bold text-gray-700 cursor-pointer hover:bg-gray-50">
             <Calendar size={16} className="text-gray-400" />
-            May 12 – May 18, 2025
+            {(() => {
+              const now = new Date();
+              const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+              const fmt = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+              return `${fmt(weekAgo)} – ${fmt(now)}`;
+            })()}
             <ChevronDown size={14} className="text-gray-400 ml-1" />
           </div>
           <button onClick={handleExportData} disabled={exporting} className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">
@@ -184,6 +189,13 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <OnboardingProgress
+        shopCreated={!!user}
+        hasProducts={hasProducts}
+        hasOrders={hasOrders}
+        storePublished={storePublished}
+      />
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -363,7 +375,14 @@ export default function DashboardPage() {
             ))}
             {(!productsData?.products || productsData.products.length === 0) && (
               <div className="flex-1 flex items-center justify-center text-gray-400 text-sm font-medium">
-                No products found
+                <ActionableEmptyState
+                  icon={<Package size={22} />}
+                  title='No products yet'
+                  description='Your store needs products before customers can browse.'
+                  actionHref='/products'
+                  actionLabel='Add your first product'
+                  expectedOutcome='Your storefront will have items customers can see.'
+                />
               </div>
             )}
           </div>
@@ -454,7 +473,23 @@ export default function DashboardPage() {
               );
             })}
             {(!data?.recent_orders || data.recent_orders.length === 0) && (
-              <div className="py-8 text-center text-gray-400 text-sm font-medium">No recent orders</div>
+              <div className="py-10 text-center flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                  <ShoppingCart size={22} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-700 mb-1">No orders yet</p>
+                  <p className="text-xs text-gray-400 font-medium max-w-[200px] mx-auto leading-relaxed">
+                    Share your store link on WhatsApp to start receiving orders.
+                  </p>
+                </div>
+                <Link
+                  to="/website-builder"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 underline underline-offset-4"
+                >
+                  Set up & share your store →
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -500,26 +535,27 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Available Credits</p>
-              <p className="text-xl font-extrabold text-gray-900">120 Credits</p>
-              <p className="text-[10px] font-semibold text-gray-400 mt-0.5">Valid till: June 12, 2025</p>
+              <p className="text-xl font-extrabold text-gray-900">{planLimits.aiCreditsPerMonth} Credits/mo</p>
+              <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">Active — {normalizePlanId(user?.plan).charAt(0).toUpperCase() + normalizePlanId(user?.plan).slice(1)} Plan</p>
             </div>
           </div>
           
           <div className="mt-6 mb-4">
             <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-              <div className="bg-[#0052FF] w-3/5 h-full rounded-full"></div>
+              <div className="bg-[#0052FF] h-full rounded-full" style={{ width: '40%' }}></div>
             </div>
             <div className="flex justify-between text-xs font-bold text-gray-500 mt-2">
-              <span>Used<br/><span className="text-gray-900">80 Credits</span></span>
-              <span className="text-right">Total<br/><span className="text-gray-900">200 Credits</span></span>
+              <span>Used this month</span>
+              <span className="text-gray-900">{planLimits.aiCreditsPerMonth} total</span>
             </div>
           </div>
 
-          <Link to="/ai-credits/buy" className="w-full py-3 bg-[#0052FF] text-white text-sm font-bold rounded-xl text-center shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-colors block">
-            Buy More Credits
+          <Link to="/fera-ai" className="w-full py-3 bg-[#0052FF] text-white text-sm font-bold rounded-xl text-center shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-colors block">
+            Open Fera AI
           </Link>
         </div>
       </div>
+
 
       {/* Security Banner Footer */}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -539,7 +575,7 @@ export default function DashboardPage() {
 
       {/* Footer Copy */}
       <div className="flex flex-col sm:flex-row justify-between items-center text-[11px] font-bold text-gray-400 pt-4">
-        <p>© 2025 FeraSetu. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} FeraSetu. All rights reserved.</p>
         <p>Made with ❤️ in India 🇮🇳</p>
       </div>
 

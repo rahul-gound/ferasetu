@@ -79,9 +79,9 @@ export default function OnboardingProgress({
     },
     {
       id: 'store_shared',
-      label: 'Share your store',
-      description: 'Share your store link on WhatsApp or social media.',
-      done: false, // client-side only — can't track this without analytics
+      label: 'Store link ready to share',
+      description: 'Your store link is ready to share on WhatsApp or social media.',
+      done: storePublished,
       href: '/dashboard',
       actionLabel: 'Get store link',
     },

@@ -1,569 +1,582 @@
+/**
+ * LandingPage — Complete AIDA narrative with Purple Cow positioning.
+ *
+ * STRUCTURE:
+ * 1. ATTENTION — Hero (Purple Cow: zero-commission direct store + AI)
+ * 2. ATTENTION — Dashboard preview
+ * 3. INTEREST — Problem recognition (3 real shopkeeper problems)
+ * 4. INTEREST — How FeraSetu works (3-step mechanism)
+ * 5. DESIRE — Features as outcomes (Feature → Does → Matters)
+ * 6. DESIRE — Fera AI differentiator (real AI examples)
+ * 7. TRUST — Proof section (replaces fake testimonial)
+ * 8. DESIRE/ACTION — Pricing preview
+ * 9. ACTION — FAQ (real objections, factual answers)
+ * 10. ACTION — Final CTA
+ *
+ * Purple Cow positioning:
+ * "Your own online store. Your customers. Your profits."
+ *
+ * Ethical constraints:
+ * - No fake testimonials
+ * - No fake user counts
+ * - No fake urgency
+ * - No invented claims
+ */
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, 
-  CheckCircle2, 
-  MessageSquare, 
-  ShoppingCart, 
-  Zap, 
-  BarChart3, 
-  Store, 
-  Globe, 
-  Percent, 
-  Smartphone, 
-  ShieldCheck, 
+import {
+  ArrowRight,
+  CheckCircle2,
+  MessageSquare,
+  ShoppingCart,
+  Zap,
+  BarChart3,
+  Store,
+  Globe,
+  Percent,
+  Smartphone,
+  ShieldCheck,
   Sparkles,
-  Check
+  Check,
+  Package,
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
+import HowItWorksSection from '../components/marketing/HowItWorksSection';
+import ProofSection from '../components/marketing/ProofSection';
+import FAQSection from '../components/marketing/FAQSection';
+import FinalCTA from '../components/marketing/FinalCTA';
+import AIExamplePrompts from '../components/marketing/AIExamplePrompts';
+import TransformationFlow from '../components/marketing/TransformationFlow';
+import ValueCurveSection from '../components/marketing/ValueCurveSection';
+import SEO from '../components/SEO';
+
+/** Outcome-oriented feature block: Feature → Does → Matters */
+const FEATURE_OUTCOMES = [
+  {
+    icon: <Globe size={20} />,
+    feature: 'Your own store URL',
+    does: 'Your catalog lives at yourshop.ferasetu.com — permanently yours to share anywhere.',
+    matters: 'Customers know exactly where to find you. No searching on a marketplace or scrolling through WhatsApp.',
+    iconBg: 'bg-blue-50 text-blue-600',
+  },
+  {
+    icon: <Percent size={20} />,
+    feature: 'Zero commissions',
+    does: 'We charge a flat monthly fee. You keep 100% of every sale.',
+    matters: 'On ₹1 lakh monthly sales, that\'s ₹15,000–₹30,000 in commission you don\'t pay to anyone.',
+    iconBg: 'bg-emerald-50 text-emerald-600',
+  },
+  {
+    icon: <Zap size={20} />,
+    feature: 'Direct UPI payments',
+    does: 'Customers pay via Google Pay, PhonePe, Paytm — money goes directly to your account.',
+    matters: 'No payment gateway delays. No merchant account setup. Money in your bank the same day.',
+    iconBg: 'bg-amber-50 text-amber-600',
+  },
+  {
+    icon: <MessageSquare size={20} />,
+    feature: 'WhatsApp ordering',
+    does: 'Customers build a cart in your store and send the order via WhatsApp.',
+    matters: 'No more chaos in your personal chat. Orders come in formatted and ready to fulfill.',
+    iconBg: 'bg-green-50 text-green-600',
+  },
+  {
+    icon: <Store size={20} />,
+    feature: 'Product & inventory management',
+    does: 'Add products with photos, prices, and stock limits. Track levels automatically.',
+    matters: 'You\'ll know what\'s running low before you run out. No manual spreadsheets.',
+    iconBg: 'bg-purple-50 text-purple-600',
+  },
+  {
+    icon: <BarChart3 size={20} />,
+    feature: 'Sales analytics',
+    does: 'See your revenue, top products, and order trends in one clear dashboard.',
+    matters: 'Know what\'s actually making you money instead of guessing.',
+    iconBg: 'bg-orange-50 text-orange-600',
+  },
+];
 
 export default function LandingPage() {
   const { getLocalizedLink, translate: t } = useLanguage();
 
   return (
-    <PublicLayout>
-      {/* Hero Section */}
-      <section className="relative pt-20 pb-28 md:pt-24 md:pb-32 overflow-hidden bg-gradient-to-b from-blue-50/60 via-white to-white">
-        <div className="max-w-[1000px] mx-auto px-6 relative z-10 text-center">
-          {/* Hero Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100/70 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold tracking-wide mb-6 uppercase shadow-sm">
-            <Store size={15} className="text-blue-600" />
-            <span>{t('hero.badge') || 'FOR INDIAN SHOPKEEPERS & LOCAL RETAILERS'}</span>
-          </div>
-          
-          {/* Main Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.15] mb-3">
-            Apni dukaan ko online le jao.{' '}
-            <span className="text-blue-600">Orders badhao, business sambhalo</span> — ek hi jagah se.
-          </h1>
-          
-          {/* English Sub-Headline / Translation */}
-          <p className="text-sm sm:text-base font-semibold text-slate-500 mb-6 max-w-2xl mx-auto">
-            (Build your online store, accept more orders, and manage your business from one place.)
-          </p>
-          
-          {/* Hero Subtitle */}
-          <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-            {t('hero.subtitle')}
-          </p>
-          
-          {/* Hero CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-            <Link 
-              to={getLocalizedLink('/register')} 
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
-            >
-              <span>{t('hero.cta') || 'Start Free (₹0)'}</span>
-              <ArrowRight size={18} />
-            </Link>
-            <Link 
-              to={getLocalizedLink('/pricing')}
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center"
-            >
-              {t('hero.pricingCta') || 'See Pricing Plans'}
-            </Link>
-          </div>
-          
-          {/* Trust Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm font-medium text-slate-600">
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 size={16} className="text-blue-600 flex-shrink-0" /> 
-              {t('hero.zeroStart') || '₹0 to start'}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 size={16} className="text-blue-600 flex-shrink-0" /> 
-              {t('hero.noCreditCard') || 'No credit card required'}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 size={16} className="text-blue-600 flex-shrink-0" /> 
-              {t('hero.setupIn') || 'Ready in 5 minutes'}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" /> 
-              {t('hero.dataInIndia') || '100% Data in India'}
-            </span>
-          </div>
-        </div>
+    <>
+      <SEO
+        title="FeraSetu — Your Own Online Store for Indian Shopkeepers"
+        description="Turn your shop into an online business. Get your own store link, accept WhatsApp orders, receive UPI payments, and use AI to manage your shop — starting at ₹0."
+        noindex={false}
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'FeraSetu',
+          applicationCategory: 'BusinessApplication',
+          description:
+            'Online store builder for Indian shopkeepers. Zero commissions, WhatsApp ordering, UPI payments, and Fera AI assistant.',
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'INR',
+            description: 'Free forever for up to 25 products',
+          },
+          operatingSystem: 'Web, iOS, Android',
+          url: 'https://ferasetu.com',
+        }}
+      />
 
-        {/* Dashboard Preview */}
-        <div className="max-w-[1100px] mx-auto px-6 mt-14 relative">
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10 pointer-events-none h-full" />
-          <div className="rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden bg-white">
-            <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-400" />
-              <div className="w-3 h-3 rounded-full bg-amber-400" />
-              <div className="w-3 h-3 rounded-full bg-emerald-400" />
-              <div className="ml-4 text-xs font-mono text-slate-400">yourshop.ferasetu.com</div>
-            </div>
-            <div className="aspect-[16/9] bg-slate-100 flex items-center justify-center relative overflow-hidden">
-              <picture className="w-full h-full">
-                <source srcSet="/hero/dashboard.webp" type="image/webp" />
-                <img
-                  src="/hero/dashboard.png"
-                  alt="FeraSetu Merchant Dashboard Preview"
-                  width={1200}
-                  height={675}
-                  loading="eager"
-                  fetchPriority="high"
-                  className="w-full h-full object-cover"
-                />
-              </picture>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PublicLayout>
+        {/* ================================================================
+          SECTION 1 — HERO (ATTENTION)
+          Purple Cow: "Your own store. Your customers. Your profits."
+          First viewport answers: What? Who for? Why care? What's different?
+        ================================================================ */}
+        <section className="relative pt-20 pb-24 md:pt-24 md:pb-28 overflow-hidden bg-gradient-to-b from-blue-50/60 via-white to-white">
+          <div className="max-w-[1000px] mx-auto px-6 relative z-10 text-center">
 
-      {/* Problem Section (Problem & Solution Breakdown) */}
-      <section className="py-20 md:py-24 bg-slate-50 border-t border-slate-200/60">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-xs font-bold uppercase tracking-wider mb-3">
-              The Real Problems You Face
+            {/* Purple Cow Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100/70 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold tracking-wide mb-6 uppercase shadow-sm">
+              <Store size={14} className="text-blue-600" />
+              <span>{t('hero.badge') || 'For Indian Shopkeepers & Local Retailers'}</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-4">
-              {t('problem.title')}
-            </h2>
-            <p className="text-lg text-slate-600 leading-relaxed">
-              {t('problem.subtitle')}
+
+            {/* Main Headline — Purple Cow positioning */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-4">
+              Apni dukaan ko online le jao.{' '}
+              <span className="text-blue-600">
+                Orders badhao, business sambhalo
+              </span>{' '}
+              — ek hi jagah se.
+            </h1>
+
+            {/* Translation */}
+            <p className="text-sm sm:text-base font-semibold text-slate-400 mb-5 max-w-2xl mx-auto">
+              (Build your online store, accept more orders, and manage your business from one place.)
             </p>
-          </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Problem 1 */}
-            <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mb-6">
-                <MessageSquare size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">
-                {t('problem.whatsapp.title')}
-              </h3>
-              <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
-                {t('problem.whatsapp.desc')}
-              </p>
-            </div>
-
-            {/* Problem 2 */}
-            <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-6">
-                <Percent size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">
-                {t('problem.marketplace.title')}
-              </h3>
-              <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
-                {t('problem.marketplace.desc')}
-              </p>
-            </div>
-
-            {/* Problem 3 */}
-            <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6">
-                <Smartphone size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">
-                {t('problem.digital.title')}
-              </h3>
-              <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
-                {t('problem.digital.desc')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Solution Section (How FeraSetu Works) */}
-      <section className="py-20 md:py-24 bg-white" id="how-it-works">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3">
-                The Solution
-              </div>
-              <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">
-                {t('solution.title')}
-              </h2>
-              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                {t('solution.subtitle')}
-              </p>
-              
-              <div className="space-y-6">
-                <div className="flex gap-4 items-start">
-                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0 text-base shadow-md shadow-blue-500/20">
-                    1
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-lg mb-1">{t('solution.step1.title')}</h4>
-                    <p className="text-slate-600 leading-relaxed">{t('solution.step1.desc')}</p>
-                  </div>
-                </div>
-                
-                <div className="flex gap-4 items-start">
-                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0 text-base shadow-md shadow-blue-500/20">
-                    2
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-lg mb-1">{t('solution.step2.title')}</h4>
-                    <p className="text-slate-600 leading-relaxed">{t('solution.step2.desc')}</p>
-                  </div>
-                </div>
-                
-                <div className="flex gap-4 items-start">
-                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0 text-base shadow-md shadow-blue-500/20">
-                    3
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-lg mb-1">{t('solution.step3.title')}</h4>
-                    <p className="text-slate-600 leading-relaxed">{t('solution.step3.desc')}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-600/10 rounded-3xl transform rotate-1 scale-105" />
-              <div className="bg-slate-900 text-white p-8 md:p-10 rounded-2xl border border-slate-800 shadow-2xl relative">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
-                      <Store size={20} />
-                    </div>
-                    <div>
-                      <div className="font-bold text-white">Sharma Kirana & General Store</div>
-                      <div className="text-xs text-blue-400 font-mono">sharmakirana.ferasetu.com</div>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-semibold">
-                    Online & Active
-                  </span>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <MessageSquare className="text-emerald-400" size={20} />
-                      <div>
-                        <div className="text-sm font-semibold text-white">WhatsApp Order #1042</div>
-                        <div className="text-xs text-slate-400">Ramesh K. • 4 items • Paid via UPI</div>
-                      </div>
-                    </div>
-                    <span className="text-emerald-400 font-bold text-sm">₹1,240</span>
-                  </div>
-
-                  <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Zap className="text-blue-400" size={20} />
-                      <div>
-                        <div className="text-sm font-semibold text-white">Fera AI Restock Alert</div>
-                        <div className="text-xs text-slate-400">Fortune Mustard Oil low on stock (2 left)</div>
-                      </div>
-                    </div>
-                    <span className="text-blue-400 text-xs font-semibold px-2.5 py-1 bg-blue-500/10 rounded-md">Smart Action</span>
-                  </div>
-
-                  <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Percent className="text-amber-400" size={20} />
-                      <div>
-                        <div className="text-sm font-semibold text-white">Marketplace Commission Saved</div>
-                        <div className="text-xs text-slate-400">100% money credited to your bank</div>
-                      </div>
-                    </div>
-                    <span className="text-amber-400 font-bold text-sm">₹0 Cut</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="py-20 md:py-24 bg-slate-50 border-y border-slate-200/80" id="features">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
-              {t('features.title')}
-            </h2>
-            <p className="text-lg text-slate-600 leading-relaxed">
-              {t('features.subtitle')}
+            {/* Purple Cow differentiator line */}
+            <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
+              {t('hero.subtitle') || 'No technical knowledge needed. Your own store link. WhatsApp orders. Direct UPI payments. Fera AI handles the rest.'}
             </p>
-          </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { 
-                title: t('features.domain.title') || 'Custom Store Link & Branding', 
-                desc: t('features.domain.desc') || 'Get your own branded storefront link (yourshop.ferasetu.com) to share anywhere.', 
-                icon: <Globe size={22} /> 
-              },
-              { 
-                title: t('features.commission.title') || 'Zero Commissions', 
-                desc: t('features.commission.desc') || 'We never take a cut of your sales. What you earn is 100% yours to keep.', 
-                icon: <Percent size={22} /> 
-              },
-              { 
-                title: t('features.upi.title') || 'Direct UPI Payments', 
-                desc: t('features.upi.desc') || 'Seamless checkout with Google Pay, PhonePe, Paytm, BHIM, and instant payment confirmations.', 
-                icon: <Zap size={22} /> 
-              },
-              { 
-                title: t('features.inventory.title') || 'Smart Inventory Management', 
-                desc: t('features.inventory.desc') || 'Track stock levels automatically and get alerted before best-sellers run out.', 
-                icon: <Store size={22} /> 
-              },
-              { 
-                title: t('features.whatsapp.title') || 'WhatsApp Order Integration', 
-                desc: t('features.whatsapp.desc') || 'Allow customers to build a cart and send the final formatted order via WhatsApp.', 
-                icon: <MessageSquare size={22} /> 
-              },
-              { 
-                title: t('features.ai.title') || 'Fera AI Assistant', 
-                desc: t('features.ai.desc') || 'Get instant restock advice, sales summaries, and product descriptions in Hindi or English.', 
-                icon: <Sparkles size={22} /> 
-              },
-            ].map((feature, i) => (
-              <div key={i} className="bg-white p-7 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 font-bold">
-                  {feature.icon}
-                </div>
-                <h3 className="font-bold text-slate-900 text-lg mb-2">{feature.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Social Proof */}
-      <section className="py-20 md:py-24 bg-white">
-        <div className="max-w-[1200px] mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-12 tracking-tight">
-            {t('testimonial.title')}
-          </h2>
-          
-          <div className="max-w-3xl mx-auto bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200/80 rounded-2xl p-8 md:p-12 relative shadow-sm">
-            <p className="text-lg md:text-xl text-slate-700 italic font-medium leading-relaxed mb-8">
-              {t('testimonial.quote')}
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md shadow-blue-600/30">
-                R
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-slate-900 text-base">{t('testimonial.author')}</p>
-                <p className="text-xs sm:text-sm text-slate-500">{t('testimonial.role')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Live Pricing Preview (3 Transparent Cards) */}
-      <section className="py-20 md:py-24 bg-slate-900 text-white" id="pricing">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="text-center mb-16 max-w-2xl mx-auto">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/60 border border-blue-700 text-blue-300 text-xs font-bold uppercase tracking-wider mb-3">
-              Transparent Pricing
-            </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">
-              {t('pricingPreview.title') || 'Simple, transparent pricing'}
-            </h2>
-            <p className="text-slate-400 text-base sm:text-lg">
-              {t('pricingPreview.subtitle') || 'Start for ₹0, upgrade when you need to grow. No hidden charges.'}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12 items-stretch">
-            {/* Card 1: Free Plan */}
-            <div className="rounded-2xl p-7 bg-slate-800/90 border border-slate-700 flex flex-col justify-between hover:border-slate-600 transition-all">
-              <div>
-                <h3 className="font-bold text-2xl text-white mb-1">
-                  {t('plan.free.name') || 'Free'}
-                </h3>
-                <p className="text-slate-400 text-xs sm:text-sm mb-6">
-                  Start your online store with zero risk.
-                </p>
-                
-                <div className="mb-6">
-                  <span className="text-4xl font-black text-white">₹0</span>
-                  <span className="text-slate-400 text-sm ml-1.5">/month</span>
-                </div>
-
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                  Merchant Outcomes:
-                </div>
-                <ul className="text-sm space-y-3 text-slate-300 mb-8">
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>Online storefront with your custom link (<span className="font-mono text-xs text-blue-300">yourshop.ferasetu.com</span>)</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>Up to 25 products with photo uploads</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>Direct WhatsApp ordering & instant UPI QR</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>Order dashboard & basic inventory tracking</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>20 Fera AI assistant queries/month</span>
-                  </li>
-                </ul>
-              </div>
-
+            {/* Hero CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <Link
                 to={getLocalizedLink('/register')}
-                className="w-full py-3.5 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
               >
-                Start Free (₹0)
+                <span>{t('hero.cta') || 'Start Free (₹0)'}</span>
+                <ArrowRight size={18} />
               </Link>
+              <a
+                href="#how-it-works"
+                className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
+              >
+                See how it works
+              </a>
             </div>
 
-            {/* Card 2: Business Plan (RECOMMENDED / MOST POPULAR) */}
-            <div className="rounded-2xl p-7 bg-blue-600 border-2 border-blue-400 flex flex-col justify-between relative transform md:-translate-y-3 shadow-2xl shadow-blue-900/60">
-              <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-                {t('pricingPreview.recommended') || 'MOST POPULAR'}
-              </div>
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm font-semibold text-slate-600">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                {t('hero.zeroStart') || '₹0 to start'}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                {t('hero.noCreditCard') || 'No credit card required'}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                0% commission on sales
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                {t('hero.dataInIndia') || '100% Data in India'}
+              </span>
+            </div>
+          </div>
 
+          <div className='mt-10 max-w-4xl mx-auto'>
+            <TransformationFlow />
+          </div>
+
+          {/* Dashboard Preview */}
+          <div className="max-w-[1100px] mx-auto px-6 mt-14 relative">
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none" />
+            <div className="rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden bg-white">
+              {/* Browser chrome */}
+              <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-400" />
+                <div className="w-3 h-3 rounded-full bg-amber-400" />
+                <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                <div className="ml-4 text-xs font-mono text-slate-400">yourshop.ferasetu.com</div>
+              </div>
+              <div className="aspect-[16/9] bg-slate-100 flex items-center justify-center relative overflow-hidden">
+                <picture className="w-full h-full">
+                  <source srcSet="/hero/dashboard.webp" type="image/webp" />
+                  <img
+                    src="/hero/dashboard.png"
+                    alt="FeraSetu merchant dashboard showing orders, revenue, and product management"
+                    width={1200}
+                    height={675}
+                    loading="eager"
+                    fetchPriority="high"
+                    className="w-full h-full object-cover"
+                  />
+                </picture>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================================
+          SECTION 2 — PROBLEM RECOGNITION (INTEREST)
+          Three concrete, honest problems Indian shopkeepers actually face.
+        ================================================================ */}
+        <section className="py-20 md:py-24 bg-slate-50 border-t border-slate-200/60">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 border border-red-100 text-red-700 text-xs font-bold uppercase tracking-wider mb-4">
+                Sound familiar?
+              </div>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-4">
+                {t('problem.title') || 'Running a business is hard enough without fighting your tools.'}
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed">
+                {t('problem.subtitle') || 'Stop losing orders in messy chat threads, wasting time on manual bookkeeping, or paying massive commissions.'}
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-7">
+              {[
+                {
+                  icon: <MessageSquare size={22} className="text-red-500" />,
+                  iconBg: 'bg-red-50',
+                  label: 'The problem',
+                  title: t('problem.whatsapp.title') || 'Order chaos on WhatsApp',
+                  desc: t('problem.whatsapp.desc') || 'Customers order via personal WhatsApp. You chase 50 threads trying to remember who paid, who needs delivery, and what they ordered.',
+                },
+                {
+                  icon: <Percent size={22} className="text-amber-600" />,
+                  iconBg: 'bg-amber-50',
+                  label: 'The problem',
+                  title: t('problem.marketplace.title') || 'Losing 15–30% to marketplaces',
+                  desc: t('problem.marketplace.desc') || 'Zomato, Swiggy, Amazon — every order you get through them costs you a chunk of your margin. Your shop, their commission.',
+                },
+                {
+                  icon: <Smartphone size={22} className="text-blue-500" />,
+                  iconBg: 'bg-blue-50',
+                  label: 'The problem',
+                  title: t('problem.digital.title') || 'Getting online feels complicated',
+                  desc: t('problem.digital.desc') || 'Building a website, setting up payment gateways, managing inventory — each part feels like a different project.',
+                },
+              ].map((problem, i) => (
+                <div
+                  key={i}
+                  className="bg-white p-7 rounded-2xl border border-slate-200/80 shadow-sm"
+                >
+                  <div className={`w-11 h-11 ${problem.iconBg} rounded-xl flex items-center justify-center mb-5`}>
+                    {problem.icon}
+                  </div>
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    {problem.label}
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">{problem.title}</h3>
+                  <p className="text-slate-600 leading-relaxed text-sm">{problem.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <ValueCurveSection />
+
+        {/* ================================================================
+          SECTION 3 — HOW FERASETU WORKS (INTEREST → DESIRE)
+          3-step mechanism: Add → Share → Receive
+        ================================================================ */}
+        <HowItWorksSection showCTA={false} />
+
+        {/* ================================================================
+          SECTION 4 — SOLUTION DEMO (DESIRE)
+          Side-by-side: The mechanism in action.
+        ================================================================ */}
+        <section className="py-20 md:py-24 bg-slate-50 border-t border-slate-200/60">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-14 items-center">
               <div>
-                <h3 className="font-bold text-2xl text-white mb-1">
-                  {t('plan.business.name') || 'Business'}
-                </h3>
-                <p className="text-blue-100 text-xs sm:text-sm mb-6">
-                  Run and grow your retail business efficiently.
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4">
+                  The FeraSetu Difference
+                </div>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-5 tracking-tight leading-[1.15]">
+                  {t('solution.title') || 'Your shop. Your customers. Your profits.'}
+                </h2>
+                <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                  {t('solution.subtitle') || 'FeraSetu gives you everything to sell online professionally — without paying commissions, hiring developers, or dealing with marketplace rules.'}
                 </p>
-                
-                <div className="mb-6">
-                  <span className="text-4xl font-black text-white">₹399</span>
-                  <span className="text-blue-200 text-sm ml-1.5">/month</span>
-                </div>
 
-                <div className="text-xs font-semibold uppercase tracking-wider text-blue-200 mb-3">
-                  Merchant Outcomes:
+                <div className="space-y-5">
+                  {[
+                    { step: '1', title: t('solution.step1.title') || 'Add your products', desc: t('solution.step1.desc') || 'Upload your catalog with photos, prices, and stock limits in minutes, right from your phone.' },
+                    { step: '2', title: t('solution.step2.title') || 'Share your link', desc: t('solution.step2.desc') || 'Post your custom store link on WhatsApp, Instagram, or share via QR code at your shop counter.' },
+                    { step: '3', title: t('solution.step3.title') || 'Receive orders & direct UPI', desc: t('solution.step3.desc') || 'Customers buy directly. Money goes straight to your UPI account. You own 100% of the customer relationship.' },
+                  ].map((s) => (
+                    <div key={s.step} className="flex gap-4 items-start">
+                      <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-black flex-shrink-0 text-sm shadow-md shadow-blue-500/20">
+                        {s.step}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-base mb-1">{s.title}</h4>
+                        <p className="text-slate-600 text-sm leading-relaxed">{s.desc}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <ul className="text-sm space-y-3 text-white mb-8">
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-amber-300 flex-shrink-0 mt-0.5" />
-                    <span className="font-medium">Everything in Free</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-amber-300 flex-shrink-0 mt-0.5" />
-                    <span>Up to 500 products with categories & variants</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-amber-300 flex-shrink-0 mt-0.5" />
-                    <span>Advanced analytics & profit tracking</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-amber-300 flex-shrink-0 mt-0.5" />
-                    <span>Automated low-stock alerts & WhatsApp receipts</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-amber-300 flex-shrink-0 mt-0.5" />
-                    <span>200 Fera AI queries/mo & custom branding</span>
-                  </li>
-                </ul>
               </div>
 
-              <Link
-                to={getLocalizedLink('/register?plan=business')}
-                className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md"
-              >
-                Start Business Plan
-              </Link>
+              {/* Live store mockup */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-blue-600/8 rounded-3xl transform rotate-1 scale-105" />
+                <div className="bg-slate-900 text-white p-8 md:p-10 rounded-2xl border border-slate-800 shadow-2xl relative">
+                  <div className="flex items-center justify-between mb-7 pb-5 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                        <Store size={18} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-sm">Sharma Kirana & General Store</div>
+                        <div className="text-xs text-blue-400 font-mono">sharmakirana.ferasetu.com</div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                      ● Live
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <MessageSquare className="text-emerald-400 flex-shrink-0" size={18} />
+                        <div>
+                          <div className="text-sm font-semibold text-white">New Order #1042</div>
+                          <div className="text-xs text-slate-400">Ramesh K. · 4 items · Paid via UPI</div>
+                        </div>
+                      </div>
+                      <span className="text-emerald-400 font-bold text-sm">₹1,240</span>
+                    </div>
+
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="text-blue-400 flex-shrink-0" size={18} />
+                        <div>
+                          <div className="text-sm font-semibold text-white">Fera AI Alert</div>
+                          <div className="text-xs text-slate-400">Fortune Mustard Oil — 2 units left</div>
+                        </div>
+                      </div>
+                      <span className="text-blue-400 text-xs font-semibold px-2 py-1 bg-blue-500/10 rounded-md">Restock</span>
+                    </div>
+
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Percent className="text-amber-400 flex-shrink-0" size={18} />
+                        <div>
+                          <div className="text-sm font-semibold text-white">Commission Saved</div>
+                          <div className="text-xs text-slate-400">100% credited to your bank</div>
+                        </div>
+                      </div>
+                      <span className="text-amber-400 font-bold text-sm">₹0 Cut</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================================
+          SECTION 5 — FEATURES AS OUTCOMES (DESIRE)
+          Feature → What it does → Why it matters
+        ================================================================ */}
+        <section className="py-20 md:py-24 bg-white" id="features" aria-label="FeraSetu features">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
+                {t('features.title') || 'Built for how shopkeepers actually work'}
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed">
+                {t('features.subtitle') || 'Every feature answers a real problem. No bloat, no complexity.'}
+              </p>
             </div>
 
-            {/* Card 3: Pro Plan */}
-            <div className="rounded-2xl p-7 bg-slate-800/90 border border-slate-700 flex flex-col justify-between hover:border-slate-600 transition-all">
-              <div>
-                <h3 className="font-bold text-2xl text-white mb-1">
-                  {t('plan.pro.name') || 'Pro'}
-                </h3>
-                <p className="text-slate-400 text-xs sm:text-sm mb-6">
-                  Complete power and scale for serious merchants.
-                </p>
-                
-                <div className="mb-6">
-                  <span className="text-4xl font-black text-white">₹999</span>
-                  <span className="text-slate-400 text-sm ml-1.5">/month</span>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {FEATURE_OUTCOMES.map((item, i) => (
+                <div
+                  key={i}
+                  className="bg-white border border-slate-100 rounded-2xl p-6 hover:border-slate-200 hover:shadow-sm transition-all duration-200"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${item.iconBg}`}>
+                    {item.icon}
+                  </div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">{item.feature}</div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2 leading-snug">{item.does}</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed">{item.matters}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                  Merchant Outcomes:
+        {/* ================================================================
+          SECTION 6 — FERA AI (DESIRE — Purple Cow differentiator)
+          Real AI examples with shop-specific context.
+        ================================================================ */}
+        <AIExamplePrompts showCTA ctaHref="/register" ctaText="Try Fera AI Free" />
+
+        {/* ================================================================
+          SECTION 7 — PROOF (TRUST — No fake testimonials)
+          Replaces fabricated "Rajesh Kumar, Electronics Hub" testimonial.
+          Shows real product capabilities and honest what-you-get.
+        ================================================================ */}
+        <ProofSection
+          title="What you get from day one"
+          subtitle="Every feature below works on the Free plan — no credit card, no trial period, no hidden costs."
+        />
+
+        {/* ================================================================
+          SECTION 8 — PRICING PREVIEW (DESIRE → ACTION)
+          Transparent pricing. No fake discounts. No manufactured urgency.
+        ================================================================ */}
+        <section className="py-20 md:py-24 bg-slate-900 text-white" id="pricing" aria-label="FeraSetu pricing plans">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="text-center mb-14 max-w-2xl mx-auto">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/60 border border-blue-700 text-blue-300 text-xs font-bold uppercase tracking-wider mb-4">
+                Transparent Pricing
+              </div>
+              <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">
+                {t('pricingPreview.title') || 'Simple, honest pricing'}
+              </h2>
+              <p className="text-slate-400 text-lg">
+                {t('pricingPreview.subtitle') || 'Start for ₹0. Upgrade when your business needs more. No hidden charges — ever.'}
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10 items-stretch">
+              {/* Free */}
+              <div className="rounded-2xl p-7 bg-slate-800/90 border border-slate-700 flex flex-col">
+                <div>
+                  <h3 className="font-bold text-2xl text-white mb-1">{t('plan.free.name') || 'Free'}</h3>
+                  <p className="text-slate-400 text-sm mb-5">Start your online store with zero risk.</p>
+                  <div className="mb-6">
+                    <span className="text-4xl font-black text-white">₹0</span>
+                    <span className="text-slate-400 text-sm ml-1.5">/month</span>
+                  </div>
+                  <ul className="text-sm space-y-3 text-slate-300 mb-7">
+                    {['Online storefront with your own link', 'Up to 25 products', 'WhatsApp ordering & UPI payments', 'Order dashboard & inventory tracking', '20 Fera AI queries/month'].map((f, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <Check size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="text-sm space-y-3 text-slate-300 mb-8">
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span className="font-medium">Everything in Business</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>Unlimited products & high-volume ordering</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>1,000 Fera AI messages with forecasting</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>Multi-staff accounts & priority phone/chat support</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <span>100% white-label (remove FeraSetu branding)</span>
-                  </li>
-                </ul>
+                <Link
+                  to={getLocalizedLink('/register')}
+                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                >
+                  Start Free (₹0)
+                </Link>
               </div>
 
+              {/* Business — Most Popular */}
+              <div className="rounded-2xl p-7 bg-blue-600 border-2 border-blue-400 flex flex-col relative transform md:-translate-y-3 shadow-2xl shadow-blue-900/60">
+                <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                  {t('pricingPreview.recommended') || 'MOST POPULAR'}
+                </div>
+                <div>
+                  <h3 className="font-bold text-2xl text-white mb-1">{t('plan.business.name') || 'Business'}</h3>
+                  <p className="text-blue-100 text-sm mb-5">Run and grow your retail business.</p>
+                  <div className="mb-6">
+                    <span className="text-4xl font-black text-white">₹399</span>
+                    <span className="text-blue-200 text-sm ml-1.5">/month</span>
+                  </div>
+                  <ul className="text-sm space-y-3 text-white mb-7">
+                    {['Everything in Free', 'Up to 500 products + categories', 'Advanced analytics & profit tracking', 'Automated low-stock alerts', '200 Fera AI queries/month', 'Custom domain & remove branding'].map((f, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <Check size={15} className="text-amber-300 flex-shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Link
+                  to={getLocalizedLink('/register?plan=business')}
+                  className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md"
+                >
+                  Start Business Plan
+                </Link>
+              </div>
+
+              {/* Pro */}
+              <div className="rounded-2xl p-7 bg-slate-800/90 border border-slate-700 flex flex-col">
+                <div>
+                  <h3 className="font-bold text-2xl text-white mb-1">{t('plan.pro.name') || 'Pro'}</h3>
+                  <p className="text-slate-400 text-sm mb-5">Unlimited scale for serious merchants.</p>
+                  <div className="mb-6">
+                    <span className="text-4xl font-black text-white">₹999</span>
+                    <span className="text-slate-400 text-sm ml-1.5">/month</span>
+                  </div>
+                  <ul className="text-sm space-y-3 text-slate-300 mb-7">
+                    {['Everything in Business', 'Unlimited products', '1,000 Fera AI queries + forecasting', 'Up to 5 staff accounts', 'Priority phone & chat support', 'White-label (remove FeraSetu branding)'].map((f, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <Check size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Link
+                  to={getLocalizedLink('/register?plan=pro')}
+                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                >
+                  Get Pro Plan
+                </Link>
+              </div>
+            </div>
+
+            <div className="text-center">
               <Link
-                to={getLocalizedLink('/register?plan=pro')}
-                className="w-full py-3.5 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                to={getLocalizedLink('/pricing')}
+                className="text-blue-400 hover:text-blue-300 font-semibold transition-colors inline-flex items-center gap-2 text-sm group"
               >
-                Get Pro Plan
+                <span>{t('pricingPreview.viewAll') || 'See full feature comparison'}</span>
+                <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </div>
+        </section>
 
-          {/* Pricing Comparison Link */}
-          <div className="text-center">
-            <Link 
-              to={getLocalizedLink('/pricing')} 
-              className="text-blue-400 hover:text-blue-300 font-semibold transition-colors inline-flex items-center gap-2 text-sm sm:text-base group"
-            >
-              <span>{t('pricingPreview.viewAll') || 'See full pricing & feature comparison'}</span>
-              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </div>
-      </section>
+        {/* ================================================================
+          SECTION 9 — FAQ (ACTION — objection handling)
+          Real questions. Factual answers. No marketing language.
+        ================================================================ */}
+        <FAQSection
+          title="Questions shopkeepers ask"
+          subtitle="Honest answers — no fluff."
+        />
 
-      {/* Final CTA */}
-      <section className="py-20 md:py-28 bg-white text-center">
-        <div className="max-w-2xl mx-auto px-6">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
-            {t('cta.title')}
-          </h2>
-          <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-            {t('cta.subtitle')}
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-            <Link 
-              to={getLocalizedLink('/register')} 
-              className="w-full sm:w-auto px-9 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5"
-            >
-              {t('cta.createStore') || 'Start Free Store (₹0)'}
-            </Link>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            {t('hero.zeroStart') || '₹0 to start'} · {t('hero.noCreditCard') || 'No credit card required'} · {t('hero.setupIn') || 'Ready in 5 minutes'}
-          </p>
-        </div>
-      </section>
-    </PublicLayout>
+        {/* ================================================================
+          SECTION 10 — FINAL CTA (ACTION)
+          Ethical. No fake urgency. Strong but truthful.
+        ================================================================ */}
+        <FinalCTA
+          title={"Your shop is already real.\nNow give it an online front door."}
+          subtitle="Start free today. Your store URL is ready in minutes — no technical setup required."
+          primaryText="Start Free Store (₹0)"
+          primaryHref="/register"
+          secondaryText="See pricing"
+          secondaryHref="/pricing"
+          trustItems={['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Data stays in India']}
+        />
+      </PublicLayout>
+    </>
   );
 }

@@ -83,6 +83,10 @@ export default function PublicNavbar() {
           
           <div className="hidden md:flex items-center gap-8">
             <a href="/#how-it-works" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.howItWorks')}</a>
+            <a href="/#fera-ai" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" aria-hidden="true" />
+              Fera AI
+            </a>
             <a href="/#features" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.features')}</a>
             <Link to={getLocalizedLink('/pricing')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.pricing')}</Link>
           </div>
@@ -126,6 +130,10 @@ export default function PublicNavbar() {
         <div className="md:hidden fixed inset-0 z-40 bg-white pt-20 px-6 overflow-y-auto">
           <div className="flex flex-col gap-6 py-6">
             <a href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.howItWorks')}</a>
+            <a href="/#fera-ai" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              Fera AI
+            </a>
             <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.features')}</a>
             <Link to={getLocalizedLink('/pricing')} onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.pricing')}</Link>
             

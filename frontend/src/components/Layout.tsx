@@ -11,6 +11,7 @@ import PlanBadge from './ui/PlanBadge';
 import { ENABLED_LANGUAGES } from '../i18n';
 import { normalizePlanId, getPlan, isFreePlan } from '../config/plans';
 import FeedbackWidget from './FeedbackWidget';
+import SEO from './SEO';
 
 interface NavItem {
   path: string;
@@ -168,6 +169,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-[#F9FAFB] overflow-hidden font-sans">
+      <SEO title="FeraSetu Merchant Workspace" noindex />
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:block h-full z-20">

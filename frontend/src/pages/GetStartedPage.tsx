@@ -6,6 +6,7 @@ import { ArrowRight, ChevronRight, Sparkles, MessageCircle } from 'lucide-react'
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import StorefrontPreviewCard from '../components/onboarding/StorefrontPreviewCard';
 
 interface Question {
   id: string;
@@ -203,7 +204,7 @@ export default function GetStartedPage() {
               <Sparkles size={32} color="#667eea" />
               <div>
                 <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#1F2937', margin: 0 }}>{translate('welcome')}</h1>
-                <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0 0' }}>Let's get your store ready</p>
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0 0' }}>Let's turn your shop into an online store in a few guided steps.</p>
               </div>
             </div>
 
@@ -224,7 +225,7 @@ export default function GetStartedPage() {
                 ))}
               </div>
               <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
-                Question {currentStep + 1} of {QUESTIONS.length}
+                Step {currentStep + 1} of {QUESTIONS.length} — building your store profile
               </p>
             </div>
           </div>
@@ -439,6 +440,14 @@ export default function GetStartedPage() {
           justifyContent: 'space-between',
         }}>
           <div>
+            <div style={{ marginBottom: 24 }}>
+              <StorefrontPreviewCard
+                businessName={data.business_name}
+                businessType={data.business_type}
+                mainProducts={data.main_products}
+              />
+            </div>
+
             <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', margin: 0 }}>🚀 Next Steps</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {SETUP_STEPS.map((step, idx) => (

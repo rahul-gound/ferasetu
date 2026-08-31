@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, User, ShieldCheck, ArrowRight, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SEO from '../components/SEO';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -36,6 +37,7 @@ export default function AdminLogin() {
       background: '#090c1a',
       fontFamily: 'Inter, system-ui, sans-serif'
     }}>
+      <SEO title="Admin Login — FeraSetu" noindex />
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .login-card { animation: fadeIn 0.6s ease-out both; }

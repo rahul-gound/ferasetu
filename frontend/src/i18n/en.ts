@@ -207,7 +207,12 @@ export default {
   "plan.feature.inventoryAlerts": "Inventory management & low-stock alerts",
   "plan.feature.everythingGrowth": "Everything in Growth",
   "plan.feature.unlimitedProducts": "Unlimited products",
-  "plan.feature.aiMessages1000": "1,000 Fera AI messages/month",
-  "plan.feature.advancedAI": "Advanced AI (complex analysis, forecasting)",
+  // Nav — Fera AI label for sidebar
+  "feraAI": "Fera AI",
+
+  // Support label
+  "surveyFeedback": "Feedback",
+  "support": "Support",
 
 };
+

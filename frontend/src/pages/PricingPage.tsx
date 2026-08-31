@@ -13,6 +13,7 @@ import FeatureComparison from '../components/pricing/FeatureComparison';
 import FoundingOfferBanner from '../components/pricing/FoundingOfferBanner';
 import ValueCalculator from '../components/pricing/ValueCalculator';
 import PricingFAQ from '../components/pricing/PricingFAQ';
+import ValueLadderSection from '../components/pricing/ValueLadderSection';
 import { PLANS, normalizePlanId } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
 
@@ -95,8 +96,8 @@ export default function PricingPage() {
       <SEO
         title={pageTitle}
         description={pageDescription}
-        url="https://ferasetu.com/pricing"
         type="website"
+        noindex={false}
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
@@ -227,6 +228,12 @@ export default function PricingPage() {
             ))}
           </motion.div>
         </motion.section>
+
+        <ValueLadderSection
+          currentPlan={currentPlan}
+          isAuthenticated={!!user}
+          onSelectPlan={handleSelectPlan}
+        />
 
         {/* ================================================================
           PRICING CARDS

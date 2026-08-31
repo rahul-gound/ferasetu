@@ -174,7 +174,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
-            {isLoading ? <Shimmer h="300px" /> : revenueData.length === 0 ? <div className="analytics-empty">No revenue data yet. New orders will appear here.</div> : (
+            {isLoading ? <Shimmer h="300px" /> : revenueData.length === 0 ? <div className="analytics-empty">Your store is ready. Share your store link to start collecting orders.</div> : (
               <ResponsiveContainer width="100%" height="100%">
                  <AreaChart data={revenueData}>
                    <defs>
@@ -220,7 +220,7 @@ export default function AnalyticsPage() {
           <div className="analytics-chart-card animate-fade-up" style={{ animationDelay: '0.5s' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>Order Volume</h2>
             <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
-                {isLoading ? <Shimmer h="250px" /> : revenueData.length === 0 ? <div className="analytics-empty">No order volume yet.</div> : (
+                {isLoading ? <Shimmer h="250px" /> : revenueData.length === 0 ? <div className="analytics-empty">Once customers place orders, your order volume will appear here.</div> : (
                   <ResponsiveContainer width="100%" height="100%">
                      <BarChart data={revenueData}>
                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -241,7 +241,7 @@ export default function AnalyticsPage() {
           <div className="analytics-chart-card animate-fade-up" style={{ animationDelay: '0.6s' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>Inventory Value</h2>
             <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
-                {isLoading ? <Shimmer h="250px" /> : categoryData.length === 0 ? <div className="analytics-empty">Category sales will appear after products sell.</div> : (
+                {isLoading ? <Shimmer h="250px" /> : categoryData.length === 0 ? <div className="analytics-empty">Add products and share your store to see which categories sell.</div> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                        <Pie

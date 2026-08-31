@@ -386,9 +386,12 @@ export default function OrdersPage() {
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
             <ShoppingCart size={48} style={{ marginBottom: '12px', opacity: 0.3 }} />
-            <p style={{ fontSize: '16px', fontWeight: 600 }}>No orders found</p>
+            <p style={{ fontSize: '16px', fontWeight: 600 }}>Your store is ready for its first order</p>
             <p style={{ fontSize: '14px', marginTop: '4px' }}>
-              {activeTab === 'all' ? 'Orders will appear here when customers place them.' : `No ${STATUS_LABELS[activeTab].toLowerCase()} orders.`}
+              {activeTab === 'all' ? 'Share your store link so customers can start ordering.' : `No ${STATUS_LABELS[activeTab].toLowerCase()} orders.`}
+            </p>
+            <p style={{ fontSize: '13px', marginTop: '8px', color: '#64748B' }}>
+              Next: share your store link. Orders will appear here with payment and delivery status.
             </p>
           </div>
         ) : (
