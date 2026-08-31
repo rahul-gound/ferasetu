@@ -49,6 +49,14 @@ FeraSetu supports the requested 22-language India catalog, with English as the c
 
 All 22 languages receive the same typed key set and English fallback. Hindi, Marathi, and Gujarati currently have richer translation coverage. Long-form marketing copy in the remaining languages intentionally falls back to English instead of rendering missing or misleading text.
 
+## Legal Documents
+
+- The production Terms of Service is implemented in `frontend/src/pages/TermsPage.tsx` and covers 25 merchant-facing sections, including definitions, eligibility, the software-provider business model, Account security, merchant responsibilities, content licensing, Fera AI, subscriptions, payments, acceptable use, data, security, suspension, liability, indemnification, disputes, governing law, changes, and contact channels.
+- The Terms clearly state that FeraSetu is not a marketplace, is not the seller of merchant products, does not own merchant inventory, and does not set merchant prices.
+- The Terms preserve merchant ownership of Merchant Data and Content while granting FeraSetu only the limited operational license needed to provide the Services.
+- The Privacy Policy remains the separate privacy document and was not modified in this update.
+- Legal details that should be confirmed by FeraSetu's owner or qualified Indian legal counsel include the final registered-office address, arbitration seat or forum, refund policy specifics, tax treatment, and any specific regulatory disclosures.
+
 ## Core Features
 
 - Public marketing pages, including pricing and product-specific landing pages.
@@ -193,6 +201,8 @@ Current known status:
 - Backend test suite: 69 tests passing.
 - Compiled language bundles: all 21 non-English bundles import successfully, contain the 224 English fallback keys, and have no missing or undefined values.
 - Local preview: `/`, `/hi`, `/mr/login`, `/ta/register`, `/pricing`, `/login`, and `/register` returned HTTP 200.
+- Terms route validation: `/terms`, `/hi/terms`, `/privacy`, `/`, `/login`, `/register`, and `/pricing` returned HTTP 200; all 25 Terms section IDs are present in the production bundle.
+- Terms page lint: passing. Mobile/browser visual QA remains not verified in this environment.
 - Frontend lint: 206 pre-existing problems remain across unrelated files.
 - Browser visual QA: not verified in this environment because headless Chromium could not start its GPU process.
 - GitHub reports repository security alerts that still require review.
@@ -209,6 +219,7 @@ Current known status:
 - [x] Fera AI workflow assistance
 - [x] Stage-based pricing presentation
 - [x] 22-language architecture and persistent language journey
+- [x] Production Terms of Service
 - [ ] Payment integration completion
 - [ ] Complete long-form marketing copy translation
 - [ ] Production SEO response-header verification
