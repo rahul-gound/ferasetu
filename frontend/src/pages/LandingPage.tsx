@@ -27,7 +27,6 @@ import {
   ArrowRight,
   CheckCircle2,
   MessageSquare,
-  ShoppingCart,
   Zap,
   BarChart3,
   Store,
@@ -37,7 +36,6 @@ import {
   ShieldCheck,
   Sparkles,
   Check,
-  Package,
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -48,6 +46,8 @@ import FinalCTA from '../components/marketing/FinalCTA';
 import AIExamplePrompts from '../components/marketing/AIExamplePrompts';
 import TransformationFlow from '../components/marketing/TransformationFlow';
 import ValueCurveSection from '../components/marketing/ValueCurveSection';
+import HeroProductVisual from '../components/marketing/HeroProductVisual';
+import MarketingReveal from '../components/marketing/MarketingReveal';
 import SEO from '../components/SEO';
 
 /** Outcome-oriented feature block: Feature → Does → Matters */
@@ -133,13 +133,13 @@ export default function LandingPage() {
           <div className="max-w-[1000px] mx-auto px-6 relative z-10 text-center">
 
             {/* Purple Cow Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100/70 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold tracking-wide mb-6 uppercase shadow-sm">
+            <div className="hero-card-enter inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100/70 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold tracking-wide mb-6 uppercase shadow-sm">
               <Store size={14} className="text-blue-600" />
               <span>{t('hero.badge') || 'For Indian Shopkeepers & Local Retailers'}</span>
             </div>
 
             {/* Main Headline — Purple Cow positioning */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-4">
+            <h1 className="hero-card-enter hero-card-delay-1 text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-4">
               Apni dukaan ko online le jao.{' '}
               <span className="text-blue-600">
                 Orders badhao, business sambhalo
@@ -153,12 +153,12 @@ export default function LandingPage() {
             </p>
 
             {/* Purple Cow differentiator line */}
-            <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
+            <p className="hero-card-enter hero-card-delay-2 text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
               {t('hero.subtitle') || 'No technical knowledge needed. Your own store link. WhatsApp orders. Direct UPI payments. Fera AI handles the rest.'}
             </p>
 
             {/* Hero CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <div className="hero-card-enter hero-card-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <Link
                 to={getLocalizedLink('/register')}
                 className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
@@ -199,32 +199,8 @@ export default function LandingPage() {
             <TransformationFlow />
           </div>
 
-          {/* Dashboard Preview */}
-          <div className="max-w-[1100px] mx-auto px-6 mt-14 relative">
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none" />
-            <div className="rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden bg-white">
-              {/* Browser chrome */}
-              <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-400" />
-                <div className="w-3 h-3 rounded-full bg-amber-400" />
-                <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                <div className="ml-4 text-xs font-mono text-slate-400">yourshop.ferasetu.com</div>
-              </div>
-              <div className="aspect-[16/9] bg-slate-100 flex items-center justify-center relative overflow-hidden">
-                <picture className="w-full h-full">
-                  <source srcSet="/hero/dashboard.webp" type="image/webp" />
-                  <img
-                    src="/hero/dashboard.png"
-                    alt="FeraSetu merchant dashboard showing orders, revenue, and product management"
-                    width={1200}
-                    height={675}
-                    loading="eager"
-                    fetchPriority="high"
-                    className="w-full h-full object-cover"
-                  />
-                </picture>
-              </div>
-            </div>
+          <div className='hero-card-enter hero-card-delay-3 mx-auto mt-14 max-w-[1100px] px-6'>
+            <HeroProductVisual />
           </div>
         </section>
 
@@ -288,13 +264,17 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <ValueCurveSection />
+        <MarketingReveal>
+          <ValueCurveSection />
+        </MarketingReveal>
 
         {/* ================================================================
           SECTION 3 — HOW FERASETU WORKS (INTEREST → DESIRE)
           3-step mechanism: Add → Share → Receive
         ================================================================ */}
-        <HowItWorksSection showCTA={false} />
+        <MarketingReveal>
+          <HowItWorksSection showCTA={false} />
+        </MarketingReveal>
 
         {/* ================================================================
           SECTION 4 — SOLUTION DEMO (DESIRE)
@@ -436,10 +416,12 @@ export default function LandingPage() {
           Replaces fabricated "Rajesh Kumar, Electronics Hub" testimonial.
           Shows real product capabilities and honest what-you-get.
         ================================================================ */}
-        <ProofSection
-          title="What you get from day one"
-          subtitle="Every feature below works on the Free plan — no credit card, no trial period, no hidden costs."
-        />
+        <MarketingReveal>
+          <ProofSection
+            title="What you get from day one"
+            subtitle="Every feature below works on the Free plan — no credit card, no trial period, no hidden costs."
+          />
+        </MarketingReveal>
 
         {/* ================================================================
           SECTION 8 — PRICING PREVIEW (DESIRE → ACTION)
@@ -558,24 +540,28 @@ export default function LandingPage() {
           SECTION 9 — FAQ (ACTION — objection handling)
           Real questions. Factual answers. No marketing language.
         ================================================================ */}
-        <FAQSection
-          title="Questions shopkeepers ask"
-          subtitle="Honest answers — no fluff."
-        />
+        <MarketingReveal>
+          <FAQSection
+            title="Questions shopkeepers ask"
+            subtitle="Honest answers — no fluff."
+          />
+        </MarketingReveal>
 
         {/* ================================================================
           SECTION 10 — FINAL CTA (ACTION)
           Ethical. No fake urgency. Strong but truthful.
         ================================================================ */}
-        <FinalCTA
-          title={"Your shop is already real.\nNow give it an online front door."}
-          subtitle="Start free today. Your store URL is ready in minutes — no technical setup required."
-          primaryText="Start Free Store (₹0)"
-          primaryHref="/register"
-          secondaryText="See pricing"
-          secondaryHref="/pricing"
-          trustItems={['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Data stays in India']}
-        />
+        <MarketingReveal>
+          <FinalCTA
+            title={"Your shop is already real.\nNow give it an online front door."}
+            subtitle="Start free today. Your store URL is ready in minutes — no technical setup required."
+            primaryText="Start Free Store (₹0)"
+            primaryHref="/register"
+            secondaryText="See pricing"
+            secondaryHref="/pricing"
+            trustItems={['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Data stays in India']}
+          />
+        </MarketingReveal>
       </PublicLayout>
     </>
   );

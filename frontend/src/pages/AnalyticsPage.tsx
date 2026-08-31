@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface AnalyticsData {
   revenue_chart: { date: string; revenue: number; orders: number }[];
@@ -82,6 +83,7 @@ function StatCard({ label, value, sub, change, icon, delay = '0s' }: { label: st
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
+  const { translate } = useLanguage();
   const [period, setPeriod] = useState('30d');
 
   const { data, isLoading, error } = useQuery<AnalyticsData>({
@@ -121,9 +123,9 @@ export default function AnalyticsPage() {
       {/* Page Header */}
       <div className="analytics-hero">
         <div>
-          <div className="analytics-eyebrow"><TrendingUp size={16} /> Live Store Intelligence</div>
-          <h1>Commerce Analytics</h1>
-          <p>Track revenue, orders, inventory pressure, and AI-backed growth signals from one focused dashboard.</p>
+          <div className="analytics-eyebrow"><TrendingUp size={16} /> {translate('analytics.title')}</div>
+          <h1>{translate('analytics.title')}</h1>
+          <p>{translate('analytics.description')}</p>
         </div>
 
         {/* Period Switcher */}

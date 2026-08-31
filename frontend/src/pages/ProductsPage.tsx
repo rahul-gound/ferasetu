@@ -239,7 +239,7 @@ export default function ProductsPage() {
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             className="input"
-            placeholder={`${translate('search')} products...`}
+            placeholder={translate('products.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: '38px', width: '100%', boxSizing: 'border-box' }}

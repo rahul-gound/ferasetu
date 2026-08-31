@@ -1,27 +1,67 @@
 export default {
-  // Navigation
-  "nav.howItWorks": "How it works",
-  "nav.features": "Features",
-  "nav.pricing": "Pricing",
-  "nav.signIn": "Sign In",
-  "nav.startFree": "Start Free",
+  'onboarding.previewNote': 'This preview updates as you answer. Your real storefront is created after setup.',
+  'hero.visual.example': 'Example preview',
+  'hero.visual.storefront': 'Storefront',
+  'hero.visual.orders': 'Orders',
+  'hero.visual.feraAI': 'Fera AI',
+  'hero.visual.newOrder': 'New order',
+  'hero.visual.aiAlert': 'Fera AI alert',
+  'auth.backToHome': 'Back to home',
+  'auth.register.freeTitle': 'Create your free store',
+  'auth.register.subtitle': 'Bring your shop online and start receiving orders. No credit card required.',
+  'auth.register.whatHappens': 'What happens after you sign up',
+  'auth.next.product': 'Add your first product',
+  'auth.next.storeUrl': 'Your store URL is prepared during setup',
+  'auth.next.orders': 'Share your store and receive orders',
+  'auth.next.feraAI': 'Ask Fera AI to help manage your shop',
+  'auth.loading.setup': 'Setting up your account...',
+  'auth.button.register': 'Continue to secure signup',
+  'auth.login.title': 'Welcome back',
+  'auth.login.subtitle': 'Sign in to manage your online store, orders, and products.',
+  'auth.login.workspaceTitle': 'Your FeraSetu workspace',
+  'auth.loading.connect': 'Connecting to secure login...',
+  'auth.button.login': 'Continue to secure sign in',
+  'auth.trust': 'Secure login | Data stays in India | INR 0 to start',
+  'language.selector.available': '22 languages available',
+  'language.selector.noResults': 'No language found',
+  'common.close': 'Close',
+  'layout.merchantNavigation': 'Merchant navigation',
+  'layout.currentPlan': 'Current plan',
+  'layout.freePlanDescription': 'Up to 25 products, basic AI, and your online storefront.',
+  'layout.managePlan': 'Manage plan',
+  'layout.yourWorkspace': 'Your workspace',
+  'layout.workspaceTitle': 'FeraSetu Merchant Workspace',
+  'dashboard.exportData': 'Export data',
+  'dashboard.salesOverview': 'Sales overview',
+  'dashboard.recentOrders': 'Recent orders',
+  'products.searchPlaceholder': 'Search products',
+  'analytics.title': 'Commerce analytics',
+  'analytics.description': 'Track revenue, orders, inventory pressure, and AI-backed growth signals.',
+  'websiteBuilder.title': 'Website builder',
+  'feraAI.inputPlaceholder': 'Ask Fera AI about your shop...',
+  'empty.expectedOutcome': 'What happens next:',
+  'language.selector.title': 'Select language',
+  'language.selector.search': 'Search languages',
+  'nav.primary': 'Primary navigation',
+  'nav.openMenu': 'Open menu',
+  'nav.closeMenu': 'Close menu',
 
   // SEO
-  "seo.landing.title": "FeraSetu — Your Shop's Digital Bridge",
-  "seo.landing.desc": "FeraSetu gives every shopkeeper the power to sell online — without depending on any marketplace.",
+  "seo.landing.title": "FeraSetu â€” Your Shop's Digital Bridge",
+  "seo.landing.desc": "FeraSetu gives every shopkeeper the power to sell online â€” without depending on any marketplace.",
 
   // Hero
   "hero.badge": "FOR INDIAN SHOPKEEPERS & LOCAL RETAILERS",
-  "hero.title": "Apni dukaan ko online le jao. Orders badhao, business sambhalo — ek hi jagah se.",
+  "hero.title": "Apni dukaan ko online le jao. Orders badhao, business sambhalo â€” ek hi jagah se.",
   "hero.titleHighlight": "Orders badhao, business sambhalo",
   "hero.titleTranslation": "(Build your online store, accept more orders, and manage your business from one place.)",
   "hero.subtitle": "No technical knowledge required. Get your own store link, take orders directly on WhatsApp with UPI payments, and let Fera AI help you manage inventory and restock smoothly.",
-  "hero.cta": "Start Free (₹0)",
+  "hero.cta": "Start Free (â‚¹0)",
   "hero.pricingCta": "See Pricing Plans",
   "hero.howItWorks": "See how it works",
   "hero.noCreditCard": "No credit card required",
   "hero.setupIn": "Ready in 5 minutes",
-  "hero.zeroStart": "₹0 to start",
+  "hero.zeroStart": "â‚¹0 to start",
   "hero.dataInIndia": "100% Data in India",
   "hero.dashboardPlaceholder": "FeraSetu Merchant Dashboard Interface",
 
@@ -31,7 +71,7 @@ export default {
   "problem.whatsapp.title": "Lost WhatsApp Orders",
   "problem.whatsapp.desc": "No more digging through 50 chat threads to find who ordered what, who paid, or where to deliver.",
   "problem.marketplace.title": "Zero Commission",
-  "problem.marketplace.desc": "Stop paying 15–30% of your hard-earned revenue to aggregators. Keep 100% of what you earn.",
+  "problem.marketplace.desc": "Stop paying 15â€“30% of your hard-earned revenue to aggregators. Keep 100% of what you earn.",
   "problem.digital.title": "No Developers Needed",
   "problem.digital.desc": "Add products from your phone, share your link, and start selling today without writing code.",
 
@@ -69,7 +109,7 @@ export default {
 
   // Pricing Preview
   "pricingPreview.title": "Simple, transparent pricing",
-  "pricingPreview.subtitle": "Start for ₹0, upgrade when you need to grow. No hidden charges.",
+  "pricingPreview.subtitle": "Start for â‚¹0, upgrade when you need to grow. No hidden charges.",
   "pricingPreview.recommended": "MOST POPULAR",
   "pricingPreview.viewAll": "See full pricing & feature comparison",
   "pricingPreview.mo": "/mo",
@@ -77,7 +117,7 @@ export default {
   // CTA
   "cta.title": "Ready to take your dukaan online?",
   "cta.subtitle": "Join thousands of independent Indian merchants taking control of their online sales.",
-  "cta.createStore": "Start Free Store (₹0)",
+  "cta.createStore": "Start Free Store (â‚¹0)",
   
   // Navigation & Footer
   "nav.howItWorks": "How it works",
@@ -93,7 +133,7 @@ export default {
   "footer.createStore": "Create Free Store",
   "footer.privacy": "Privacy Policy",
   "footer.terms": "Terms of Service",
-  "footer.rights": "© {{year}} FeraSetu. All rights reserved.",
+  "footer.rights": "Â© {{year}} FeraSetu. All rights reserved.",
 
   // Auth Pages
   "auth.redirectLogin": "Redirecting to secure login...",
@@ -102,7 +142,7 @@ export default {
   // Value Calculator
   "calc.tag": "Think About It",
   "calc.title": "Would FeraSetu pay for itself?",
-  "calc.desc": "You know your margins better than we do. Use this to think it through — we won't promise you anything we can't deliver.",
+  "calc.desc": "You know your margins better than we do. Use this to think it through â€” we won't promise you anything we can't deliver.",
   "calc.orders": "Orders per week",
   "calc.aov": "Average order value",
   "calc.estOrders": "Est. monthly orders",
@@ -111,17 +151,19 @@ export default {
   "calc.timeSaved": "Time saved per week",
   "calc.basedOn": "Based on {{billing}} billing ({{price}}/mo)",
   "calc.disclaimerTitle": "Honest note:",
-  "calc.disclaimerText": "These are your numbers, not ours. We can't promise how many orders you'll get or what your revenue will be — that depends on your shop, your products, and your customers. What FeraSetu does is make it easier to manage what you already have, and give it a better online presence. The rest is up to you.",
+  "calc.disclaimerText": "These are your numbers, not ours. We can't promise how many orders you'll get or what your revenue will be â€” that depends on your shop, your products, and your customers. What FeraSetu does is make it easier to manage what you already have, and give it a better online presence. The rest is up to you.",
 
   // Pricing Page
   "pricing.tag": "Sahi plan chunein",
   "pricing.title": "No hidden fees.",
-  "pricing.subtitle": "Create your online store, accept orders, and manage your business — without needing technical knowledge or a big budget.",
-  "pricing.trust1": "₹0 to start — no credit card needed",
+  "pricing.subtitle": "Create your online store, accept orders, and manage your business â€” without needing technical knowledge or a big budget.",
+  "pricing.trust1": "â‚¹0 to start â€” no credit card needed",
   "pricing.trust2": "Data stays in India",
   "pricing.trust3": "Cancel anytime, no penalty",
   "pricing.trust4": "Fera AI uses your real shop data, not guesses",
   "pricing.trust5": "No hidden fees, ever",
+  "plan.feature.aiMessages1000": "1,000 Fera AI messages/month",
+  "plan.feature.advancedAI": "Advanced AI (insights, forecasts)",
   "pricing.monthly": "Monthly",
   "pricing.annual": "Annual",
   "pricing.save2Months": "2 months free",
@@ -131,17 +173,17 @@ export default {
   "pricing.cta.tag": "Try it first",
   "pricing.cta.title": "Start for free.",
   "pricing.cta.titleHighlight": "Upgrade when you're ready.",
-  "pricing.cta.desc": "The Free plan isn't a trick to get you to pay. It's a complete, working store for up to 25 products. When your shop grows, Business is there at ₹399/month.",
+  "pricing.cta.desc": "The Free plan isn't a trick to get you to pay. It's a complete, working store for up to 25 products. When your shop grows, Business is there at â‚¹399/month.",
   "pricing.cta.free": "Create Free Store",
   "pricing.cta.login": "Already have an account? Sign in",
-  "pricing.cta.footer": "No credit card · No setup fee · No lock-in",
+  "pricing.cta.footer": "No credit card Â· No setup fee Â· No lock-in",
 
   // Pricing Card
   "card.popular": "MOST POPULAR",
-  "card.save": "₹{{total}}/year — save 2 months",
-  "card.day": "₹{{price}}/day",
+  "card.save": "â‚¹{{total}}/year â€” save 2 months",
+  "card.day": "â‚¹{{price}}/day",
   "card.current": "Current plan",
-  "card.cancel": "Cancel anytime · No hidden fees",
+  "card.cancel": "Cancel anytime Â· No hidden fees",
   
   // Dashboard
   "dashboard": "Dashboard",
@@ -149,6 +191,7 @@ export default {
   "orders": "Orders",
   "analytics": "Analytics",
   "aiAssistant": "AI Assistant",
+  "aiCredits": "AI Credits",
   "websiteBuilder": "Website Builder",
   "logout": "Logout",
   "settings": "Settings",
@@ -180,9 +223,9 @@ export default {
   "publishWebsite": "Publish Website",
   "unpublishWebsite": "Unpublish Website",
   "yourSubdomain": "Your Store URL",
+  "websiteBuilder.saved": "Website saved!",
   "freePlan": "Free Beta Plan",
   "premiumPlan": "Premium Plan",
-  "support": "Support",
   "tickets": "Tickets",
   "raiseTicket": "Raise Ticket",
   "status": "Status",
@@ -207,7 +250,7 @@ export default {
   "plan.feature.inventoryAlerts": "Inventory management & low-stock alerts",
   "plan.feature.everythingGrowth": "Everything in Growth",
   "plan.feature.unlimitedProducts": "Unlimited products",
-  // Nav — Fera AI label for sidebar
+  // Nav â€” Fera AI label for sidebar
   "feraAI": "Fera AI",
 
   // Support label
@@ -215,4 +258,3 @@ export default {
   "support": "Support",
 
 };
-

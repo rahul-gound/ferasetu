@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ActionableEmptyStateProps {
   icon?: ReactNode;
@@ -21,6 +22,8 @@ export default function ActionableEmptyState({
   onAction,
   expectedOutcome,
 }: ActionableEmptyStateProps) {
+  const { translate } = useLanguage();
+
   return (
     <div className='mx-auto flex max-w-md flex-col items-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm'>
       {icon && (
@@ -54,7 +57,7 @@ export default function ActionableEmptyState({
 
       {expectedOutcome && (
         <p className='mt-5 rounded-xl bg-slate-50 px-4 py-3 text-xs font-semibold leading-relaxed text-slate-600'>
-          What happens next: {expectedOutcome}
+          {translate('empty.expectedOutcome')} {expectedOutcome}
         </p>
       )}
     </div>

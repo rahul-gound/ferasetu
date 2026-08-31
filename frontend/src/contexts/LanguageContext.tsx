@@ -1,7 +1,23 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { loadDictionary, fallbackDictionary, SUPPORTED_LANGUAGES, ENABLED_LANGUAGES, PUBLIC_ROUTES, type Dictionary, type TranslationKey } from '../i18n';
+import {
+  ENABLED_LANGUAGES,
+  PUBLIC_ROUTES,
+  fallbackDictionary,
+  getCleanPath,
+  getLanguagePath,
+  loadDictionary,
+  type Dictionary,
+  type TranslationKey
+} from '../i18n';
 
 interface LanguageContextType {
   language: string;
@@ -11,101 +27,133 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LANGUAGE_STORAGE_KEY = 'fera_language';
+const PRE_LOGIN_LANGUAGE_KEY = 'fera_prelogin_language';
+
+function isSupportedLanguage(lang: string | null | undefined): boolean {
+  return Boolean(lang && ENABLED_LANGUAGES.some(language => language.code === lang));
+}
+
+function getBrowserLanguage(): string {
+  if (typeof navigator === 'undefined' || !navigator.languages) return 'en';
+  for (const browserLanguage of navigator.languages) {
+    const code = browserLanguage.split('-')[0]?.toLowerCase();
+    if (isSupportedLanguage(code)) return code;
+  }
+  return 'en';
+}
+
+function getStoredLanguage(): string {
+  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  if (stored !== null && isSupportedLanguage(stored)) return stored;
+  return getBrowserLanguage();
+}
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const location = useLocation();
-  
-  // Extract language from URL if present (e.g. /hi/pricing -> 'hi')
-  const pathParts = location.pathname.split('/');
-  const urlLang = pathParts[1];
-  const isValidUrlLang = ENABLED_LANGUAGES.some(l => l.code === urlLang);
-  
-  // Check if current route is a public route (either exactly, or with lang prefix)
-  let isPublicRoute = false;
-  const currentCleanPath = isValidUrlLang ? location.pathname.substring(urlLang.length + 1) || '/' : location.pathname;
-  if (PUBLIC_ROUTES.includes(currentCleanPath)) {
-    isPublicRoute = true;
-  }
-  
-  // State holds the user's preferred or local storage language.
-  const getInitialLanguage = () => {
-    const stored = localStorage.getItem('fera_language');
-    if (stored) return stored;
-    
-    // Check browser languages
-    if (typeof navigator !== 'undefined' && navigator.languages) {
-      for (const navLang of navigator.languages) {
-        const code = navLang.split('-')[0].toLowerCase();
-        if (ENABLED_LANGUAGES.some(l => l.code === code)) {
-          return code;
-        }
+  const accountPreferenceApplied = useRef(false);
+
+  const cleanPath = getCleanPath(location.pathname);
+  const urlLanguage = location.pathname.split('/')[1];
+  const isValidUrlLanguage = isSupportedLanguage(urlLanguage);
+  const isPublicRoute = PUBLIC_ROUTES.includes(cleanPath);
+
+  const [localLanguage, setLocalLanguage] = useState(() => (
+    isPublicRoute && isValidUrlLanguage ? urlLanguage : getStoredLanguage()
+  ));
+  const [dictionaries, setDictionaries] = useState<Record<string, Dictionary>>({
+    en: fallbackDictionary
+  });
+
+  const activeLanguage = isPublicRoute && isValidUrlLanguage ? urlLanguage : localLanguage;
+  const dictionary = dictionaries[activeLanguage] || fallbackDictionary;
+
+  useEffect(() => {
+    const languageConfig = ENABLED_LANGUAGES.find(language => language.code === activeLanguage);
+    document.documentElement.lang = activeLanguage;
+    document.documentElement.dir = languageConfig?.direction === 'rtl' ? 'rtl' : 'ltr';
+
+    if (dictionaries[activeLanguage]) return;
+
+    let isCurrentRequest = true;
+    loadDictionary(activeLanguage).then(loadedDictionary => {
+      if (!isCurrentRequest) return;
+      setDictionaries(current => ({
+        ...current,
+        [activeLanguage]: loadedDictionary
+      }));
+    });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [activeLanguage, dictionaries]);
+
+  useEffect(() => {
+    if (!user) {
+      accountPreferenceApplied.current = false;
+      return;
+    }
+
+    if (accountPreferenceApplied.current) return;
+    accountPreferenceApplied.current = true;
+
+    const preLoginLanguage = sessionStorage.getItem(PRE_LOGIN_LANGUAGE_KEY);
+    const preferredLanguage = preLoginLanguage || user.preferred_language;
+
+    const applyPreference = window.setTimeout(() => {
+      if (!isSupportedLanguage(preferredLanguage)) return;
+      setLocalLanguage(preferredLanguage);
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, preferredLanguage);
+    }, 0);
+
+    if (preLoginLanguage) {
+      sessionStorage.removeItem(PRE_LOGIN_LANGUAGE_KEY);
+      if (user.preferred_language !== preLoginLanguage) {
+        updateUser({ preferred_language: preLoginLanguage });
       }
     }
-    return 'en';
-  };
 
-  const [localLanguage, setLocalLanguage] = useState(getInitialLanguage);
-
-  // Sync with user profile if authenticated
-  useEffect(() => {
-    if (user?.preferred_language && user.preferred_language !== localLanguage) {
-      setLocalLanguage(user.preferred_language);
-      localStorage.setItem('fera_language', user.preferred_language);
-    }
-  }, [user?.preferred_language]);
-
-  // Determine active language: URL overrides everything for public pages.
-  const activeLanguage = (isPublicRoute && isValidUrlLang) ? urlLang : (isPublicRoute && !isValidUrlLang && location.pathname !== '/' ? 'en' : localLanguage);
-
-  const [dictionary, setDictionary] = useState<Dictionary>(fallbackDictionary);
-
-  // Handle dictionary lazy loading and RTL injection
-  useEffect(() => {
-    const langConfig = SUPPORTED_LANGUAGES.find(l => l.code === activeLanguage);
-    
-    // Inject RTL / LTR dynamically
-    document.documentElement.dir = langConfig?.direction === 'rtl' ? 'rtl' : 'ltr';
-    document.documentElement.lang = activeLanguage;
-
-    let isMounted = true;
-    if (activeLanguage === 'en') {
-      setDictionary(fallbackDictionary);
-    } else {
-      loadDictionary(activeLanguage).then(dict => {
-        if (isMounted) {
-          setDictionary(dict);
-        }
-      });
-    }
-
-    return () => { isMounted = false; };
-  }, [activeLanguage]);
+    return () => window.clearTimeout(applyPreference);
+  }, [user, updateUser, localLanguage]);
 
   const setLanguage = (lang: string) => {
+    if (!isSupportedLanguage(lang) || lang === activeLanguage) return;
+
     setLocalLanguage(lang);
-    localStorage.setItem('fera_language', lang);
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+
+    if (!user) {
+      sessionStorage.setItem(PRE_LOGIN_LANGUAGE_KEY, lang);
+      return;
+    }
+
+    sessionStorage.removeItem(PRE_LOGIN_LANGUAGE_KEY);
+    if (user.preferred_language !== lang) {
+      updateUser({ preferred_language: lang });
+    }
   };
 
   const translate = (key: TranslationKey, vars?: Record<string, string | number>) => {
-    let text = dictionary[key];
-    if (!text) {
-      text = fallbackDictionary[key] || key;
-    }
-    
+    let text = dictionary[key] || fallbackDictionary[key] || key;
+
     if (vars) {
-      Object.keys(vars).forEach(k => {
-        text = text.replace(new RegExp(`{{${k}}}`, 'g'), String(vars[k]));
-      });
+      for (const [variable, value] of Object.entries(vars)) {
+        text = text.replace(new RegExp(`{{${variable}}}`, 'g'), String(value));
+      }
     }
-    
+
     return text;
   };
-  
+
   const getLocalizedLink = (path: string) => {
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    if (activeLanguage === 'en') return cleanPath;
-    return `/${activeLanguage}${cleanPath === '/' ? '' : cleanPath}`;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanLinkPath = getCleanPath(normalizedPath);
+    if (!PUBLIC_ROUTES.includes(cleanLinkPath) || activeLanguage === 'en') {
+      return cleanLinkPath;
+    }
+    return getLanguagePath(cleanLinkPath, activeLanguage);
   };
 
   return (
@@ -116,7 +164,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLanguage() {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error('useLanguage must be used within LanguageProvider');
-  return ctx;
+  const context = useContext(LanguageContext);
+  if (!context) throw new Error('useLanguage must be used within LanguageProvider');
+  return context;
 }

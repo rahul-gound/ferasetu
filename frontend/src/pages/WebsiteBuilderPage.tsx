@@ -286,7 +286,7 @@ export default function WebsiteBuilderPage() {
   const saveMutation = useMutation({
     mutationFn: () => api.post('/website', { name: shopName, template: selectedTemplate, sections }),
     onSuccess: () => {
-      toast.success(translate('saved') || 'Website saved!');
+      toast.success(translate('websiteBuilder.saved'));
       queryClient.invalidateQueries({ queryKey: ['website'] });
       setSaving(false);
     },
@@ -378,7 +378,7 @@ export default function WebsiteBuilderPage() {
       }}>
         <Globe size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
         <h1 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', marginRight: '4px' }}>
-          Website Builder
+          {translate('websiteBuilder.title')}
         </h1>
         <input
           className="input"

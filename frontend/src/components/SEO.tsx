@@ -46,6 +46,7 @@ export default function SEO({
   const currentUrl = url || `${BASE_URL}${cleanPath}`;
 
   const publishedLanguages = SUPPORTED_LANGUAGES.filter(l => l.status === 'published');
+  const shouldGenerateLanguageAlternates = isPublicRoute && !finalNoIndex;
 
   return (
     <Helmet htmlAttributes={{ lang: language }}>
@@ -71,16 +72,16 @@ export default function SEO({
       <link rel="canonical" href={currentUrl} />
 
       {/* Bidirectional Hreflang Tags (only for published public pages) */}
-      {isPublicRoute && publishedLanguages.map(lang => {
+      {shouldGenerateLanguageAlternates && publishedLanguages.map(lang => {
         const langPath = getLanguagePath(cleanPath, lang.code);
         const hreflangUrl = `${BASE_URL}${langPath}`;
         return (
-          <link key={lang.code} rel="alternate" hreflang={lang.code} href={hreflangUrl} />
+          <link key={lang.code} rel='alternate' hrefLang={lang.code} href={hreflangUrl} />
         );
       })}
       
-      {isPublicRoute && (
-        <link rel="alternate" hreflang="x-default" href={`${BASE_URL}${getLanguagePath(cleanPath, 'en')}`} />
+      {shouldGenerateLanguageAlternates && (
+        <link rel='alternate' hrefLang='x-default' href={`${BASE_URL}${getLanguagePath(cleanPath, 'en')}`} />
       )}
 
       {/* JSON-LD Structured Data */}

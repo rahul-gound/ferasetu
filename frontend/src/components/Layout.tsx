@@ -1,259 +1,204 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Package, ShoppingCart, BarChart3,
-  Bot, Globe, LogOut, Menu, X, ChevronDown, LifeBuoy, Coins, MessageSquareText,
-  Settings, Sparkles, Search, Gift, Bell
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  BarChart3,
+  Bot,
+  Globe,
+  LogOut,
+  Menu,
+  X,
+  LifeBuoy,
+  Coins,
+  MessageSquareText,
+  Settings,
+  Sparkles,
+  ArrowUpRight
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import PlanBadge from './ui/PlanBadge';
-import { ENABLED_LANGUAGES } from '../i18n';
-import { normalizePlanId, getPlan, isFreePlan } from '../config/plans';
+import { isFreePlan } from '../config/plans';
 import FeedbackWidget from './FeedbackWidget';
 import SEO from './SEO';
+import LanguageSelector from './LanguageSelector';
+import type { TranslationKey } from '../i18n/types';
 
 interface NavItem {
   path: string;
   icon: React.ReactNode;
-  labelKey: string;
-  badge?: string;
+  labelKey: TranslationKey;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard',      icon: <LayoutDashboard size={20} />, labelKey: 'dashboard' },
-  { path: '/products',       icon: <Package size={20} />,         labelKey: 'products' },
-  { path: '/orders',         icon: <ShoppingCart size={20} />,    labelKey: 'orders', badge: '12' },
-  { path: '/analytics',      icon: <BarChart3 size={20} />,       labelKey: 'analytics' },
-  { path: '/fera-ai',        icon: <Sparkles size={20} />,        labelKey: 'feraAI' },
-  { path: '/ai-assistant',   icon: <Bot size={20} />,             labelKey: 'aiAssistant' },
-  { path: '/ai-credits',     icon: <Coins size={20} />,           labelKey: 'aiCredits', badge: '120' },
-  { path: '/survey-feedback',icon: <MessageSquareText size={20} />,labelKey: 'surveyFeedback' },
-  { path: '/website-builder',icon: <Globe size={20} />,           labelKey: 'websiteBuilder' },
-  { path: '/support',        icon: <LifeBuoy size={20} />,        labelKey: 'support' },
-  { path: '/settings',       icon: <Settings size={20} />,        labelKey: 'settings' },
+  { path: '/dashboard', icon: <LayoutDashboard size={20} />, labelKey: 'dashboard' },
+  { path: '/products', icon: <Package size={20} />, labelKey: 'products' },
+  { path: '/orders', icon: <ShoppingCart size={20} />, labelKey: 'orders' },
+  { path: '/analytics', icon: <BarChart3 size={20} />, labelKey: 'analytics' },
+  { path: '/fera-ai', icon: <Sparkles size={20} />, labelKey: 'feraAI' },
+  { path: '/ai-assistant', icon: <Bot size={20} />, labelKey: 'aiAssistant' },
+  { path: '/ai-credits', icon: <Coins size={20} />, labelKey: 'aiCredits' },
+  { path: '/survey-feedback', icon: <MessageSquareText size={20} />, labelKey: 'surveyFeedback' },
+  { path: '/website-builder', icon: <Globe size={20} />, labelKey: 'websiteBuilder' },
+  { path: '/support', icon: <LifeBuoy size={20} />, labelKey: 'support' },
+  { path: '/settings', icon: <Settings size={20} />, labelKey: 'settings' }
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout, updateUser } = useAuth();
-  const { language, setLanguage, translate } = useLanguage();
+  const { user, logout } = useAuth();
+  const { translate } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [langDropOpen, setLangDropOpen] = useState(false);
-  const activePlanId = normalizePlanId(user?.plan);
-  const activePlan = getPlan(user?.plan);
 
-  const currentLang = ENABLED_LANGUAGES.find(l => l.code === language);
-  const handleLogout = () => { logout(); navigate('/login'); };
-  
-  const handleLanguageChange = (code: string) => {
-    setLanguage(code);
-    if (user && user.preferred_language !== code) {
-      updateUser({ preferred_language: code });
-    }
-    setLangDropOpen(false);
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white w-[260px] flex-shrink-0 border-r border-gray-100 shadow-sm overflow-y-auto">
-      {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-50 flex items-center">
-        <img src="/logo-official.png" alt="FeraSetu — Your Business. Our Bridge." className="h-10 w-auto object-contain" />
+    <div className='flex h-full w-[280px] flex-col overflow-y-auto border-r border-slate-200 bg-white'>
+      <div className='flex items-center border-b border-slate-100 px-6 py-5'>
+        <img
+          src='/logo-official.png'
+          alt='FeraSetu'
+          className='h-10 w-auto object-contain'
+        />
       </div>
 
-      {/* Navigation */}
-      <nav className="px-4 py-6 flex-1 flex flex-col gap-1.5">
+      <nav aria-label={translate('layout.merchantNavigation')} className='flex flex-1 flex-col gap-1.5 px-4 py-6'>
         {NAV_ITEMS.map(item => (
-          <NavLink 
-            key={item.path} 
-            to={item.path} 
+          <NavLink
+            key={item.path}
+            to={item.path}
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) => `
-              flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-semibold
-              ${isActive 
-                ? 'bg-blue-50 text-[#0052FF]' 
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}
+              flex min-h-[44px] items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors
+              ${isActive
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600
             `}
           >
             {item.icon}
-            <span className="flex-1">{translate(item.labelKey)}</span>
-            {item.badge && (
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                item.badge === '120' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
-              }`}>
-                {item.badge}
-              </span>
-            )}
+            <span className='flex-1 truncate'>{translate(item.labelKey)}</span>
           </NavLink>
         ))}
       </nav>
 
-      {/* Dynamic Upgrade / Subscription Box */}
-      <div className="px-5 py-4">
-        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-gray-500">Current Plan</span>
-            <PlanBadge plan={user?.plan} size="sm" />
+      <div className='border-t border-slate-100 px-5 py-5'>
+        <div className='rounded-2xl border border-slate-100 bg-slate-50 p-4'>
+          <div className='mb-3 flex items-center justify-between gap-3'>
+            <span className='text-xs font-bold uppercase tracking-wide text-slate-500'>
+              {translate('layout.currentPlan')}
+            </span>
+            <PlanBadge plan={user?.plan} size='sm' />
           </div>
-          
+
           {isFreePlan(user?.plan) ? (
             <>
-              <p className="text-xs font-medium text-gray-500 mb-3">
-                Up to 25 products & basic AI.
+              <p className='mb-4 text-xs font-medium leading-relaxed text-slate-500'>
+                {translate('layout.freePlanDescription')}
               </p>
               <button
-                id="sidebar-upgrade-cta"
+                id='sidebar-upgrade-cta'
                 onClick={() => navigate('/upgrade')}
-                className="w-full py-2.5 rounded-xl bg-[#0052FF] text-white text-xs font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-600 transition-colors flex items-center justify-center gap-1.5"
+                className='flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
               >
-                Upgrade to Business (₹399/mo)
+                {translate('upgrade')}
+                <ArrowUpRight size={14} aria-hidden='true' />
               </button>
-            </>
-          ) : activePlanId === 'business' ? (
-            <>
-              <p className="text-xs font-medium text-gray-500 mb-3">
-                500 products · AI assistant · Analytics
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  id="sidebar-manage-plan-cta"
-                  onClick={() => navigate('/settings/subscription')}
-                  className="w-full py-2 rounded-xl bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 transition-colors"
-                >
-                  Manage Subscription
-                </button>
-                <button
-                  onClick={() => navigate('/upgrade')}
-                  className="w-full py-1 text-xs text-[#0052FF] font-semibold hover:underline text-center"
-                >
-                  Upgrade to Pro (₹999/mo)
-                </button>
-              </div>
             </>
           ) : (
-            <>
-              <p className="text-xs font-medium text-gray-500 mb-3">
-                Unlimited products & full AI power.
-              </p>
-              <button
-                id="sidebar-manage-plan-cta"
-                onClick={() => navigate('/settings/subscription')}
-                className="w-full py-2 rounded-xl bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 transition-colors"
-              >
-                Manage Subscription
-              </button>
-            </>
+            <button
+              onClick={() => navigate('/upgrade')}
+              className='flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+            >
+              {translate('layout.managePlan')}
+            </button>
           )}
         </div>
-      </div>
 
-      {/* User Profile Footer */}
-      <div className="px-6 py-6 border-t border-gray-50 mt-auto">
-        <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:bg-gray-100 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 border border-blue-200/50 flex items-center justify-center text-blue-700 font-bold shadow-inner flex-shrink-0">
-            {(user?.name || 'A').charAt(0).toUpperCase()}
+        <div className='mt-4 flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3'>
+          <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white'>
+            {(user?.name || 'F').charAt(0).toUpperCase()}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-gray-900 truncate">
-              {user?.name || 'Arjun Store'}
+          <div className='min-w-0'>
+            <div className='truncate text-sm font-bold text-slate-900'>
+              {user?.name || translate('layout.yourWorkspace')}
             </div>
-            <div className="text-xs font-medium text-gray-400 truncate">
-              {user?.subdomain ? `${user.subdomain}.ferasetu.shop` : 'arjunstore.ferasetu.shop'}
-            </div>
+            {user?.subdomain && (
+              <div className='truncate text-xs font-medium text-slate-500'>
+                {user.subdomain}.ferasetu.shop
+              </div>
+            )}
           </div>
-          <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-[#F9FAFB] overflow-hidden font-sans">
-      <SEO title="FeraSetu Merchant Workspace" noindex />
+    <div className='flex h-screen overflow-hidden bg-[#F8FAFC] font-sans'>
+      <SEO title={translate('layout.workspaceTitle')} noindex />
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:block h-full z-20">
+      <aside className='hidden h-full md:block'>
         {sidebarContent}
       </aside>
 
-      {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 md:hidden"
+        <div
+          className='fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden'
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Mobile Sidebar */}
-      <aside className={`fixed top-0 bottom-0 left-0 z-50 transition-transform duration-300 md:hidden shadow-2xl ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <button onClick={() => setSidebarOpen(false)} className="absolute top-4 right-4 p-2 bg-white rounded-lg shadow-sm text-gray-500">
-          <X size={20} />
+      <aside
+        className={`fixed bottom-0 left-0 top-0 z-50 shadow-2xl transition-transform duration-300 md:hidden ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className='absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+          aria-label={translate('nav.closeMenu')}
+        >
+          <X size={20} aria-hidden='true' />
         </button>
         {sidebarContent}
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* Top Header */}
-        <header className="h-[72px] bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm sticky top-0">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 text-gray-500 hover:bg-gray-50 rounded-lg">
-              <Menu size={20} />
+      <div className='flex min-w-0 flex-1 flex-col'>
+        <header className='sticky top-0 z-30 flex h-[72px] shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white/90 px-5 shadow-sm backdrop-blur lg:px-6'>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden'
+            aria-label={translate('nav.openMenu')}
+          >
+            <Menu size={20} aria-hidden='true' />
+          </button>
+
+          <div className='ml-auto flex items-center gap-3'>
+            <LanguageSelector variant='dashboard' />
+            <button
+              onClick={handleLogout}
+              className='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2'
+              aria-label={translate('logout')}
+              title={translate('logout')}
+            >
+              <LogOut size={18} aria-hidden='true' />
             </button>
-            <div className="relative hidden md:block">
-              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search anything..." 
-                className="pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium w-72 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all text-gray-800 placeholder-gray-400"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-5">
-            <button className="hidden sm:flex items-center gap-2 text-sm font-bold text-[#0052FF] bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors">
-              <Gift size={16} />
-              Refer & Earn
-            </button>
-
-            <button className="relative p-2 text-gray-400 hover:bg-gray-50 rounded-xl transition-colors">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 border-2 border-white rounded-full text-[8px] font-bold text-white flex items-center justify-center">5</span>
-            </button>
-
-            <div className="relative">
-              <button onClick={() => setLangDropOpen(v => !v)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-xl transition-colors">
-                <Globe size={16} />
-                <span className="hidden sm:inline">{currentLang?.nativeName || 'English'}</span>
-                <ChevronDown size={14} className="text-gray-400" />
-              </button>
-
-              {langDropOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 py-2">
-                  {ENABLED_LANGUAGES.map(lang => (
-                    <button key={lang.code} onClick={() => handleLanguageChange(lang.code)}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold flex items-center justify-between transition-colors
-                        ${lang.code === language ? 'bg-blue-50 text-[#0052FF]' : 'text-gray-600 hover:bg-gray-50'}
-                      `}>
-                      <span>{lang.nativeName}</span>
-                      <span className="text-xs font-bold opacity-50 uppercase">{lang.code}</span>
-                    </button>
-                  ))}
-                  <div className="h-px bg-gray-100 my-2 mx-4" />
-                  <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2">
-                    <LogOut size={16} /> Logout
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="w-10 h-10 rounded-full bg-[#111827] flex items-center justify-center text-white font-bold text-sm shadow-md cursor-pointer hover:opacity-90 transition-opacity">
-              {(user?.name || 'A').charAt(0).toUpperCase()}
+            <div
+              className='hidden h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-md sm:flex'
+              aria-hidden='true'
+            >
+              {(user?.name || 'F').charAt(0).toUpperCase()}
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#F9FAFB] p-6 lg:p-8">
+        <main className='flex-1 overflow-y-auto bg-[#F8FAFC] p-5 sm:p-6 lg:p-8'>
           {children}
         </main>
       </div>

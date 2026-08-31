@@ -7,7 +7,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { 
-  TrendingUp, ShoppingCart, AlertTriangle, Plus, Bot, 
+  TrendingUp, ShoppingCart, AlertTriangle, Plus, Bot, Package, Coins,
   ArrowRight, Zap, Check, Gift, Download, 
   Users, Target, Sparkles, ShieldCheck, Calendar, Clock,
   ChevronDown
@@ -185,7 +185,7 @@ export default function DashboardPage() {
           </div>
           <button onClick={handleExportData} disabled={exporting} className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">
             <Download size={16} className="text-gray-400" />
-            {exporting ? 'Exporting...' : 'Download Report'}
+            {exporting ? translate('common.loading') : translate('dashboard.exportData')}
           </button>
         </div>
       </div>
@@ -308,7 +308,7 @@ export default function DashboardPage() {
         {/* Sales Overview Chart */}
         <div className="lg:col-span-7 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-extrabold text-gray-900">Sales Overview</h2>
+            <h2 className="text-lg font-extrabold text-gray-900">{translate('dashboard.salesOverview')}</h2>
             <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
               <span className="flex items-center gap-1.5 text-blue-600">
                 <span className="w-2 h-2 rounded-full bg-blue-600"></span> Revenue (₹)
@@ -438,7 +438,7 @@ export default function DashboardPage() {
         {/* Recent Orders */}
         <div className="lg:col-span-6 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-extrabold text-gray-900">Recent Orders</h2>
+            <h2 className="text-lg font-extrabold text-gray-900">{translate('dashboard.recentOrders')}</h2>
             <Link to="/orders" className="text-xs font-bold text-blue-600 hover:text-blue-700">View All</Link>
           </div>
           

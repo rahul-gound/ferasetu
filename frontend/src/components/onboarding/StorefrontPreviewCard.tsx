@@ -1,4 +1,5 @@
 import { Globe, Sparkles, Store } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface StorefrontPreviewCardProps {
   businessName: string;
@@ -20,6 +21,8 @@ export default function StorefrontPreviewCard({
   businessType,
   mainProducts,
 }: StorefrontPreviewCardProps) {
+  const { translate } = useLanguage();
+
   const productChips = mainProducts
     .split(',')
     .map(item => item.trim())
@@ -35,15 +38,15 @@ export default function StorefrontPreviewCard({
           </span>
           <div>
             <h3 className='text-base font-bold text-white'>
-              {businessName || 'Your Shop'}
+              {businessName || translate('layout.yourWorkspace')}
             </h3>
             <p className='text-xs font-semibold text-blue-200'>
-              {businessType || 'Business preview'}
+              {businessType || translate('websiteBuilder.title')}
             </p>
           </div>
         </div>
         <span className='rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-300'>
-          Preview
+          {translate('hero.visual.example')}
         </span>
       </header>
 
@@ -54,7 +57,7 @@ export default function StorefrontPreviewCard({
 
       <div className='mb-5'>
         <p className='mb-2 text-xs font-bold uppercase tracking-wider text-blue-200'>
-          Products you mentioned
+          {translate('products')}
         </p>
         <div className='flex flex-wrap gap-2'>
           {productChips.length > 0 ? (
@@ -68,7 +71,7 @@ export default function StorefrontPreviewCard({
             ))
           ) : (
             <span className='rounded-full border border-dashed border-white/30 px-3 py-1 text-xs font-semibold text-white/70'>
-              Add a few products to see them here
+              {translate('auth.next.product')}
             </span>
           )}
         </div>
@@ -77,7 +80,7 @@ export default function StorefrontPreviewCard({
       <div className='flex items-start gap-3 rounded-xl bg-white/10 p-4 text-xs leading-relaxed text-white'>
         <Sparkles size={16} className='mt-0.5 shrink-0 text-blue-200' />
         <p>
-          This preview updates as you answer. Your real storefront is created after setup, using the exact details you provide.
+          {translate('onboarding.previewNote')}
         </p>
       </div>
     </article>

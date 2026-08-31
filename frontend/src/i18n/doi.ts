@@ -1,11 +1,10 @@
 import type { Dictionary } from './types';
 import en from './en';
-
-// Draft translation generated for testing.
-// Please review and update with actual translations.
+import { CORE_TRANSLATIONS } from './core';
 
 const dict: Dictionary = {
-    ...en,
+  ...en,
+  ...CORE_TRANSLATIONS.doi
 };
 
 export default dict;

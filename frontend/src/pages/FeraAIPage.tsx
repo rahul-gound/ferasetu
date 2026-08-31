@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import AIWorkflowStrip from '../components/marketing/AIWorkflowStrip';
 
 // ---------------------------------------------------------------------------
@@ -377,6 +378,7 @@ function ApprovalCard({
 
 export default function FeraAIPage() {
   const { user, updateUser } = useAuth();
+  const { translate } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -842,7 +844,7 @@ export default function FeraAIPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Fera AI about your shop..."
+            placeholder={translate('feraAI.inputPlaceholder')}
             rows={1}
             disabled={isLoading}
             style={{

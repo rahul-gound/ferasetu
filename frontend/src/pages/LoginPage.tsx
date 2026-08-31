@@ -1,38 +1,39 @@
-/**
- * LoginPage — AIDA: Authenticate with FeraSetu identity.
- *
- * The page communicates what you're signing into and why it's worth it,
- * while preserving the existing WorkOS authentication behavior.
- *
- * Does NOT break OAuth flow, redirect logic, or session handling.
- */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Globe, ShoppingCart, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ArrowRight, ArrowLeft, Store, Percent, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
+import AuthShell from '../components/auth/AuthShell';
 import SEO from '../components/SEO';
-
-const VALUE_POINTS = [
-  { icon: <Store size={14} />, text: 'Your own online store — yourshop.ferasetu.com' },
-  { icon: <Percent size={14} />, text: 'Zero commission on every sale' },
-  { icon: <MessageSquare size={14} />, text: 'WhatsApp orders + direct UPI payments' },
-  { icon: <Sparkles size={14} />, text: 'Fera AI that knows your shop data' },
-];
 
 export default function LoginPage() {
   const { login, user, isLoading } = useAuth();
-  const { getLocalizedLink } = useLanguage();
+  const { translate, getLocalizedLink } = useLanguage();
   const navigate = useNavigate();
   const hasAttempted = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const workspacePoints = [
+    {
+      icon: <Globe size={15} aria-hidden='true' />,
+      label: translate('auth.next.storeUrl')
+    },
+    {
+      icon: <ShoppingCart size={15} aria-hidden='true' />,
+      label: translate('auth.next.orders')
+    },
+    {
+      icon: <Sparkles size={15} aria-hidden='true' />,
+      label: translate('auth.next.feraAI')
+    }
+  ];
 
   const handleLogin = async () => {
     setIsSubmitting(true);
     try {
       await login();
-    } catch (err) {
-      console.error('Login attempt failed:', err);
+    } catch (error) {
+      console.error('Login attempt failed:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -44,95 +45,70 @@ export default function LoginPage() {
       navigate('/dashboard');
     } else if (!hasAttempted.current) {
       hasAttempted.current = true;
-      handleLogin();
+      void handleLogin();
     }
   }, [user, isLoading, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 px-4 py-12 relative overflow-hidden">
-      <SEO title="Sign In — FeraSetu" noindex />
-
-      {/* Background ambient */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Back link */}
-        <Link
-          to={getLocalizedLink('/')}
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors mb-6"
+    <>
+      <SEO title={translate('auth.login.title')} noindex />
+      <AuthShell
+        title={translate('auth.login.title')}
+        subtitle={translate('auth.login.subtitle')}
+      >
+        <section
+          aria-labelledby='login-workspace'
+          className='mb-7 rounded-2xl border border-white/10 bg-white/[0.03] p-5'
         >
-          <ArrowLeft size={15} />
-          Back to Home
-        </Link>
+          <h2
+            id='login-workspace'
+            className='mb-4 text-xs font-bold uppercase tracking-[0.16em] text-slate-500'
+          >
+            {translate('auth.login.workspaceTitle')}
+          </h2>
+          <ul className='space-y-3'>
+            {workspacePoints.map(point => (
+              <li
+                key={point.label}
+                className='flex min-h-[36px] items-center gap-3 text-sm font-medium text-slate-300'
+              >
+                <span className='flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-blue-300'>
+                  {point.icon}
+                </span>
+                {point.label}
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        <div className="bg-slate-800/80 border border-slate-700/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl">
-          {/* Logo */}
-          <Link to="/" className="inline-block mb-6">
-            <img
-              src="/logo-official.png"
-              alt="FeraSetu"
-              className="h-9 w-auto object-contain"
-            />
-          </Link>
-
-          <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">
-            Welcome back
-          </h1>
-          <p className="text-sm text-slate-400 mb-6">
-            Sign in to manage your online store, orders, and products.
+        <div className='mb-6 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-6 text-center'>
+          <span
+            className='h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent'
+            role='status'
+            aria-label={translate('auth.loading.connect')}
+          />
+          <p className='text-sm font-medium text-slate-300'>
+            {translate('auth.loading.connect')}
           </p>
-
-          {/* Value reminder — brief, not distracting */}
-          <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4 mb-6">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-              Your FeraSetu workspace
-            </p>
-            <div className="space-y-2">
-              {VALUE_POINTS.map((v, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs font-medium text-slate-300">
-                  <span className="text-blue-400 flex-shrink-0">{v.icon}</span>
-                  {v.text}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Spinner */}
-          <div className="py-3 mb-5 flex flex-col items-center justify-center">
-            <div className="h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent mb-2.5" />
-            <p className="text-sm text-slate-300 font-medium">Connecting to secure login...</p>
-          </div>
-
-          {/* Fallback */}
-          <div className="space-y-3">
-            <button
-              onClick={handleLogin}
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-lg shadow-blue-600/25 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Opening Sign In...' : 'Click Here to Sign In'}
-              <ArrowRight size={15} />
-            </button>
-
-            <Link
-              to={getLocalizedLink('/register')}
-              className="block w-full py-2.5 px-4 text-sm font-semibold text-slate-400 hover:text-white transition-colors text-center"
-            >
-              Don't have an account?{' '}
-              <span className="text-blue-400 underline underline-offset-4">Start Free</span>
-            </Link>
-          </div>
         </div>
 
-        {/* Info bar */}
-        <div className="mt-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-          <CheckCircle2 size={13} className="text-emerald-500" />
-          <span>Secure login · Data stays in India · ₹0 to start</span>
-        </div>
-      </div>
-    </div>
+        <button
+          type='button'
+          onClick={handleLogin}
+          disabled={isSubmitting}
+          className='flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0'
+        >
+          {translate('auth.button.login')}
+          <ArrowRight size={16} aria-hidden='true' />
+        </button>
+
+        <Link
+          to={getLocalizedLink('/register')}
+          className='mt-5 block rounded-xl py-2 text-center text-sm font-semibold text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500'
+        >
+          {translate('auth.register.freeTitle')}
+        </Link>
+      </AuthShell>
+    </>
   );
 }

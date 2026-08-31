@@ -23,6 +23,32 @@ The experience combines four strategic layers:
 
 Marketing and product messaging is centralized in `frontend/src/content/strategy.ts` so value positioning can be reviewed and tested without scattering copy across components.
 
+## Multilingual Experience
+
+FeraSetu supports the requested 22-language India catalog, with English as the canonical fallback:
+
+`as`, `bn`, `brx`, `doi`, `gu`, `hi`, `kn`, `ks`, `gom`, `mai`, `ml`, `mni`, `mr`, `ne`, `or`, `pa`, `sa`, `ta`, `te`, `ur`, `sd`, and `en`.
+
+### Architecture
+
+- `frontend/src/i18n/config.ts` defines the language catalog, locale metadata, route helpers, and RTL direction.
+- `frontend/src/i18n/core.ts` provides shared core-interface translations for all non-English languages.
+- `frontend/src/i18n/en.ts` is the typed fallback dictionary.
+- `frontend/src/contexts/LanguageContext.tsx` is the single provider for active language, dictionary loading, fallback, and route-aware links.
+- `frontend/src/components/LanguageSelector.tsx` provides one searchable selector with a desktop popover and mobile bottom sheet.
+- Urdu, Kashmiri, and Sindhi use RTL document direction and script-aware font fallbacks.
+
+### Persistence
+
+- Public routes support language-prefixed URLs such as `/hi`, `/mr/login`, and `/ta/register`.
+- Unauthenticated choices persist in `localStorage` and a pre-login `sessionStorage` preference.
+- Authenticated choices synchronize with the merchant `preferred_language` account field.
+- Dashboard and application routes use the persisted language without requiring a URL prefix or logout.
+
+### Coverage
+
+All 22 languages receive the same typed key set and English fallback. Hindi, Marathi, and Gujarati currently have richer translation coverage. Long-form marketing copy in the remaining languages intentionally falls back to English instead of rendering missing or misleading text.
+
 ## Core Features
 
 - Public marketing pages, including pricing and product-specific landing pages.
@@ -161,9 +187,14 @@ npm test
 
 Current known status:
 
-- Frontend TypeScript check: passing.
+- Frontend default TypeScript check (`tsc --noEmit`): passing.
+- Frontend stricter app-scoped TypeScript check (`tsc --noEmit -p tsconfig.app.json`): 59 pre-existing errors remain in unrelated files.
 - Frontend production build: passing.
-- Frontend lint: currently reports pre-existing issues across unrelated files.
+- Backend test suite: 69 tests passing.
+- Compiled language bundles: all 21 non-English bundles import successfully, contain the 224 English fallback keys, and have no missing or undefined values.
+- Local preview: `/`, `/hi`, `/mr/login`, `/ta/register`, `/pricing`, `/login`, and `/register` returned HTTP 200.
+- Frontend lint: 206 pre-existing problems remain across unrelated files.
+- Browser visual QA: not verified in this environment because headless Chromium could not start its GPU process.
 - GitHub reports repository security alerts that still require review.
 
 ## Roadmap
@@ -177,8 +208,9 @@ Current known status:
 - [x] Store builder foundation
 - [x] Fera AI workflow assistance
 - [x] Stage-based pricing presentation
+- [x] 22-language architecture and persistent language journey
 - [ ] Payment integration completion
-- [ ] Multi-language expansion
+- [ ] Complete long-form marketing copy translation
 - [ ] Production SEO response-header verification
 - [ ] End-to-end merchant journey QA
 

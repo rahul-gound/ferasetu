@@ -1,154 +1,163 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ArrowRight, ChevronDown, Globe, Menu, X } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { ENABLED_LANGUAGES, getLanguagePath } from '../../i18n';
-
-function LightLanguageSelector() {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const location = useLocation();
-  const { language } = useLanguage();
-
-  const currentLanguage = ENABLED_LANGUAGES.find(l => l.code === language) || ENABLED_LANGUAGES[0];
-  const cleanPath = location.pathname;
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors border border-slate-200 rounded-full px-4 py-2 bg-white shadow-sm"
-        aria-expanded={isOpen}
-        aria-label="Select Language"
-      >
-        <Globe size={16} className="text-slate-400" />
-        <span className="hidden sm:inline">{currentLanguage.nativeName}</span>
-        <span className="sm:hidden">{currentLanguage.code.toUpperCase()}</span>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div 
-          className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50 py-1"
-          role="menu"
-        >
-          {ENABLED_LANGUAGES.map((lang) => {
-            const href = getLanguagePath(cleanPath, lang.code);
-            const isSelected = language === lang.code;
-            return (
-              <a
-                key={lang.code}
-                href={href}
-                className={`block px-4 py-2.5 text-sm transition-colors ${
-                  isSelected 
-                    ? 'bg-blue-50 text-blue-600 font-bold' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-                role="menuitem"
-                onClick={() => setIsOpen(false)}
-              >
-                {lang.nativeName}
-              </a>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
+import LanguageSelector from '../LanguageSelector';
 
 export default function PublicNavbar() {
   const { user } = useAuth();
-  const { getLocalizedLink, translate: t } = useLanguage();
+  const { translate: t, getLocalizedLink } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const primaryLinks = [
+    {
+      label: t('nav.howItWorks'),
+      to: `${getLocalizedLink('/')}#how-it-works`
+    },
+    {
+      label: 'Fera AI',
+      to: `${getLocalizedLink('/')}#fera-ai`
+    },
+    {
+      label: t('nav.features'),
+      to: `${getLocalizedLink('/')}#features`
+    },
+    {
+      label: t('nav.pricing'),
+      to: getLocalizedLink('/pricing')
+    }
+  ];
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 transition-all">
-        <div className="max-w-[1280px] mx-auto px-6 h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/logo-official.png" alt="FeraSetu" fetchpriority="high" className="h-8 w-auto object-contain" />
+      <nav
+        aria-label={t('nav.primary')}
+        className='sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70'
+      >
+        <div className='mx-auto flex h-20 max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-6'>
+          <Link
+            to={getLocalizedLink('/')}
+            className='group flex shrink-0 items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+            aria-label='FeraSetu'
+          >
+            <img
+              src='/logo-official.png'
+              alt='FeraSetu'
+              fetchPriority='high'
+              className='h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]'
+            />
           </Link>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <a href="/#how-it-works" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.howItWorks')}</a>
-            <a href="/#fera-ai" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" aria-hidden="true" />
-              Fera AI
-            </a>
-            <a href="/#features" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.features')}</a>
-            <Link to={getLocalizedLink('/pricing')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">{t('nav.pricing')}</Link>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-4">
-            <LightLanguageSelector />
-            
-            {user ? (
+
+          <div className='hidden items-center gap-7 lg:flex'>
+            {primaryLinks.map(link => (
               <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm font-bold shadow-sm hover:bg-slate-800 transition-all"
+                key={link.to}
+                to={link.to}
+                className='rounded-md text-sm font-semibold text-slate-600 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-4'
               >
-                {t('nav.dashboard')} <ArrowRight size={14} />
+                {link.label}
               </Link>
-            ) : (
-              <>
-                <Link to={getLocalizedLink('/login')} className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">
-                  {t('nav.signIn')}
-                </Link>
-                <Link to={getLocalizedLink('/register')} className="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all hover:-translate-y-0.5">
-                  {t('nav.startFree')}
-                </Link>
-              </>
-            )}
+            ))}
           </div>
 
-          <button 
-            className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-nav"
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className='flex items-center gap-3'>
+            <div className='hidden md:block'>
+              <LanguageSelector variant='light' />
+            </div>
+
+            {user ? (
+              <Link
+                to='/dashboard'
+                className='hidden items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:inline-flex'
+              >
+                {t('nav.dashboard')}
+                <ArrowRight size={14} aria-hidden='true' />
+              </Link>
+            ) : (
+              <div className='hidden items-center gap-3 md:flex'>
+                <Link
+                  to={getLocalizedLink('/login')}
+                  className='rounded-full px-3 py-2 text-sm font-bold text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+                >
+                  {t('nav.signIn')}
+                </Link>
+                <Link
+                  to={getLocalizedLink('/register')}
+                  className='inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+                >
+                  {t('nav.startFree')}
+                  <ArrowRight size={15} aria-hidden='true' />
+                </Link>
+              </div>
+            )}
+
+            <button
+              type='button'
+              onClick={() => setMobileMenuOpen(true)}
+              className='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden'
+              aria-label={t('nav.openMenu')}
+              aria-expanded={mobileMenuOpen}
+            >
+              <Menu size={20} aria-hidden='true' />
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-white pt-20 px-6 overflow-y-auto">
-          <div className="flex flex-col gap-6 py-6">
-            <a href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.howItWorks')}</a>
-            <a href="/#fera-ai" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-purple-500" />
-              Fera AI
-            </a>
-            <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.features')}</a>
-            <Link to={getLocalizedLink('/pricing')} onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold text-slate-900">{t('nav.pricing')}</Link>
-            
-            <div className="pt-4 border-t border-slate-100 flex flex-col gap-4">
-              <LightLanguageSelector />
+        <div className='fixed inset-0 z-[70] flex flex-col bg-white md:hidden'>
+          <div className='flex h-20 items-center justify-between border-b border-slate-200 px-5'>
+            <img src='/logo-official.png' alt='FeraSetu' className='h-8 w-auto object-contain' />
+            <button
+              type='button'
+              onClick={() => setMobileMenuOpen(false)}
+              className='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+              aria-label={t('nav.closeMenu')}
+            >
+              <X size={20} aria-hidden='true' />
+            </button>
+          </div>
+
+          <div className='flex-1 overflow-y-auto px-5 py-6'>
+            <div className='flex flex-col gap-1'>
+              {primaryLinks.map(link => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className='rounded-2xl px-4 py-4 text-lg font-bold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className='mt-8 flex flex-col gap-4 border-t border-slate-100 pt-6'>
+              <LanguageSelector variant='light' />
               {user ? (
-                <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="w-full py-4 flex justify-center items-center gap-2 rounded-xl bg-slate-900 text-white font-bold">
-                  {t('nav.dashboard')} <ArrowRight size={16} />
+                <Link
+                  to='/dashboard'
+                  onClick={() => setMobileMenuOpen(false)}
+                  className='flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-slate-900 text-base font-bold text-white shadow-lg shadow-slate-900/10 transition-colors hover:bg-slate-800'
+                >
+                  {t('nav.dashboard')}
+                  <ArrowRight size={16} aria-hidden='true' />
                 </Link>
               ) : (
                 <>
-                  <Link to={getLocalizedLink('/login')} onClick={() => setMobileMenuOpen(false)} className="w-full py-4 text-center rounded-xl bg-slate-50 text-slate-900 font-bold">
+                  <Link
+                    to={getLocalizedLink('/login')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className='flex min-h-[52px] items-center justify-center rounded-2xl bg-slate-50 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100'
+                  >
                     {t('nav.signIn')}
                   </Link>
-                  <Link to={getLocalizedLink('/register')} onClick={() => setMobileMenuOpen(false)} className="w-full py-4 text-center rounded-xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20">
+                  <Link
+                    to={getLocalizedLink('/register')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className='flex min-h-[52px] items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
+                  >
                     {t('nav.startFree')}
                   </Link>
                 </>

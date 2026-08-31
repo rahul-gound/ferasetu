@@ -57,11 +57,11 @@ describe('SEO Noindex & Crawler Configuration', () => {
   describe('Frontend Static Configuration', () => {
     const frontendDir = path.resolve(__dirname, '../../../frontend');
 
-    it('index.html contains meta robots noindex, nofollow', () => {
+    it('index.html does not contain a global noindex meta tag', () => {
       const htmlPath = path.join(frontendDir, 'index.html');
       expect(fs.existsSync(htmlPath)).toBe(true);
       const content = fs.readFileSync(htmlPath, 'utf8');
-      expect(content).toMatch(/<meta\s+name=["']robots["']\s+content=["']noindex,\s*nofollow["']/i);
+      expect(content).not.toMatch(/<meta\s+name=["']robots["']\s+content=["']noindex,\s*nofollow["']/i);
     });
 
     it('public/robots.txt allows crawling so noindex can be discovered', () => {
@@ -74,11 +74,13 @@ describe('SEO Noindex & Crawler Configuration', () => {
       expect(content).not.toMatch(/sitemap/i);
     });
 
-    it('public/_headers contains X-Robots-Tag: noindex, nofollow for all routes', () => {
+    it('public/_headers preserves security headers without a global noindex directive', () => {
       const headersPath = path.join(frontendDir, 'public/_headers');
       expect(fs.existsSync(headersPath)).toBe(true);
       const content = fs.readFileSync(headersPath, 'utf8');
-      expect(content).toMatch(/X-Robots-Tag:\s*noindex,\s*nofollow/i);
+      expect(content).not.toMatch(/\/\*[\s\S]*X-Robots-Tag:\s*noindex,\s*nofollow/i);
+      expect(content).toMatch(/X-Frame-Options:\s*SAMEORIGIN/i);
+      expect(content).toMatch(/X-Content-Type-Options:\s*nosniff/i);
     });
 
     it('public/sitemap.xml is absent (not actively advertised)', () => {

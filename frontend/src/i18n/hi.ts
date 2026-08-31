@@ -1,8 +1,10 @@
 import type { Dictionary } from './types';
 import en from './en';
+import { CORE_TRANSLATIONS } from './core';
 
 const dict: Dictionary = {
   ...en,
+  ...CORE_TRANSLATIONS.hi,
   "nav.howItWorks": "यह कैसे काम करता है",
   "nav.features": "विशेषताएं",
   "nav.pricing": "कीमत",
