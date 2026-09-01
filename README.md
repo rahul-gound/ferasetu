@@ -222,7 +222,8 @@ Current known status:
 - Terms page lint: passing. Mobile/browser visual QA remains not verified in this environment.
 - Frontend lint: 205 pre-existing problems remain across unrelated files.
 - Browser visual QA: not verified in this environment because headless Chromium could not start its GPU process.
-- GitHub reports repository security alerts that still require review.
+- Security remediation: the root workspace lockfile is now tracked, the backend lockfile is updated, and both root and backend `npm audit` commands report 0 vulnerabilities.
+- GitHub Dependabot should close its npm alerts after it rescans the updated lockfiles. Closure is not yet confirmed because GitHub processes alerts asynchronously.
 
 ## Roadmap
 
