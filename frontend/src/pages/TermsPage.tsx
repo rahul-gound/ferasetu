@@ -1,17 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
+  Check,
   CheckCircle2,
   ChevronDown,
-  Database,
+  Copy,
   FileText,
   Mail,
   Scale,
-  ShieldCheck,
-  Sparkles,
-  Store
+  ShieldCheck
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import PublicLayout from '../components/public/PublicLayout';
@@ -575,55 +574,36 @@ const TERMS_SECTIONS: LegalSection[] = [
   }
 ];
 
-const SUMMARY_CARDS = [
+const CONTACT_CARDS = [
   {
-    icon: Store,
-    title: `FeraSetu provides software`,
-    text: `We supply the platform, storefront tools, order management, AI features, and infrastructure.`
+    label: `General Support`,
+    email: `support@ferasetu.com`,
+    description: `Account, billing, product, and technical questions.`
   },
   {
-    icon: Scale,
-    title: `You operate your business`,
-    text: `You remain responsible for your products, prices, fulfillment, taxes, refunds, and customer promises.`
+    label: `Privacy`,
+    email: `privacy@ferasetu.com`,
+    description: `Privacy Policy, personal data, and privacy requests.`
   },
   {
-    icon: Database,
-    title: `You own your store data`,
-    text: `Your business Content and Merchant Data remain yours, subject to the operational license in these Terms.`
-  },
-  {
-    icon: Sparkles,
-    title: `Review AI output`,
-    text: `Fera AI can help draft and organize content, but you should review it before publishing or relying on it.`
-  },
-  {
-    icon: CheckCircle2,
-    title: `Transparent commercial terms`,
-    text: `Plan fees, limits, billing frequency, and cancellation behavior are disclosed before payment.`
+    label: `Security`,
+    email: `security@ferasetu.com`,
+    description: `Responsible security disclosure and security concerns.`
   }
-];
-
-const CONTACTS = [
-  { label: `General Support`, email: `support@ferasetu.com`, description: `Account, billing, product, and technical questions.` },
-  { label: `Privacy`, email: `privacy@ferasetu.com`, description: `Privacy Policy, personal data, and privacy requests.` },
-  { label: `Security`, email: `security@ferasetu.com`, description: `Responsible security disclosure and security concerns.` }
 ];
 
 function LegalBlockView({ block }: { block: LegalBlock }): ReactNode {
   if (block.kind === 'paragraph') {
-    return <p className='text-slate-600 leading-relaxed'>{block.text}</p>;
+    return <p>{block.text}</p>;
   }
 
   if (block.kind === 'list') {
     return (
       <div className='space-y-3'>
-        {block.intro && <p className='text-slate-600 leading-relaxed'>{block.intro}</p>}
-        <ul className='space-y-2.5'>
+        {block.intro && <p>{block.intro}</p>}
+        <ul className='list-disc pl-5 space-y-2 text-sm text-slate-600'>
           {block.items.map(item => (
-            <li key={item} className='flex gap-3 text-slate-600 leading-relaxed'>
-              <span className='mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500' aria-hidden='true' />
-              <span>{item}</span>
-            </li>
+            <li key={item}>{item}</li>
           ))}
         </ul>
       </div>
@@ -636,12 +616,75 @@ function LegalBlockView({ block }: { block: LegalBlock }): ReactNode {
   const Icon = block.tone === 'amber' ? AlertTriangle : CheckCircle2;
 
   return (
-    <div className={`rounded-2xl border p-4 sm:p-5 ${classes}`}>
-      <div className='mb-1.5 flex items-center gap-2 text-sm font-bold'>
+    <div className={`rounded-xl border p-4 text-sm leading-relaxed ${classes}`}>
+      <div className='mb-1.5 flex items-center gap-2 font-bold'>
         <Icon size={16} className='shrink-0' aria-hidden='true' />
         {block.title}
       </div>
-      <p className='text-sm leading-relaxed'>{block.text}</p>
+      <p>{block.text}</p>
+    </div>
+  );
+}
+
+function EmailCopyButton({
+  email,
+  label,
+  copiedEmail,
+  onCopyEmail
+}: {
+  email: string;
+  label: string;
+  copiedEmail: string | null;
+  onCopyEmail: (email: string) => void;
+}) {
+  const handleCopy = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    onCopyEmail(email);
+  };
+
+  const copied = copiedEmail === email;
+
+  return (
+    <div className='flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:bg-slate-100/70 sm:flex-row sm:items-center'>
+      <div className='flex items-center gap-3'>
+        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600'>
+          <Mail size={18} />
+        </div>
+        <div>
+          <span className='text-xs font-semibold uppercase tracking-wider text-slate-500'>{label}</span>
+          <div className='break-all font-semibold text-slate-900'>
+            <a href={`mailto:${email}`} className='text-blue-600 hover:underline'>
+              {email}
+            </a>
+          </div>
+        </div>
+      </div>
+      <div className='flex items-center gap-2 self-start sm:self-auto'>
+        <button
+          onClick={handleCopy}
+          type='button'
+          aria-label={`Copy ${email} address`}
+          className='inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-all hover:bg-slate-50 active:scale-95'
+        >
+          {copied ? (
+            <>
+              <Check size={14} className='text-emerald-600' />
+              <span className='font-semibold text-emerald-600'>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy size={14} className='text-slate-500' />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+        <a
+          href={`mailto:${email}`}
+          className='inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-2xs transition-all hover:bg-blue-700 active:scale-95'
+        >
+          Send Email
+        </a>
+      </div>
     </div>
   );
 }
@@ -650,6 +693,7 @@ export default function TermsPage() {
   const { getLocalizedLink, translate } = useLanguage();
   const [activeSection, setActiveSection] = useState(TERMS_SECTIONS[0].id);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const tocItems = TERMS_SECTIONS.map((section, index) => ({
@@ -688,6 +732,12 @@ export default function TermsPage() {
     window.scrollTo({ top: y, behavior: 'smooth' });
     setActiveSection(id);
     setMobileMenuOpen(false);
+  };
+
+  const copyEmail = (email: string) => {
+    navigator.clipboard.writeText(email);
+    setCopiedEmail(email);
+    window.setTimeout(() => setCopiedEmail(null), 2000);
   };
 
   const renderTocButton = (item: { id: string; title: string; number: string }, isDesktop: boolean) => {
@@ -760,55 +810,30 @@ export default function TermsPage() {
               <span className='hidden text-slate-300 sm:inline'>•</span>
               <span>Online Software Service</span>
               <span className='hidden text-slate-300 sm:inline'>•</span>
-              <span>Not a Marketplace</span>
+              <span className='inline-flex items-center gap-1.5 font-semibold text-emerald-600'>
+                <CheckCircle2 size={15} /> Clear &amp; Fair
+              </span>
             </div>
           </div>
         </div>
       </section>
 
       <div className='mx-auto max-w-[1280px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8'>
-        <section aria-label='Important summary' className='mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-          {SUMMARY_CARDS.map(({ icon: Icon, title, text }) => (
-            <div key={title} className='rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs'>
-              <div className='mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700'>
-                <Icon size={20} aria-hidden='true' />
-              </div>
-              <h2 className='mb-1.5 text-base font-bold text-slate-900'>{title}</h2>
-              <p className='text-sm leading-relaxed text-slate-600'>{text}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className='mb-10 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-6'>
-          <div className='mb-3 flex items-center gap-2 text-base font-bold text-slate-900'>
-            <FileText size={18} className='text-blue-600' aria-hidden='true' />
-            Summary
-          </div>
-          <div className='space-y-3 text-sm leading-relaxed text-slate-600 sm:text-base'>
-            <p>
-              FeraSetu is an online software/SaaS platform for merchants and shopkeepers. These Terms govern access to and use of the Services by merchants, Account users, and other visitors where legally permitted.
-            </p>
-            <p>
-              FeraSetu helps merchants operate digital storefronts and business tools, but FeraSetu is not a marketplace, is not the seller of merchant products, and does not own merchant inventory or control merchant prices. Merchants contract directly with their customers.
-            </p>
-            <p>
-              By accessing or using the Services, you agree to these Terms where such agreement is legally permitted. If you do not agree, please do not use the Services. These Terms are separate from the FeraSetu Privacy Policy, which explains how data is handled.
-            </p>
-          </div>
-        </section>
-
         <div className='mb-8 lg:hidden'>
           <div className='overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs'>
             <button
               type='button'
               onClick={() => setMobileMenuOpen(current => !current)}
               aria-expanded={mobileMenuOpen}
-              aria-controls='terms-mobile-toc'
+              aria-controls='mobile-toc'
               className='flex w-full items-center justify-between bg-slate-50 px-5 py-4 text-left font-bold text-slate-900 transition-colors hover:bg-slate-100'
             >
               <span className='flex items-center gap-2 text-sm'>
                 <FileText size={16} className='text-blue-600' aria-hidden='true' />
-                Table of Contents
+                Table of Contents (
+                {tocItems.find((item) => item.id === activeSection)?.number || '1'}.{' '}
+                {tocItems.find((item) => item.id === activeSection)?.title || 'Definitions'}
+                )
               </span>
               <ChevronDown
                 size={18}
@@ -817,7 +842,7 @@ export default function TermsPage() {
               />
             </button>
             {mobileMenuOpen && (
-              <nav id='terms-mobile-toc' className='max-h-80 space-y-1 overflow-y-auto border-t border-slate-200 bg-white p-3' aria-label='Table of contents'>
+              <nav id='mobile-toc' className='max-h-80 space-y-1 overflow-y-auto border-t border-slate-200 bg-white p-3' aria-label='Table of contents'>
                 {tocItems.map(item => renderTocButton(item, false))}
               </nav>
             )}
@@ -825,30 +850,47 @@ export default function TermsPage() {
         </div>
 
         <div className='flex flex-col items-start gap-10 lg:flex-row'>
-          <aside className='hidden w-72 shrink-0 lg:block'>
-            <div className='sticky top-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs'>
+          <aside className='sticky top-28 hidden w-72 shrink-0 lg:block'>
+            <div className='rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs'>
               <div className='mb-3 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold tracking-tight text-slate-900'>
                 <FileText size={16} className='text-blue-600' aria-hidden='true' />
-                Table of Contents
+                <span>Table of Contents</span>
               </div>
               <nav className='max-h-[calc(100vh-220px)] space-y-1 overflow-y-auto pr-1' aria-label='Table of contents'>
                 {tocItems.map(item => renderTocButton(item, true))}
               </nav>
             </div>
+
+            <div className='mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-2xs'>
+              <h4 className='mb-2 text-xs font-bold uppercase tracking-wider text-slate-500'>Terms Questions?</h4>
+              <p className='mb-3 text-xs leading-relaxed text-slate-600'>
+                Contact our support team directly:
+              </p>
+              <a
+                href='mailto:support@ferasetu.com'
+                className='inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700'
+              >
+                <Mail size={14} /> support@ferasetu.com
+              </a>
+            </div>
           </aside>
 
-          <main className='min-w-0 flex-1 space-y-8'>
+          <main className='min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-6 font-normal leading-relaxed text-slate-700 shadow-2xs sm:p-10 lg:p-12'>
             {TERMS_SECTIONS.map((section, index) => (
               <section
                 key={section.id}
                 id={section.id}
-                className='scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-8'
+                className={
+                  index === 0
+                    ? 'scroll-mt-28 space-y-4'
+                    : 'scroll-mt-28 space-y-5 border-t border-slate-100 pt-10'
+                }
               >
-                <h2 className='mb-5 flex items-start gap-3 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl'>
-                  <span className='flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-sm font-extrabold text-blue-700'>
-                    {index + 1}
-                  </span>
-                  {section.title}
+                <div className='flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-blue-600'>
+                  <Scale size={18} /> Section {index + 1}
+                </div>
+                <h2 className='text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl'>
+                  {index + 1}. {section.title}
                 </h2>
                 <div className='space-y-4'>
                   {section.blocks.map((block, blockIndex) => (
@@ -856,26 +898,37 @@ export default function TermsPage() {
                   ))}
                 </div>
                 {section.id === 'contact' && (
-                  <div className='mt-6'>
-                    <div className='grid gap-4 sm:grid-cols-2'>
-                      {CONTACTS.map(contact => (
-                        <div key={contact.email} className='rounded-2xl border border-slate-200 bg-slate-50 p-5'>
-                          <h3 className='mb-1.5 flex items-center gap-2 text-base font-bold text-slate-900'>
-                            <Mail size={16} className='text-blue-600' aria-hidden='true' />
-                            {contact.label}
-                          </h3>
-                          <p className='mb-3 text-sm leading-relaxed text-slate-600'>{contact.description}</p>
-                          <a
-                            href={`mailto:${contact.email}`}
-                            className='inline-flex min-h-[40px] items-center rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-50'
-                          >
-                            {contact.email}
-                          </a>
+                  <div className='space-y-4 pt-4'>
+                    <div className='space-y-4 pt-2'>
+                      {CONTACT_CARDS.map(contact => (
+                        <div key={contact.email}>
+                          <h3 className='mb-1 text-lg font-bold text-slate-900'>{contact.label}</h3>
+                          <p className='mb-3 text-sm text-slate-600'>{contact.description}</p>
+                          <EmailCopyButton
+                            email={contact.email}
+                            label={contact.label}
+                            copiedEmail={copiedEmail}
+                            onCopyEmail={copyEmail}
+                          />
                         </div>
                       ))}
                     </div>
 
-                    <div className='mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5 text-sm font-semibold'>
+                    <div className='space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5'>
+                      <h3 className='text-base font-bold text-slate-900'>Terms Questions</h3>
+                      <p className='text-sm leading-relaxed text-slate-600'>
+                        When contacting FeraSetu about these Terms, include your Account email and a short description of the question. This helps us route the request to the appropriate team.
+                      </p>
+                    </div>
+
+                    <div className='space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5'>
+                      <h3 className='text-base font-bold text-slate-900'>No Physical Address Required for Online Support</h3>
+                      <p className='text-sm leading-relaxed text-slate-600'>
+                        FeraSetu operates as an online service. Support for these Terms is handled through the contact methods above and available product support channels.
+                      </p>
+                    </div>
+
+                    <div className='flex flex-wrap gap-3 border-t border-slate-100 pt-5 text-sm font-semibold'>
                       <Link to={getLocalizedLink('/privacy')} className='rounded-xl border border-slate-200 px-3 py-2 text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700'>
                         Privacy Policy
                       </Link>

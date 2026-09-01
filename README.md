@@ -52,6 +52,7 @@ All 22 languages receive the same typed key set and English fallback. Hindi, Mar
 ## Legal Documents
 
 - The production Terms of Service is implemented in `frontend/src/pages/TermsPage.tsx` and covers 25 merchant-facing sections, including definitions, eligibility, the software-provider business model, Account security, merchant responsibilities, content licensing, Fera AI, subscriptions, payments, acceptable use, data, security, suspension, liability, indemnification, disputes, governing law, changes, and contact channels.
+- The Terms and Privacy pages share the same legal-document experience: matching hero treatment, active-section table of contents, mobile accordion, sticky desktop sidebar, continuous document card, email copy/send actions, smooth scrolling, and hover/active transitions. Only the document title and legal content differ.
 - The Terms clearly state that FeraSetu is not a marketplace, is not the seller of merchant products, does not own merchant inventory, and does not set merchant prices.
 - The Terms preserve merchant ownership of Merchant Data and Content while granting FeraSetu only the limited operational license needed to provide the Services.
 - The Privacy Policy remains the separate privacy document and was not modified in this update.
@@ -206,12 +207,14 @@ Current known status:
 - Frontend default TypeScript check (`tsc --noEmit`): passing.
 - Frontend stricter app-scoped TypeScript check (`tsc --noEmit -p tsconfig.app.json`): 59 pre-existing errors remain in unrelated files.
 - Frontend production build: passing.
+- Terms/Privacy UI alignment check: TypeScript and focused legal-page lint pass; both pages use the shared visual pattern described above.
 - Backend test suite: 69 tests passing.
 - WorkOS callback route smoke check: `/`, `/register`, `/login`, `/callback`, `/hi/register`, `/hi/login`, and `/hi/callback` returned HTTP 200 from the local production preview.
 - Focused auth lint: `AuthCallbackPage.tsx` is clean; five pre-existing errors remain in `AuthContext.tsx`, plus two pre-existing hook warnings in `LoginPage.tsx` and `RegisterPage.tsx`.
 - Compiled language bundles: all 21 non-English bundles import successfully, contain the 224 English fallback keys, and have no missing or undefined values.
 - Local preview: `/`, `/hi`, `/mr/login`, `/ta/register`, `/pricing`, `/login`, and `/register` returned HTTP 200.
 - Terms route validation: `/terms`, `/hi/terms`, `/privacy`, `/`, `/login`, `/register`, and `/pricing` returned HTTP 200; all 25 Terms section IDs are present in the production bundle.
+- Updated Terms route validation: `/terms`, `/privacy`, `/hi/terms`, and `/hi/privacy` returned HTTP 200 from the local production preview.
 - Terms page lint: passing. Mobile/browser visual QA remains not verified in this environment.
 - Frontend lint: 205 pre-existing problems remain across unrelated files.
 - Browser visual QA: not verified in this environment because headless Chromium could not start its GPU process.
