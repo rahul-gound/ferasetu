@@ -107,6 +107,9 @@ The implementation is centralized in `frontend/src/components/SEO.tsx`.
 ## Authentication Flow
 
 - WorkOS AuthKit uses the current origin with `/callback` as the OAuth redirect URI.
+- FeraSetu uses WorkOS's default hosted AuthKit sign-in experience at `https://decent-grass-08.authkit.app/`. This is the WorkOS-hosted sign-in page, not a custom FeraSetu domain.
+- The frontend intentionally omits `apiHostname`. Do not set it to `decent-grass-08.authkit.app`; that hosted page is not the Authentication API hostname. Only set `apiHostname` if WorkOS provides a custom Authentication API domain.
+- The production WorkOS Redirect URI must be `https://ferasetu.com/callback`. Local development should use the current local origin, such as `http://localhost:5173/callback`, because the app derives `/callback` from `window.location.origin`.
 - `frontend/src/pages/AuthCallbackPage.tsx` waits for both the WorkOS session and the FeraSetu merchant profile, then replaces the callback URL with `/dashboard`.
 - If code exchange or profile provisioning fails, the callback page shows a recoverable sign-in retry instead of remaining on a silent spinner or creating a redirect loop.
 - Registration calls the WorkOS SDK `signUp` method directly. If signup cannot start, the existing Register page fallback can attempt sign-in.
@@ -207,6 +210,7 @@ Current known status:
 - Frontend default TypeScript check (`tsc --noEmit`): passing.
 - Frontend stricter app-scoped TypeScript check (`tsc --noEmit -p tsconfig.app.json`): 59 pre-existing errors remain in unrelated files.
 - Frontend production build: passing.
+- WorkOS default-domain verification: the local production build embeds the public client ID, and `https://decent-grass-08.authkit.app/` responds with a WorkOS `initiate_login` redirect for that same client ID.
 - Terms/Privacy UI alignment check: TypeScript and focused legal-page lint pass; both pages use the shared visual pattern described above.
 - Backend test suite: 69 tests passing.
 - WorkOS callback route smoke check: `/`, `/register`, `/login`, `/callback`, `/hi/register`, `/hi/login`, and `/hi/callback` returned HTTP 200 from the local production preview.
