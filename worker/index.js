@@ -24,7 +24,7 @@
 // Worker verifies the JWT against Clerk JWKS keys and uses the account ID
 // as the D1 users.id. Profile data itself lives in D1, NOT in Clerk.
 //
-//   WORKOS_CLIENT_ID    -> plain var (public)
+//   WORKOS_CLIENT_ID    -> secret (must match frontend VITE_WORKOS_CLIENT_ID)
 //   WORKOS_API_KEY      -> secret
 //
 // Everything else returns a JSON 404. Unexpected errors return a JSON 500.

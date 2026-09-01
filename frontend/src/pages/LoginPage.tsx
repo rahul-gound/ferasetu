@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Globe, ShoppingCart, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +10,6 @@ export default function LoginPage() {
   const { login, user, isLoading } = useAuth();
   const { translate, getLocalizedLink } = useLanguage();
   const navigate = useNavigate();
-  const hasAttempted = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const workspacePoints = [
@@ -40,12 +39,8 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    if (isLoading) return;
-    if (user) {
+    if (!isLoading && user) {
       navigate('/dashboard');
-    } else if (!hasAttempted.current) {
-      hasAttempted.current = true;
-      void handleLogin();
     }
   }, [user, isLoading, navigate]);
 

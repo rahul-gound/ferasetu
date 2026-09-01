@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Globe, Package, ShoppingCart, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +11,6 @@ export default function RegisterPage() {
   const { translate, getLocalizedLink } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const hasAttempted = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedPlan = searchParams.get('plan');
@@ -56,12 +55,8 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
-    if (isLoading) return;
-    if (user) {
+    if (!isLoading && user) {
       navigate('/dashboard');
-    } else if (!hasAttempted.current) {
-      hasAttempted.current = true;
-      void handleRegister();
     }
   }, [user, isLoading, navigate]);
 

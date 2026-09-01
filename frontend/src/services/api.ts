@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { BETA_MODE, getEffectivePlanPrice, isBetaFreePlan } from '../config/beta';
 
-const USE_LOCAL_STORAGE_API = import.meta.env.VITE_USE_LOCAL_STORAGE !== 'false';
+const USE_LOCAL_STORAGE_API = import.meta.env?.VITE_USE_LOCAL_STORAGE !== 'false';
 
 interface LocalUser {
   id: string;
@@ -1153,13 +1153,13 @@ async function localDelete(url: string) {
   throw createHttpError(404, `Unknown DELETE endpoint: ${path}`);
 }
 
-const remoteApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+export const remoteApi = axios.create({
+  baseURL: import.meta.env?.VITE_API_URL || 'http://localhost:5000/api',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
 
-import { getWorkOSToken } from '../contexts/AuthContext';
+import { getWorkOSToken, notifyUnauthorized } from './authBridge';
 
 // Inject Authorization Bearer token automatically
 remoteApi.interceptors.request.use(async (config) => {
@@ -1177,9 +1177,11 @@ remoteApi.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear any local user data
-      localStorage.removeItem('fera_user');
-      window.location.href = '/login';
+      notifyUnauthorized({
+        url: error.config?.url ?? '',
+        status: 401,
+        error,
+      });
     }
     return Promise.reject(error);
   }

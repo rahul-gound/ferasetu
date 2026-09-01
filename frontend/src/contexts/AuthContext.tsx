@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth as useWorkOSAuth } from '@workos-inc/authkit-react';
 import api from '../services/api';
+import { setUnauthorizedHandler, setWorkOSTokenGetter } from '../services/authBridge';
 
 interface User {
   id: string;
@@ -25,6 +26,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  profileError: string | null;
   login: () => void;
   loginWithGoogle: () => void;
   register: () => void;
@@ -47,11 +49,10 @@ const PROFILE_KEYS: (keyof User)[] = [
 ];
 
 // Global token retriever for Axios
-export let getWorkOSToken: () => Promise<string | null> = async () => null;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<User | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const {
     isLoading: isWorkOSLoading,
@@ -63,15 +64,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useWorkOSAuth();
 
   useEffect(() => {
-    getWorkOSToken = async () => {
+    setWorkOSTokenGetter(async () => {
       try {
         const token = await getAccessToken();
         return token;
       } catch {
         return null;
       }
-    };
+    });
   }, [getAccessToken]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(({ status, url, error }) => {
+      const detail = error instanceof Error ? error.message : 'Unauthorized';
+      const label = url === '/users/me' ? 'Profile request' : 'Authenticated API request';
+      setProfileError(`${label} failed (${status} ${url}): ${detail}`);
+      setProfile(null);
+      setIsProfileLoading(false);
+      if (import.meta.env.DEV) {
+        console.error(`Authenticated API returned ${status} for ${url}`, error);
+      }
+    });
+
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -82,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!workosUser) {
         if (mounted) {
           setProfile(null);
+          setProfileError(null);
           setIsProfileLoading(false);
         }
         return;
@@ -109,10 +126,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...currentProfile,
             is_verified: workosUser.emailVerified,
           });
+          setProfileError(null);
         }
       } catch (err) {
-        console.error('Failed to load profile from backend:', err);
-        if (mounted) setProfile(null);
+        const status = (err as { response?: { status?: number } }).response?.status;
+        const message = err instanceof Error ? err.message : 'Unknown profile error';
+        console.error(`Failed to load profile from backend (${status ?? 'network'}):`, err);
+        if (mounted) {
+          setProfileError(`Profile bootstrap failed (${status ?? 'network'}): ${message}`);
+          setProfile(null);
+        }
       } finally {
         if (mounted) setIsProfileLoading(false);
       }
@@ -140,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const contextValue: AuthContextType = {
     user: profile,
     isLoading: isWorkOSLoading || isProfileLoading,
+    profileError,
     login: async () => {
       try {
         if (typeof signIn === 'function') {
