@@ -84,6 +84,6 @@ test('callback, guard, and logout routing semantics remain intact', async () => 
   assert.match(appSource, /if \(!user\) return <Navigate to="\/login" replace \/>/);
   assert.match(appSource, /if \(!user\.is_verified && !isVerifyPage\)/);
   assert.match(callbackSource, /navigate\('\/dashboard', \{ replace: true \}\)/);
-  assert.match(callbackSource, /profileError \?\? translate\('common\.error'\)/);
+  assert.match(callbackSource, /Opening your shop\.\.\./);
   assert.match(layoutSource, /logout\(\);\s*navigate\('\/login'\);/);
 });

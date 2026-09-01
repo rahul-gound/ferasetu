@@ -7,7 +7,7 @@ import AuthShell from '../components/auth/AuthShell';
 import SEO from '../components/SEO';
 
 export default function AuthCallbackPage() {
-  const { login, user, isLoading, profileError } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const { translate } = useLanguage();
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
@@ -34,7 +34,7 @@ export default function AuthCallbackPage() {
         subtitle={
           isLoading
             ? translate('auth.loading.connect')
-            : (profileError ?? translate('common.error'))
+            : 'Opening your shop...'
         }
       >
         {isLoading ? (

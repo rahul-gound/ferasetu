@@ -134,7 +134,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error(`Failed to load profile from backend (${status ?? 'network'}):`, err);
         if (mounted) {
           setProfileError(`Profile bootstrap failed (${status ?? 'network'}): ${message}`);
-          setProfile(null);
+          setProfile({
+            id: workosUser.id || workosUser.email,
+            email: workosUser.email,
+            name: workosUser.firstName && workosUser.lastName
+              ? `${workosUser.firstName} ${workosUser.lastName}`
+              : (workosUser.email || 'Shopkeeper'),
+            is_verified: workosUser.emailVerified,
+            plan: 'free',
+            preferred_language: localStorage.getItem('fera_language') || 'en',
+            ai_credits_balance: 20,
+            ai_credits_monthly_limit: 20,
+            ai_credits_used_month: 0,
+            storage_used_bytes: 0,
+            storage_limit_bytes: 52428800,
+          });
         }
       } finally {
         if (mounted) setIsProfileLoading(false);
