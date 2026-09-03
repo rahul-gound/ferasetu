@@ -76,16 +76,18 @@ export default function LoginPage() {
           </ul>
         </section>
 
-        <div className='mb-6 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-6 text-center'>
-          <span
-            className='h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent'
-            role='status'
-            aria-label={translate('auth.loading.connect')}
-          />
-          <p className='text-sm font-medium text-slate-300'>
-            {translate('auth.loading.connect')}
-          </p>
-        </div>
+        {(isSubmitting || isLoading) && (
+          <div className='mb-6 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-6 text-center'>
+            <span
+              className='h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent'
+              role='status'
+              aria-label={translate('auth.loading.connect')}
+            />
+            <p className='text-sm font-medium text-slate-300'>
+              {translate('auth.loading.connect')}
+            </p>
+          </div>
+        )}
 
         <button
           type='button'
