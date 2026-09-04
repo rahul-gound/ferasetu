@@ -1,67 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
-import AuthShell from '../components/auth/AuthShell';
 import SEO from '../components/SEO';
 
 export default function AuthCallbackPage() {
-  const { login, user, isLoading } = useAuth();
-  const { translate } = useLanguage();
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
-    if (isLoading || !user) return;
-    navigate('/dashboard', { replace: true });
-  }, [user, isLoading, navigate]);
-
-  const handleRetry = async () => {
-    setIsRetrying(true);
-    try {
-      await login();
-    } finally {
-      setIsRetrying(false);
+    if (!isLoading && user) {
+      navigate('/dashboard', { replace: true });
     }
-  };
+  }, [user, isLoading, navigate]);
 
   return (
     <>
-      <SEO title={translate('auth.login.title')} noindex />
-      <AuthShell
-        title={translate('auth.login.title')}
-        subtitle={
-          isLoading
-            ? translate('auth.loading.connect')
-            : 'Opening your shop...'
-        }
-      >
-        {isLoading ? (
-          <div className='flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-6 text-center'>
-            <span
-              className='h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent'
-              role='status'
-              aria-label={translate('auth.loading.connect')}
-            />
-            <p className='text-sm font-medium text-slate-300'>
-              {translate('auth.loading.connect')}
-            </p>
-          </div>
-        ) : (
-          <button
-            type='button'
-            onClick={handleRetry}
-            disabled={isRetrying}
-            className='flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0'
-          >
-            {isRetrying
-              ? translate('auth.loading.connect')
-              : translate('auth.button.login')}
-            <ArrowRight size={16} aria-hidden='true' />
-          </button>
-        )}
-      </AuthShell>
+      <SEO title="Opening your shop • FeraSetu" noindex />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#060818] px-4 text-center">
+        <div className="flex flex-col items-center gap-4">
+          <span
+            className="h-10 w-10 animate-spin rounded-full border-3 border-blue-500 border-t-transparent"
+            role="status"
+            aria-label="Opening your shop..."
+          />
+          <p className="text-base font-semibold text-slate-200">
+            Opening your shop...
+          </p>
+          <p className="text-xs text-slate-500">
+            Finalizing your secure session
+          </p>
+        </div>
+      </div>
     </>
   );
 }

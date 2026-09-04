@@ -6,7 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import LanguageSelector from '../LanguageSelector';
 
 export default function PublicNavbar() {
-  const { user } = useAuth();
+  const { user, login, register } = useAuth();
   const { translate: t, getLocalizedLink } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -76,19 +76,21 @@ export default function PublicNavbar() {
               </Link>
             ) : (
               <div className='hidden items-center gap-3 md:flex'>
-                <Link
-                  to={getLocalizedLink('/login')}
-                  className='rounded-full px-3 py-2 text-sm font-bold text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+                <button
+                  type='button'
+                  onClick={() => login()}
+                  className='cursor-pointer rounded-full px-3 py-2 text-sm font-bold text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
                 >
                   {t('nav.signIn')}
-                </Link>
-                <Link
-                  to={getLocalizedLink('/register')}
-                  className='inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+                </button>
+                <button
+                  type='button'
+                  onClick={() => register()}
+                  className='inline-flex cursor-pointer items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
                 >
                   {t('nav.startFree')}
                   <ArrowRight size={15} aria-hidden='true' />
-                </Link>
+                </button>
               </div>
             )}
 
@@ -146,20 +148,26 @@ export default function PublicNavbar() {
                 </Link>
               ) : (
                 <>
-                  <Link
-                    to={getLocalizedLink('/login')}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className='flex min-h-[52px] items-center justify-center rounded-2xl bg-slate-50 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100'
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      login();
+                    }}
+                    className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-50 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100'
                   >
                     {t('nav.signIn')}
-                  </Link>
-                  <Link
-                    to={getLocalizedLink('/register')}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className='flex min-h-[52px] items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      register();
+                    }}
+                    className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
                   >
                     {t('nav.startFree')}
-                  </Link>
+                  </button>
                 </>
               )}
             </div>

@@ -4,9 +4,10 @@
  * AIDA: ACTION phase. Strong but ethical — no fake urgency, no fake scarcity.
  * Purple Cow messaging: "Your shop already exists. Give it an online front door."
  */
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FinalCTAProps {
   title?: string;
@@ -37,6 +38,7 @@ export default function FinalCTA({
   dark = false,
 }: FinalCTAProps) {
   const { getLocalizedLink } = useLanguage();
+  const { register } = useAuth();
 
   const titleLines = title.split('\n');
 
@@ -60,17 +62,32 @@ export default function FinalCTA({
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-          <Link
-            to={getLocalizedLink(primaryHref)}
-            className={`w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 ${
-              dark
-                ? 'bg-blue-600 text-white shadow-blue-900/50 hover:bg-blue-500'
-                : 'bg-white text-blue-700 shadow-white/20 hover:bg-blue-50'
-            }`}
-          >
-            {primaryText}
-            <ArrowRight size={16} />
-          </Link>
+          {primaryHref === '/register' ? (
+            <button
+              type="button"
+              onClick={() => register()}
+              className={`w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 cursor-pointer ${
+                dark
+                  ? 'bg-blue-600 text-white shadow-blue-900/50 hover:bg-blue-500'
+                  : 'bg-white text-blue-700 shadow-white/20 hover:bg-blue-50'
+              }`}
+            >
+              {primaryText}
+              <ArrowRight size={16} />
+            </button>
+          ) : (
+            <Link
+              to={getLocalizedLink(primaryHref)}
+              className={`w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 ${
+                dark
+                  ? 'bg-blue-600 text-white shadow-blue-900/50 hover:bg-blue-500'
+                  : 'bg-white text-blue-700 shadow-white/20 hover:bg-blue-50'
+              }`}
+            >
+              {primaryText}
+              <ArrowRight size={16} />
+            </Link>
+          )}
 
           {secondaryText && (
             <Link

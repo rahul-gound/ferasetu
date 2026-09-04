@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import HowItWorksSection from '../components/marketing/HowItWorksSection';
 import ProofSection from '../components/marketing/ProofSection';
 import FAQSection from '../components/marketing/FAQSection';
@@ -98,6 +99,7 @@ const FEATURE_OUTCOMES = [
 
 export default function LandingPage() {
   const { getLocalizedLink, translate: t } = useLanguage();
+  const { register } = useAuth();
 
   return (
     <>
@@ -159,13 +161,14 @@ export default function LandingPage() {
 
             {/* Hero CTAs */}
             <div className="hero-card-enter hero-card-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-              <Link
-                to={getLocalizedLink('/register')}
-                className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
+              <button
+                type="button"
+                onClick={() => register()}
+                className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>{t('hero.cta') || 'Start Free (₹0)'}</span>
                 <ArrowRight size={18} />
-              </Link>
+              </button>
               <a
                 href="#how-it-works"
                 className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
