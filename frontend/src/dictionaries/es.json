@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "FeraSetu — Tu propia tienda online sin comisiones",
+    "description": "Crea tu tienda digital independiente. Pagos directos a tu cuenta y gestión inteligente con IA."
+  },
+  "hero": {
+    "badge": "0% COMISIONES",
+    "title": "Tu propia tienda.\nPagos directos. Sin comisiones.",
+    "subtitle": "Crea tu marca, conserva el 100% de tus ingresos y automatiza tu inventario con Inteligencia Artificial.",
+    "ctaStart": "Crear Tienda Gratis",
+    "ctaDemo": "Ver Tienda de Prueba"
+  },
+  "features": {
+    "heading": "Diseñado para comerciantes independientes",
+    "f1Title": "Dominio y Marca Propia",
+    "f1Desc": "Vende con tu propio dominio sin logotipos de terceros.",
+    "f2Title": "Pagos Inmediatos y Seguros",
+    "f2Desc": "Acepta tarjetas de crédito, débito y transferencias directas.",
+    "f3Title": "Copiloto de IA Autónomo",
+    "f3Desc": "Generación instantánea de catálogos y atención al cliente."
+  },
+  "pricing": {
+    "heading": "Precios Transparentes. Sin Sorpresas.",
+    "starterName": "Inicial",
+    "proName": "Profesional Pro",
+    "starterCta": "Comenzar Prueba Gratuita",
+    "proCta": "Elegir Plan Pro"
+  },
+  "legal": {
+    "clickwrap": "Al continuar, aceptas los",
+    "terms": "Términos del Servicio",
+    "privacy": "Política de Privacidad"
+  }
+}

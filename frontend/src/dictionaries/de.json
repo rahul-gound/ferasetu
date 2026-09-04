@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "FeraSetu — Ihr eigener Online-Shop ohne Provision",
+    "description": "Starten Sie Ihren unabhängigen Online-Shop mit direkter Zahlung und KI-gestützter Automatisierung."
+  },
+  "hero": {
+    "badge": "0% PROVISION",
+    "title": "Ihr eigener Shop.\nDirekte Zahlungen. Keine Provision.",
+    "subtitle": "Bauen Sie Ihre Marke auf, behalten Sie 100% Ihrer Gewinne und automatisieren Sie Abläufe mit KI.",
+    "ctaStart": "Jetzt kostenlos starten",
+    "ctaDemo": "Live-Demo ansehen"
+  },
+  "features": {
+    "heading": "Entwickelt für moderne Händler",
+    "f1Title": "Eigene Domain & Markenidentität",
+    "f1Desc": "Betreiben Sie Ihren Shop unter eigener Domain ohne fremde Logos.",
+    "f2Title": "Direkte Zahlungsabwicklung",
+    "f2Desc": "Sichere Auszahlung via Kreditkarten, SEPA und digitale Wallets.",
+    "f3Title": "Autonomer KI-Assistent",
+    "f3Desc": "Automatische Produkttexte, Bestandsüberwachung und Support-Antworten."
+  },
+  "pricing": {
+    "heading": "Klare Preise. Keine versteckten Gebühren.",
+    "starterName": "Starter",
+    "proName": "Professional",
+    "starterCta": "Kostenlos testen",
+    "proCta": "Pro-Tarif wählen"
+  },
+  "legal": {
+    "clickwrap": "Mit dem Fortfahren akzeptieren Sie FeraSetus",
+    "terms": "Nutzungsbedingungen",
+    "privacy": "Datenschutzerklärung"
+  }
+}

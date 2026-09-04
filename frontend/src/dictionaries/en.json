@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "FeraSetu — Your Global E-Commerce Storefront in Minutes",
+    "description": "Launch your independent digital store. Zero commissions, direct customer payments, WhatsApp orders, and autonomous AI management."
+  },
+  "hero": {
+    "badge": "ZERO COMMISSION PLATFORM",
+    "title": "Your own store.\nDirect payments. Zero commission.",
+    "subtitle": "Build your brand, retain 100% of your margins, and automate operations with autonomous AI.",
+    "ctaStart": "Start Free Store",
+    "ctaDemo": "Explore Live Demo"
+  },
+  "features": {
+    "heading": "Engineered for Serious Merchants",
+    "f1Title": "Custom Domain & Branding",
+    "f1Desc": "Launch on your own custom domain with zero third-party branding.",
+    "f2Title": "Instant Local & Global Payments",
+    "f2Desc": "Accept cards, digital wallets, and UPI directly into your bank account.",
+    "f3Title": "Autonomous AI Copilot",
+    "f3Desc": "Automate catalog copywriting, inventory alerts, and customer inquiries."
+  },
+  "pricing": {
+    "heading": "Transparent Pricing. No Surprise Fees.",
+    "starterName": "Starter",
+    "proName": "Professional Growth",
+    "starterCta": "Start with Free Plan",
+    "proCta": "Upgrade to Pro"
+  },
+  "legal": {
+    "clickwrap": "By continuing, you agree to FeraSetu's",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy"
+  }
+}

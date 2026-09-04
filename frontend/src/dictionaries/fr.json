@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "FeraSetu — Créez votre boutique en ligne sans commission",
+    "description": "Lancez votre boutique e-commerce indépendante. Paiements directs, zéro commission et gestion automatisée par IA."
+  },
+  "hero": {
+    "badge": "0% DE COMMISSION",
+    "title": "Votre boutique.\nPaiements directs. Zéro commission.",
+    "subtitle": "Développez votre marque, conservez 100% de vos marges et automatisez votre gestion grâce à l'IA.",
+    "ctaStart": "Créer ma boutique",
+    "ctaDemo": "Voir la démo"
+  },
+  "features": {
+    "heading": "Conçu pour les commerçants exigeants",
+    "f1Title": "Domaine et Marque Personnalisés",
+    "f1Desc": "Votre propre domaine personnalisé sans mention de plateforme tierce.",
+    "f2Title": "Paiements Sécurisés Immédiats",
+    "f2Desc": "Encaissez par carte bancaire et portefeuilles directement sur votre compte.",
+    "f3Title": "Gestion Intelligente par IA",
+    "f3Desc": "Génération de catalogues, fiches produits et réponses clients automatiques."
+  },
+  "pricing": {
+    "heading": "Tarification Transparente. Sans Frais Cachés.",
+    "starterName": "Standard",
+    "proName": "Professionnel Pro",
+    "starterCta": "Démarrer l'essai gratuit",
+    "proCta": "Choisir le Plan Pro"
+  },
+  "legal": {
+    "clickwrap": "En continuant, vous acceptez les",
+    "terms": "Conditions d'utilisation",
+    "privacy": "Politique de confidentialité"
+  }
+}
