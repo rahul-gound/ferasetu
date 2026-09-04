@@ -27,9 +27,9 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   profileError: string | null;
-  login: () => void;
-  loginWithGoogle: () => void;
-  register: () => void;
+  login: (options?: { loginHint?: string }) => void;
+  loginWithGoogle: (options?: { loginHint?: string }) => void;
+  register: (options?: { loginHint?: string }) => void;
   sendOTP: (email: string) => Promise<void>;
   sendVerificationEmail: (email: string, shopId?: string) => Promise<void>;
   verifyOTP: (email: string, otp: string) => Promise<boolean>;
@@ -110,14 +110,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await api.get('/users/me');
         let currentProfile = data.user;
 
-        if (data.needs_init) {
-          const { data: updateData } = await api.put('/users/me', {
-            name: workosUser.firstName && workosUser.lastName
+        // Check for pending registration data from custom sign-up form
+        let pendingRegistration: Record<string, any> | null = null;
+        try {
+          const rawPending = sessionStorage.getItem('fera_pending_registration');
+          if (rawPending) {
+            pendingRegistration = JSON.parse(rawPending);
+            sessionStorage.removeItem('fera_pending_registration');
+          }
+        } catch (e) {
+          console.error('Failed to parse pending registration:', e);
+        }
+
+        if (data.needs_init || pendingRegistration) {
+          const payload: Record<string, any> = {
+            name: pendingRegistration?.name || (workosUser.firstName && workosUser.lastName
               ? `${workosUser.firstName} ${workosUser.lastName}`
-              : (workosUser.email || 'Shopkeeper'),
+              : (workosUser.email || 'Shopkeeper')),
             email: workosUser.email,
-            preferred_language: localStorage.getItem('fera_language') || 'en',
-          });
+            preferred_language: pendingRegistration?.preferred_language || localStorage.getItem('fera_language') || 'en',
+          };
+          if (pendingRegistration?.business_name) {
+            payload.business_name = pendingRegistration.business_name;
+          }
+          if (pendingRegistration?.subdomain) {
+            payload.subdomain = pendingRegistration.subdomain;
+          }
+          if (pendingRegistration?.phone) {
+            payload.phone = pendingRegistration.phone;
+          }
+
+          const { data: updateData } = await api.put('/users/me', payload);
           currentProfile = updateData.user;
         }
 
@@ -174,53 +197,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getWorkOSDirectAuthUrl = (screenHint?: 'sign-in' | 'sign-up') => {
+  const getWorkOSDirectAuthUrl = (screenHint?: 'sign-in' | 'sign-up', loginHint?: string) => {
     const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
     const redirectUri = window.location.origin + '/callback';
     // Omit screen_hint=sign-up because WorkOS is configured to 307 redirect sign-up to /register, causing a loop
     const hintParam = screenHint && screenHint !== 'sign-up' ? `&screen_hint=${screenHint}` : '';
-    return `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code${hintParam}`;
+    const loginHintParam = loginHint ? `&login_hint=${encodeURIComponent(loginHint)}` : '';
+    return `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code${hintParam}${loginHintParam}`;
   };
 
   const contextValue: AuthContextType = {
     user: profile,
     isLoading: isWorkOSLoading || isProfileLoading,
     profileError,
-    login: async () => {
+    login: async (opts?: { loginHint?: string }) => {
       try {
         if (typeof signIn === 'function') {
-          await signIn();
+          await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
         } else {
-          window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
+          window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
         }
       } catch (err) {
         console.error('WorkOS signIn failed, falling back to direct URL:', err);
-        window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
+        window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
       }
     },
-    loginWithGoogle: async () => {
+    loginWithGoogle: async (opts?: { loginHint?: string }) => {
       try {
         if (typeof signIn === 'function') {
-          await signIn();
+          await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
         } else {
-          window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
+          window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
         }
       } catch (err) {
         console.error('WorkOS Google signIn failed:', err);
-        window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
+        window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
       }
     },
-    register: async () => {
+    register: async (opts?: { loginHint?: string }) => {
       try {
         // Use signIn() instead of signUp() to avoid screen_hint=sign-up which loops back to /register
         if (typeof signIn === 'function') {
-          await signIn();
+          await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
         } else {
-          window.location.assign(getWorkOSDirectAuthUrl());
+          window.location.assign(getWorkOSDirectAuthUrl(undefined, opts?.loginHint));
         }
       } catch (err) {
         console.error('WorkOS register failed, falling back to direct URL:', err);
-        window.location.assign(getWorkOSDirectAuthUrl());
+        window.location.assign(getWorkOSDirectAuthUrl(undefined, opts?.loginHint));
       }
     },
     logout: () => signOut(),
