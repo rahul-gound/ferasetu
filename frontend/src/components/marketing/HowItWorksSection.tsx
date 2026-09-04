@@ -7,6 +7,7 @@
 import { ArrowRight, Package, Share2, ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const STEPS = [
   {
@@ -50,6 +51,7 @@ export default function HowItWorksSection({
   ctaText = 'Start Free — ₹0',
 }: HowItWorksSectionProps) {
   const { getLocalizedLink } = useLanguage();
+  const { register } = useAuth();
 
   return (
     <section
@@ -111,13 +113,24 @@ export default function HowItWorksSection({
         {/* CTA */}
         {showCTA && (
           <div className="text-center">
-            <Link
-              to={getLocalizedLink(ctaLink)}
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-base shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5"
-            >
-              {ctaText}
-              <ArrowRight size={16} />
-            </Link>
+            {ctaLink === '/register' ? (
+              <button
+                type="button"
+                onClick={() => register()}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-base shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 cursor-pointer"
+              >
+                {ctaText}
+                <ArrowRight size={16} />
+              </button>
+            ) : (
+              <Link
+                to={getLocalizedLink(ctaLink)}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-base shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5"
+              >
+                {ctaText}
+                <ArrowRight size={16} />
+              </Link>
+            )}
             <p className="text-xs text-slate-500 font-medium mt-3">
               No credit card · No technical setup · No commissions
             </p>

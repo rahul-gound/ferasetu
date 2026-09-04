@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FoundingOfferData {
   enabled: boolean;
@@ -21,6 +22,7 @@ interface FoundingOfferData {
  * If the offer is disabled, renders nothing.
  */
 export default function FoundingOfferBanner() {
+  const { register } = useAuth();
   const { data, isLoading, isError } = useQuery<FoundingOfferData>({
     queryKey: ['founding-offer'],
     queryFn: async () => {
@@ -105,14 +107,15 @@ export default function FoundingOfferBanner() {
             </p>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <Link
-                to="/register?founding=true"
+              <button
+                type="button"
+                onClick={() => register()}
                 id="founding-offer-cta"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '12px 22px', borderRadius: 14,
                   background: '#FF6B35', color: '#fff',
-                  fontWeight: 800, fontSize: 14, textDecoration: 'none',
+                  fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer',
                   transition: 'filter 0.2s ease',
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)'; }}
@@ -120,7 +123,7 @@ export default function FoundingOfferBanner() {
               >
                 Claim Your Founding Spot
                 <ArrowRight size={16} />
-              </Link>
+              </button>
               {data.slotsRemaining === null && (
                 <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
                   Limited spots · First come, first served

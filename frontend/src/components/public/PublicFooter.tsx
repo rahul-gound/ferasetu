@@ -4,10 +4,12 @@
  */
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Sparkles } from 'lucide-react';
 
 export default function PublicFooter() {
   const { getLocalizedLink, translate: t } = useLanguage();
+  const { register, login } = useAuth();
   const year = new Date().getFullYear();
 
   return (
@@ -78,20 +80,22 @@ export default function PublicFooter() {
             <h4 className="font-bold text-slate-900 text-sm mb-4">Account</h4>
             <ul className="space-y-3">
               <li>
-                <Link
-                  to={getLocalizedLink('/register')}
-                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                <button
+                  type="button"
+                  onClick={() => register()}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium text-left cursor-pointer"
                 >
                   Create Free Store
-                </Link>
+                </button>
               </li>
               <li>
-                <Link
-                  to={getLocalizedLink('/login')}
-                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                <button
+                  type="button"
+                  onClick={() => login()}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium text-left cursor-pointer"
                 >
                   {t('nav.signIn')}
-                </Link>
+                </button>
               </li>
               <li>
                 <Link

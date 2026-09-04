@@ -9,6 +9,7 @@
 import { Sparkles, ArrowRight, TrendingUp, Package, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AIWorkflowStrip from './AIWorkflowStrip';
 
 export const AI_EXAMPLES = [
@@ -41,6 +42,8 @@ export const AI_EXAMPLES = [
     color: 'text-purple-600',
     bg: 'bg-purple-50',
     border: 'border-purple-100',
+    tag: 'Content',
+    timeSaved: '10 mins',
   },
 ];
 
@@ -56,6 +59,7 @@ export default function AIExamplePrompts({
   ctaText = 'Try Fera AI Free',
 }: AIExamplePromptsProps) {
   const { getLocalizedLink } = useLanguage();
+  const { register } = useAuth();
 
   return (
     <section
@@ -75,46 +79,56 @@ export default function AIExamplePrompts({
               for your actual shop
             </span>
           </h2>
-          <p className="text-slate-400 text-lg leading-relaxed">
-            Fera AI uses your products, orders, and inventory to suggest the next practical step — so you spend less time figuring out what to do.
-
-          <div className='mt-10'>
-            <AIWorkflowStrip />
-          </div>
+          <p className="text-slate-400 text-lg">
+            Not generic chat. Fera AI understands Indian retail — your local language, seasonal sales, inventory formulas, and WhatsApp messaging.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-10">
-          {AI_EXAMPLES.map((ex, i) => (
+        {/* Workflow comparison */}
+        <div className="mb-14">
+          <AIWorkflowStrip />
+        </div>
+
+        {/* Interactive prompts grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {AI_EXAMPLES.map((item, idx) => (
             <div
-              key={i}
-              className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden hover:border-slate-600 transition-all duration-200"
+              key={idx}
+              className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 flex flex-col hover:border-slate-600 transition-colors"
             >
-              {/* Prompt */}
-              <div className="p-5 border-b border-slate-700">
-                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${ex.bg} ${ex.color} text-xs font-bold mb-3 border ${ex.border}`}>
-                  {ex.icon}
-                  {ex.category}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-xl bg-purple-950/80 border border-purple-800/60 flex items-center justify-center text-purple-400">
+                  {item.icon}
                 </div>
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 flex-shrink-0 text-xs font-bold mt-0.5">
-                    You
-                  </div>
-                  <p className="text-sm text-slate-200 font-semibold leading-relaxed">
-                    "{ex.prompt}"
-                  </p>
-                </div>
+                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
+                  {item.tag}
+                </span>
               </div>
 
-              {/* Response */}
-              <div className="p-5">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                    <Sparkles size={12} className="text-white" />
-                  </div>
-                  <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                    {ex.response}
+              {/* Shopkeeper prompt */}
+              <div className="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800 mb-4">
+                <p className="text-xs text-slate-500 font-semibold mb-1 uppercase tracking-wider">
+                  You type:
+                </p>
+                <p className="text-sm font-semibold text-slate-200 italic">
+                  "{item.prompt}"
+                </p>
+              </div>
+
+              {/* Fera AI response preview */}
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <p className="text-xs text-purple-400 font-semibold mb-1 uppercase tracking-wider">
+                    Fera AI does:
                   </p>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    {item.response}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+                  <span>Saves: <strong className="text-emerald-400">{item.timeSaved}</strong></span>
+                  <span className="text-slate-500">Zero formula needed</span>
                 </div>
               </div>
             </div>
@@ -123,13 +137,24 @@ export default function AIExamplePrompts({
 
         {showCTA && (
           <div className="text-center">
-            <Link
-              to={getLocalizedLink(ctaHref)}
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-base shadow-xl shadow-blue-900/50 hover:from-blue-500 hover:to-purple-500 transition-all hover:-translate-y-0.5"
-            >
-              {ctaText}
-              <ArrowRight size={15} />
-            </Link>
+            {ctaHref === '/register' ? (
+              <button
+                type="button"
+                onClick={() => register()}
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-base shadow-xl shadow-blue-900/50 hover:from-blue-500 hover:to-purple-500 transition-all hover:-translate-y-0.5 cursor-pointer"
+              >
+                {ctaText}
+                <ArrowRight size={15} />
+              </button>
+            ) : (
+              <Link
+                to={getLocalizedLink(ctaHref)}
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-base shadow-xl shadow-blue-900/50 hover:from-blue-500 hover:to-purple-500 transition-all hover:-translate-y-0.5"
+              >
+                {ctaText}
+                <ArrowRight size={15} />
+              </Link>
+            )}
             <p className="text-slate-500 text-xs font-medium mt-3">
               20 free AI queries on the Free plan · No credit card
             </p>

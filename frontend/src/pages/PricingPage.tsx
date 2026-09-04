@@ -62,7 +62,7 @@ const stagger = {
 
 export default function PricingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, register, login } = useAuth();
   const { translate: t } = useLanguage();
   const [searchParams] = useSearchParams();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
@@ -73,12 +73,16 @@ export default function PricingPage() {
   const handleSelectPlan = async (plan: PlanDefinition) => {
     // Free plan: go to register
     if (plan.price.monthly === 0) {
-      navigate(user ? '/dashboard' : '/register');
+      if (user) {
+        navigate('/dashboard');
+      } else {
+        register();
+      }
       return;
     }
     // Paid plan: needs auth
     if (!user) {
-      navigate(`/register?plan=${plan.id}`);
+      register();
       return;
     }
     // Already on this plan
@@ -402,14 +406,15 @@ export default function PricingPage() {
               {t('pricing.cta.desc')}
             </p>
             <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link
-                to="/register"
+              <button
+                type="button"
+                onClick={() => register()}
                 id="pricing-final-cta-free"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '14px 28px', borderRadius: 16,
                   background: '#2563EB', color: '#fff',
-                  fontWeight: 800, fontSize: 15, textDecoration: 'none',
+                  fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer',
                   boxShadow: '0 10px 30px rgba(37,99,235,0.3)',
                   transition: 'filter 0.2s ease',
                 }}
@@ -418,9 +423,10 @@ export default function PricingPage() {
               >
                 {t('pricing.cta.free')}
                 <ArrowRight size={16} />
-              </Link>
-              <Link
-                to="/login"
+              </button>
+              <button
+                type="button"
+                onClick={() => login()}
                 id="pricing-final-cta-login"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -428,14 +434,14 @@ export default function PricingPage() {
                   background: 'rgba(255,255,255,0.08)',
                   border: '1px solid rgba(255,255,255,0.15)',
                   color: '#fff',
-                  fontWeight: 800, fontSize: 15, textDecoration: 'none',
+                  fontWeight: 800, fontSize: 15, cursor: 'pointer',
                   transition: 'background 0.2s ease',
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
               >
                 {t('pricing.cta.login')}
-              </Link>
+              </button>
             </div>
             <p style={{ color: '#475569', fontSize: 13, margin: '20px 0 0', fontWeight: 600 }}>
               {t('pricing.cta.footer')}

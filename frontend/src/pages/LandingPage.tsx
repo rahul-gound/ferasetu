@@ -463,12 +463,13 @@ export default function LandingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link
-                  to={getLocalizedLink('/register')}
-                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                <button
+                  type="button"
+                  onClick={() => register()}
+                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
                 >
                   Start Free (₹0)
-                </Link>
+                </button>
               </div>
 
               {/* Business — Most Popular */}
@@ -492,12 +493,13 @@ export default function LandingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link
-                  to={getLocalizedLink('/register?plan=business')}
-                  className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md"
+                <button
+                  type="button"
+                  onClick={() => register()}
+                  className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md cursor-pointer"
                 >
                   Start Business Plan
-                </Link>
+                </button>
               </div>
 
               {/* Pro */}
@@ -518,12 +520,13 @@ export default function LandingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link
-                  to={getLocalizedLink('/register?plan=pro')}
-                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                <button
+                  type="button"
+                  onClick={() => register()}
+                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
                 >
                   Get Pro Plan
-                </Link>
+                </button>
               </div>
             </div>
 
