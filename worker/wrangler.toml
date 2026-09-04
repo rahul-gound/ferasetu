@@ -13,7 +13,7 @@ database_id = "ac0e07fa-8183-4a99-b744-c095027f61d6"
 
 # Observability configuration
 [observability]
-enabled = false
+enabled = true
 head_sampling_rate = 1
 
 [observability.logs]

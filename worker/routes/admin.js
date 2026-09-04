@@ -19,7 +19,7 @@ function json(data, status = 200) {
       "X-Robots-Tag": "noindex, nofollow",
       "Access-Control-Allow-Origin": "https://ferasetu.com",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
       "Access-Control-Allow-Credentials": "true"
     }
   });
@@ -49,7 +49,7 @@ export async function handleAdminRoutes(request, env) {
       headers: {
         "Access-Control-Allow-Origin": "https://ferasetu.com",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Max-Age": "86400"
       }
