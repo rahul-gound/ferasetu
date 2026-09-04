@@ -338,14 +338,13 @@ export default function PrivacyPage() {
                   <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg mb-3">
                     A
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">FeraSetu Merchants &amp; Users</h3>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">FeraSetu Merchants &amp; Store Owners</h3>
                   <p className="text-sm text-slate-600 leading-relaxed mb-3">
-                    Merchants are business owners and operators who sign up for a FeraSetu account to create digital
-                    stores and manage catalogs.
+                    Merchants are business operators who register for a FeraSetu account to create digital storefronts, manage products, and fulfill orders.
                   </p>
                   <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
-                    <li>FeraSetu directly collects and controls merchant account credentials, contact info, and billing records.</li>
-                    <li>FeraSetu acts as the <strong>Data Fiduciary / Data Controller</strong> for merchant account data.</li>
+                    <li>FeraSetu acts as the <strong>Data Controller (or Business under CCPA)</strong> solely for merchant account credentials, contact information, billing records, and direct platform usage.</li>
+                    <li>Merchants hold complete authority over their store setup, branding, and customer pricing.</li>
                   </ul>
                 </div>
 
@@ -353,24 +352,20 @@ export default function PrivacyPage() {
                   <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-lg mb-3">
                     B
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">Customers of Merchants</h3>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">Customers of Merchants (End-Buyers)</h3>
                   <p className="text-sm text-slate-600 leading-relaxed mb-3">
-                    Customers are end-consumers who visit or place orders on an independent storefront powered by
-                    FeraSetu software.
+                    Buyers are consumers who view catalogs or place orders on independent merchant storefronts powered by FeraSetu technology.
                   </p>
                   <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
-                    <li>The <strong>Merchant is the Data Fiduciary / Controller</strong> determining why customer information is collected.</li>
-                    <li>FeraSetu acts strictly as a <strong>Technology Service Provider / Data Processor</strong> providing infrastructure.</li>
-                    <li>FeraSetu is <strong>not the seller</strong> of merchant goods and does not control merchant inventory or sales decisions.</li>
+                    <li>The <strong>Merchant is the independent Data Controller</strong> determining why and how buyer information is gathered.</li>
+                    <li>FeraSetu acts strictly as a <strong>Data Processor (or Service Provider under CCPA)</strong> executing automated processing on the merchant&apos;s instructions.</li>
+                    <li><strong>No FeraSetu Liability:</strong> FeraSetu is not legally responsible or liable for how shopkeepers use, store, disclose, or market using their buyers&apos; phone numbers, emails, or physical addresses.</li>
                   </ul>
                 </div>
               </div>
 
-              <div className="p-4 bg-blue-50/60 border border-blue-200/80 rounded-xl text-sm text-slate-700 leading-relaxed">
-                <strong>Important Legal Notice:</strong> If you are a customer purchasing goods from a merchant store
-                hosted on FeraSetu, your transaction and customer relationship is directly with that merchant. Privacy
-                inquiries regarding merchant order fulfillment, refunds, or store-specific data practices should be
-                directed primarily to the respective merchant.
+              <div className="p-5 bg-amber-50/70 border border-amber-200 rounded-xl text-sm text-amber-950 leading-relaxed">
+                <strong>Controller vs. Processor Disclaimer:</strong> FeraSetu provides cloud storefront technology. Merchants are solely responsible for publishing their own store privacy policies, honoring customer opt-outs, and adhering to local and international privacy laws regarding their buyers&apos; personal data.
               </div>
             </section>
 
@@ -630,35 +625,37 @@ export default function PrivacyPage() {
 
               <div className="space-y-3">
                 <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">Cloud Hosting &amp; Edge Infrastructure</h3>
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">Authentication &amp; User Identity — WorkOS Inc.</h3>
                   <p className="text-xs text-slate-600">
-                    Trusted cloud providers (such as Cloudflare and enterprise database providers) for distributed CDN
-                    caching, database security, DDoS mitigation, and uptime.
+                    We use <strong>WorkOS Inc.</strong> to handle merchant registration, authentication, session token generation, and secure Single Sign-On (SSO). WorkOS processes authentication credentials under strict enterprise privacy safeguards.
                   </p>
                 </div>
 
                 <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">Payment Gateways &amp; Processing</h3>
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">Global Payment Processing — Stripe Inc.</h3>
                   <p className="text-xs text-slate-600">
-                    Certified payment gateways (e.g. Razorpay, Stripe, and UPI rails) to facilitate merchant subscription
-                    billing and storefront customer payments. Payment credentials are handled directly by PCI-DSS compliant
-                    processors.
+                    International transactions, credit cards, and global subscription billing are processed securely via <strong>Stripe Inc.</strong> FeraSetu does not store credit card numbers; payment data is transmitted directly to Stripe under PCI-DSS Level 1 compliance.
                   </p>
                 </div>
 
                 <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">Messaging &amp; Notification Gateways</h3>
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">Domestic &amp; UPI Payment Processing — Razorpay Software Pvt. Ltd.</h3>
                   <p className="text-xs text-slate-600">
-                    Telecommunication and messaging partners (such as WhatsApp Business API, SMS delivery platforms, and
-                    transactional email services) to deliver critical order notifications and authentication OTPs.
+                    Domestic transactions, UPI payments, and Indian banking transfers are processed via <strong>Razorpay Software Pvt. Ltd.</strong> Payment credentials and KYC verifications are managed in accordance with Reserve Bank of India (RBI) regulations.
                   </p>
                 </div>
 
                 <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">AI Inference Infrastructure</h3>
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">Edge Compute &amp; Database Hosting — Cloudflare Inc.</h3>
                   <p className="text-xs text-slate-600">
-                    State-of-the-art AI infrastructure providers to process merchant prompt completions for catalog
-                    generation. Prompts are transmitted securely and processed without being used to train third-party public models.
+                    Platform APIs, serverless computing, and Cloudflare D1 distributed databases are hosted on <strong>Cloudflare Inc.</strong> for high-availability caching, DDoS mitigation, and encrypted database operations.
+                  </p>
+                </div>
+
+                <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">Multilingual AI Inference — Sarvam AI</h3>
+                  <p className="text-xs text-slate-600">
+                    Multilingual text generation and regional voice prompts for store catalog setup are processed via <strong>Sarvam AI</strong> without using merchant data to train public foundation models.
                   </p>
                 </div>
               </div>
@@ -754,34 +751,50 @@ export default function PrivacyPage() {
                 <HelpCircle size={18} /> Section 10
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                10. Your Privacy Rights &amp; Choices
+                10. International Privacy Rights &amp; Right to Deletion (GDPR &amp; CCPA)
               </h2>
-              <p>Depending on your location and applicable privacy laws, you possess the following rights regarding your personal data:</p>
+              <p>
+                Regardless of your country of residence, FeraSetu complies with international data privacy baselines, including the European Union / United Kingdom General Data Protection Regulation (GDPR) and the California Consumer Privacy Act as amended by the California Privacy Rights Act (CCPA / CPRA).
+              </p>
               <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-600 my-4">
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <strong className="text-slate-900 block mb-1">Right to Access</strong>
-                  Request a summary or copy of personal data we hold about you.
+                  <strong className="text-slate-900 block mb-1">Right to Access / Know (GDPR Art. 15 / CCPA)</strong>
+                  Request confirmation of whether your data is being processed, and obtain a copy of all personal data we maintain.
                 </div>
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <strong className="text-slate-900 block mb-1">Right to Correction</strong>
-                  Update inaccurate or incomplete profile or business data via your dashboard.
+                  <strong className="text-slate-900 block mb-1">Right to Rectification (GDPR Art. 16)</strong>
+                  Correct inaccurate or incomplete profile or business records at any time via your merchant dashboard.
                 </div>
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <strong className="text-slate-900 block mb-1">Right to Data Portability</strong>
-                  Request an export of catalog and customer records in readable format.
+                  <strong className="text-slate-900 block mb-1">Right to Data Portability (GDPR Art. 20)</strong>
+                  Export your full product catalogs, order records, and settings in structured, machine-readable formats (CSV/JSON).
                 </div>
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <strong className="text-slate-900 block mb-1">Right to Erasure / Deletion</strong>
-                  Request deletion of your account and personal data, subject to legal limits.
+                  <strong className="text-slate-900 block mb-1">Right to Erasure &amp; Deletion (GDPR Art. 17 / CCPA)</strong>
+                  Demand the immediate, permanent deletion of your account and all associated personal records across our systems.
                 </div>
               </div>
-              <p className="text-sm text-slate-600">
-                To exercise any of these rights, please email{' '}
-                <a href="mailto:privacy@ferasetu.com" className="text-blue-600 font-semibold hover:underline">
-                  privacy@ferasetu.com
-                </a>
-                .
-              </p>
+
+              <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-2xs space-y-3">
+                <h3 className="text-base font-bold text-slate-900">
+                  How to Submit an Account &amp; Data Deletion Request
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  To request complete account deletion and data erasure, submit an email request to our Data Protection Officer at:
+                </p>
+                <div className="flex items-center gap-2 text-sm font-bold text-blue-600">
+                  <Mail size={16} />
+                  <a href="mailto:privacy@ferasetu.com?subject=Data%20Erasure%20Request" className="hover:underline">
+                    privacy@ferasetu.com
+                  </a>
+                  <span className="text-xs text-slate-400 font-normal">(Subject: Data Erasure Request)</span>
+                </div>
+                <ul className="text-xs text-slate-500 list-disc pl-4 space-y-1">
+                  <li><strong>Verification:</strong> We will verify your identity using your registered account email to safeguard against unauthorized requests.</li>
+                  <li><strong>Timeline:</strong> All deletion requests are fulfilled within thirty (30) calendar days from verification without charge.</li>
+                  <li><strong>Confirmation:</strong> You will receive a formal confirmation once all database records, authentication credentials, and session tokens have been permanently purged.</li>
+                </ul>
+              </div>
             </section>
 
             {/* Section 11: Children's Privacy */}

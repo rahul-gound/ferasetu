@@ -75,29 +75,21 @@ const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     id: 'software-provider',
-    title: 'FeraSetu as a Software Provider — Not the Merchant',
+    title: 'Marketplace & Merchant of Record Disclaimer — Software Provider Only',
     blocks: [
       {
         kind: 'paragraph',
-        text: `FeraSetu is an online software service that helps Merchants create and operate digital storefronts, publish catalogs, manage products and inventory, receive and manage orders, communicate with customers, review analytics, use Fera AI, and manage business information. FeraSetu is not a marketplace.`
+        text: `FeraSetu provides technical infrastructure only. We are not a party to any transaction between store owners and buyers. Store owners hold 100% liability for taxes, consumer protection laws, shipping, and product safety.`
       },
       {
         kind: 'paragraph',
-        text: `FeraSetu is not the seller of products listed by Merchants. FeraSetu does not own Merchant inventory, does not set Merchant prices, and does not become a party to a sales contract between a Merchant and a Merchant Customer merely because FeraSetu software or infrastructure is used.`
-      },
-      {
-        kind: 'paragraph',
-        text: `The Merchant contracts directly with its customers. The Merchant is responsible for products, prices, inventory, fulfillment, shipping, taxes, refunds, returns, warranties, customer service, legal compliance, claims, and representations made to customers, except to the extent FeraSetu expressly assumes a specific responsibility in a separate written agreement or where liability cannot be excluded under applicable law.`
-      },
-      {
-        kind: 'paragraph',
-        text: `FeraSetu does not guarantee sales, revenue, customer demand, search ranking, conversion, or the success of any business strategy. Using the Services provides software infrastructure; it does not transfer responsibility for the Merchant's business decisions or transactions.`
+        text: `FeraSetu is not a merchant of record, broker, auctioneer, or marketplace seller. We do not manufacture, inspect, package, warrant, store, or deliver products listed on merchant storefronts. All sales, delivery contracts, refund agreements, and commercial promises are formed solely and directly between the merchant and the end customer.`
       },
       {
         kind: 'note',
         tone: 'blue',
-        title: `The basic distinction`,
-        text: `FeraSetu provides the software infrastructure. You operate your business and remain responsible for your products and promises to customers.`
+        title: `Absolute Separation of Liability`,
+        text: `FeraSetu supplies the digital toolset. You operate your independent commercial business and retain 100% legal, regulatory, and operational liability for your catalog, storefront, and transactions.`
       }
     ]
   },
@@ -278,18 +270,18 @@ const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     id: 'acceptable-use',
-    title: 'Acceptable Use',
+    title: 'Acceptable Use Policy (AUP) & Immediate Termination',
     blocks: [
       { kind: 'paragraph', text: `You may use the Services only for lawful purposes. You must not:` },
       {
         kind: 'list',
         items: [
-          `Violate applicable law, court order, or regulatory requirement.`,
-          `Infringe another person's or business's intellectual property, privacy, contract, or other rights.`,
-          `Sell, promote, or facilitate illegal, restricted, unsafe, fraudulent, deceptive, counterfeit, or unauthorized products or services.`,
+          `Violate applicable local, national, or international law, court order, or regulatory requirement.`,
+          `Infringe another person's or business's intellectual property, trademark, copyright, privacy, contract, or other rights.`,
+          `Sell, promote, or facilitate illegal, restricted, unsafe, hazardous, counterfeit, unapproved pharmaceuticals, weapons, adult content, or unauthorized products or services.`,
           `Misrepresent affiliation, endorsement, identity, price, availability, certification, or business capability.`,
-          `Create fake storefronts, fake reviews, fake demand, fake orders, or misleading scarcity.`,
-          `Commit or facilitate payment fraud, chargeback abuse, phishing, impersonation, or financial crime.`,
+          `Create fake storefronts, fake reviews, fake demand, fraudulent orders, or deceptive scarcity.`,
+          `Commit or facilitate payment fraud, chargeback abuse, phishing, impersonation, money laundering, or financial crime.`,
           `Attempt unauthorized access to Accounts, systems, data, APIs, networks, or devices.`,
           `Distribute malware, malicious code, harmful files, or unauthorized tracking mechanisms.`,
           `Probe, scan, overload, bypass, or test the security or availability of the Services without authorization.`,
@@ -300,7 +292,13 @@ const TERMS_SECTIONS: LegalSection[] = [
       },
       {
         kind: 'paragraph',
-        text: `FeraSetu may investigate suspected abuse and take proportionate action, including restricting a feature, suspending an Account, or terminating access, subject to applicable law.`
+        text: `Absolute Right of Termination: FeraSetu retains the absolute, unilateral right to instantly terminate, freeze, or suspend any store, storefront, or Account suspected of fraud, spam, intellectual property infringement, or selling prohibited or unlawful items, immediately and without prior notice, and without any liability to issue a refund of subscription fees or account credits.`
+      },
+      {
+        kind: 'note',
+        tone: 'amber',
+        title: `Zero-Tolerance Enforcement`,
+        text: `Engaging in fraudulent activity or listing illegal products results in immediate, permanent store removal and forfeiture of all service fees without refund.`
       }
     ]
   },
@@ -418,66 +416,63 @@ const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     id: 'disclaimers',
-    title: 'Disclaimers',
+    title: '"As-Is" Service & Disclaimer of All Warranties',
     blocks: [
       {
         kind: 'paragraph',
-        text: `Except as expressly stated in these Terms or a separate written agreement, and to the maximum extent permitted by applicable law, the Services are provided on an as-is and as-available basis.`
+        text: `TO THE MAXIMUM EXTENT PERMITTED UNDER APPLICABLE LAW, THE SERVICES, PLATFORM, DOCUMENTATION, AND ALL OUTPUTS (INCLUDING FERA AI) ARE PROVIDED ON AN "AS-IS" AND "AS-AVAILABLE" BASIS, WITH ALL FAULTS AND DEFECTS.`
       },
       {
         kind: 'paragraph',
-        text: `FeraSetu does not guarantee specific revenue, sales volume, customer acquisition, search-engine ranking, conversion rate, uninterrupted availability, error-free operation, third-party information, AI accuracy, merchant legal compliance, or the success of any merchant business strategy.`
+        text: `FERASETU EXPRESSLY DISCLAIMS ALL WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING WITHOUT LIMITATION ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, QUIET ENJOYMENT, AND NON-INFRINGEMENT.`
       },
       {
         kind: 'paragraph',
-        text: `This document is not legal, tax, financial, regulatory, or professional advice. You should obtain qualified advice for your business requirements.`
+        text: `WE MAKE NO WARRANTY, COMMITMENT, OR UPTIME GUARANTEE THAT THE SERVICES WILL MEET YOUR SPECIFIC COMMERCIAL REQUIREMENTS, BE UNINTERRUPTED, SECURE, BUG-FREE, ACCURATE, COMPLETE, OR FREE OF HARMFUL COMPONENTS OR DATA LOSS.`
       },
       {
-        kind: 'paragraph',
-        text: `Nothing in these Terms excludes or limits responsibilities or rights that cannot lawfully be excluded or limited.`
+        kind: 'note',
+        tone: 'amber',
+        title: `Commercial Independence`,
+        text: `You acknowledge that you independently assess the suitability of the software for your retail business operations.`
       }
     ]
   },
   {
     id: 'liability',
-    title: 'Limitation of Liability',
+    title: 'Absolute Limitation of Liability',
     blocks: [
       {
         kind: 'paragraph',
-        text: `To the maximum extent permitted by applicable law, FeraSetu is not liable for indirect, incidental, special, punitive, exemplary, or consequential losses, lost profits, lost revenue, lost business opportunities, lost goodwill, or loss of data arising from use of the Services.`
+        text: `TO THE FULLEST EXTENT PERMITTED BY LAW, IN NO EVENT SHALL FERASETU, ITS DIRECTORS, EMPLOYEES, AFFILIATES, AGENTS, OR LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES (INCLUDING LOSS OF PROFITS, REVENUE, DATA, GOODWILL, OR BUSINESS INTERRUPTION) ARISING FROM OR RELATED TO YOUR USE OF THE SERVICES.`
       },
       {
         kind: 'paragraph',
-        text: `Subject to applicable law and appropriate exclusions, FeraSetu's aggregate liability arising from or relating to the Services is limited to the total fees you paid or payable to FeraSetu for the Services during the twelve months preceding the event giving rise to the claim, or such higher amount as required by applicable law.`
-      },
-      {
-        kind: 'paragraph',
-        text: `This section does not limit liability for fraud, willful misconduct, or any other liability that cannot be excluded or limited under applicable law.`
+        text: `CAP ON AGGREGATE LIABILITY: TO THE MAXIMUM EXTENT PERMITTED BY LAW, FERASETU'S TOTAL CUMULATIVE AND AGGREGATE LIABILITY TO YOU FOR ALL CLAIMS ARISING OUT OF OR RELATING TO THESE TERMS OR THE SERVICES (WHETHER IN CONTRACT, TORT, STRICT LIABILITY, OR OTHERWISE) IS STRICTLY CAPPED AT AND SHALL NOT EXCEED THE TOTAL AMOUNT PAID BY YOU TO FERASETU IN THE PRECEDING TWELVE (12) MONTHS, OR $50 USD (OR THE DIRECT EQUIVALENT IN INDIAN RUPEES AT THE PREVAILING EXCHANGE RATE), WHICHEVER IS LOWER.`
       }
     ]
   },
   {
     id: 'indemnification',
-    title: 'Indemnification',
+    title: 'Full Indemnification & Legal Defense',
     blocks: [
       {
         kind: 'paragraph',
-        text: `To the extent permitted by applicable law, you will defend, indemnify, and hold harmless FeraSetu and its personnel from claims, damages, liabilities, losses, costs, and reasonable expenses arising from:`
+        text: `You agree to defend, indemnify, and hold harmless FeraSetu, its parent company, officers, directors, employees, contractors, and agents from and against any and all claims, demands, liabilities, damages, losses, settlements, judgments, costs, and expenses (including reasonable attorneys' fees and court costs) arising out of or related to:`
       },
       {
         kind: 'list',
         items: [
-          `Your products, services, prices, descriptions, fulfillment, taxes, or customer promises.`,
-          `Your Content, including intellectual-property infringement, defamation, or unauthorized media.`,
-          `Disputes between you and Merchant Customers.`,
-          `Your violation of applicable law, these Terms, or third-party rights.`,
-          `Fraud, chargeback abuse, or misuse of the Services carried out through your Account.`,
-          `Your collection, use, or disclosure of Merchant Customer data.`
+          `Your store, storefront, products, services, descriptions, fulfillment, shipping, taxation, warranties, or customer representations.`,
+          `Any dispute, chargeback, transaction, or controversy between you and any of your Merchant Customers or third-party suppliers.`,
+          `Your violation of any applicable domestic, international, or local consumer protection, health, safety, tax, or e-commerce law.`,
+          `Any actual or alleged infringement or misappropriation of any third-party intellectual property rights, copyright, trademark, trade secret, or privacy rights by your store content, catalogs, images, or media.`,
+          `Your violation of our Acceptable Use Policy, fraud, willful misconduct, or unauthorized access carried out through your account credentials.`
         ]
       },
       {
         kind: 'paragraph',
-        text: `This indemnity does not apply to the extent a claim arises from FeraSetu's breach of these Terms or its violation of applicable law. FeraSetu will provide reasonable notice of a claim where legally permitted.`
+        text: `If a merchant's storefront, actions, or products subject FeraSetu to regulatory fines, civil lawsuits, or legal defense costs, the merchant assumes 100% of the associated financial burden, including all legal defense fees incurred by FeraSetu.`
       }
     ]
   },
@@ -487,33 +482,49 @@ const TERMS_SECTIONS: LegalSection[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: `FeraSetu generally is not a party to purchase agreements between Merchants and Merchant Customers. Merchants are responsible for handling their customer relationships, including questions, cancellations, refunds, returns, warranty claims, delivery problems, payment disputes, and complaints.`
+        text: `FeraSetu is strictly not a party to any contract or dispute between merchants and their buyers. Merchants are solely responsible for handling questions, cancellations, refunds, returns, warranty claims, delivery delays, payment disputes, and consumer complaints.`
       },
       {
         kind: 'paragraph',
-        text: `FeraSetu may provide technical tools or limited support to help diagnose an issue, but that assistance does not make FeraSetu the seller, guarantor, insurer, or legal party to a Merchant transaction.`
-      },
-      {
-        kind: 'paragraph',
-        text: `Statutory rights of Merchant Customers remain subject to applicable law. Nothing in these Terms attempts to waive rights that cannot be waived.`
+        text: `FeraSetu does not act as an arbitrator, mediator, guarantor, or insurer for commercial transactions conducted via merchant stores.`
       }
     ]
   },
   {
     id: 'governing-law',
-    title: 'Governing Law and Dispute Resolution',
+    title: 'Exclusive Governing Law & Jurisdiction',
     blocks: [
       {
         kind: 'paragraph',
-        text: `These Terms and disputes arising from or relating to the Services are governed by the laws of India, without regard to conflict-of-law rules that would apply another legal system.`
+        text: `These Terms shall be governed by the laws of India. You irrevocably agree that the courts of Maharashtra, India, hold exclusive jurisdiction over any disputes, overriding any local laws of your residing country.`
       },
       {
         kind: 'paragraph',
-        text: `Before starting formal proceedings, the parties will try to resolve a dispute in good faith through support or another reasonable communication channel. If the dispute is not resolved, it may be brought before a court, tribunal, or arbitral forum with jurisdiction under applicable law.`
+        text: `You expressly waive any objections to jurisdiction or venue in such courts on the grounds of inconvenient forum, personal jurisdiction, or otherwise.`
+      }
+    ]
+  },
+  {
+    id: 'arbitration-class-action',
+    title: 'Mandatory Binding Arbitration & Class Action Waiver',
+    blocks: [
+      {
+        kind: 'paragraph',
+        text: `PLEASE READ CAREFULLY: THIS SECTION CONTAINS A BINDING ARBITRATION CLAUSE AND WAIVER OF CLASS ACTION RIGHTS APPLICABLE TO ALL USERS GLOBALLY.`
       },
       {
         kind: 'paragraph',
-        text: `FeraSetu has not stated a registered office address, arbitration seat, or exclusive city in this online document. Those details can be finalized through a separate legal notice, order confirmation, or agreement without changing the substance of these Terms.`
+        text: `Any dispute, controversy, or claim arising out of or relating to these Terms or the Services shall be finally resolved by individual binding arbitration administered in Maharashtra, India, in the English language, under the Arbitration and Conciliation Act, 1996 (as amended).`
+      },
+      {
+        kind: 'paragraph',
+        text: `CLASS ACTION WAIVER: YOU AND FERASETU AGREE THAT EACH MAY BRING CLAIMS AGAINST THE OTHER ONLY IN AN INDIVIDUAL CAPACITY AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS, COLLECTIVE, CONSOLIDATED, OR REPRESENTATIVE PROCEEDING IN THE UNITED STATES, THE EUROPEAN UNION, INDIA, OR ANY OTHER JURISDICTION. YOU EXPRESSLY WAIVE ANY RIGHT TO PARTICIPATE IN A CLASS ACTION LAWSUIT OR CLASS-WIDE ARBITRATION.`
+      },
+      {
+        kind: 'note',
+        tone: 'amber',
+        title: `Waiver of Jury Trial and Class Proceedings`,
+        text: `All disputes must be adjudicated individually through arbitration in Maharashtra, India. Class-action litigation is strictly waived.`
       }
     ]
   },
