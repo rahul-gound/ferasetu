@@ -9,16 +9,21 @@ const DEFAULT_LOCALE: Locale = 'en';
 const EXCLUDED_PATHS = [
   '/api',
   '/_next',
+  '/assets',
+  '/static',
   '/callback',
   '/favicon.ico',
   '/robots.txt',
   '/sitemap.xml',
-  '/site.webmanifest'
+  '/site.webmanifest',
+  '/main.js',
+  '/index.html'
 ];
 
 function isStaticAsset(pathname: string): boolean {
   return (
     pathname.includes('.') ||
+    /\.(js|css|json|map|svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|eot|ico)$/i.test(pathname) ||
     EXCLUDED_PATHS.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
   );
 }
@@ -93,6 +98,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
+    '/((?!api|_next/static|_next/image|assets|static|favicon.ico|main\\.js|.*\\.(?:js|css|json|map|svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|eot)$).*)'
   ]
 };

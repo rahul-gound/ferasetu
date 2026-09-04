@@ -4,15 +4,14 @@ import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { StatsigProvider, useClientAsyncInit } from '@statsig/react-bindings';
-import { StatsigAutoCapturePlugin } from '@statsig/web-analytics';
-import { StatsigSessionReplayPlugin } from '@statsig/session-replay';
 
-// Public, lightweight pages — kept eager so the first paint never waits on a second chunk.
+// Public landing page
 import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import AuthCallbackPage from './pages/AuthCallbackPage';
+
+// Lazy-loaded auth pages
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 
 // SEO landing pages — public, code-split
 const OnlineDukaanBanaye = lazy(() => import('./pages/OnlineDukaanBanaye'));
@@ -21,7 +20,7 @@ const ShopifyAlternativeIndia = lazy(() => import('./pages/ShopifyAlternativeInd
 const KiranaStoreOnline = lazy(() => import('./pages/KiranaStoreOnline'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 
-// Everything below is code-split
+// Core app pages — code-split
 const GetStartedPage = lazy(() => import('./pages/GetStartedPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
@@ -206,17 +205,6 @@ function AppContent() {
   );
 }
 
-// Root app — Statsig wraps everything to enable feature flags and session replay
 export default function App() {
-  const { client: statsigClient } = useClientAsyncInit(
-    'client-XOZr1YiFOBSi6y6elVRLgwEQSY44LvCVpRwTzdfbd98',
-    { userID: 'a-user' },
-    { plugins: [new StatsigAutoCapturePlugin(), new StatsigSessionReplayPlugin()] }
-  );
-
-  return (
-    <StatsigProvider client={statsigClient}>
-      <AppContent />
-    </StatsigProvider>
-  );
+  return <AppContent />;
 }

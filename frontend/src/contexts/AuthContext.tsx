@@ -174,6 +174,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const getWorkOSDirectAuthUrl = (screenHint?: 'sign-in' | 'sign-up') => {
+    const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
+    const redirectUri = window.location.origin + '/callback';
+    const hintParam = screenHint ? `&screen_hint=${screenHint}` : '';
+    return `https://api.workos.com/user_management/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code${hintParam}`;
+  };
+
   const contextValue: AuthContextType = {
     user: profile,
     isLoading: isWorkOSLoading || isProfileLoading,
@@ -182,21 +189,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (typeof signIn === 'function') {
           await signIn();
+          setTimeout(() => {
+            if (window.location.pathname.includes('/login')) {
+              window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
+            }
+          }, 600);
+        } else {
+          window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
         }
       } catch (err) {
-        console.error('WorkOS signIn failed:', err);
+        console.error('WorkOS signIn failed, falling back to direct URL:', err);
+        window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
       }
     },
     loginWithGoogle: async () => {
       try {
         if (typeof signIn === 'function') {
           await signIn();
+        } else {
+          window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
         }
       } catch (err) {
         console.error('WorkOS Google signIn failed:', err);
+        window.location.assign(getWorkOSDirectAuthUrl('sign-in'));
       }
     },
-    register: () => signUp(),
+    register: async () => {
+      try {
+        if (typeof signUp === 'function') {
+          await signUp();
+          setTimeout(() => {
+            if (window.location.pathname.includes('/register')) {
+              window.location.assign(getWorkOSDirectAuthUrl('sign-up'));
+            }
+          }, 600);
+        } else {
+          window.location.assign(getWorkOSDirectAuthUrl('sign-up'));
+        }
+      } catch (err) {
+        console.error('WorkOS signUp failed, falling back to direct URL:', err);
+        window.location.assign(getWorkOSDirectAuthUrl('sign-up'));
+      }
+    },
     logout: () => signOut(),
     sendOTP: async () => {}, // Handled by WorkOS
     sendVerificationEmail: async () => {}, // Handled by WorkOS
