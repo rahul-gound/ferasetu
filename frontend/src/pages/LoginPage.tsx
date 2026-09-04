@@ -13,39 +13,49 @@ export default function LoginPage() {
   const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
   const directSignInUrl = `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&response_type=code&screen_hint=sign-in`;
 
+  // Handle redirect once auth state is settled
   useEffect(() => {
-    if (!isLoading && user) {
+    if (isLoading) return;
+
+    if (user) {
       navigate('/dashboard', { replace: true });
       return;
     }
 
     if (!hasTriggered.current) {
       hasTriggered.current = true;
-      try {
-        login();
-      } catch (err) {
-        console.error('Login trigger failed, navigating directly:', err);
-        window.location.assign(directSignInUrl);
-      }
+      login();
     }
+  }, [user, isLoading, login, navigate]);
 
-    // Fail-safe: if after 2.5 seconds we are still here, force direct navigation
-    const forceTimer = setTimeout(() => {
-      if (!user) {
-        window.location.assign(directSignInUrl);
+  // Fallback: If auth state hangs on slow networks for > 2.5s, trigger login anyway
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!hasTriggered.current && !user) {
+        hasTriggered.current = true;
+        login();
       }
     }, 2500);
 
-    // After 800ms, show the manual button so user is never stranded
+    return () => clearTimeout(timeout);
+  }, [user, login]);
+
+  // After 1.5s, reveal the manual button in case browser blocked auto-redirects
+  useEffect(() => {
     const buttonTimer = setTimeout(() => {
       setShowManualButton(true);
-    }, 800);
+    }, 1500);
 
-    return () => {
-      clearTimeout(forceTimer);
-      clearTimeout(buttonTimer);
-    };
-  }, [user, isLoading, login, navigate, directSignInUrl]);
+    return () => clearTimeout(buttonTimer);
+  }, []);
+
+  const handleManualRedirect = () => {
+    try {
+      login();
+    } catch {
+      window.location.assign(directSignInUrl);
+    }
+  };
 
   return (
     <>
@@ -68,7 +78,11 @@ export default function LoginPage() {
             <div className="mt-4 pt-4 border-t border-slate-800 w-full animate-fadeIn">
               <a
                 href={directSignInUrl}
-                className="w-full py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleManualRedirect();
+                }}
+                className="w-full py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Click here if not redirected</span>
                 <ArrowRight size={15} />

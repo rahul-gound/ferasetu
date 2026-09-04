@@ -189,7 +189,7 @@ function AppContent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthKitProvider 
-        clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
+        clientId={import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY'}
         redirectUri={window.location.origin + '/callback'}
       >
         <AuthProvider>

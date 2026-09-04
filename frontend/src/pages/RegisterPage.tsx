@@ -13,39 +13,49 @@ export default function RegisterPage() {
   const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
   const directSignUpUrl = `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&response_type=code&screen_hint=sign-up`;
 
+  // Handle redirect once auth state is settled
   useEffect(() => {
-    if (!isLoading && user) {
+    if (isLoading) return;
+
+    if (user) {
       navigate('/dashboard', { replace: true });
       return;
     }
 
     if (!hasTriggered.current) {
       hasTriggered.current = true;
-      try {
-        register();
-      } catch (err) {
-        console.error('Register trigger failed, navigating directly:', err);
-        window.location.assign(directSignUpUrl);
-      }
+      register();
     }
+  }, [user, isLoading, register, navigate]);
 
-    // Fail-safe: if after 2.5 seconds we are still here, force direct navigation
-    const forceTimer = setTimeout(() => {
-      if (!user) {
-        window.location.assign(directSignUpUrl);
+  // Fallback: If auth state hangs on slow networks for > 2.5s, trigger registration anyway
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!hasTriggered.current && !user) {
+        hasTriggered.current = true;
+        register();
       }
     }, 2500);
 
-    // After 800ms, show the manual button so user is never stranded
+    return () => clearTimeout(timeout);
+  }, [user, register]);
+
+  // After 1.5s, reveal the manual button in case browser blocked auto-redirects
+  useEffect(() => {
     const buttonTimer = setTimeout(() => {
       setShowManualButton(true);
-    }, 800);
+    }, 1500);
 
-    return () => {
-      clearTimeout(forceTimer);
-      clearTimeout(buttonTimer);
-    };
-  }, [user, isLoading, register, navigate, directSignUpUrl]);
+    return () => clearTimeout(buttonTimer);
+  }, []);
+
+  const handleManualRedirect = () => {
+    try {
+      register();
+    } catch {
+      window.location.assign(directSignUpUrl);
+    }
+  };
 
   return (
     <>
@@ -68,7 +78,11 @@ export default function RegisterPage() {
             <div className="mt-4 pt-4 border-t border-slate-800 w-full animate-fadeIn">
               <a
                 href={directSignUpUrl}
-                className="w-full py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleManualRedirect();
+                }}
+                className="w-full py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Click here if not redirected</span>
                 <ArrowRight size={15} />
