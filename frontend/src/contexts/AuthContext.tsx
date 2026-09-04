@@ -177,7 +177,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getWorkOSDirectAuthUrl = (screenHint?: 'sign-in' | 'sign-up') => {
     const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
     const redirectUri = window.location.origin + '/callback';
-    const hintParam = screenHint ? `&screen_hint=${screenHint}` : '';
+    // Omit screen_hint=sign-up because WorkOS is configured to 307 redirect sign-up to /register, causing a loop
+    const hintParam = screenHint && screenHint !== 'sign-up' ? `&screen_hint=${screenHint}` : '';
     return `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code${hintParam}`;
   };
 
@@ -211,14 +212,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async () => {
       try {
-        if (typeof signUp === 'function') {
-          await signUp();
+        // Use signIn() instead of signUp() to avoid screen_hint=sign-up which loops back to /register
+        if (typeof signIn === 'function') {
+          await signIn();
         } else {
-          window.location.assign(getWorkOSDirectAuthUrl('sign-up'));
+          window.location.assign(getWorkOSDirectAuthUrl());
         }
       } catch (err) {
-        console.error('WorkOS signUp failed, falling back to direct URL:', err);
-        window.location.assign(getWorkOSDirectAuthUrl('sign-up'));
+        console.error('WorkOS register failed, falling back to direct URL:', err);
+        window.location.assign(getWorkOSDirectAuthUrl());
       }
     },
     logout: () => signOut(),

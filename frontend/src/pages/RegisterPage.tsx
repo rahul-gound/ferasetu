@@ -11,7 +11,7 @@ export default function RegisterPage() {
   const [showManualButton, setShowManualButton] = useState(false);
 
   const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
-  const directSignUpUrl = `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&response_type=code&screen_hint=sign-up`;
+  const directAuthUrl = `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&response_type=code`;
 
   // Handle redirect once auth state is settled
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function RegisterPage() {
     try {
       register();
     } catch {
-      window.location.assign(directSignUpUrl);
+      window.location.assign(directAuthUrl);
     }
   };
 
@@ -77,7 +77,7 @@ export default function RegisterPage() {
           {showManualButton && (
             <div className="mt-4 pt-4 border-t border-slate-800 w-full animate-fadeIn">
               <a
-                href={directSignUpUrl}
+                href={directAuthUrl}
                 onClick={(e) => {
                   e.preventDefault();
                   handleManualRedirect();
