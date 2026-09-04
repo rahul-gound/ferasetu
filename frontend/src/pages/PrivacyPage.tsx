@@ -34,15 +34,16 @@ const TOC_ITEMS: TocItem[] = [
   { id: 'roles', title: 'Merchants vs. Merchant Customers', number: '2' },
   { id: 'data-collection', title: 'Information We Collect', number: '3' },
   { id: 'data-usage', title: 'How We Use Your Information', number: '4' },
-  { id: 'ownership', title: 'Data Ownership & Portability', number: '5' },
-  { id: 'third-parties', title: 'Third-Party Sub-processors', number: '6' },
-  { id: 'security', title: 'Data Security & Protection', number: '7' },
-  { id: 'cookies', title: 'Cookies & Tracking Technologies', number: '8' },
-  { id: 'retention', title: 'Data Retention & Deletion', number: '9' },
-  { id: 'rights', title: 'Your Privacy Rights & Choices', number: '10' },
-  { id: 'children', title: "Children's Privacy", number: '11' },
-  { id: 'policy-updates', title: 'Changes to This Privacy Policy', number: '12' },
-  { id: 'contact-requests', title: 'Contact & Privacy Requests', number: '13' },
+  { id: 'google-data', title: 'Google User Data & OAuth Disclosures', number: '5' },
+  { id: 'ownership', title: 'Data Ownership & Portability', number: '6' },
+  { id: 'third-parties', title: 'Third-Party Sub-processors', number: '7' },
+  { id: 'security', title: 'Data Security & Protection', number: '8' },
+  { id: 'cookies', title: 'Cookies & Tracking Technologies', number: '9' },
+  { id: 'retention', title: 'Data Retention & Deletion', number: '10' },
+  { id: 'rights', title: 'Your Privacy Rights & Choices', number: '11' },
+  { id: 'children', title: "Children's Privacy", number: '12' },
+  { id: 'policy-updates', title: 'Changes to This Privacy Policy', number: '13' },
+  { id: 'contact-requests', title: 'Contact & Privacy Requests', number: '14' },
 ];
 
 function EmailCopyButton({ email, label }: { email: string; label: string }) {
@@ -486,13 +487,107 @@ export default function PrivacyPage() {
               </div>
             </section>
 
-            {/* Section 5: Ownership and Portability */}
-            <section id="ownership" className="scroll-mt-28 pt-10 border-t border-slate-100 space-y-5">
+            {/* Section 5: Google User Data & OAuth Disclosures */}
+            <section id="google-data" className="scroll-mt-28 pt-10 border-t border-slate-100 space-y-5">
               <div className="flex items-center gap-2 text-blue-600 font-bold text-sm uppercase tracking-wider">
-                <Lock size={18} /> Section 5
+                <ShieldCheck size={18} /> Section 5
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                5. Data Ownership, Portability &amp; Merchant Control
+                5. Google User Data &amp; OAuth Disclosures
+              </h2>
+
+              <p className="text-slate-700 leading-relaxed">
+                FeraSetu enables users to register and sign in securely using Google OAuth (&ldquo;Sign in with Google&rdquo;). This section explicitly details our collection, use, storage, and retention of Google user data in strict compliance with the <strong>Google API Services User Data Policy</strong>.
+              </p>
+
+              <div className="space-y-4">
+                <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-2xs">
+                  <h3 className="text-base font-bold text-slate-900 mb-2">
+                    5.1 Google Data We Access
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-3">
+                    When you sign in using Google, FeraSetu requests only basic profile identification scopes:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-600">
+                    <li><strong>Primary Email Address:</strong> Used as your unique account identifier, for essential service communications, and security alerts.</li>
+                    <li><strong>Full Name (Given Name and Family Name):</strong> Used to personalize your store management dashboard.</li>
+                    <li><strong>Profile Picture URL:</strong> Used optionally to display your avatar within your merchant account.</li>
+                  </ul>
+                  <p className="text-xs text-slate-500 mt-3 italic">
+                    We do not request access to Google Drive, Gmail, Google Contacts, Google Calendar, or any sensitive/restricted Google scopes.
+                  </p>
+                </div>
+
+                <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-2xs">
+                  <h3 className="text-base font-bold text-slate-900 mb-2">
+                    5.2 How We Use Google User Data
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-600">
+                    <li>Authenticating your identity and provisioning your merchant store dashboard.</li>
+                    <li>Transmitting transactional notifications regarding your store, orders, and security updates.</li>
+                    <li>Preventing fraudulent registrations and maintaining system security.</li>
+                  </ul>
+                </div>
+
+                <div className="p-5 border-2 border-blue-200 bg-blue-50/60 rounded-xl shadow-2xs">
+                  <h3 className="text-base font-bold text-blue-900 mb-2">
+                    5.3 Google Limited Use Requirements Disclosure
+                  </h3>
+                  <p className="text-sm text-blue-950 font-semibold leading-relaxed mb-3">
+                    FeraSetu&apos;s use and transfer of information received from Google APIs to any other app will adhere to the{' '}
+                    <a
+                      href="https://developers.google.com/terms/api-services-user-data-policy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-blue-700 hover:text-blue-900 font-bold"
+                    >
+                      Google API Services User Data Policy
+                    </a>
+                    , including the Limited Use requirements.
+                  </p>
+                  <ul className="list-disc pl-5 space-y-2 text-xs text-blue-900">
+                    <li><strong>No Advertising:</strong> Google user data is never used or transferred to serve advertisements, including personalized, retargeted, or interest-based advertising.</li>
+                    <li><strong>No Data Brokering:</strong> We never sell, lease, or monetize Google user data to data brokers, advertising networks, or third parties under any circumstances.</li>
+                    <li><strong>No AI Model Training:</strong> Google user data is not used to train, retrain, fine-tune, or improve generalized machine learning (ML) or artificial intelligence (AI) models.</li>
+                    <li><strong>Human Access Restrictions:</strong> Human beings are not permitted to inspect your Google account data unless you provide explicit consent for technical troubleshooting, it is necessary for security investigations, or it is required to comply with applicable law.</li>
+                  </ul>
+                </div>
+
+                <div className="p-5 border border-slate-200 rounded-xl bg-white shadow-2xs">
+                  <h3 className="text-base font-bold text-slate-900 mb-2">
+                    5.4 Data Retention, Revocation &amp; Deletion of Google Data
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-2 text-sm text-slate-600">
+                    <li>
+                      <strong>Revoking Access:</strong> You can revoke FeraSetu&apos;s access to your Google account at any time via your{' '}
+                      <a
+                        href="https://myaccount.google.com/permissions"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline hover:text-blue-800 font-semibold"
+                      >
+                        Google Security Settings (Third-party apps with account access)
+                      </a>.
+                    </li>
+                    <li>
+                      <strong>Requesting Deletion:</strong> You can request immediate and permanent deletion of your FeraSetu account and all associated Google data by submitting a request to{' '}
+                      <a href="mailto:privacy@ferasetu.com" className="text-blue-600 font-semibold underline">
+                        privacy@ferasetu.com
+                      </a>
+                      . All account records will be purged within thirty (30) business days.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 6: Ownership and Portability */}
+            <section id="ownership" className="scroll-mt-28 pt-10 border-t border-slate-100 space-y-5">
+              <div className="flex items-center gap-2 text-blue-600 font-bold text-sm uppercase tracking-wider">
+                <Lock size={18} /> Section 6
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                6. Data Ownership, Portability &amp; Merchant Control
               </h2>
               <div className="p-6 bg-blue-50/50 border border-blue-200 rounded-2xl space-y-3">
                 <h3 className="text-lg font-bold text-slate-900">Your Data Belongs to You</h3>
