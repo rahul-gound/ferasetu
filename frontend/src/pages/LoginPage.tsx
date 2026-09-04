@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [showManualButton, setShowManualButton] = useState(false);
 
   const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
-  const directSignInUrl = `https://api.workos.com/user_management/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&response_type=code&screen_hint=sign-in`;
+  const directSignInUrl = `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/callback')}&response_type=code&screen_hint=sign-in`;
 
   useEffect(() => {
     if (!isLoading && user) {
@@ -29,12 +29,12 @@ export default function LoginPage() {
       }
     }
 
-    // Fail-safe: if after 1.5 seconds we are still here, force direct navigation
+    // Fail-safe: if after 2.5 seconds we are still here, force direct navigation
     const forceTimer = setTimeout(() => {
       if (!user) {
         window.location.assign(directSignInUrl);
       }
-    }, 1500);
+    }, 2500);
 
     // After 800ms, show the manual button so user is never stranded
     const buttonTimer = setTimeout(() => {
