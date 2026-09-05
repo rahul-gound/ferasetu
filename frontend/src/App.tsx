@@ -33,6 +33,7 @@ const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
 const SurveyFeedbackPage = lazy(() => import('./pages/SurveyFeedbackPage'));
 const EmailSettingsPage = lazy(() => import('./pages/EmailSettingsPage'));
+const ReferEarnPage = lazy(() => import('./pages/ReferEarnPage'));
 const ShopPage = lazy(() => import('./pages/ShopPage'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
@@ -125,6 +126,7 @@ function AppRoutes() {
         <Route path="/website-builder" element={<ProtectedRoute><Layout><WebsiteBuilderPage /></Layout></ProtectedRoute>} />
         <Route path="/survey-feedback" element={<ProtectedRoute><Layout><SurveyFeedbackPage /></Layout></ProtectedRoute>} />
         <Route path="/settings/email" element={<ProtectedRoute><Layout><EmailSettingsPage /></Layout></ProtectedRoute>} />
+        <Route path="/refer-earn" element={<ProtectedRoute><Layout><ReferEarnPage /></Layout></ProtectedRoute>} />
         <Route path="/upgrade" element={<ProtectedRoute><Layout><UpgradePage /></Layout></ProtectedRoute>} />
         <Route path="/support" element={<ProtectedRoute><Layout><SupportPage /></Layout></ProtectedRoute>} />
         <Route path="/get-started" element={<ProtectedRoute><Layout><GetStartedPage /></Layout></ProtectedRoute>} />
