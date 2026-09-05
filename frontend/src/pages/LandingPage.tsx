@@ -36,6 +36,7 @@ import {
   ShieldCheck,
   Sparkles,
   Check,
+  LayoutDashboard,
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -99,7 +100,7 @@ const FEATURE_OUTCOMES = [
 
 export default function LandingPage() {
   const { getLocalizedLink, translate: t } = useLanguage();
-  const { register } = useAuth();
+  const { user, register } = useAuth();
 
   return (
     <>
@@ -161,14 +162,25 @@ export default function LandingPage() {
 
             {/* Hero CTAs */}
             <div className="hero-card-enter hero-card-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-              <button
-                type="button"
-                onClick={() => register()}
-                className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>{t('hero.cta') || 'Start Free (₹0)'}</span>
-                <ArrowRight size={18} />
-              </button>
+              {user ? (
+                <Link
+                  to="/dashboard"
+                  className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <LayoutDashboard size={20} />
+                  <span>Dashboard</span>
+                  <ArrowRight size={18} />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => register()}
+                  className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{t('hero.cta') || 'Start Free (₹0)'}</span>
+                  <ArrowRight size={18} />
+                </button>
+              )}
               <a
                 href="#how-it-works"
                 className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
@@ -463,13 +475,22 @@ export default function LandingPage() {
                     ))}
                   </ul>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => register()}
-                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
-                >
-                  Start Free (₹0)
-                </button>
+                {user ? (
+                  <Link
+                    to="/dashboard"
+                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                  >
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => register()}
+                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
+                  >
+                    Start Free (₹0)
+                  </button>
+                )}
               </div>
 
               {/* Business — Most Popular */}
@@ -493,13 +514,22 @@ export default function LandingPage() {
                     ))}
                   </ul>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => register()}
-                  className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md cursor-pointer"
-                >
-                  Start Business Plan
-                </button>
+                {user ? (
+                  <Link
+                    to="/upgrade"
+                    className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md"
+                  >
+                    Upgrade to Business
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => register()}
+                    className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md cursor-pointer"
+                  >
+                    Start Business Plan
+                  </button>
+                )}
               </div>
 
               {/* Pro */}
@@ -520,13 +550,22 @@ export default function LandingPage() {
                     ))}
                   </ul>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => register()}
-                  className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
-                >
-                  Get Pro Plan
-                </button>
+                {user ? (
+                  <Link
+                    to="/upgrade"
+                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
+                  >
+                    Upgrade to Pro
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => register()}
+                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
+                  >
+                    Get Pro Plan
+                  </button>
+                )}
               </div>
             </div>
 

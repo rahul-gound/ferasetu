@@ -38,7 +38,7 @@ export default function FinalCTA({
   dark = false,
 }: FinalCTAProps) {
   const { getLocalizedLink } = useLanguage();
-  const { register } = useAuth();
+  const { user, register } = useAuth();
 
   const titleLines = title.split('\n');
 
@@ -62,7 +62,19 @@ export default function FinalCTA({
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-          {primaryHref === '/register' ? (
+          {user ? (
+            <Link
+              to="/dashboard"
+              className={`w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 ${
+                dark
+                  ? 'bg-blue-600 text-white shadow-blue-900/50 hover:bg-blue-500'
+                  : 'bg-white text-blue-700 shadow-white/20 hover:bg-blue-50'
+              }`}
+            >
+              Go to Dashboard
+              <ArrowRight size={16} />
+            </Link>
+          ) : primaryHref === '/register' ? (
             <button
               type="button"
               onClick={() => register()}

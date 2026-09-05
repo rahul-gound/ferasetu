@@ -130,7 +130,7 @@ function AppRoutes() {
         <Route path="/get-started" element={<ProtectedRoute><Layout><GetStartedPage /></Layout></ProtectedRoute>} />
 
         {/* Public Root Routes */}
-        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
         <Route path="/callback" element={<AuthCallbackPage />} />
@@ -146,7 +146,7 @@ function AppRoutes() {
 
         {/* Localized Public Routes (/hi, /gu/pricing, etc.) */}
         <Route path="/:lang">
-          <Route index element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+          <Route index element={<LandingPage />} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="pricing" element={<PricingPage />} />

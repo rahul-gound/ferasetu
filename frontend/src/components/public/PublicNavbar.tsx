@@ -69,7 +69,7 @@ export default function PublicNavbar() {
             {user ? (
               <Link
                 to='/dashboard'
-                className='hidden items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 sm:inline-flex'
+                className='inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-slate-900 px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
               >
                 {t('nav.dashboard')}
                 <ArrowRight size={14} aria-hidden='true' />
