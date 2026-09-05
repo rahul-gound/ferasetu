@@ -200,8 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getWorkOSDirectAuthUrl = (screenHint?: 'sign-in' | 'sign-up', loginHint?: string) => {
     const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
     const redirectUri = window.location.origin + '/callback';
-    // Omit screen_hint=sign-up because WorkOS is configured to 307 redirect sign-up to /register, causing a loop
-    const hintParam = screenHint && screenHint !== 'sign-up' ? `&screen_hint=${screenHint}` : '';
+    const hintParam = screenHint ? `&screen_hint=${screenHint}` : '';
     const loginHintParam = loginHint ? `&login_hint=${encodeURIComponent(loginHint)}` : '';
     return `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code${hintParam}${loginHintParam}`;
   };
@@ -236,16 +235,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (opts?: { loginHint?: string }) => {
       try {
-        // Use signIn() instead of signUp() to avoid screen_hint=sign-up which loops back to /register
-        if (typeof signIn === 'function') {
-          await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
-        } else {
-          window.location.assign(getWorkOSDirectAuthUrl(undefined, opts?.loginHint));
+        if (typeof signUp === 'function') {
+          await signUp(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
+          return;
         }
       } catch (err) {
-        console.error('WorkOS register failed, falling back to direct URL:', err);
-        window.location.assign(getWorkOSDirectAuthUrl(undefined, opts?.loginHint));
+        console.error('WorkOS signUp failed, falling back to direct URL:', err);
       }
+      window.location.assign('https://decent-grass-08.authkit.app/sign-up');
     },
     logout: () => signOut(),
     sendOTP: async () => {}, // Handled by WorkOS
