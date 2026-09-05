@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Menu, X } from 'lucide-react';
+import { ArrowRight, Menu, X, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import LanguageSelector from '../LanguageSelector';
 
 export default function PublicNavbar() {
-  const { user, login, register } = useAuth();
+  const { user, login, register, logout } = useAuth();
   const { translate: t, getLocalizedLink } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -67,13 +67,30 @@ export default function PublicNavbar() {
             </div>
 
             {user ? (
-              <Link
-                to='/dashboard'
-                className='inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-slate-900 px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
-              >
-                {t('nav.dashboard')}
-                <ArrowRight size={14} aria-hidden='true' />
-              </Link>
+              <div className='flex items-center gap-2.5'>
+                <Link
+                  to='/dashboard'
+                  className='inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+                >
+                  <LayoutDashboard size={15} />
+                  <span>{t('nav.dashboard') || 'Dashboard'}</span>
+                  <ArrowRight size={14} aria-hidden='true' />
+                </Link>
+                <button
+                  type='button'
+                  onClick={() => register()}
+                  className='hidden lg:inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50'
+                >
+                  <span>{t('nav.startFree') || 'Sign Up'}</span>
+                </button>
+                <button
+                  type='button'
+                  onClick={() => logout()}
+                  className='hidden sm:inline-block cursor-pointer text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors'
+                >
+                  Sign Out
+                </button>
+              </div>
             ) : (
               <div className='hidden items-center gap-3 md:flex'>
                 <button
@@ -138,14 +155,27 @@ export default function PublicNavbar() {
             <div className='mt-8 flex flex-col gap-4 border-t border-slate-100 pt-6'>
               <LanguageSelector variant='light' />
               {user ? (
-                <Link
-                  to='/dashboard'
-                  onClick={() => setMobileMenuOpen(false)}
-                  className='flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-slate-900 text-base font-bold text-white shadow-lg shadow-slate-900/10 transition-colors hover:bg-slate-800'
-                >
-                  {t('nav.dashboard')}
-                  <ArrowRight size={16} aria-hidden='true' />
-                </Link>
+                <>
+                  <Link
+                    to='/dashboard'
+                    onClick={() => setMobileMenuOpen(false)}
+                    className='flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
+                  >
+                    <LayoutDashboard size={18} />
+                    <span>{t('nav.dashboard') || 'Dashboard'}</span>
+                    <ArrowRight size={16} aria-hidden='true' />
+                  </Link>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className='flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors'
+                  >
+                    Sign Out
+                  </button>
+                </>
               ) : (
                 <>
                   <button

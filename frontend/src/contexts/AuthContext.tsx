@@ -50,7 +50,14 @@ const PROFILE_KEYS: (keyof User)[] = [
 
 // Global token retriever for Axios
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<User | null>(null);
+  const [profile, setProfile] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('fera_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -102,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!workosUser) {
         if (mounted) {
           setProfile(null);
+          localStorage.removeItem('fera_user');
           setProfileError(null);
           setIsProfileLoading(false);
         }
@@ -198,6 +206,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { mounted = false; };
   }, [workosUser, isWorkOSLoading]);
 
+  useEffect(() => {
+    if (profile) {
+      try {
+        localStorage.setItem('fera_user', JSON.stringify(profile));
+      } catch (e) {
+        console.error('Failed to persist profile:', e);
+      }
+    }
+  }, [profile]);
+
   const updateUser = (updates: Partial<User>) => {
     if (!profile) return;
     const updated = { ...profile, ...updates };
@@ -260,7 +278,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       window.location.assign('https://decent-grass-08.authkit.app/sign-up');
     },
-    logout: () => signOut(),
+    logout: () => {
+      localStorage.removeItem('fera_user');
+      setProfile(null);
+      signOut();
+    },
     sendOTP: async () => {}, // Handled by WorkOS
     sendVerificationEmail: async () => {}, // Handled by WorkOS
     verifyOTP: async () => true, // Handled by WorkOS

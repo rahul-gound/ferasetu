@@ -428,6 +428,103 @@ async function createOrder(request, env) {
   return json({ order }, 201);
 }
 
+async function getAnalyticsDashboard(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+
+  const { results: rawOrders } = await env.DB.prepare(
+    "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC"
+  ).bind(me.$id).all();
+
+  const orders = (rawOrders ?? []).map((o) => ({
+    ...o,
+    items: safeParseArray(o.items),
+  }));
+
+  const { results: rawProducts } = await env.DB.prepare(
+    "SELECT * FROM products WHERE user_id = ? ORDER BY created_at DESC"
+  ).bind(me.$id).all();
+
+  const products = rawProducts ?? [];
+
+  const totalOrders = orders.length;
+  const nonCancelled = orders.filter(o => o.status !== 'cancelled');
+  const deliveredOrders = orders.filter(o => o.status === 'delivered');
+  const totalRevenue = nonCancelled.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  
+  const customerSet = new Set();
+  orders.forEach(o => {
+    if (o.customer_name) customerSet.add(o.customer_name.trim());
+  });
+  const totalCustomers = customerSet.size;
+
+  const conversionRate = totalOrders > 0 
+    ? Number(((deliveredOrders.length / totalOrders) * 100).toFixed(2)) 
+    : 0;
+
+  const pendingOrders = orders.filter(o => ['pending', 'confirmed', 'preparing', 'out_for_delivery'].includes(o.status)).length;
+  const lowStockCount = products.filter(p => (Number(p.stock_quantity) || 0) <= 5).length;
+
+  // Build 7-day revenue and order chart
+  const now = new Date();
+  const revenueChart = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const ymd = d.toISOString().slice(0, 10);
+    
+    const dayOrders = orders.filter(o => (o.created_at || '').startsWith(ymd));
+    const dayRevenue = dayOrders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+    
+    revenueChart.push({
+      date: dateStr,
+      revenue: dayRevenue,
+      orders: dayOrders.length
+    });
+  }
+
+  // Top selling products aggregation
+  const itemCounts = {};
+  orders.forEach(o => {
+    (o.items || []).forEach(it => {
+      const name = it?.name || it?.product_name || 'Product';
+      itemCounts[name] = (itemCounts[name] || 0) + (Number(it?.quantity || it?.qty) || 1);
+    });
+  });
+
+  const topProducts = products.slice(0, 5).map(p => ({
+    id: p.id,
+    name: p.name,
+    price: Number(p.price) || 0,
+    sold_count: itemCounts[p.name] || 0,
+    images: safeParseArray(p.images)
+  }));
+
+  return json({
+    stats: {
+      total_revenue: totalRevenue,
+      total_orders: totalOrders,
+      total_customers: totalCustomers,
+      conversion_rate: conversionRate,
+      pending_orders: pendingOrders,
+      low_stock_count: lowStockCount,
+      revenue_change: 0,
+      orders_change: 0,
+      customers_change: 0,
+      conversion_change: 0
+    },
+    revenue_chart: revenueChart,
+    recent_orders: orders.slice(0, 5).map(o => ({
+      id: o.id,
+      customer_name: o.customer_name || 'Guest',
+      total: Number(o.total) || 0,
+      status: o.status || 'pending',
+      created_at: o.created_at || new Date().toISOString(),
+      items_count: Array.isArray(o.items) ? o.items.length : 0
+    })),
+    top_products: topProducts
+  });
+}
+
 async function listMeetings(request, env) {
   const me = await getAuthenticatedUser(request, env);
   const { results } = await env.DB.prepare(
@@ -846,6 +943,11 @@ async function route(request, env) {
   if (path === "/api/orders") {
     if (method === "GET") return listOrders(request, env);
     if (method === "POST") return createOrder(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+
+  if (path === "/api/analytics/dashboard") {
+    if (method === "GET") return getAnalyticsDashboard(request, env);
     throw new HttpError("Method not allowed", 405);
   }
 
