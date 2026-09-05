@@ -13,14 +13,14 @@ const API = import.meta.env.VITE_API_URL || '/api';
 interface Meeting {
   id: string;
   user_id: string;
-  customer_name: string;
-  customer_email: string;
+  customer_name?: string;
+  customer_email?: string;
   meeting_date: string;
   topic: string;
   status: 'scheduled' | 'completed' | 'cancelled';
   created_at: string;
-  partner_email: string;
-  business_name: string;
+  partner_email?: string;
+  business_name?: string;
 }
 
 export default function AdminMeetingsPage() {
@@ -35,7 +35,7 @@ export default function AdminMeetingsPage() {
       const res = await axios.get(`${API}/admin/meetings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMeetings(res.data.meetings);
+      setMeetings(res.data.meetings || []);
     } catch (err) {
       toast.error('Failed to sync meeting data');
     } finally {
@@ -61,9 +61,9 @@ export default function AdminMeetingsPage() {
   };
 
   const filteredMeetings = meetings.filter(m => 
-    m.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-    m.business_name?.toLowerCase().includes(search.toLowerCase()) ||
-    m.customer_email.toLowerCase().includes(search.toLowerCase())
+    (m.customer_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (m.business_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (m.customer_email?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
   return (
@@ -111,7 +111,7 @@ export default function AdminMeetingsPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-black text-slate-900">{meeting.customer_name}</h4>
+                      <h4 className="font-black text-slate-900">{meeting.customer_name || 'Anonymous Customer'}</h4>
                       <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
                         meeting.status === 'scheduled' ? 'bg-orange-100 text-orange-700' :
                         meeting.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
@@ -122,7 +122,7 @@ export default function AdminMeetingsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-500 uppercase tracking-tighter">
                       <span className="flex items-center gap-1"><Store size={12} /> {meeting.business_name || 'Individual'}</span>
-                      <span className="flex items-center gap-1"><Mail size={12} /> {meeting.customer_email}</span>
+                      <span className="flex items-center gap-1"><Mail size={12} /> {meeting.customer_email || 'No email provided'}</span>
                     </div>
                   </div>
                 </div>
@@ -130,11 +130,11 @@ export default function AdminMeetingsPage() {
                 <div className="flex items-center gap-8 px-6 border-l border-slate-100 hidden lg:flex">
                   <div>
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Date</div>
-                    <div className="text-sm font-black text-slate-900">{new Date(meeting.meeting_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                    <div className="text-sm font-black text-slate-900">{meeting.meeting_date ? new Date(meeting.meeting_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</div>
                   </div>
                   <div>
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time</div>
-                    <div className="text-sm font-black text-slate-900">{new Date(meeting.meeting_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="text-sm font-black text-slate-900">{meeting.meeting_date ? new Date(meeting.meeting_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>
                   </div>
                 </div>
 

@@ -25,6 +25,24 @@ import PricingFAQ from '../components/pricing/PricingFAQ';
 import { PLANS, normalizePlanId, getPlan, getNextPlan, isFreePlan } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') { resolve(false); return; }
+    if (window.Razorpay) { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function UpgradePage() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
@@ -38,7 +56,6 @@ export default function UpgradePage() {
   const handleSelectPlan = async (plan: PlanDefinition) => {
     if (!user) { navigate('/login'); return; }
     if (normalizePlanId(user.plan) === plan.id) return;
-    if (plan.price.monthly === 0) return; // already on free, nothing to do
 
     setUpgrading(plan.id);
     try {
@@ -49,18 +66,66 @@ export default function UpgradePage() {
         billingCycle: billing,
       });
 
-      if (res.data.success) {
-        toast.success(`${plan.displayName} plan activated successfully!`);
+      if (!res.data.success) {
+        toast.error(res.data.error || 'Could not start the upgrade. Please try again.');
+        return;
+      }
+
+      // Free plans are activated directly by the backend — Razorpay is never used.
+      if (!res.data.requiresPayment) {
+        toast.success(`${plan.displayName} plan activated!`);
         if (updateUser) await updateUser({ plan: plan.id });
         navigate('/dashboard');
         return;
       }
 
-      toast.success(`${plan.displayName} plan activated!`);
-      if (updateUser) await updateUser({ plan: plan.id });
-      navigate('/dashboard');
+      // Paid plans go through Razorpay Checkout.
+      const razorpayLoaded = await loadRazorpayScript();
+      if (!razorpayLoaded || !window.Razorpay) {
+        toast.error('Could not load the payment window. Please check your connection and try again.');
+        return;
+      }
+
+      const razorpay = new window.Razorpay({
+        key: res.data.razorpayKeyId,
+        amount: res.data.amount * 100,
+        currency: res.data.currency || 'INR',
+        name: 'FeraSetu',
+        description: `${plan.displayName} plan (${billing})`,
+        order_id: res.data.razorpayOrderId,
+        prefill: { email: user.email, name: user.name },
+        theme: { color: '#FF6B35' },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            const verifyRes = await api.post('/payment/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              transaction_id: res.data.id,
+            });
+
+            if (verifyRes.data.success) {
+              toast.success(`${plan.displayName} plan activated successfully!`);
+              if (updateUser) await updateUser({ plan: plan.id });
+              navigate('/dashboard');
+            } else {
+              toast.error(verifyRes.data.error || 'Payment verification failed.');
+            }
+          } catch (verifyErr: any) {
+            toast.error(verifyErr?.response?.data?.error || 'Payment verification failed.');
+          } finally {
+            setUpgrading(null);
+          }
+        },
+      });
+      razorpay.open();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Something went wrong. Please try again.');
+      setUpgrading(null);
     } finally {
       setUpgrading(null);
     }

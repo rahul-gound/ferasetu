@@ -67,13 +67,13 @@ export default function OnlineDukaanBanaye() {
           <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '600px', margin: '0 auto 32px', lineHeight: 1.7 }}>
             Ab apni dukaan ko online lana hai toh mushkil nahi hai. FeraSetu pe free me website banao, products add karo, aur orders WhatsApp pe lo. <strong style={{ color: '#fff' }}>2 minute me live.</strong>
           </p>
-          <a href="/register" style={{
+          <Link to="/register" style={{
             display: 'inline-block', background: '#FF6B35', color: '#fff',
             padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
             fontWeight: 700, fontSize: '17px', transition: 'transform 0.2s',
           }}>
             Free Me Dukaan Banaye →
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -165,15 +165,15 @@ export default function OnlineDukaanBanaye() {
           Apni Dukaan Abhi Online Karo
         </h2>
         <p style={{ fontSize: '18px', opacity: 0.9, marginBottom: '32px', maxWidth: '500px', margin: '0 auto 32px' }}>
-          Free beta me sab kuch included hai. Abhi start karo aur dekho kitna easy hai.
+          Free plan me sab kuch included hai. Abhi start karo aur dekho kitna easy hai.
         </p>
-        <a href="/register" style={{
+        <Link to="/register" style={{
           display: 'inline-block', background: '#fff', color: '#FF6B35',
           padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
           fontWeight: 700, fontSize: '17px',
         }}>
           Free Me Shuru Karo →
-        </a>
+        </Link>
       </section>
 
       {/* Internal links */}

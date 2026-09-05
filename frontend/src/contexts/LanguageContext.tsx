@@ -1,7 +1,9 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode
@@ -118,7 +120,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(applyPreference);
   }, [user, updateUser, localLanguage]);
 
-  const setLanguage = (lang: string) => {
+  const setLanguage = useCallback((lang: string) => {
     if (!isSupportedLanguage(lang) || lang === activeLanguage) return;
 
     setLocalLanguage(lang);
@@ -133,9 +135,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (user.preferred_language !== lang) {
       updateUser({ preferred_language: lang });
     }
-  };
+  }, [activeLanguage, user, updateUser]);
 
-  const translate = (key: TranslationKey, vars?: Record<string, string | number>) => {
+  const translate = useCallback((key: TranslationKey, vars?: Record<string, string | number>) => {
     let text = dictionary[key] || fallbackDictionary[key] || key;
 
     if (vars) {
@@ -145,19 +147,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
 
     return text;
-  };
+  }, [dictionary]);
 
-  const getLocalizedLink = (path: string) => {
+  const getLocalizedLink = useCallback((path: string) => {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const cleanLinkPath = getCleanPath(normalizedPath);
     if (!PUBLIC_ROUTES.includes(cleanLinkPath) || activeLanguage === 'en') {
       return cleanLinkPath;
     }
     return getLanguagePath(cleanLinkPath, activeLanguage);
-  };
+  }, [activeLanguage]);
+
+  const contextValue = useMemo(() => ({
+    language: activeLanguage,
+    setLanguage,
+    translate,
+    getLocalizedLink,
+  }), [activeLanguage, setLanguage, translate, getLocalizedLink]);
 
   return (
-    <LanguageContext.Provider value={{ language: activeLanguage, setLanguage, translate, getLocalizedLink }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );

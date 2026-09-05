@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 
 interface AnalyticsData {
   revenue_chart: { date: string; revenue: number; orders: number }[];
@@ -36,7 +37,7 @@ interface PredictionData {
   confidence: number;
 }
 
-const PIE_COLORS = ['#FF6B35', '#004E89', '#1A936F', '#F59E0B', '#8B5CF6', '#EC4899'];
+const PIE_COLORS = ['#0052FF', '#3B82F6', '#60A5FA', '#93C5FD', '#10B981', '#F59E0B'];
 
 const PERIODS = [
   { label: '1 Hour', value: '1h' },
@@ -169,20 +170,33 @@ export default function AnalyticsPage() {
               <p style={{ fontSize: '13px', color: '#64748B' }}>Daily commercial throughput</p>
            </div>
            <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#FF6B35' }}>
-                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF6B35' }} /> Revenue
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#0052FF' }}>
+                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0052FF' }} /> Revenue
               </div>
            </div>
         </div>
 
         <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
-            {isLoading ? <Shimmer h="300px" /> : revenueData.length === 0 ? <div className="analytics-empty">Your store is ready. Share your store link to start collecting orders.</div> : (
+            {isLoading ? (
+              <Shimmer h="300px" />
+            ) : revenueData.length === 0 ? (
+              <div className="py-8 flex items-center justify-center h-full">
+                <ActionableEmptyState
+                  icon={<TrendingUp size={24} />}
+                  title="No revenue data yet"
+                  description="Your store is ready. Share your store link with customers to start generating revenue and tracking trends."
+                  actionLabel="Manage Products"
+                  actionHref="/products"
+                  expectedOutcome="Revenue graphs will display daily sales trends automatically."
+                />
+              </div>
+            ) : (
               <ResponsiveContainer width="100%" height="100%">
                  <AreaChart data={revenueData}>
                    <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#FF6B35" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#FF6B35" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#0052FF" stopOpacity={0.15}/>
+                        <stop offset="95%" stopColor="#0052FF" stopOpacity={0}/>
                       </linearGradient>
                    </defs>
                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -205,12 +219,12 @@ export default function AnalyticsPage() {
                      isAnimationActive={false}
                      type="monotone" 
                      dataKey="revenue" 
-                     stroke="#FF6B35" 
+                     stroke="#0052FF" 
                      strokeWidth={3} 
                      fillOpacity={1} 
                      fill="url(#colorRev)" 
                    />
-                </AreaChart>
+                 </AreaChart>
              </ResponsiveContainer>
            )}
         </div>
@@ -222,7 +236,20 @@ export default function AnalyticsPage() {
           <div className="analytics-chart-card animate-fade-up" style={{ animationDelay: '0.5s' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>Order Volume</h2>
             <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
-                {isLoading ? <Shimmer h="250px" /> : revenueData.length === 0 ? <div className="analytics-empty">Once customers place orders, your order volume will appear here.</div> : (
+                {isLoading ? (
+                  <Shimmer h="250px" />
+                ) : revenueData.length === 0 ? (
+                  <div className="py-6 flex items-center justify-center h-full">
+                    <ActionableEmptyState
+                      icon={<ShoppingBag size={24} />}
+                      title="No order volume yet"
+                      description="Once customers place orders, your order volume breakdown will appear here."
+                      actionLabel="View Orders"
+                      actionHref="/orders"
+                      expectedOutcome="Track fulfillment volume over time."
+                    />
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                      <BarChart data={revenueData}>
                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -232,7 +259,7 @@ export default function AnalyticsPage() {
                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
                          cursor={{fill: '#F8FAFC'}}
                        />
-                       <Bar isAnimationActive={false} dataKey="orders" fill="#004E89" radius={[4, 4, 0, 0]} barSize={30} />
+                       <Bar isAnimationActive={false} dataKey="orders" fill="#0052FF" radius={[4, 4, 0, 0]} barSize={30} />
                     </BarChart>
                  </ResponsiveContainer>
                )}
@@ -243,7 +270,20 @@ export default function AnalyticsPage() {
           <div className="analytics-chart-card animate-fade-up" style={{ animationDelay: '0.6s' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>Inventory Value</h2>
             <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
-                {isLoading ? <Shimmer h="250px" /> : categoryData.length === 0 ? <div className="analytics-empty">Add products and share your store to see which categories sell.</div> : (
+                {isLoading ? (
+                  <Shimmer h="250px" />
+                ) : categoryData.length === 0 ? (
+                  <div className="py-6 flex items-center justify-center h-full">
+                    <ActionableEmptyState
+                      icon={<Package size={24} />}
+                      title="No inventory categories"
+                      description="Add products and categorize them to see inventory distribution and category performance."
+                      actionLabel="Add Products"
+                      actionHref="/products"
+                      expectedOutcome="Category breakdown will visualize product distribution."
+                    />
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                        <Pie
@@ -273,14 +313,14 @@ export default function AnalyticsPage() {
 
       {/* Premium AI Intelligence */}
       <div style={{ marginTop: '40px' }}>
-        {(user?.plan === 'premium' || user?.plan === 'pro' || user?.plan === 'standard') ? (
+        {(user?.plan === 'premium' || user?.plan === 'pro' || user?.plan === 'business' || user?.plan === 'standard') ? (
            <div className="card animate-fade-up" style={{ 
              animationDelay: '0.7s', 
              background: 'linear-gradient(135deg, #1E293B, #0F172A)', 
              color: '#fff', padding: '40px' 
            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-                 <div style={{ width: '48px', height: '48px', background: 'rgba(255,107,53,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF6B35' }}>
+                 <div style={{ width: '48px', height: '48px', background: 'rgba(0,82,255,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0052FF' }}>
                     <Sparkles size={24} />
                  </div>
                  <div>
@@ -293,7 +333,7 @@ export default function AnalyticsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
                    <div>
                       <div style={{ fontSize: '12px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Projected Weekly Run-rate</div>
-                      <div style={{ fontSize: '32px', fontWeight: 900, color: '#FF6B35' }}>₹{(prediction?.next_week_revenue || 0).toLocaleString()}</div>
+                      <div style={{ fontSize: '32px', fontWeight: 900, color: '#0052FF' }}>₹{(prediction?.next_week_revenue || 0).toLocaleString()}</div>
                       <div style={{ fontSize: '13px', color: '#10B981', marginTop: '8px', fontWeight: 700 }}>Confidence Score: {prediction?.confidence || 85}%</div>
                    </div>
                    <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -301,7 +341,7 @@ export default function AnalyticsPage() {
                       <ul style={{ display: 'flex', flexDirection: 'column', gap: '12px', listStyle: 'none', padding: 0 }}>
                          {(prediction?.recommendations || ['Increase stock of top items', 'Launch weekend promotion', 'Analyze category trends']).slice(0, 3).map((rec, i) => (
                            <li key={i} style={{ display: 'flex', gap: '10px', fontSize: '13px', color: '#CBD5E1', lineHeight: 1.5 }}>
-                              <CheckCircle size={16} color="#FF6B35" style={{ flexShrink: 0 }} /> {rec}
+                              <CheckCircle size={16} color="#0052FF" style={{ flexShrink: 0 }} /> {rec}
                            </li>
                          ))}
                       </ul>
@@ -312,7 +352,7 @@ export default function AnalyticsPage() {
         ) : (
            <div className="card animate-fade-up" style={{ 
              animationDelay: '0.7s', textAlign: 'center', padding: '60px 40px',
-             background: 'linear-gradient(135deg, rgba(255,107,53,0.02), rgba(0,78,137,0.02))',
+             background: 'linear-gradient(135deg, rgba(0,82,255,0.02), rgba(0,78,137,0.02))',
              border: '2px dashed #E2E8F0'
            }}>
               <div style={{ width: '64px', height: '64px', background: '#F8FAFC', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: '#94A3B8' }}>
@@ -323,7 +363,7 @@ export default function AnalyticsPage() {
                  Get high-accuracy revenue forecasts and strategic inventory recommendations powered by FeraSetu's advanced AI models.
               </p>
               <Link to="/upgrade" className="btn btn-primary" style={{ padding: '16px 40px', fontSize: '16px' }}>
-                 Upgrade to Standard or Pro
+                 Upgrade to Business or Pro
               </Link>
            </div>
         )}

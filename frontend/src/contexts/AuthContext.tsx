@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { useAuth as useWorkOSAuth } from '@workos-inc/authkit-react';
 import api from '../services/api';
 import { setUnauthorizedHandler, setWorkOSTokenGetter } from '../services/authBridge';
@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const label = 'Authenticated API request';
       setProfileError(`${label} failed (${status} ${url}): ${detail}`);
       setProfile(null);
+      localStorage.removeItem('fera_user');
       setIsProfileLoading(false);
       if (import.meta.env.DEV) {
         console.error(`Authenticated API returned ${status} for ${url}`, error);
@@ -179,6 +180,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const status = (err as { response?: { status?: number } }).response?.status;
         const message = err instanceof Error ? err.message : 'Unknown profile error';
         console.error(`Failed to load profile from backend (${status ?? 'network'}):`, err);
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('fera_user');
+          if (mounted) {
+            setProfile(null);
+            setProfileError(`Session expired (${status}): Please sign in again.`);
+            setIsProfileLoading(false);
+          }
+          return;
+        }
         if (mounted) {
           setProfileError(`Profile bootstrap failed (${status ?? 'network'}): ${message}`);
           setProfile({
@@ -216,80 +226,111 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [profile]);
 
-  const updateUser = (updates: Partial<User>) => {
-    if (!profile) return;
-    const updated = { ...profile, ...updates };
-    setProfile(updated);
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setProfile(current => {
+      if (!current) return null;
+      const updated = { ...current, ...updates };
 
-    // Sync to D1
-    const payload: Record<string, any> = {};
-    for (const key of PROFILE_KEYS) {
-      if (key in updates) payload[key] = (updates as any)[key];
-    }
-    if (Object.keys(payload).length > 0) {
-      api.put('/users/me', payload).catch((err) => console.error('Failed to sync profile to D1:', err));
-    }
-  };
+      // Sync to D1
+      const payload: Record<string, any> = {};
+      for (const key of PROFILE_KEYS) {
+        if (key in updates) payload[key] = (updates as any)[key];
+      }
+      if (Object.keys(payload).length > 0) {
+        api.put('/users/me', payload).catch((err) => console.error('Failed to sync profile to D1:', err));
+      }
+      return updated;
+    });
+  }, []);
 
-  const getWorkOSDirectAuthUrl = (screenHint?: 'sign-in' | 'sign-up', loginHint?: string) => {
+  const getWorkOSDirectAuthUrl = useCallback((screenHint?: 'sign-in' | 'sign-up', loginHint?: string) => {
     const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY';
     const redirectUri = window.location.origin + '/callback';
     const hintParam = screenHint ? `&screen_hint=${screenHint}` : '';
     const loginHintParam = loginHint ? `&login_hint=${encodeURIComponent(loginHint)}` : '';
     return `https://api.workos.com/user_management/authorize?provider=authkit&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code${hintParam}${loginHintParam}`;
-  };
+  }, []);
 
-  const contextValue: AuthContextType = {
+  const login = useCallback(async (opts?: { loginHint?: string }) => {
+    try {
+      if (typeof signIn === 'function') {
+        await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
+      } else {
+        window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
+      }
+    } catch (err) {
+      console.error('WorkOS signIn failed, falling back to direct URL:', err);
+      window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
+    }
+  }, [signIn, getWorkOSDirectAuthUrl]);
+
+  const loginWithGoogle = useCallback(async (opts?: { loginHint?: string }) => {
+    try {
+      if (typeof signIn === 'function') {
+        await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
+      } else {
+        window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
+      }
+    } catch (err) {
+      console.error('WorkOS Google signIn failed:', err);
+      window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
+    }
+  }, [signIn, getWorkOSDirectAuthUrl]);
+
+  const register = useCallback(async (opts?: { loginHint?: string }) => {
+    try {
+      if (typeof signUp === 'function') {
+        await signUp(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
+        return;
+      }
+    } catch (err) {
+      console.error('WorkOS signUp failed, falling back to direct URL:', err);
+    }
+    window.location.assign('https://decent-grass-08.authkit.app/sign-up');
+  }, [signUp]);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('fera_user');
+    setProfile(null);
+    signOut();
+  }, [signOut]);
+
+  const sendOTP = useCallback(async () => {}, []);
+  const sendVerificationEmail = useCallback(async () => {}, []);
+  const verifyOTP = useCallback(async () => true, []);
+  const createAccountAfterOTP = useCallback(async () => {}, []);
+  const getToken = useCallback(async () => getAccessToken(), [getAccessToken]);
+
+  const contextValue = useMemo<AuthContextType>(() => ({
     user: profile,
     isLoading: isWorkOSLoading || isProfileLoading,
     profileError,
-    login: async (opts?: { loginHint?: string }) => {
-      try {
-        if (typeof signIn === 'function') {
-          await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
-        } else {
-          window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
-        }
-      } catch (err) {
-        console.error('WorkOS signIn failed, falling back to direct URL:', err);
-        window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
-      }
-    },
-    loginWithGoogle: async (opts?: { loginHint?: string }) => {
-      try {
-        if (typeof signIn === 'function') {
-          await signIn(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
-        } else {
-          window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
-        }
-      } catch (err) {
-        console.error('WorkOS Google signIn failed:', err);
-        window.location.assign(getWorkOSDirectAuthUrl('sign-in', opts?.loginHint));
-      }
-    },
-    register: async (opts?: { loginHint?: string }) => {
-      try {
-        if (typeof signUp === 'function') {
-          await signUp(opts?.loginHint ? { loginHint: opts.loginHint } : undefined);
-          return;
-        }
-      } catch (err) {
-        console.error('WorkOS signUp failed, falling back to direct URL:', err);
-      }
-      window.location.assign('https://decent-grass-08.authkit.app/sign-up');
-    },
-    logout: () => {
-      localStorage.removeItem('fera_user');
-      setProfile(null);
-      signOut();
-    },
-    sendOTP: async () => {}, // Handled by WorkOS
-    sendVerificationEmail: async () => {}, // Handled by WorkOS
-    verifyOTP: async () => true, // Handled by WorkOS
-    createAccountAfterOTP: async () => {}, // Handled by WorkOS
+    login,
+    loginWithGoogle,
+    register,
+    sendOTP,
+    sendVerificationEmail,
+    verifyOTP,
+    createAccountAfterOTP,
+    logout,
     updateUser,
-    getAccessToken: async () => getAccessToken()
-  };
+    getAccessToken: getToken
+  }), [
+    profile,
+    isWorkOSLoading,
+    isProfileLoading,
+    profileError,
+    login,
+    loginWithGoogle,
+    register,
+    sendOTP,
+    sendVerificationEmail,
+    verifyOTP,
+    createAccountAfterOTP,
+    logout,
+    updateUser,
+    getToken
+  ]);
 
   return (
     <AuthContext.Provider value={contextValue}>

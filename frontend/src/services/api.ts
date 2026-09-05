@@ -1178,14 +1178,20 @@ remoteApi.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Handle 401 globally
+// Handle 401 and 403 globally
 remoteApi.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      try {
+        localStorage.removeItem('fera_user');
+      } catch {
+        // ignore localStorage access errors
+      }
       notifyUnauthorized({
         url: error.config?.url ?? '',
-        status: 401,
+        status,
         error,
       });
     }

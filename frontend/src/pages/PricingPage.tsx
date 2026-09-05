@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   ShoppingBag, BarChart3, Bot, ArrowRight, Check,
   Package, Zap,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import SEO from '../components/SEO';
 import PublicLayout from '../components/public/PublicLayout';
 import PricingCard from '../components/pricing/PricingCard';
@@ -14,6 +14,7 @@ import FoundingOfferBanner from '../components/pricing/FoundingOfferBanner';
 import ValueCalculator from '../components/pricing/ValueCalculator';
 import PricingFAQ from '../components/pricing/PricingFAQ';
 import ValueLadderSection from '../components/pricing/ValueLadderSection';
+import MarketingReveal from '../components/marketing/MarketingReveal';
 import { PLANS, normalizePlanId } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
 
@@ -48,17 +49,6 @@ const TRUST_SIGNALS = [
   'Fera AI uses your real shop data, not guesses',
   'No hidden fees, ever',
 ];
-
-import { useLanguage } from '../contexts/LanguageContext';
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
-const stagger = {
-  visible: { transition: { staggerChildren: 0.1 } },
-};
 
 export default function PricingPage() {
   const navigate = useNavigate();
@@ -115,18 +105,16 @@ export default function PricingPage() {
         {/* ================================================================
           HERO
         ================================================================ */}
-        <motion.section
-          initial="hidden"
-          animate="visible"
-          variants={stagger}
+        <section
+          className="animate-fade-in"
           style={{
             textAlign: 'center',
             padding: 'clamp(60px, 10vw, 100px) 24px clamp(40px, 6vw, 60px)',
             maxWidth: 760, margin: '0 auto',
           }}
         >
-          <motion.p
-            variants={fadeUp}
+          <p
+            className="animate-slide-up"
             style={{
               display: 'inline-block', fontSize: 12, fontWeight: 800,
               letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -136,10 +124,10 @@ export default function PricingPage() {
             }}
           >
             {t('pricing.tag')}
-          </motion.p>
+          </p>
 
-          <motion.h1
-            variants={fadeUp}
+          <h1
+            className="animate-slide-up"
             style={{
               fontSize: 'clamp(32px, 6vw, 60px)', fontWeight: 900,
               letterSpacing: '-0.04em', lineHeight: 1.05,
@@ -155,21 +143,21 @@ export default function PricingPage() {
             }}>
               .
             </span>
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            variants={fadeUp}
+          <p
+            className="animate-slide-up"
             style={{
               fontSize: 'clamp(16px, 2.5vw, 20px)', color: '#475569',
               lineHeight: 1.7, margin: '0 0 32px', fontWeight: 500,
             }}
           >
             {t('pricing.subtitle')}
-          </motion.p>
+          </p>
 
           {/* Trust signals */}
-          <motion.ul
-            variants={fadeUp}
+          <ul
+            className="animate-slide-up"
             style={{
               listStyle: 'none', padding: 0, margin: '0 0 40px',
               display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 20px',
@@ -190,11 +178,11 @@ export default function PricingPage() {
                 {signal}
               </li>
             ))}
-          </motion.ul>
+          </ul>
 
           {/* Billing toggle */}
-          <motion.div
-            variants={fadeUp}
+          <div
+            className="animate-slide-up"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 0,
               background: '#f1f5f9', borderRadius: 14, padding: 4,
@@ -230,8 +218,8 @@ export default function PricingPage() {
                 )}
               </button>
             ))}
-          </motion.div>
-        </motion.section>
+          </div>
+        </section>
 
         <ValueLadderSection
           currentPlan={currentPlan}
@@ -311,44 +299,42 @@ export default function PricingPage() {
               gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
               gap: 24,
             }}>
-              {OUTCOMES.map((outcome, i) => (
-                <motion.div
-                  key={outcome.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  style={{
-                    padding: '24px 22px', borderRadius: 20,
-                    border: '1px solid #f1f5f9',
-                    background: '#fff',
-                    boxShadow: '0 4px 16px rgba(15,23,42,0.04)',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(15,23,42,0.08)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,23,42,0.04)';
-                  }}
-                >
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 14,
-                    background: 'rgba(37,99,235,0.08)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginBottom: 16,
-                  }}>
-                    {outcome.icon}
+              {OUTCOMES.map((outcome) => (
+                <MarketingReveal key={outcome.title}>
+                  <div
+                    style={{
+                      padding: '24px 22px', borderRadius: 20,
+                      border: '1px solid #f1f5f9',
+                      background: '#fff',
+                      boxShadow: '0 4px 16px rgba(15,23,42,0.04)',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      height: '100%',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(15,23,42,0.08)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,23,42,0.04)';
+                    }}
+                  >
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 14,
+                      background: 'rgba(37,99,235,0.08)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      marginBottom: 16,
+                    }}>
+                      {outcome.icon}
+                    </div>
+                    <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.3 }}>
+                      {outcome.title}
+                    </h3>
+                    <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: 0, fontWeight: 500 }}>
+                      {outcome.desc}
+                    </p>
                   </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.3 }}>
-                    {outcome.title}
-                  </h3>
-                  <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: 0, fontWeight: 500 }}>
-                    {outcome.desc}
-                  </p>
-                </motion.div>
+                </MarketingReveal>
               ))}
             </div>
           </div>

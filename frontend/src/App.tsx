@@ -1,12 +1,14 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthKitProvider } from '@workos-inc/authkit-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
-// Public landing page
-import LandingPage from './pages/LandingPage';
+// Public landing page — lazy loaded for fast initial entry
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 // Lazy-loaded auth pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -69,6 +71,7 @@ function PageLoader() {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
   if (isLoading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <div style={{ textAlign: 'center' }}>
@@ -80,7 +83,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const isVerifyPage = window.location.pathname === '/verify-email';
+  const isVerifyPage = location.pathname === '/verify-email';
   if (!user.is_verified && !isVerifyPage) {
     return <Navigate to="/verify-email" replace />;
   }
@@ -115,21 +118,23 @@ function AppRoutes() {
       <Routes>
         <Route path="/shop/:shopName" element={<ShopPage />} />
 
-        {/* Core Protected App Routes — Explicit top-level paths for reliable matching */}
-        <Route path="/dashboard" element={<ProtectedRoute><Layout><DashboardPage /></Layout></ProtectedRoute>} />
-        <Route path="/products" element={<ProtectedRoute><Layout><ProductsPage /></Layout></ProtectedRoute>} />
-        <Route path="/orders" element={<ProtectedRoute><Layout><OrdersPage /></Layout></ProtectedRoute>} />
-        <Route path="/analytics" element={<ProtectedRoute><Layout><AnalyticsPage /></Layout></ProtectedRoute>} />
-        <Route path="/fera-ai" element={<ProtectedRoute><Layout><FeraAIPage /></Layout></ProtectedRoute>} />
-        <Route path="/ai-assistant" element={<ProtectedRoute><Layout><AIAssistantPage /></Layout></ProtectedRoute>} />
-        <Route path="/ai-credits" element={<ProtectedRoute><Layout><AICreditsPage /></Layout></ProtectedRoute>} />
-        <Route path="/website-builder" element={<ProtectedRoute><Layout><WebsiteBuilderPage /></Layout></ProtectedRoute>} />
-        <Route path="/survey-feedback" element={<ProtectedRoute><Layout><SurveyFeedbackPage /></Layout></ProtectedRoute>} />
-        <Route path="/settings/email" element={<ProtectedRoute><Layout><EmailSettingsPage /></Layout></ProtectedRoute>} />
-        <Route path="/refer-earn" element={<ProtectedRoute><Layout><ReferEarnPage /></Layout></ProtectedRoute>} />
-        <Route path="/upgrade" element={<ProtectedRoute><Layout><UpgradePage /></Layout></ProtectedRoute>} />
-        <Route path="/support" element={<ProtectedRoute><Layout><SupportPage /></Layout></ProtectedRoute>} />
-        <Route path="/get-started" element={<ProtectedRoute><Layout><GetStartedPage /></Layout></ProtectedRoute>} />
+        {/* Core Protected App Routes with Persistent Layout Shell */}
+        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/fera-ai" element={<FeraAIPage />} />
+          <Route path="/ai-assistant" element={<AIAssistantPage />} />
+          <Route path="/ai-credits" element={<AICreditsPage />} />
+          <Route path="/website-builder" element={<WebsiteBuilderPage />} />
+          <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
+          <Route path="/settings/email" element={<EmailSettingsPage />} />
+          <Route path="/refer-earn" element={<ReferEarnPage />} />
+          <Route path="/upgrade" element={<UpgradePage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/get-started" element={<GetStartedPage />} />
+        </Route>
 
         {/* Public Root Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -191,8 +196,6 @@ function AppRoutes() {
   );
 }
 
-import { AuthKitProvider } from '@workos-inc/authkit-react';
-
 // Inner app content — all providers except Statsig
 function AppContent() {
   return (
@@ -204,7 +207,9 @@ function AppContent() {
         <AuthProvider>
           <BrowserRouter>
             <LanguageProvider>
-              <AppRoutes />
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
               <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
             </LanguageProvider>
           </BrowserRouter>
@@ -215,5 +220,9 @@ function AppContent() {
 }
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
 }

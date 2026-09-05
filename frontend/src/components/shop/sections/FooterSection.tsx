@@ -2,14 +2,21 @@ import type { SectionConfig } from '../../../types/template';
 import DOMPurify from 'isomorphic-dompurify';
 
 function sanitizeUrl(input: string): string {
-  const sanitized = DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: ['a'],
-    ALLOWED_ATTR: ['href', 'target', 'rel'],
-    ALLOWED_URI_REGEXP: /^(?:https?|mailto|tel):/,
-  });
-  // Extract href from sanitized result
-  const match = sanitized.match(/href="([^"]+)"/);
-  return match ? match[1] : '#';
+  if (!input || typeof input !== 'string') return '#';
+  const trimmed = input.trim();
+  if (!trimmed || trimmed === '#') return '#';
+
+  // Extract href if input happens to be an anchor tag HTML string
+  const anchorMatch = trimmed.match(/href="([^"]+)"/i);
+  const candidateUrl = anchorMatch ? anchorMatch[1].trim() : trimmed;
+
+  const SAFE_PROTOCOL_REGEX = /^(?:https?|mailto|tel):/i;
+  if (!SAFE_PROTOCOL_REGEX.test(candidateUrl)) {
+    return '#';
+  }
+
+  const cleanUrl = DOMPurify.sanitize(candidateUrl, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+  return SAFE_PROTOCOL_REGEX.test(cleanUrl) ? cleanUrl : '#';
 }
 
 interface FooterSectionProps {

@@ -185,17 +185,10 @@ export default function GetStartedPage() {
         .pulse-dot { animation: pulse 2s infinite; }
       `}</style>
 
-      <div style={{
-        background: '#fff',
-        borderRadius: '20px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        maxWidth: '900px',
-        width: '100%',
-        overflow: 'hidden',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 0,
-      }}>
+      <div
+        data-gs-container
+        className="grid grid-cols-1 md:grid-cols-2 rounded-2xl bg-white shadow-xl overflow-hidden max-w-[900px] w-full"
+      >
         {/* Left Panel - Content */}
         <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           {/* Header */}
@@ -431,14 +424,17 @@ export default function GetStartedPage() {
         </div>
 
         {/* Right Panel - Info */}
-        <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: '#fff',
-          padding: '40px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-        }}>
+        <div
+          data-gs-right
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: '#fff',
+            padding: '40px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
           <div>
             <div style={{ marginBottom: 24 }}>
               <StorefrontPreviewCard
@@ -473,7 +469,7 @@ export default function GetStartedPage() {
           <div style={{ paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
             <p style={{ fontSize: '12px', opacity: 0.8, margin: '16px 0 12px 0' }}>✨ Why FeraSetu?</p>
             <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', opacity: 0.9 }}>
-              <li>Free Beta Plan enabled</li>
+              <li>Free plan enabled</li>
               <li>No coding needed</li>
               <li>Multi-language support</li>
               <li>AI-powered features</li>

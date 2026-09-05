@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 
 interface OrderItem {
   product_id: string;
@@ -265,6 +267,7 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
 }
 
 export default function OrdersPage() {
+  const { user } = useAuth();
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('all');
@@ -276,7 +279,8 @@ export default function OrdersPage() {
     queryKey: ['orders'],
     queryFn: async () => {
       const res = await api.get('/orders');
-      return res.data.orders || res.data;
+      const data = res.data;
+      return Array.isArray(data) ? data : (data?.orders || []);
     },
   });
 
@@ -384,15 +388,29 @@ export default function OrdersPage() {
         {isLoading ? (
           <Shimmer />
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-            <ShoppingCart size={48} style={{ marginBottom: '12px', opacity: 0.3 }} />
-            <p style={{ fontSize: '16px', fontWeight: 600 }}>Your store is ready for its first order</p>
-            <p style={{ fontSize: '14px', marginTop: '4px' }}>
-              {activeTab === 'all' ? 'Share your store link so customers can start ordering.' : `No ${STATUS_LABELS[activeTab].toLowerCase()} orders.`}
-            </p>
-            <p style={{ fontSize: '13px', marginTop: '8px', color: '#64748B' }}>
-              Next: share your store link. Orders will appear here with payment and delivery status.
-            </p>
+          <div style={{ padding: '32px 16px' }}>
+            {orders.length === 0 ? (
+              <ActionableEmptyState
+                icon={<ShoppingCart size={28} />}
+                title="Your store is ready for its first order"
+                description="Share your store link with customers on WhatsApp so they can browse your catalog and send orders."
+                actionLabel="Share Store on WhatsApp"
+                onAction={() => {
+                  const url = user?.subdomain ? `https://${user.subdomain}.ferasetu.shop` : 'https://ferasetu.com';
+                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent('Check out our catalog and order easily: ' + url)}`, '_blank');
+                }}
+                expectedOutcome="Customer orders appear here in real-time with automatic invoicing."
+              />
+            ) : (
+              <ActionableEmptyState
+                icon={<ShoppingCart size={28} />}
+                title={`No ${STATUS_LABELS[activeTab]?.toLowerCase() || ''} orders`}
+                description={`You currently have no orders in "${STATUS_LABELS[activeTab] || activeTab}" status.`}
+                actionLabel="View All Orders"
+                onAction={() => setActiveTab('all')}
+                expectedOutcome="Switch back to see orders across all lifecycle stages."
+              />
+            )}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

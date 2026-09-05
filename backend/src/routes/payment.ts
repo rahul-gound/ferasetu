@@ -1,4 +1,6 @@
 import { Router, Response } from 'express';
+import crypto from 'crypto';
+import axios from 'axios';
 import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
@@ -28,9 +30,48 @@ const CREDIT_PACKS: Record<string, { credits: number; amount: number; label: str
 
 const EXTRA_STORAGE_PRICE_PER_GB = 20;
 
+const RAZORPAY_API_BASE = 'https://api.razorpay.com/v1';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+
+function isPaidPlan(planId: string): boolean {
+  return (PLAN_CONFIG[planId]?.amount ?? 0) > 0 && !isBetaFreePlan(planId);
+}
+
+async function createRazorpayOrder(amountInRupees: number, receiptId: string): Promise<{ id: string }> {
+  const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+  const response = await axios.post(
+    `${RAZORPAY_API_BASE}/orders`,
+    {
+      amount: Math.round(amountInRupees * 100),
+      currency: 'INR',
+      receipt: receiptId,
+    },
+    {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  return response.data;
+}
+
+function verifyRazorpaySignature(orderId: string, paymentId: string, signature: string): boolean {
+  const expected = crypto
+    .createHmac('sha256', RAZORPAY_KEY_SECRET)
+    .update(`${orderId}|${paymentId}`)
+    .digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * @route   POST /api/payment/initialize
- * @desc    Activate a plan during development without payment provider
+ * @desc    Activate a free plan directly; create a Razorpay order for paid plans
  * @access  Private
  */
 router.post('/initialize',
@@ -45,6 +86,7 @@ router.post('/initialize',
 
     const { plan } = req.body;
     const requestedAmount = Number(req.body.amount);
+    const billingCycle = req.body.billingCycle === 'yearly' ? 'yearly' : 'monthly';
     const db = getDatabase();
     const userId = req.user!.id;
 
@@ -52,42 +94,85 @@ router.post('/initialize',
       const transactionId = uuidv4();
       const planConfig = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
       const effectiveAmount = getEffectivePlanAmount(plan, planConfig.amount);
-      if (requestedAmount !== effectiveAmount) {
+      const billingMultiplier = billingCycle === 'yearly' ? 10 : 1;
+      const expectedAmount = effectiveAmount * billingMultiplier;
+      if (requestedAmount !== expectedAmount) {
         res.status(400).json({ error: 'Invalid amount for selected plan' });
         return;
       }
 
+      // Free plans bypass Razorpay entirely and are activated directly.
+      if (!isPaidPlan(plan)) {
+        db.prepare(`
+          INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
+          VALUES (?, ?, ?, ?, ?, 'completed', ?)
+        `).run(
+          transactionId,
+          userId,
+          `dev_${transactionId}`,
+          0,
+          plan,
+          'completed',
+          JSON.stringify({
+            provider: 'development',
+            betaFreePlan: isBetaFreePlan(plan),
+            betaMode: BETA_MODE
+          })
+        );
+
+        db.prepare(`
+          UPDATE users
+          SET plan = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
+              ai_credits_reset_at = datetime('now', '+30 days'), updated_at = datetime('now')
+          WHERE id = ?
+        `).run(plan, planConfig.monthlyCredits, planConfig.monthlyCredits, userId);
+
+        res.status(201).json({
+          success: true,
+          requiresPayment: false,
+          id: transactionId,
+          plan,
+          amount: 0,
+          betaFreePlan: isBetaFreePlan(plan),
+          message: `Plan activated for free: ${plan}`
+        });
+        return;
+      }
+
+      // Paid plans require a Razorpay order before activation.
+      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        res.status(500).json({ error: 'Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.' });
+        return;
+      }
+
+      const razorpayOrder = await createRazorpayOrder(expectedAmount, transactionId);
+
       db.prepare(`
         INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?)
       `).run(
         transactionId,
         userId,
-        `dev_${transactionId}`,
-        effectiveAmount,
+        razorpayOrder.id,
+        expectedAmount,
         plan,
-        'completed',
         JSON.stringify({
-          provider: 'development',
-          betaFreePlan: isBetaFreePlan(plan),
-          betaMode: BETA_MODE
+          provider: 'razorpay',
+          razorpay_order_id: razorpayOrder.id,
+          billingCycle
         })
       );
 
-      db.prepare(`
-        UPDATE users
-        SET plan = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
-            ai_credits_reset_at = datetime('now', '+30 days'), updated_at = datetime('now')
-        WHERE id = ?
-      `).run(plan, planConfig.monthlyCredits, planConfig.monthlyCredits, userId);
-
       res.status(201).json({
         success: true,
+        requiresPayment: true,
         id: transactionId,
         plan,
-        amount: effectiveAmount,
-        betaFreePlan: isBetaFreePlan(plan),
-        message: isBetaFreePlan(plan) ? `Plan activated for free in beta: ${plan}` : `Plan activated: ${plan}`
+        amount: expectedAmount,
+        currency: 'INR',
+        razorpayOrderId: razorpayOrder.id,
+        razorpayKeyId: RAZORPAY_KEY_ID,
+        message: `Razorpay order created for plan: ${plan}`
       });
     } catch (error: any) {
       console.error('Failed to initialize payment:', error);
@@ -203,18 +288,64 @@ router.post('/ai-credits/purchase',
 
 /**
  * @route   POST /api/payment/verify
- * @desc    No-op verification retained for development compatibility
+ * @desc    Verify Razorpay payment signature and activate the paid plan
  * @access  Private
  */
 router.post('/verify',
+  body('razorpay_order_id').isString().notEmpty().withMessage('Missing razorpay_order_id'),
+  body('razorpay_payment_id').isString().notEmpty().withMessage('Missing razorpay_payment_id'),
+  body('razorpay_signature').isString().notEmpty().withMessage('Missing razorpay_signature'),
+  body('transaction_id').isString().notEmpty().withMessage('Missing transaction_id'),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transaction_id } = req.body;
     const db = getDatabase();
     const userId = req.user!.id;
 
     try {
-      const user = db.prepare('SELECT plan FROM users WHERE id = ?').get(userId) as { plan?: string } | undefined;
-      
-      res.json({ success: true, message: `Plan active: ${user?.plan || 'free'}` });
+      const transaction = db.prepare(`
+        SELECT * FROM transactions
+        WHERE id = ? AND user_id = ?
+      `).get(transaction_id, userId) as any;
+
+      if (!transaction || transaction.status !== 'pending') {
+        res.status(400).json({ error: 'Invalid or already processed transaction' });
+        return;
+      }
+
+      if (!verifyRazorpaySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+        res.status(400).json({ error: 'Invalid payment signature' });
+        return;
+      }
+
+      const planConfig = PLAN_CONFIG[transaction.plan] || PLAN_CONFIG.basic;
+
+      db.prepare(`
+        UPDATE transactions
+        SET status = 'completed', metadata = ?
+        WHERE id = ?
+      `).run(
+        JSON.stringify({
+          provider: 'razorpay',
+          razorpay_order_id,
+          razorpay_payment_id,
+        }),
+        transaction.id
+      );
+
+      db.prepare(`
+        UPDATE users
+        SET plan = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
+            ai_credits_reset_at = datetime('now', '+30 days'), updated_at = datetime('now')
+        WHERE id = ?
+      `).run(transaction.plan, planConfig.monthlyCredits, planConfig.monthlyCredits, userId);
+
+      res.json({ success: true, plan: transaction.plan, message: `Plan activated: ${transaction.plan}` });
     } catch (error: any) {
       console.error('Payment verification error:', error);
       res.status(500).json({ error: error.message || 'Error during payment verification' });

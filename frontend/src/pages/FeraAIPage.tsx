@@ -38,27 +38,20 @@ interface ProposedAction {
   riskLevel: 'read_only' | 'reversible_write' | 'sensitive';
   preview: string;
   requiresApproval: boolean;
-  input: Record<string, unknown>;
 }
 
 type CategoryKey = 'sell_more' | 'manage_shop' | 'customers' | 'create' | 'automate' | 'insights';
-
-interface QuickAction {
-  label: string;
-  msg: string;
-  icon: ReactNode;
-}
 
 interface Category {
   key: CategoryKey;
   label: string;
   icon: ReactNode;
   color: string;
-  actions: QuickAction[];
+  actions: Array<{ label: string; msg: string; icon: ReactNode }>;
 }
 
 // ---------------------------------------------------------------------------
-// Categories & quick actions
+// 6 Indian SMB focused prompt categories
 // ---------------------------------------------------------------------------
 
 const CATEGORIES: Category[] = [
@@ -80,8 +73,8 @@ const CATEGORIES: Category[] = [
     color: '#6366F1',
     actions: [
       { label: 'Which products are low stock?', msg: 'Which of my products are running low on stock and need restocking?', icon: <AlertTriangle size={14} /> },
-      { label: 'Help me price my products', msg: 'How should I price my products competitively for Indian buyers?', icon: <ShoppingCart size={14} /> },
-      { label: 'Manage my pending orders', msg: 'Show me my pending orders and what I should do with them', icon: <Package size={14} /> },
+      { label: 'Help me price my products', msg: 'How should I price my products competitively for Indian buyers?', icon: <Package size={14} /> },
+      { label: 'Manage my pending orders', msg: 'Show me my pending orders and what I should do with them', icon: <ShoppingCart size={14} /> },
     ],
   },
   {
@@ -167,81 +160,78 @@ function formatMessage(text: string): ReactNode {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
 function ChatBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
-
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: isUser ? 'row-reverse' : 'row',
-      gap: 10,
-      marginBottom: 20,
-      alignItems: 'flex-start',
-    }}>
-      {/* Avatar */}
-      <div style={{
-        width: 36,
-        height: 36,
-        borderRadius: '50%',
-        flexShrink: 0,
-        background: isUser
-          ? 'linear-gradient(135deg, #FF6B35, #FF8F5E)'
-          : 'linear-gradient(135deg, #1A2744, #0F172A)',
+    <div
+      style={{
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: isUser ? '0 4px 12px rgba(255,107,53,0.3)' : '0 4px 12px rgba(0,0,0,0.4)',
-        border: isUser ? '2px solid rgba(255,107,53,0.15)' : '2px solid rgba(255,255,255,0.06)',
-      }}>
+        flexDirection: isUser ? 'row-reverse' : 'row',
+        gap: 10,
+        marginBottom: 20,
+        alignItems: 'flex-start',
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          flexShrink: 0,
+          background: isUser
+            ? 'linear-gradient(135deg, #FF6B35, #FF8F5E)'
+            : 'linear-gradient(135deg, #1A2744, #0F172A)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: isUser ? '0 4px 12px rgba(255,107,53,0.3)' : '0 4px 12px rgba(0,0,0,0.4)',
+          border: isUser ? '2px solid rgba(255,107,53,0.15)' : '2px solid rgba(255,255,255,0.06)',
+        }}
+      >
         {isUser ? <User size={16} color="#fff" /> : <Bot size={16} color="#FF6B35" />}
       </div>
-
-      <div style={{
-        maxWidth: '78%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        alignItems: isUser ? 'flex-end' : 'flex-start',
-      }}>
-        {/* Attribution label */}
+      <div
+        style={{
+          maxWidth: '78%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          alignItems: isUser ? 'flex-end' : 'flex-start',
+        }}
+      >
         {!isUser && (
-          <span style={{
-            fontSize: 10,
-            color: '#374151',
-            fontWeight: 700,
-            letterSpacing: '0.8px',
-            textTransform: 'uppercase',
-          }}>
+          <span
+            style={{
+              fontSize: 10,
+              color: '#94A3B8',
+              fontWeight: 700,
+              letterSpacing: '0.8px',
+              textTransform: 'uppercase',
+            }}
+          >
             Fera AI
           </span>
         )}
-
-        {/* Message bubble */}
-        <div style={{
-          padding: '13px 17px',
-          borderRadius: isUser ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
-          background: isUser
-            ? 'linear-gradient(135deg, #FF6B35, #FF7A45)'
-            : 'rgba(20, 32, 60, 0.85)',
-          color: '#F1F5F9',
-          border: isUser ? 'none' : '1px solid rgba(255,255,255,0.07)',
-          fontSize: 14,
-          lineHeight: 1.65,
-          backdropFilter: 'blur(12px)',
-          boxShadow: isUser
-            ? '0 4px 20px rgba(255,107,53,0.15)'
-            : '0 4px 20px rgba(0,0,0,0.25)',
-          wordBreak: 'break-word',
-        }}>
+        <div
+          style={{
+            padding: '13px 17px',
+            borderRadius: isUser ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
+            background: isUser
+              ? 'linear-gradient(135deg, #FF6B35, #FF7A45)'
+              : 'rgba(20, 32, 60, 0.85)',
+            color: '#F1F5F9',
+            border: isUser ? 'none' : '1px solid rgba(255,255,255,0.07)',
+            fontSize: 14,
+            lineHeight: 1.65,
+            backdropFilter: 'blur(12px)',
+            boxShadow: isUser ? '0 4px 20px rgba(255,107,53,0.15)' : '0 4px 20px rgba(0,0,0,0.25)',
+            wordBreak: 'break-word',
+          }}
+        >
           {formatMessage(message.content)}
         </div>
-
-        <span style={{ fontSize: 10, color: '#1E293B' }}>
-          {message.timestamp.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+        <span style={{ fontSize: 10, color: '#94A3B8' }}>
+          {new Date(message.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
     </div>
@@ -251,32 +241,36 @@ function ChatBubble({ message }: { message: Message }) {
 function ThinkingIndicator() {
   return (
     <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'flex-start' }}>
-      <div style={{
-        width: 36,
-        height: 36,
-        borderRadius: '50%',
-        flexShrink: 0,
-        background: 'linear-gradient(135deg, #1A2744, #0F172A)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: '2px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-      }}>
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          flexShrink: 0,
+          background: 'linear-gradient(135deg, #1A2744, #0F172A)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        }}
+      >
         <Bot size={16} color="#FF6B35" />
       </div>
-      <div style={{
-        padding: '13px 18px',
-        background: 'rgba(20, 32, 60, 0.85)',
-        borderRadius: '4px 20px 20px 20px',
-        border: '1px solid rgba(255,255,255,0.07)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-      }}>
-        <Loader2 size={15} color="#FF6B35" style={{ animation: 'spin 1s linear infinite' }} />
+      <div
+        style={{
+          padding: '13px 18px',
+          background: 'rgba(20, 32, 60, 0.85)',
+          borderRadius: '4px 20px 20px 20px',
+          border: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+        }}
+      >
+        <Loader2 size={15} color="#FF6B35" className="animate-spin" />
         <span style={{ fontSize: 13, color: '#64748B', fontWeight: 600, fontStyle: 'italic' }}>
           Thinking about your shop...
         </span>
@@ -424,14 +418,16 @@ export default function FeraAIPage() {
         return res.data as {
           content: string;
           model: string;
+          skillsUsed?: string[];
+          hasProposedActions?: boolean;
+          proposedActions?: ProposedAction[];
           aiCreditsBalance?: number;
         };
       }
     },
     onSuccess: (data) => {
-      // Update credit balance if returned
       if (typeof data.aiCreditsBalance === 'number') {
-        updateUser({ ai_credits_balance: data.aiCreditsBalance } as Parameters<typeof updateUser>[0]);
+        updateUser({ ai_credits_balance: data.aiCreditsBalance });
       }
 
       const assistantMsg: Message = {
@@ -440,17 +436,16 @@ export default function FeraAIPage() {
         content: data.content,
         timestamp: new Date(),
         model: data.model || 'sarvam-m',
-        skillsUsed: (data as { skillsUsed?: string[] }).skillsUsed,
-        proposedActions: (data as { proposedActions?: ProposedAction[] }).proposedActions,
+        skillsUsed: data.skillsUsed,
+        proposedActions: data.proposedActions,
       };
+
       setMessages(prev => [...prev, assistantMsg]);
       setShowCategories(false);
 
-      // Queue any proposed actions needing approval
-      const actions = (data as { proposedActions?: ProposedAction[] }).proposedActions ?? [];
-      const needApproval = actions.filter(a => a.requiresApproval);
-      if (needApproval.length > 0) {
-        setPendingApprovals(prev => [...prev, ...needApproval]);
+      const approvals = (data.proposedActions ?? []).filter(a => a.requiresApproval);
+      if (approvals.length > 0) {
+        setPendingApprovals(prev => [...prev, ...approvals]);
       }
     },
     onError: (err: { response?: { status?: number } }) => {
@@ -479,21 +474,21 @@ export default function FeraAIPage() {
         timestamp: new Date(),
       };
 
-      setMessages(prev => {
-        const updatedMessages = [...prev, userMsg];
-        // Build conversation history for context (exclude welcome message)
-        const history = updatedMessages
-          .filter(m => m.id !== 'fera-welcome')
-          .slice(-10)
-          .map(m => ({ role: m.role, content: m.content }));
-        sendMutation.mutate({ message: trimmed, conversationHistory: history });
-        return updatedMessages;
-      });
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
+
+      // Build conversation history for context (exclude welcome message)
+      const history = updatedMessages
+        .filter(m => m.id !== 'fera-welcome')
+        .slice(-10)
+        .map(m => ({ role: m.role, content: m.content }));
+
+      sendMutation.mutate({ message: trimmed, conversationHistory: history });
 
       setInput('');
       setActiveCategory(null);
     },
-    [sendMutation],
+    [messages, sendMutation],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -548,13 +543,9 @@ export default function FeraAIPage() {
   return (
     <div
       id="fera-ai-page"
+      className="h-[calc(100vh-140px)] rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col relative"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: 'calc(100vh - 60px)',
         background: 'linear-gradient(180deg, #060818 0%, #080D1E 100%)',
-        position: 'relative',
-        overflow: 'hidden',
       }}
     >
       {/* Ambient background glow */}
@@ -698,7 +689,7 @@ export default function FeraAIPage() {
           <div style={{ marginTop: 8 }}>
             <p style={{
               fontSize: 11,
-              color: '#334155',
+              color: '#94A3B8',
               fontWeight: 600,
               textAlign: 'center',
               marginBottom: 12,
@@ -733,7 +724,7 @@ export default function FeraAIPage() {
                     alignItems: 'center',
                     gap: 6,
                     transition: 'all 0.2s ease',
-                    color: activeCategory === cat.key ? cat.color : '#374151',
+                    color: activeCategory === cat.key ? cat.color : '#94A3B8',
                   }}
                 >
                   <span style={{ color: activeCategory === cat.key ? cat.color : '#4B5563' }}>
@@ -782,7 +773,7 @@ export default function FeraAIPage() {
                       <span style={{ color: activeCategoryData.color }}>{action.icon}</span>
                       {action.label}
                     </div>
-                    <ChevronRight size={13} color="#1E293B" />
+                    <ChevronRight size={13} color="#94A3B8" />
                   </button>
                 ))}
               </div>
@@ -814,7 +805,7 @@ export default function FeraAIPage() {
               border: '1px solid rgba(255,255,255,0.05)',
               borderRadius: 20,
               cursor: 'pointer',
-              color: '#374151',
+              color: '#94A3B8',
               fontSize: 11,
               marginBottom: 9,
               fontWeight: 600,
@@ -880,7 +871,7 @@ export default function FeraAIPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: isListening ? '#EF4444' : '#374151',
+                color: isListening ? '#EF4444' : '#94A3B8',
                 transition: 'all 0.2s ease',
               }}
             >

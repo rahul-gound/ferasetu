@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
@@ -39,7 +39,7 @@ interface NavItem {
   badgeColor?: 'orange' | 'blue';
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { translate } = useLanguage();
   const navigate = useNavigate();
@@ -48,24 +48,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fetch genuine orders count
-  const { data: ordersData } = useQuery<{ orders: any[] }>({
-    queryKey: ['orders-count-nav'],
+  // Fetch genuine orders count using unified queryKey ['orders']
+  const { data: ordersData } = useQuery<any>({
+    queryKey: ['orders'],
     queryFn: async () => {
       try {
         const res = await api.get('/orders');
-        return res.data;
+        return res.data.orders || res.data || [];
       } catch {
-        return { orders: [] };
+        return [];
       }
     },
     staleTime: 30000,
   });
 
-  const ordersCount = useMemo(() => ordersData?.orders?.length ?? 0, [ordersData]);
-  const pendingOrdersCount = useMemo(() => {
-    return (ordersData?.orders ?? []).filter(o => o.status === 'pending' || o.status === 'processing').length;
+  const ordersList: any[] = useMemo(() => {
+    if (Array.isArray(ordersData)) return ordersData;
+    if (ordersData && Array.isArray((ordersData as any).orders)) return (ordersData as any).orders;
+    return [];
   }, [ordersData]);
+
+  const ordersCount = useMemo(() => ordersList.length, [ordersList]);
+  const pendingOrdersCount = useMemo(() => {
+    return ordersList.filter(o => o.status === 'pending' || o.status === 'processing').length;
+  }, [ordersList]);
 
   const navItems: NavItem[] = useMemo(() => [
     { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -104,7 +110,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const sidebarContent = (
     <div className='flex h-full w-[280px] flex-col overflow-y-auto border-r border-slate-200 bg-white'>
-      <div className='flex flex-col border-b border-slate-100 px-6 py-5'>
+      <div className='flex flex-col border-b border-slate-100 px-6 py-5 pr-14'>
         <img
           src='/logo-official.png'
           alt='FeraSetu'
@@ -160,7 +166,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <div className='mt-3 flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm'>
+        <div
+          onClick={() => navigate('/settings/email')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/settings/email'); }}
+          className='mt-3 flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm hover:bg-slate-50 transition-colors cursor-pointer'
+          title="Manage store settings"
+        >
           <div className='flex items-center gap-3 min-w-0'>
             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-sm'>
               {avatarLetter}
@@ -202,10 +215,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         <button
           onClick={() => setSidebarOpen(false)}
-          className='absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+          className='absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
           aria-label={translate('nav.closeMenu')}
         >
-          <X size={20} aria-hidden='true' />
+          <X size={18} aria-hidden='true' />
         </button>
         {sidebarContent}
       </aside>
@@ -242,8 +255,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Notification Bell */}
             <button
+              onClick={() => navigate('/orders')}
               className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
               title={pendingOrdersCount > 0 ? `${pendingOrdersCount} pending orders` : 'Notifications'}
+              aria-label="View orders notifications"
             >
               <Bell size={18} />
               {pendingOrdersCount > 0 ? (
@@ -315,7 +330,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className='flex-1 overflow-y-auto bg-[#F8FAFC] p-5 sm:p-6 lg:p-8'>
-          {children}
+          {children ?? <Outlet />}
         </main>
       </div>
     </div>

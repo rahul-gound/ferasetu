@@ -168,7 +168,7 @@ async function getAuthenticatedUser(request, env) {
   } catch (err) {
     if (err instanceof HttpError) throw err;
     console.error("WorkOS JWT verification error:", err);
-    throw new HttpError(`Unauthorized: Invalid session signature or expired token (${err.message})`, 401);
+    throw new HttpError("Unauthorized: Invalid session signature or expired token", 401);
   }
 }
 
@@ -425,23 +425,53 @@ async function createOrder(request, env) {
   const items = Array.isArray(body.items) ? body.items : [];
   if (items.length === 0) throw new HttpError("`items` must be a non-empty array", 422);
 
-  // total: use provided value if valid, else sum item.price * item.qty.
-  let total = Number(body.total);
-  if (!Number.isFinite(total) || total < 0) {
-    total = items.reduce((sum, it) => {
-      const p = Number(it?.price) || 0;
-      const q = Number(it?.qty ?? it?.quantity) || 0;
-      return sum + p * q;
-    }, 0);
+  // FS-06: Patch order total calculation: verify and compute order totals
+  // from authoritative product catalog prices in D1 database rather than trusting client body.total.
+  let calculatedTotal = 0;
+  const resolvedItems = [];
+
+  for (const it of items) {
+    const productId = it?.productId || it?.product_id || it?.id;
+    const quantity = Math.max(1, Math.trunc(Number(it?.qty ?? it?.quantity ?? 1)));
+
+    if (!productId) {
+      throw new HttpError("Each item must have a valid productId", 422);
+    }
+
+    const productRow = await env.DB.prepare(
+      "SELECT * FROM products WHERE id = ? AND user_id = ?"
+    ).bind(productId, me.$id).first();
+
+    if (!productRow) {
+      throw new HttpError(`Product not found or unavailable: ${productId}`, 404);
+    }
+
+    const effectivePrice = Number.isFinite(Number(productRow.sale_price)) && Number(productRow.sale_price) > 0
+      ? Number(productRow.sale_price)
+      : (Number(productRow.price) || 0);
+
+    const itemTotal = effectivePrice * quantity;
+    calculatedTotal += itemTotal;
+
+    resolvedItems.push({
+      productId: productRow.id,
+      product_id: productRow.id,
+      name: productRow.name,
+      price: effectivePrice,
+      quantity,
+      qty: quantity,
+      total: itemTotal,
+    });
   }
 
+  const total = Math.round(calculatedTotal * 100) / 100;
   const status = typeof body.status === "string" && body.status.trim() ? body.status.trim() : "pending";
 
   const order = {
     id: crypto.randomUUID(),
     user_id: me.$id,
     customer_name: customerName,
-    items,
+    items: resolvedItems,
     total,
     status,
     created_at: new Date().toISOString(),

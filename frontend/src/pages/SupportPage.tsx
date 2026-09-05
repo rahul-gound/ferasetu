@@ -1,30 +1,24 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import axios from 'axios';
 import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API = import.meta.env.VITE_API_URL || '/api';
+import api from '../services/api';
 
 export default function SupportPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
-  const [selectedTicket, setSelectedOrder] = useState<any | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
   const [formData, setFormData] = useState({ subject: 'setup', description: '' });
-  const [submitting, setLoadingSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const token = localStorage.getItem('fera_token');
 
-  // ... rest of logic
   const fetchTickets = async () => {
     try {
-      const res = await axios.get(`${API}/tickets`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTickets(res.data.tickets);
+      const res = await api.get('/tickets');
+      setTickets(res.data?.tickets || res.data || []);
     } catch (err) {
       toast.error('Failed to load tickets');
     } finally {
@@ -34,10 +28,8 @@ export default function SupportPage() {
 
   const fetchReplies = async (ticketId: string) => {
     try {
-      const res = await axios.get(`${API}/tickets/${ticketId}/replies`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setReplies(res.data.replies);
+      const res = await api.get(`/tickets/${ticketId}/replies`);
+      setReplies(res.data?.replies || res.data || []);
       setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err) {
       toast.error('Failed to load conversation');
@@ -59,19 +51,17 @@ export default function SupportPage() {
 
   const handleCreateTicket = async (e: FormEvent) => {
     e.preventDefault();
-    setLoadingSubmitting(true);
+    setSubmitting(true);
     try {
-      await axios.post(`${API}/tickets`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/tickets', formData);
       toast.success('Support ticket raised!');
       setShowNewModal(false);
-      setFormData({ subject: '', description: '' });
+      setFormData({ subject: 'setup', description: '' });
       fetchTickets();
     } catch (err) {
       toast.error('Failed to raise ticket');
     } finally {
-      setLoadingSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -79,9 +69,7 @@ export default function SupportPage() {
     e.preventDefault();
     if (!replyText.trim()) return;
     try {
-      await axios.post(`${API}/tickets/${selectedTicket.id}/replies`, { content: replyText }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post(`/tickets/${selectedTicket.id}/replies`, { content: replyText });
       setReplyText('');
       fetchReplies(selectedTicket.id);
     } catch (err) {
@@ -111,7 +99,7 @@ export default function SupportPage() {
               .ticket-header { flex-direction: column; align-items: flex-start; gap: 12px; }
             }
           `}</style>
-         <button onClick={() => setSelectedOrder(null)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#475569', fontWeight: 600, cursor: 'pointer', marginBottom: '16px' }}>
+         <button onClick={() => setSelectedTicket(null)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#475569', fontWeight: 600, cursor: 'pointer', marginBottom: '16px' }}>
             <ChevronLeft size={20} /> Back to Support Center
          </button>
 
@@ -228,7 +216,7 @@ export default function SupportPage() {
             <div 
               className="support-ticket-card"
               key={ticket.id} 
-              onClick={() => { setSelectedOrder(ticket); fetchReplies(ticket.id); }}
+              onClick={() => { setSelectedTicket(ticket); fetchReplies(ticket.id); }}
               style={{ background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.05)', animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
             >
               <div style={{ flex: 1 }}>
@@ -255,8 +243,8 @@ export default function SupportPage() {
 
       {/* New Ticket Modal */}
       {showNewModal && (
-        <div className="support-modal" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="support-modal-card" style={{ background: '#fff', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 24px 40px rgba(15,23,42,0.25)' }}>
+        <div className="support-modal" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="support-modal-card max-h-[90vh] overflow-y-auto" style={{ background: '#fff', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 40px rgba(15,23,42,0.25)' }}>
             <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>How can we help?</h2>
             <form onSubmit={handleCreateTicket} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>

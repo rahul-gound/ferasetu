@@ -5,7 +5,7 @@ import type { PublicShopData } from '../types/template';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
 import SEO from '../components/SEO';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 const BASE_URL = 'https://ferasetu.com';
 const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
 
@@ -15,36 +15,47 @@ export default function ShopPage() {
   // Logic to determine shop name:
   // 1. From URL params (e.g., /shop/my-kirana)
   // 2. From window.location.hostname (if it's not localhost or the main platform domain)
-  const [shopName, setShopName] = useState<string | null>(null);
-
-  useEffect(() => {
+  const initialShopName = useMemo(() => {
+    if (params.shopName) return params.shopName;
+    if (typeof window === 'undefined') return null;
     const hostname = window.location.hostname;
     const platformDomains = ['ferasetu.com', 'fera-search.tech'];
     const isLocalOrPreview = hostname.includes('app.github.dev') || hostname.includes('localhost') || hostname.includes('127.0.0.1');
 
-    if (params.shopName) {
-      setShopName(params.shopName);
-    } else if (!isLocalOrPreview) {
+    if (!isLocalOrPreview) {
       // Find which platform domain this belongs to, if any
       const matchingPlatform = platformDomains.find(domain => hostname === domain || hostname.endsWith(`.${domain}`));
       
       if (matchingPlatform && hostname !== matchingPlatform) {
         // It's a subdomain (e.g., shopA.ferasetu.com)
-        const subdomain = hostname.replace(`.${matchingPlatform}`, '');
-        setShopName(subdomain);
+        return hostname.replace(`.${matchingPlatform}`, '');
       } else {
         // It's a custom domain (e.g., mykiranastore.com)
-        setShopName(hostname);
+        return hostname;
       }
     }
+    return null;
   }, [params.shopName]);
+
+  const [shopName, setShopName] = useState<string | null>(initialShopName);
+
+  useEffect(() => {
+    setShopName(initialShopName);
+  }, [initialShopName]);
 
   const [data, setData] = useState<PublicShopData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!shopName) return;
+    if (!shopName) {
+      setLoading(false);
+      setError('Shop name not provided. Please check the URL or specify a shop.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
     axios.get<PublicShopData>(`${API}/website/public/${shopName}`)
       .then(res => {
         setData(res.data);

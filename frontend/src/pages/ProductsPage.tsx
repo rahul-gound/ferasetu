@@ -10,6 +10,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import UpgradePrompt from '../components/ui/UpgradePrompt';
+import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getPlanLimits, normalizePlanId, hasReachedProductLimit } from '../config/plans';
 
 interface Product {
@@ -39,9 +40,6 @@ interface ProductForm {
 }
 
 const CATEGORIES = ['Grocery', 'Fashion', 'Electronics', 'Food & Beverages', 'Medical', 'Home & Kitchen', 'Sports', 'Beauty', 'Books', 'Other'];
-
-// Legacy constant kept for reference; actual limits come from plans.ts
-// const FREE_LIMIT = 50;
 
 function Shimmer() {
   return (
@@ -118,7 +116,6 @@ export default function ProductsPage() {
 
   const openAdd = () => {
     if (atLimit) {
-      // Show the upgrade prompt below — don't just toast, give a contextual path
       toast.error(
         `Product limit reached (${products.length}/${productLimit === Infinity ? '∞' : productLimit}). Upgrade your plan to add more.`,
         { duration: 4000 }
@@ -265,15 +262,26 @@ export default function ProductsPage() {
           {[1, 2, 3, 4, 5, 6].map(i => <Shimmer key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-          <Package size={48} style={{ marginBottom: '12px', opacity: 0.3 }} />
-          <p style={{ fontSize: '16px', fontWeight: 600 }}>Your store needs products</p>
-          <p style={{ fontSize: '14px', marginTop: '4px' }}>
-            {search ? 'Try a different search term' : 'Add your first product to get started!'}
-          </p>
-          <p style={{ fontSize: '13px', marginTop: '8px', color: '#64748B' }}>
-            Next: add one product with a name, price, and photo so customers have something to browse.
-          </p>
+        <div style={{ padding: '32px 16px' }}>
+          {products.length === 0 ? (
+            <ActionableEmptyState
+              icon={<Package size={28} />}
+              title="Your store needs products"
+              description="Add your first product with a name, price, and photo so customers can browse and place orders."
+              actionLabel="Add Your First Product"
+              onAction={openAdd}
+              expectedOutcome="Products appear instantly in your store catalog."
+            />
+          ) : (
+            <ActionableEmptyState
+              icon={<Package size={28} />}
+              title="No products found"
+              description={search ? `No products match "${search}". Try another search term or clear filters.` : 'No products found in this category.'}
+              actionLabel="Clear Filters"
+              onAction={() => { setSearch(''); setCategory(''); }}
+              expectedOutcome="Reset search and category filters to view all catalog products."
+            />
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
@@ -426,8 +434,8 @@ export default function ProductsPage() {
                   value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
               </div>
 
-              {/* Cost Price + Selling Price + MRP */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              {/* Cost Price + Selling Price + MRP (Responsive 3-Column Inputs) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>Cost Price (₹)</label>
                   <input className="input" type="number" style={{ width: '100%', boxSizing: 'border-box' }}
@@ -461,8 +469,8 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              {/* Category + Stock */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              {/* Category + Stock (Responsive 2-Column Inputs) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>Category</label>
                   <select className="input" style={{ width: '100%', boxSizing: 'border-box' }}

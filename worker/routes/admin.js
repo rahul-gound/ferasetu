@@ -11,16 +11,49 @@ class HttpError extends Error {
   }
 }
 
-function json(data, status = 200) {
+// Allowed origins for CORS validation (exact match + preview/subdomains)
+const ALLOWED_ORIGINS = [
+  "https://ferasetu.com",
+  "https://www.ferasetu.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+];
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  
+  // Allow any subdomain of ferasetu.com or fera-search.tech
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    return host.endsWith(".ferasetu.com") || host.endsWith(".fera-search.tech");
+  } catch {
+    return false;
+  }
+}
+
+function getCorsHeaders(request) {
+  const origin = request ? request.headers.get("Origin") : null;
+  const allowedOrigin = isOriginAllowed(origin) ? origin : "https://ferasetu.com";
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400"
+  };
+}
+
+function json(data, status = 200, request = null) {
+  const corsHeaders = getCorsHeaders(request);
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
       "X-Robots-Tag": "noindex, nofollow",
-      "Access-Control-Allow-Origin": "https://ferasetu.com",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
-      "Access-Control-Allow-Credentials": "true"
+      ...corsHeaders
     }
   });
 }
@@ -42,17 +75,22 @@ export async function handleAdminRoutes(request, env) {
   const method = request.method;
   const path = url.pathname;
 
+  const json = (data, status = 200) => {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Robots-Tag": "noindex, nofollow",
+        ...getCorsHeaders(request)
+      }
+    });
+  };
+
   // Handle CORS Preflight
   if (method === "OPTIONS") {
     return new Response(null, {
       status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "https://ferasetu.com",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400"
-      }
+      headers: getCorsHeaders(request)
     });
   }
 

@@ -1,17 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
 
 export default function AuthCallbackPage() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const errorHandledRef = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && user) {
-      navigate('/dashboard', { replace: true });
+    if (!isLoading) {
+      if (user) {
+        navigate('/dashboard', { replace: true });
+      } else if (!errorHandledRef.current) {
+        errorHandledRef.current = true;
+        toast.error('Authentication failed or was cancelled. Please sign in again.');
+        navigate('/login', { replace: true });
+      }
     }
   }, [user, isLoading, navigate]);
+
+  // Timeout fallback in case auth provider or token exchange hangs
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!errorHandledRef.current && !user) {
+        errorHandledRef.current = true;
+        toast.error('Sign in timed out. Please try again.');
+        navigate('/login', { replace: true });
+      }
+    }, 8000);
+
+    return () => clearTimeout(timer);
+  }, [user, navigate]);
 
   return (
     <>

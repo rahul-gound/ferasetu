@@ -23,8 +23,8 @@ export default function AdminOrdersPage() {
         params: { page, limit: 10, status },
         headers: { Authorization: `Bearer ${token}` }
       });
-      setOrders(res.data.orders);
-      setTotal(res.data.total);
+      setOrders(res.data.orders || []);
+      setTotal(res.data.total || 0);
     } catch (err) {
       toast.error('Failed to load global orders');
     } finally {
@@ -74,23 +74,29 @@ export default function AdminOrdersPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   Array(5).fill(0).map((_, i) => <tr key={i}><td colSpan={5} className="px-6 py-10 text-center text-slate-400 font-bold animate-pulse">Syncing orders...</td></tr>)
+                ) : orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold">
+                      No orders found.
+                    </td>
+                  </tr>
                 ) : orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={order.id || Math.random()} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-5">
-                      <div className="font-black text-slate-900">#{order.id.slice(0, 8)}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{order.customer_name}</div>
+                      <div className="font-black text-slate-900">#{String(order.id || '').slice(0, 8)}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">{order.customer_name || 'Customer'}</div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-2">
                         <Store size={14} className="text-orange-500" />
-                        <span className="font-bold text-slate-700">{order.shop_name}</span>
+                        <span className="font-bold text-slate-700">{order.shop_name || 'Store'}</span>
                       </div>
-                      <div className="text-xs text-slate-400 ml-6">{order.user_email}</div>
+                      <div className="text-xs text-slate-400 ml-6">{order.user_email || ''}</div>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="font-black text-slate-900">₹{order.total?.toLocaleString()}</div>
+                      <div className="font-black text-slate-900">₹{(order.total || 0).toLocaleString()}</div>
                       <div className={`text-[10px] font-black uppercase ${order.payment_status === 'paid' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {order.payment_status}
+                        {order.payment_status || 'unpaid'}
                       </div>
                     </td>
                     <td className="px-6 py-5">
@@ -100,12 +106,12 @@ export default function AdminOrdersPage() {
                           order.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
                           'bg-blue-100 text-blue-700 border-blue-200'}
                       `}>
-                        {order.status}
+                        {order.status || 'pending'}
                       </span>
                     </td>
                     <td className="px-6 py-5">
                       <div className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                        <Clock size={12} /> {new Date(order.created_at).toLocaleDateString()}
+                        <Clock size={12} /> {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                       </div>
                     </td>
                   </tr>

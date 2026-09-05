@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import OnboardingProgress from '../components/ui/OnboardingProgress';
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -108,34 +109,43 @@ export default function DashboardPage() {
     retry: 1,
   });
 
-  // Fetch real orders list
-  const { data: ordersData, isLoading: isOrdersLoading } = useQuery<{ orders: any[] }>({
-    queryKey: ['orders-list'],
+  // Fetch real orders list - unified queryKey ['orders']
+  const { data: rawOrders, isLoading: isOrdersLoading } = useQuery({
+    queryKey: ['orders'],
     queryFn: async () => {
       try {
         const res = await api.get('/orders');
-        return res.data;
+        return res.data.orders || res.data || [];
       } catch {
-        return { orders: [] };
+        return [];
       }
     },
   });
 
-  // Fetch real products catalog
-  const { data: productsData, isLoading: isProductsLoading } = useQuery<{ products: any[] }>({
-    queryKey: ['products-list'],
+  // Fetch real products catalog - unified queryKey ['products']
+  const { data: rawProducts, isLoading: isProductsLoading } = useQuery({
+    queryKey: ['products'],
     queryFn: async () => {
       try {
         const res = await api.get('/products');
-        return res.data;
+        return res.data.products || res.data || [];
       } catch {
-        return { products: [] };
+        return [];
       }
     },
   });
 
-  const orders = useMemo(() => ordersData?.orders ?? [], [ordersData]);
-  const products = useMemo(() => productsData?.products ?? [], [productsData]);
+  const orders: any[] = useMemo(() => {
+    if (Array.isArray(rawOrders)) return rawOrders;
+    if (rawOrders && Array.isArray((rawOrders as any).orders)) return (rawOrders as any).orders;
+    return [];
+  }, [rawOrders]);
+
+  const products: any[] = useMemo(() => {
+    if (Array.isArray(rawProducts)) return rawProducts;
+    if (rawProducts && Array.isArray((rawProducts as any).products)) return (rawProducts as any).products;
+    return [];
+  }, [rawProducts]);
 
   // Compute 100% REAL genuine statistics from actual merchant orders
   const totalOrders = dashboardData?.stats?.total_orders ?? orders.length;
@@ -417,6 +427,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Onboarding Checklist for setup and new stores */}
+      <OnboardingProgress
+        shopCreated={true}
+        hasProducts={products.length > 0}
+        hasOrders={orders.length > 0}
+        storePublished={!!user?.subdomain}
+      />
+
       {/* Top 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         
@@ -580,6 +598,7 @@ export default function DashboardPage() {
                   ]}
                 />
                 <Area
+                  isAnimationActive={false}
                   yAxisId="left"
                   type="monotone"
                   dataKey="revenue"
@@ -590,6 +609,7 @@ export default function DashboardPage() {
                   fill="url(#colorRevenue)"
                 />
                 <Area
+                  isAnimationActive={false}
                   yAxisId="right"
                   type="monotone"
                   dataKey="orders"
@@ -661,6 +681,7 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
+                  isAnimationActive={false}
                   data={donutData}
                   innerRadius={50}
                   outerRadius={68}

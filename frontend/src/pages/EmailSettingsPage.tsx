@@ -64,14 +64,14 @@ function SectionCard({ icon, title, subtitle, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-surface border border-border rounded-2xl p-7 mb-5">
+    <div className="bg-white border border-slate-200 rounded-2xl p-7 mb-5">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
           {icon}
         </div>
         <div>
-          <h3 className="text-lg font-extrabold text-text tracking-tight m-0">{title}</h3>
-          {subtitle && <p className="text-sm text-text-muted mt-0.5 mb-0">{subtitle}</p>}
+          <h3 className="text-lg font-extrabold text-slate-900 tracking-tight m-0">{title}</h3>
+          {subtitle && <p className="text-sm text-slate-500 mt-0.5 mb-0">{subtitle}</p>}
         </div>
       </div>
       {children}
@@ -81,7 +81,7 @@ function SectionCard({ icon, title, subtitle, children }: {
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-sm font-semibold text-text mb-1.5">
+    <label className="block text-sm font-semibold text-slate-900 mb-1.5">
       {children} {required && <span className="text-red-500">*</span>}
     </label>
   );
@@ -104,10 +104,10 @@ function TextInput({ value, onChange, placeholder, type = 'text', disabled, clas
       disabled={disabled}
       className={`
         w-full px-3.5 py-2.5 text-sm font-medium rounded-xl border transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+        focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50
         ${disabled 
-          ? 'bg-bg2 border-border text-text-muted cursor-not-allowed' 
-          : 'bg-surface border-border text-text'}
+          ? 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed' 
+          : 'bg-white border-slate-200 text-slate-900'}
         ${className}
       `}
     />
@@ -126,8 +126,8 @@ function SelectInput({ value, onChange, options, className = '' }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         className={`
-          w-full pr-10 py-2.5 px-3.5 text-sm font-medium rounded-xl border border-border bg-surface text-text
-          focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+          w-full pr-10 py-2.5 px-3.5 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900
+          focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50
           appearance-none cursor-pointer
         `}
       >
@@ -135,7 +135,7 @@ function SelectInput({ value, onChange, options, className = '' }: {
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+      <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   );
 }
@@ -149,14 +149,14 @@ function Toggle({ checked, onChange, label, description }: {
   return (
     <div className="flex items-center justify-between py-3">
       <div>
-        <div className="text-sm font-semibold text-text">{label}</div>
-        {description && <div className="text-xs text-text-muted mt-0.5">{description}</div>}
+        <div className="text-sm font-semibold text-slate-900">{label}</div>
+        {description && <div className="text-xs text-slate-500 mt-0.5">{description}</div>}
       </div>
       <button
         onClick={() => onChange(!checked)}
         className={`
           w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 relative
-          ${checked ? 'bg-primary' : 'bg-border'}
+          ${checked ? 'bg-primary' : 'bg-slate-200'}
         `}
         aria-pressed={checked}
       >
@@ -187,7 +187,7 @@ function PasswordInput({ value, onChange, placeholder, showPassword, onToggleSho
       />
       <button
         onClick={onToggleShow}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors p-1"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 transition-colors p-1"
         type="button"
       >
         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -323,7 +323,7 @@ export default function EmailSettingsPage() {
     return (
       <div className="max-w-3xl mx-auto space-y-5">
         {[1, 2, 3].map(i => (
-          <div key={i} className="animate-pulse bg-surface border border-border rounded-2xl p-7 h-44 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.4s_infinite]" />
+          <div key={i} className="animate-pulse bg-white border border-slate-200 rounded-2xl p-7 h-44 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.4s_infinite]" />
         ))}
       </div>
     );
@@ -334,11 +334,11 @@ export default function EmailSettingsPage() {
       <div className="mb-8">
         <div className="flex items-center gap-2.5 mb-1.5">
           <Settings2 size={22} className="text-primary" />
-          <h1 className="text-3xl font-extrabold text-text tracking-tight m-0">
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight m-0">
             Email (SMTP) Settings
           </h1>
         </div>
-        <p className="text-base text-text-muted leading-relaxed m-0">
+        <p className="text-base text-slate-500 leading-relaxed m-0">
           Configure your SMTP server to send OTP verification emails to your users.
         </p>
       </div>
@@ -362,16 +362,16 @@ export default function EmailSettingsPage() {
                 p-3.5 rounded-xl border-2 text-left transition-all duration-200
                 ${form.provider === p.id 
                   ? 'border-primary bg-primary/5 text-primary' 
-                  : 'border-border bg-surface text-text hover:border-primary/50 hover:bg-primary/5'}
+                  : 'border-slate-200 bg-white text-slate-900 hover:border-blue-500/50 hover:bg-primary/5'}
               `}
             >
               <div className={`
                 font-semibold text-sm
-                ${form.provider === p.id ? 'text-primary' : 'text-text'}
+                ${form.provider === p.id ? 'text-primary' : 'text-slate-900'}
               `}>
                 {p.name}
               </div>
-              <div className="text-[11px] text-text-muted mt-1 font-mono">
+              <div className="text-[11px] text-slate-500 mt-1 font-mono">
                 {p.desc}
               </div>
             </button>
@@ -497,7 +497,7 @@ export default function EmailSettingsPage() {
                   onChange={v => updateField('otp_expiry_minutes', parseInt(v) || 10)}
                   placeholder="10"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted">min</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">min</span>
               </div>
             </div>
             <div>
@@ -508,7 +508,7 @@ export default function EmailSettingsPage() {
                   onChange={v => updateField('otp_resend_cooldown', parseInt(v) || 60)}
                   placeholder="60"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted">sec</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">sec</span>
               </div>
             </div>
             <div>
@@ -532,9 +532,9 @@ export default function EmailSettingsPage() {
             placeholder="Verify your email • FeraSetu"
           />
           <div className="flex flex-wrap gap-1.5 mt-2">
-            <span className="text-xs text-text-muted self-center">Variables:</span>
+            <span className="text-xs text-slate-500 self-center">Variables:</span>
             {['{{name}}', '{{otp}}', '{{email}}', '{{expiry}}', '{{app_name}}'].map(v => (
-              <code key={v} className="text-xs px-2 py-0.5 rounded bg-bg2 border border-border text-primary font-mono font-semibold">
+              <code key={v} className="text-xs px-2 py-0.5 rounded bg-slate-50 border border-slate-200 text-blue-600 font-mono font-semibold">
                 {v}
               </code>
             ))}
@@ -546,15 +546,15 @@ export default function EmailSettingsPage() {
               value={form.otp_body_template || DEFAULT_TEMPLATE}
               onChange={e => updateField('otp_body_template', e.target.value)}
               rows={12}
-              className="w-full px-3.5 py-3.5 text-sm font-mono bg-surface border border-border rounded-xl text-text resize-y focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 leading-relaxed"
+              className="w-full px-3.5 py-3.5 text-sm font-mono bg-white border border-slate-200 rounded-xl text-slate-900 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 leading-relaxed"
             />
           </div>
 
-          <div className="mt-4 p-5 bg-bg2 border border-border rounded-xl">
-            <div className="text-xs font-extrabold text-text-muted uppercase tracking-wider mb-3">
+          <div className="mt-4 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-3">
               Preview
             </div>
-            <div className="text-base text-text leading-relaxed whitespace-pre-wrap font-mono">
+            <div className="text-base text-slate-900 leading-relaxed whitespace-pre-wrap font-mono">
               {(form.otp_body_template || DEFAULT_TEMPLATE)
                 .replace(/\{\{name\}\}/g, 'Rahul')
                 .replace(/\{\{otp\}\}/g, '482901')
@@ -582,7 +582,7 @@ export default function EmailSettingsPage() {
             onClick={() => testMutation.mutate()}
             disabled={testMutation.isPending || !testEmail}
             className={`
-              flex items-center gap-2 px-5 py-2.5 rounded-xl border-none bg-text text-white text-sm font-bold
+              flex items-center gap-2 px-5 py-2.5 rounded-xl border-none bg-slate-900 text-white text-sm font-bold
               transition-all duration-200 whitespace-nowrap
               ${testMutation.isPending || !testEmail 
                 ? 'opacity-50 cursor-not-allowed' 
@@ -605,7 +605,7 @@ export default function EmailSettingsPage() {
         )}
       </SectionCard>
 
-      <div className="sticky bottom-0 py-4 bg-gradient-to-t from-bg/90 to-transparent flex justify-end gap-3 z-10 mt-8">
+      <div className="sticky bottom-0 py-4 bg-gradient-to-t from-[#F8FAFC]/90 to-transparent flex justify-end gap-3 z-10 mt-8">
         {hasUnsavedChanges && (
           <span className="text-sm text-amber-600 font-semibold flex items-center gap-1.5 self-center">
             <AlertTriangle size={14} /> Unsaved changes
