@@ -113,13 +113,42 @@ function AppRoutes() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/shop/:shopName" element={<ShopPage />} />
-        <Route path="/:lang?">
+
+        {/* Core Protected App Routes — Explicit top-level paths for reliable matching */}
+        <Route path="/dashboard" element={<ProtectedRoute><Layout><DashboardPage /></Layout></ProtectedRoute>} />
+        <Route path="/products" element={<ProtectedRoute><Layout><ProductsPage /></Layout></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute><Layout><OrdersPage /></Layout></ProtectedRoute>} />
+        <Route path="/analytics" element={<ProtectedRoute><Layout><AnalyticsPage /></Layout></ProtectedRoute>} />
+        <Route path="/fera-ai" element={<ProtectedRoute><Layout><FeraAIPage /></Layout></ProtectedRoute>} />
+        <Route path="/ai-assistant" element={<ProtectedRoute><Layout><AIAssistantPage /></Layout></ProtectedRoute>} />
+        <Route path="/ai-credits" element={<ProtectedRoute><Layout><AICreditsPage /></Layout></ProtectedRoute>} />
+        <Route path="/website-builder" element={<ProtectedRoute><Layout><WebsiteBuilderPage /></Layout></ProtectedRoute>} />
+        <Route path="/survey-feedback" element={<ProtectedRoute><Layout><SurveyFeedbackPage /></Layout></ProtectedRoute>} />
+        <Route path="/settings/email" element={<ProtectedRoute><Layout><EmailSettingsPage /></Layout></ProtectedRoute>} />
+        <Route path="/upgrade" element={<ProtectedRoute><Layout><UpgradePage /></Layout></ProtectedRoute>} />
+        <Route path="/support" element={<ProtectedRoute><Layout><SupportPage /></Layout></ProtectedRoute>} />
+        <Route path="/get-started" element={<ProtectedRoute><Layout><GetStartedPage /></Layout></ProtectedRoute>} />
+
+        {/* Public Root Routes */}
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+        <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+        <Route path="/callback" element={<AuthCallbackPage />} />
+        
+        {/* SEO landing pages & public pages */}
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
+        <Route path="/free-online-store" element={<FreeOnlineStore />} />
+        <Route path="/shopify-alternative-india" element={<ShopifyAlternativeIndia />} />
+        <Route path="/kirana-store-online" element={<KiranaStoreOnline />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+
+        {/* Localized Public Routes (/hi, /gu/pricing, etc.) */}
+        <Route path="/:lang">
           <Route index element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
-          <Route path="callback" element={<AuthCallbackPage />} />
-          
-          {/* SEO landing pages & public pages */}
           <Route path="pricing" element={<PricingPage />} />
           <Route path="online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
           <Route path="free-online-store" element={<FreeOnlineStore />} />
@@ -141,7 +170,6 @@ function AppRoutes() {
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="tickets" element={<AdminTicketsPage />} />
               <Route path="system" element={<AdminSystemPage />} />
-              {/* Fallback for admin */}
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
           </AdminProtectedRoute>
@@ -154,29 +182,8 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
-        <Route path="/*" element={
-          <ProtectedRoute>
-            <Layout>
-              <Routes>
-                <Route path="/get-started" element={<GetStartedPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/products" element={<ProductsPage />} />
-                <Route path="/orders" element={<OrdersPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/ai-assistant" element={<AIAssistantPage />} />
-                {/* New Fera AI — premium AI assistant page */}
-                <Route path="/fera-ai" element={<FeraAIPage />} />
-                <Route path="/ai-credits" element={<AICreditsPage />} />
-                <Route path="/website-builder" element={<WebsiteBuilderPage />} />
-                <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
-                <Route path="/settings/email" element={<EmailSettingsPage />} />
-                <Route path="/upgrade" element={<UpgradePage />} />
-                <Route path="/support" element={<SupportPage />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Layout>
-          </ProtectedRoute>
-        } />
+        {/* Catch-all fallback */}
+        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
       </Routes>
     </Suspense>
   );
