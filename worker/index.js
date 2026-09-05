@@ -803,7 +803,10 @@ function safeParseArray(value) {
 // ---------------------------------------------------------------------------
 async function route(request, env) {
   const url = new URL(request.url);
-  const path = url.pathname.replace(/\/+$/, "") || "/"; // strip trailing slashes
+  let path = url.pathname.replace(/\/+$/, "") || "/"; // strip trailing slashes
+  if (path !== "/" && !path.startsWith("/api/")) {
+    path = "/api" + path;
+  }
   const method = request.method.toUpperCase();
 
   if (path === "/" && method === "GET") {

@@ -1153,8 +1153,11 @@ async function localDelete(url: string) {
   throw createHttpError(404, `Unknown DELETE endpoint: ${path}`);
 }
 
+const rawBaseUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const normalizedBaseUrl = rawBaseUrl.endsWith('/api') ? rawBaseUrl : (rawBaseUrl + '/api');
+
 export const remoteApi = axios.create({
-  baseURL: import.meta.env?.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: normalizedBaseUrl,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
