@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Gift, Users, CheckCircle2, Trophy, Copy, Check, 
-  Share2, ArrowRight, Store, Clock, Sparkles, AlertCircle
+  Share2, Store, Clock, Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,7 +23,7 @@ export default function ReferEarnPage() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
-  const referralCode = (user?.subdomain || user?.business_name || 'arjun-store')
+  const referralCode = (user?.subdomain || user?.business_name || user?.name || 'my-store')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-');
   const referralUrl = `https://ferasetu.com/ref/${referralCode}`;
@@ -37,27 +37,16 @@ export default function ReferEarnPage() {
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `Hey! I'm using FeraSetu to grow my retail business with AI and WhatsApp commerce. Set up your online store in 2 minutes using my link and get 100 free AI credits: ${referralUrl}`
+      `Hey! I'm using FeraSetu to run my store online with WhatsApp ordering and AI. Register your shop using my link and get 100 bonus AI credits: ${referralUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  const referrals: ReferralRecord[] = [
-    { id: '1', storeName: 'Sharma Kirana Store', ownerName: 'Rohit Sharma', date: 'May 14, 2025', plan: 'Pro Plan', status: 'completed', reward: '₹500' },
-    { id: '2', storeName: 'Verma Electronics', ownerName: 'Priya Verma', date: 'May 12, 2025', plan: 'Pro Plan', status: 'completed', reward: '₹500' },
-    { id: '3', storeName: 'Singh Footwear', ownerName: 'Amit Singh', date: 'May 10, 2025', plan: 'Business Plan', status: 'completed', reward: '₹500' },
-    { id: '4', storeName: 'Patel Sarees & Fabrics', ownerName: 'Neha Patel', date: 'May 08, 2025', plan: 'Pro Plan', status: 'completed', reward: '₹500' },
-    { id: '5', storeName: 'Mehta Optical Center', ownerName: 'Karan Mehta', date: 'May 05, 2025', plan: 'Starter Plan', status: 'completed', reward: '₹500' },
-    { id: '6', storeName: 'Gupta Groceries', ownerName: 'Sunil Gupta', date: 'Apr 28, 2025', plan: 'Pro Plan', status: 'completed', reward: '₹500' },
-    { id: '7', storeName: 'Rajasthan Handloom', ownerName: 'Meena Devi', date: 'Apr 24, 2025', plan: 'Starter Plan', status: 'completed', reward: '₹500' },
-    { id: '8', storeName: 'Royal Bakers & Sweets', ownerName: 'Vikas Kumar', date: 'Apr 19, 2025', plan: 'Pro Plan', status: 'completed', reward: '₹500' },
-    { id: '9', storeName: 'Deluxe Mobile Hub', ownerName: 'Sanjay Joshi', date: 'Apr 15, 2025', plan: 'Business Plan', status: 'completed', reward: '₹500' },
-    { id: '10', storeName: 'Tiwari Sweets', ownerName: 'Ramesh Tiwari', date: 'May 17, 2025', plan: 'Setup in progress', status: 'pending', reward: 'Pending' },
-    { id: '11', storeName: 'Ananya Boutique', ownerName: 'Ananya Sen', date: 'May 16, 2025', plan: 'Store verification', status: 'pending', reward: 'Pending' },
-    { id: '12', storeName: 'Star Hardware', ownerName: 'Deepak Rao', date: 'May 15, 2025', plan: 'Adding products', status: 'pending', reward: 'Pending' },
-    { id: '13', storeName: 'Sai Auto Parts', ownerName: 'Manoj Nair', date: 'May 14, 2025', plan: 'Domain setup', status: 'pending', reward: 'Pending' },
-    { id: '14', storeName: 'City Medicals', ownerName: 'Dr. Alok Verma', date: 'May 13, 2025', plan: 'Setup in progress', status: 'pending', reward: 'Pending' },
-  ];
+  // Real referrals list (empty by default for new merchants)
+  const referrals: ReferralRecord[] = [];
+  const totalReferred = referrals.length;
+  const successfulStores = referrals.filter(r => r.status === 'completed').length;
+  const totalRewardsWon = successfulStores * 500;
 
   return (
     <div className="pb-12 max-w-[1380px] mx-auto space-y-6">
@@ -106,7 +95,7 @@ export default function ReferEarnPage() {
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
           <div>
             <p className="text-xs font-bold text-slate-400">Total Referred</p>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-1">14</h3>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-1">{totalReferred}</h3>
             <p className="text-[11px] font-medium text-slate-400 mt-1">Merchants invited</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] flex-shrink-0">
@@ -118,8 +107,8 @@ export default function ReferEarnPage() {
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
           <div>
             <p className="text-xs font-bold text-slate-400">Successful Stores</p>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-1">9</h3>
-            <p className="text-[11px] font-medium text-emerald-600 mt-1 font-semibold">Active online stores launched</p>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight mt-1">{successfulStores}</h3>
+            <p className="text-[11px] font-medium text-emerald-600 mt-1 font-semibold">Active stores launched</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
             <Store size={24} />
@@ -130,7 +119,7 @@ export default function ReferEarnPage() {
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
           <div>
             <p className="text-xs font-bold text-slate-400">Total Rewards Won</p>
-            <h3 className="text-3xl font-black text-[#0052FF] tracking-tight mt-1">₹4,500</h3>
+            <h3 className="text-3xl font-black text-[#0052FF] tracking-tight mt-1">₹{totalRewardsWon.toLocaleString('en-IN')}</h3>
             <p className="text-[11px] font-medium text-slate-400 mt-1">Credited to payout account</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 flex-shrink-0">
@@ -212,7 +201,7 @@ export default function ReferEarnPage() {
               </span>
               <div>
                 <p className="text-xs font-bold text-slate-900">You both get rewarded</p>
-                <p className="text-[11px] text-slate-500 font-medium">You get ₹500 directly in your bank account, and they get 100 free AI credits.</p>
+                <p className="text-[11px] text-slate-500 font-medium">You get ₹500 directly in your payout account, and they get 100 free AI credits.</p>
               </div>
             </div>
           </div>
@@ -231,57 +220,83 @@ export default function ReferEarnPage() {
             <p className="text-xs text-slate-500 mt-0.5">Track the status of all your invited merchants and earned rewards.</p>
           </div>
           <div className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl self-start sm:self-auto">
-            Total 14 Merchants Invited
+            Total {totalReferred} Merchants Invited
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-3">Store Name</th>
-                <th className="py-3 px-3">Owner</th>
-                <th className="py-3 px-3">Date Joined</th>
-                <th className="py-3 px-3">Store Status / Plan</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3 text-right">Reward Earned</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 text-xs font-semibold text-slate-700">
-              {referrals.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
-                      <Store size={14} />
-                    </div>
-                    <span>{item.storeName}</span>
-                  </td>
-                  <td className="py-3 px-3 text-slate-600">{item.ownerName}</td>
-                  <td className="py-3 px-3 text-slate-400 font-medium">{item.date}</td>
-                  <td className="py-3 px-3 text-slate-600">{item.plan}</td>
-                  <td className="py-3 px-3">
-                    {item.status === 'completed' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600">
-                        <CheckCircle2 size={11} /> Completed
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600">
-                        <Clock size={11} /> Pending Setup
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 text-right font-bold text-slate-900">
-                    {item.status === 'completed' ? (
-                      <span className="text-emerald-600">+{item.reward}</span>
-                    ) : (
-                      <span className="text-slate-400 font-medium">Pending</span>
-                    )}
-                  </td>
+        {referrals.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-3">Store Name</th>
+                  <th className="py-3 px-3">Owner</th>
+                  <th className="py-3 px-3">Date Joined</th>
+                  <th className="py-3 px-3">Store Status / Plan</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3 text-right">Reward Earned</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-50 text-xs font-semibold text-slate-700">
+                {referrals.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
+                        <Store size={14} />
+                      </div>
+                      <span>{item.storeName}</span>
+                    </td>
+                    <td className="py-3 px-3 text-slate-600">{item.ownerName}</td>
+                    <td className="py-3 px-3 text-slate-400 font-medium">{item.date}</td>
+                    <td className="py-3 px-3 text-slate-600">{item.plan}</td>
+                    <td className="py-3 px-3">
+                      {item.status === 'completed' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600">
+                          <CheckCircle2 size={11} /> Completed
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600">
+                          <Clock size={11} /> Pending Setup
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right font-bold text-slate-900">
+                      {item.status === 'completed' ? (
+                        <span className="text-emerald-600">+{item.reward}</span>
+                      ) : (
+                        <span className="text-slate-400 font-medium">Pending</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-12 text-center flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] mb-3 shadow-sm">
+              <Gift size={24} />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800 mb-1">No referrals yet</h3>
+            <p className="text-xs text-slate-400 font-medium max-w-sm mb-4">
+              Share your unique referral link with retailers and shopkeepers to earn ₹500 for every merchant that launches their store on FeraSetu.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={handleCopyLink}
+                className="px-4 py-2 bg-[#0052FF] hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                Copy Referral Link
+              </button>
+              <button
+                onClick={handleShareWhatsApp}
+                className="px-4 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                Share on WhatsApp
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
     </div>

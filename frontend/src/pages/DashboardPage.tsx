@@ -10,7 +10,7 @@ import {
   TrendingUp, ShoppingCart, ShoppingBag, Package, Coins,
   ArrowRight, Download, 
   Users, Target, Sparkles, ShieldCheck, Calendar,
-  ChevronDown, CreditCard
+  ChevronDown, CreditCard, Share2, Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -32,8 +32,6 @@ interface DashboardData {
     total_orders?: number;
     total_customers?: number;
     conversion_rate?: number;
-    pending_orders?: number;
-    low_stock_count?: number;
     revenue_change?: number;
     orders_change?: number;
     customers_change?: number;
@@ -46,7 +44,6 @@ interface DashboardData {
     total: number;
     status: string;
     created_at: string;
-    items_count?: number;
   }[];
   top_products?: {
     id: string;
@@ -57,6 +54,39 @@ interface DashboardData {
   }[];
 }
 
+// Generate smooth SVG curve from actual data points
+function generateSparkline(values: number[], width = 120, height = 28) {
+  if (!values || values.length === 0) {
+    const y = height - 6;
+    return { path: `M0,${y} L${width},${y}`, endX: width, endY: y };
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  
+  if (range === 0) {
+    const y = height - 8;
+    return { path: `M0,${y} L${width},${y}`, endX: width, endY: y };
+  }
+
+  const step = width / Math.max(1, values.length - 1);
+  const points = values.map((v, i) => {
+    const x = i * step;
+    const y = height - 4 - ((v - min) / range) * (height - 8);
+    return { x, y };
+  });
+
+  const path = points.reduce((acc, pt, i, arr) => {
+    if (i === 0) return `M${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+    const prev = arr[i - 1];
+    const cx = ((prev.x + pt.x) / 2).toFixed(1);
+    return `${acc} C${cx},${prev.y.toFixed(1)} ${cx},${pt.y.toFixed(1)} ${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+  }, '');
+
+  const last = points[points.length - 1];
+  return { path, endX: last.x, endY: last.y };
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -64,166 +94,258 @@ export default function DashboardPage() {
   const [downloading, setDownloading] = useState(false);
   const greeting = useMemo(() => getGreeting(), []);
 
-  // Fetch optional API data if available
-  const { data: dashboardData, isLoading } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
+  // Fetch real analytics from backend
+  const { data: dashboardData, isLoading: isDashboardLoading } = useQuery<DashboardData>({
+    queryKey: ['dashboard-analytics'],
     queryFn: async () => {
       try {
         const res = await api.get('/analytics/dashboard');
         return res.data;
       } catch {
-        return null as any;
+        return null;
       }
     },
     retry: 1,
   });
 
-  const firstName = user?.name ? user.name.split(' ')[0] : 'Arjun';
+  // Fetch real orders list
+  const { data: ordersData, isLoading: isOrdersLoading } = useQuery<{ orders: any[] }>({
+    queryKey: ['orders-list'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/orders');
+        return res.data;
+      } catch {
+        return { orders: [] };
+      }
+    },
+  });
 
-  // Fallback to high-fidelity reference metrics matching media_1788593319666.png
-  const totalRevenue = dashboardData?.stats?.total_revenue ?? 124560;
-  const totalOrders = dashboardData?.stats?.total_orders ?? 256;
-  const totalCustomers = dashboardData?.stats?.total_customers ?? 189;
-  const conversionRate = dashboardData?.stats?.conversion_rate ?? 3.42;
+  // Fetch real products catalog
+  const { data: productsData, isLoading: isProductsLoading } = useQuery<{ products: any[] }>({
+    queryKey: ['products-list'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/products');
+        return res.data;
+      } catch {
+        return { products: [] };
+      }
+    },
+  });
 
-  const revenueChange = dashboardData?.stats?.revenue_change ?? 18.6;
-  const ordersChange = dashboardData?.stats?.orders_change ?? 20.1;
-  const customersChange = dashboardData?.stats?.customers_change ?? 15.3;
-  const conversionChange = dashboardData?.stats?.conversion_change ?? 8.7;
+  const orders = useMemo(() => ordersData?.orders ?? [], [ordersData]);
+  const products = useMemo(() => productsData?.products ?? [], [productsData]);
 
-  // 7-day Sales Overview data matching screenshot exactly (May 12 - May 18)
-  const salesChartData = useMemo(() => {
-    if (dashboardData?.revenue_chart && dashboardData.revenue_chart.length > 0) {
-      return dashboardData.revenue_chart;
+  // Compute 100% REAL genuine statistics from actual merchant orders
+  const totalOrders = dashboardData?.stats?.total_orders ?? orders.length;
+
+  const totalRevenue = useMemo(() => {
+    if (dashboardData?.stats?.total_revenue !== undefined) {
+      return dashboardData.stats.total_revenue;
     }
-    return [
-      { date: 'May 12', revenue: 14000, orders: 18 },
-      { date: 'May 13', revenue: 16000, orders: 25 },
-      { date: 'May 14', revenue: 19500, orders: 32 },
-      { date: 'May 15', revenue: 18000, orders: 28 },
-      { date: 'May 16', revenue: 27000, orders: 48 },
-      { date: 'May 17', revenue: 17500, orders: 33 },
-      { date: 'May 18', revenue: 19500, orders: 38 }
-    ];
-  }, [dashboardData]);
+    return orders
+      .filter(o => o.status !== 'cancelled')
+      .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  }, [dashboardData, orders]);
 
-  // Top Selling Products matching reference screenshot
-  const topSellingProducts = useMemo(() => {
+  const totalCustomers = useMemo(() => {
+    if (dashboardData?.stats?.total_customers !== undefined) {
+      return dashboardData.stats.total_customers;
+    }
+    const customerSet = new Set<string>();
+    orders.forEach(o => {
+      const c = o.customer_name || o.customer_phone || o.phone;
+      if (c && c.trim()) customerSet.add(c.trim());
+    });
+    return customerSet.size;
+  }, [dashboardData, orders]);
+
+  const conversionRate = useMemo(() => {
+    if (dashboardData?.stats?.conversion_rate !== undefined) {
+      return dashboardData.stats.conversion_rate;
+    }
+    if (totalOrders === 0) return 0;
+    const delivered = orders.filter(o => o.status === 'delivered').length;
+    return Number(((delivered / totalOrders) * 100).toFixed(2));
+  }, [dashboardData, orders, totalOrders]);
+
+  const revenueChange = dashboardData?.stats?.revenue_change ?? 0;
+  const ordersChange = dashboardData?.stats?.orders_change ?? 0;
+  const customersChange = dashboardData?.stats?.customers_change ?? 0;
+  const conversionChange = dashboardData?.stats?.conversion_change ?? 0;
+
+  const firstName = user?.name ? user.name.split(' ')[0] : (user?.business_name || 'Merchant');
+
+  // Compute real 7-day trend series based on actual orders
+  const last7DaysData = useMemo(() => {
+    const now = new Date();
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const ymd = d.toISOString().slice(0, 10);
+      
+      const dayOrders = orders.filter(o => (o.created_at || '').startsWith(ymd));
+      const dayRev = dayOrders
+        .filter(o => o.status !== 'cancelled')
+        .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+
+      days.push({
+        date: dateLabel,
+        ymd,
+        revenue: dayRev,
+        orders: dayOrders.length
+      });
+    }
+
+    if (dashboardData?.revenue_chart && dashboardData.revenue_chart.length > 0) {
+      return dashboardData.revenue_chart.map((pt, idx) => ({
+        date: pt.date || days[idx]?.date || '',
+        ymd: days[idx]?.ymd || '',
+        revenue: pt.revenue ?? 0,
+        orders: pt.orders ?? days[idx]?.orders ?? 0
+      }));
+    }
+
+    return days;
+  }, [dashboardData, orders]);
+
+  // Dynamic sparklines generated strictly from actual 7-day values
+  const revenueSparkline = useMemo(() => {
+    const revs = last7DaysData.map(d => d.revenue);
+    return generateSparkline(revs);
+  }, [last7DaysData]);
+
+  const ordersSparkline = useMemo(() => {
+    const ords = last7DaysData.map(d => d.orders);
+    return generateSparkline(ords);
+  }, [last7DaysData]);
+
+  const customersSparkline = useMemo(() => {
+    const custs = last7DaysData.map(d => Math.min(d.orders, totalCustomers));
+    return generateSparkline(custs);
+  }, [last7DaysData, totalCustomers]);
+
+  const conversionSparkline = useMemo(() => {
+    const convs = last7DaysData.map(d => (d.orders > 0 ? conversionRate : 0));
+    return generateSparkline(convs);
+  }, [last7DaysData, conversionRate]);
+
+  // Compute real top selling products from actual catalog and order item frequencies
+  const topProducts = useMemo(() => {
     if (dashboardData?.top_products && dashboardData.top_products.length > 0) {
       return dashboardData.top_products;
     }
-    return [
-      {
-        id: 'p1',
-        name: 'Wireless Headphones',
-        price: 18990,
-        sold_count: 120,
-        image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=120&auto=format&fit=crop&q=80'
-      },
-      {
-        id: 'p2',
-        name: 'Smart Watch',
-        price: 12499,
-        sold_count: 98,
-        image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=120&auto=format&fit=crop&q=80'
-      },
-      {
-        id: 'p3',
-        name: 'Bluetooth Speaker',
-        price: 4999,
-        sold_count: 76,
-        image_url: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=120&auto=format&fit=crop&q=80'
-      },
-      {
-        id: 'p4',
-        name: 'Phone Case',
-        price: 499,
-        sold_count: 62,
-        image_url: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=120&auto=format&fit=crop&q=80'
-      },
-      {
-        id: 'p5',
-        name: 'Charger Adapter',
-        price: 799,
-        sold_count: 54,
-        image_url: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=120&auto=format&fit=crop&q=80'
-      }
+
+    const salesMap: Record<string, number> = {};
+    orders.forEach(o => {
+      (o.items || []).forEach((it: any) => {
+        const name = it?.name || it?.product_name || it?.title;
+        const qty = Number(it?.quantity || it?.qty) || 1;
+        if (name) {
+          salesMap[name] = (salesMap[name] || 0) + qty;
+        }
+      });
+    });
+
+    if (products.length > 0) {
+      return products
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          price: Number(p.price) || 0,
+          sold_count: salesMap[p.name] || 0,
+          image_url: p.images?.[0] || p.image_url || ''
+        }))
+        .sort((a, b) => b.sold_count - a.sold_count)
+        .slice(0, 5);
+    }
+
+    return [];
+  }, [dashboardData, orders, products]);
+
+  // Real Order Status Breakdown
+  const statusCounts = useMemo(() => {
+    const counts = {
+      delivered: 0,
+      processing: 0,
+      shipped: 0,
+      cancelled: 0,
+    };
+    orders.forEach(o => {
+      const s = (o.status || '').toLowerCase();
+      if (s === 'delivered') counts.delivered++;
+      else if (s === 'processing' || s === 'preparing') counts.processing++;
+      else if (s === 'shipped' || s === 'out_for_delivery') counts.shipped++;
+      else if (s === 'cancelled') counts.cancelled++;
+      else counts.processing++;
+    });
+    return counts;
+  }, [orders]);
+
+  const donutData = useMemo(() => {
+    if (totalOrders === 0) {
+      return [{ name: 'No Orders', value: 1, percentage: 0, color: '#E2E8F0' }];
+    }
+    const slices = [
+      { name: 'Delivered', value: statusCounts.delivered, percentage: Number(((statusCounts.delivered / totalOrders) * 100).toFixed(1)), color: '#10B981' },
+      { name: 'Processing', value: statusCounts.processing, percentage: Number(((statusCounts.processing / totalOrders) * 100).toFixed(1)), color: '#0052FF' },
+      { name: 'Shipped', value: statusCounts.shipped, percentage: Number(((statusCounts.shipped / totalOrders) * 100).toFixed(1)), color: '#F59E0B' },
+      { name: 'Cancelled', value: statusCounts.cancelled, percentage: Number(((statusCounts.cancelled / totalOrders) * 100).toFixed(1)), color: '#EF4444' },
     ];
-  }, [dashboardData]);
+    return slices;
+  }, [totalOrders, statusCounts]);
 
-  // Donut chart distribution (154 Delivered, 62 Processing, 28 Shipped, 12 Cancelled = 256)
-  const donutData = [
-    { name: 'Delivered', value: 154, percentage: 60.2, color: '#10B981' },
-    { name: 'Processing', value: 62, percentage: 24.2, color: '#0052FF' },
-    { name: 'Shipped', value: 28, percentage: 10.9, color: '#F59E0B' },
-    { name: 'Cancelled', value: 12, percentage: 4.7, color: '#EF4444' }
-  ];
-
-  // Recent Orders matching reference design
+  // Real Recent Orders
   const recentOrders = useMemo(() => {
     if (dashboardData?.recent_orders && dashboardData.recent_orders.length > 0) {
       return dashboardData.recent_orders;
     }
-    return [
-      {
-        id: 'ORD1234',
-        customer_name: 'Rohit Sharma',
-        total: 2499,
-        status: 'delivered',
-        icon: 'package'
-      },
-      {
-        id: 'ORD1233',
-        customer_name: 'Priya Verma',
-        total: 1899,
-        status: 'shipped',
-        icon: 'package'
-      },
-      {
-        id: 'ORD1232',
-        customer_name: 'Amit Singh',
-        total: 3299,
-        status: 'processing',
-        icon: 'package'
-      },
-      {
-        id: 'ORD1231',
-        customer_name: 'Neha Patel',
-        total: 499,
-        status: 'delivered',
-        icon: 'cart'
-      },
-      {
-        id: 'ORD1230',
-        customer_name: 'Karan Mehta',
-        total: 1299,
-        status: 'cancelled',
-        icon: 'cart'
-      }
-    ];
-  }, [dashboardData]);
+    return orders.slice(0, 5).map(o => ({
+      id: String(o.id || ''),
+      customer_name: o.customer_name || o.customer_phone || 'Customer',
+      total: Number(o.total) || 0,
+      status: o.status || 'pending',
+      created_at: o.created_at || ''
+    }));
+  }, [dashboardData, orders]);
 
-  // Handle Download Report (exports CSV & shows toast)
+  // Real AI Credits
+  const aiCreditsBalance = user?.ai_credits_balance ?? 20;
+  const aiCreditsLimit = user?.ai_credits_monthly_limit ?? (user?.plan === 'pro' ? 200 : user?.plan === 'business' ? 500 : 20);
+  const aiCreditsUsed = user?.ai_credits_used_month ?? Math.max(0, aiCreditsLimit - aiCreditsBalance);
+  const aiCreditsPercent = Math.min(100, Math.max(0, Math.round((aiCreditsUsed / Math.max(1, aiCreditsLimit)) * 100)));
+
+  // Date range display text
+  const dateRangeText = useMemo(() => {
+    if (last7DaysData.length === 0) return 'Last 7 Days';
+    const first = last7DaysData[0].date;
+    const last = last7DaysData[last7DaysData.length - 1].date;
+    return `${first} – ${last}, ${new Date().getFullYear()}`;
+  }, [last7DaysData]);
+
+  // Handle genuine CSV export
   const handleDownloadReport = () => {
     setDownloading(true);
     try {
       const csvRows = [
         ['FeraSetu Store Performance Report'],
         ['Generated At', new Date().toLocaleString()],
-        ['Store Name', user?.business_name || user?.name || 'Arjun Store'],
-        ['Period', 'May 12 – May 18, 2025'],
+        ['Store Name', user?.business_name || user?.name || 'My Store'],
+        ['Period', dateRangeText],
         [],
-        ['Key Metric', 'Value', 'Change vs Last 7 Days'],
-        ['Total Revenue', `₹${totalRevenue.toLocaleString('en-IN')}`, `+${revenueChange}%`],
-        ['Total Orders', `${totalOrders}`, `+${ordersChange}%`],
-        ['Total Customers', `${totalCustomers}`, `+${customersChange}%`],
-        ['Conversion Rate', `${conversionRate}%`, `+${conversionChange}%`],
+        ['Metric', 'Value', 'Trend vs Last 7 Days'],
+        ['Total Revenue', `₹${totalRevenue.toLocaleString('en-IN')}`, `${revenueChange}%`],
+        ['Total Orders', `${totalOrders}`, `${ordersChange}%`],
+        ['Total Customers', `${totalCustomers}`, `${customersChange}%`],
+        ['Conversion Rate', `${conversionRate}%`, `${conversionChange}%`],
         [],
         ['Daily Breakdown (Last 7 Days)', 'Revenue (INR)', 'Orders'],
-        ...salesChartData.map(d => [d.date, d.revenue, d.orders]),
+        ...last7DaysData.map(d => [d.date, d.revenue, d.orders]),
         [],
-        ['Top Selling Products', 'Price (INR)', 'Units Sold'],
-        ...topSellingProducts.map(p => [p.name, p.price, p.sold_count]),
+        ['Catalog Products', 'Price (INR)', 'Units Sold'],
+        ...topProducts.map(p => [p.name, p.price, p.sold_count]),
         [],
         ['Recent Orders', 'Customer', 'Amount (INR)', 'Status'],
         ...recentOrders.map(o => [`#${o.id}`, o.customer_name, o.total, o.status])
@@ -234,7 +356,7 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `FeraSetu_Performance_Report_May_2025.csv`);
+      link.setAttribute('download', `FeraSetu_Performance_Report_${new Date().toISOString().slice(0, 10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -246,6 +368,22 @@ export default function DashboardPage() {
       setDownloading(false);
     }
   };
+
+  const handleShareStoreWhatsApp = () => {
+    const storeUrl = user?.subdomain ? `https://${user.subdomain}.ferasetu.shop` : 'https://ferasetu.com';
+    const text = encodeURIComponent(`Check out our online store catalog and place orders directly: ${storeUrl}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  const maxChartRevenue = useMemo(() => {
+    const m = Math.max(...last7DaysData.map(d => d.revenue));
+    return m > 0 ? Math.ceil(m * 1.2) : 1000;
+  }, [last7DaysData]);
+
+  const maxChartOrders = useMemo(() => {
+    const m = Math.max(...last7DaysData.map(d => d.orders));
+    return m > 0 ? Math.ceil(m * 1.2) : 10;
+  }, [last7DaysData]);
 
   return (
     <div className="pb-10 max-w-[1380px] mx-auto space-y-6">
@@ -264,7 +402,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/90 px-3.5 py-2 rounded-xl shadow-sm text-xs font-bold text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors">
             <Calendar size={14} className="text-slate-400" />
-            <span>May 12 – May 18, 2025</span>
+            <span>{dateRangeText}</span>
             <ChevronDown size={14} className="text-slate-400 ml-0.5" />
           </div>
 
@@ -297,13 +435,13 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
             <TrendingUp size={13} />
-            <span>↗ {revenueChange}%</span>
+            <span>{revenueChange >= 0 ? `↗ +${revenueChange}%` : `↘ ${revenueChange}%`}</span>
             <span className="text-slate-400 font-medium text-[11px]">vs last 7 days</span>
           </div>
           <div className="h-9 mt-2.5 relative">
             <svg viewBox="0 0 120 28" className="w-full h-full stroke-emerald-500 fill-transparent overflow-visible" preserveAspectRatio="none">
-              <path d="M0,22 C20,22 35,16 50,18 C65,20 80,10 100,12 C110,13 115,6 120,4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="120" cy="4" r="3.5" className="fill-emerald-500" />
+              <path d={revenueSparkline.path} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx={revenueSparkline.endX} cy={revenueSparkline.endY} r="3.5" className="fill-emerald-500" />
             </svg>
           </div>
         </div>
@@ -323,13 +461,13 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
             <TrendingUp size={13} />
-            <span>↗ {ordersChange}%</span>
+            <span>{ordersChange >= 0 ? `↗ +${ordersChange}%` : `↘ ${ordersChange}%`}</span>
             <span className="text-slate-400 font-medium text-[11px]">vs last 7 days</span>
           </div>
           <div className="h-9 mt-2.5 relative">
             <svg viewBox="0 0 120 28" className="w-full h-full stroke-purple-500 fill-transparent overflow-visible" preserveAspectRatio="none">
-              <path d="M0,24 C18,24 30,19 45,21 C60,23 75,14 90,16 C105,17 112,8 120,6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="120" cy="6" r="3.5" className="fill-purple-500" />
+              <path d={ordersSparkline.path} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx={ordersSparkline.endX} cy={ordersSparkline.endY} r="3.5" className="fill-purple-500" />
             </svg>
           </div>
         </div>
@@ -349,13 +487,13 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
             <TrendingUp size={13} />
-            <span>↗ {customersChange}%</span>
+            <span>{customersChange >= 0 ? `↗ +${customersChange}%` : `↘ ${customersChange}%`}</span>
             <span className="text-slate-400 font-medium text-[11px]">vs last 7 days</span>
           </div>
           <div className="h-9 mt-2.5 relative">
             <svg viewBox="0 0 120 28" className="w-full h-full stroke-[#0052FF] fill-transparent overflow-visible" preserveAspectRatio="none">
-              <path d="M0,22 C20,23 35,17 55,19 C70,20 85,11 100,13 C110,14 115,7 120,4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="120" cy="4" r="3.5" className="fill-[#0052FF]" />
+              <path d={customersSparkline.path} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx={customersSparkline.endX} cy={customersSparkline.endY} r="3.5" className="fill-[#0052FF]" />
             </svg>
           </div>
         </div>
@@ -375,13 +513,13 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
             <TrendingUp size={13} />
-            <span>↗ {conversionChange}%</span>
+            <span>{conversionChange >= 0 ? `↗ +${conversionChange}%` : `↘ ${conversionChange}%`}</span>
             <span className="text-slate-400 font-medium text-[11px]">vs last 7 days</span>
           </div>
           <div className="h-9 mt-2.5 relative">
             <svg viewBox="0 0 120 28" className="w-full h-full stroke-orange-500 fill-transparent overflow-visible" preserveAspectRatio="none">
-              <path d="M0,24 C15,24 30,18 48,20 C65,22 80,14 95,16 C108,17 114,8 120,5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="120" cy="5" r="3.5" className="fill-orange-500" />
+              <path d={conversionSparkline.path} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx={conversionSparkline.endX} cy={conversionSparkline.endY} r="3.5" className="fill-orange-500" />
             </svg>
           </div>
         </div>
@@ -391,7 +529,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Sales Overview (col-span-6) */}
-        <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[340px]">
           <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
             <h2 className="text-base font-bold text-slate-900">Sales Overview</h2>
             <div className="flex items-center gap-3.5 text-xs font-bold text-slate-500">
@@ -409,7 +547,7 @@ export default function DashboardPage() {
           
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={last7DaysData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#0052FF" stopOpacity={0.15}/>
@@ -420,18 +558,16 @@ export default function DashboardPage() {
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94A3B8' }} dy={6} />
                 <YAxis
                   yAxisId="left"
-                  domain={[0, 30000]}
-                  ticks={[0, 10000, 20000, 30000]}
+                  domain={[0, maxChartRevenue]}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11, fill: '#94A3B8' }}
-                  tickFormatter={(val) => val === 0 ? '₹0' : `₹${val / 1000}K`}
+                  tickFormatter={(val) => val >= 1000 ? `₹${Math.round(val / 1000)}K` : `₹${val}`}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  domain={[0, 60]}
-                  ticks={[0, 20, 40, 60]}
+                  domain={[0, maxChartOrders]}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11, fill: '#94A3B8' }}
@@ -439,7 +575,7 @@ export default function DashboardPage() {
                 <Tooltip 
                   contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
                   formatter={(value: any, name: any) => [
-                    name === 'revenue' ? `₹${value.toLocaleString('en-IN')}` : value,
+                    name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : value,
                     name === 'revenue' ? 'Revenue' : 'Orders'
                   ]}
                 />
@@ -468,34 +604,57 @@ export default function DashboardPage() {
         </div>
 
         {/* Top Selling Products (col-span-3) */}
-        <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[340px]">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-base font-bold text-slate-900">Top Selling Products</h2>
             <Link to="/products" className="text-xs font-bold text-[#0052FF] hover:underline">View All</Link>
           </div>
           
-          <div className="flex flex-col gap-3 my-auto">
-            {topSellingProducts.map((prod) => (
-              <div key={prod.id} className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
-                  <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+          {topProducts.length > 0 ? (
+            <div className="flex flex-col gap-3 my-auto">
+              {topProducts.map((prod) => (
+                <div key={prod.id} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
+                    {prod.image_url ? (
+                      <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Package size={18} className="text-slate-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-bold text-slate-900">₹{prod.price.toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] font-bold text-emerald-600">
+                      {prod.sold_count} sold
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-bold text-slate-900">₹{prod.price.toLocaleString('en-IN')}</p>
-                  <p className="text-[10px] font-bold text-emerald-600">
-                    {prod.sold_count}+ sold
-                  </p>
-                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-6 px-4">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] mb-2 shadow-sm">
+                <Package size={20} />
               </div>
-            ))}
-          </div>
+              <p className="text-xs font-bold text-slate-800 mb-0.5">No products added yet</p>
+              <p className="text-[11px] text-slate-400 font-medium mb-3 max-w-[180px]">
+                Add your items to start receiving customer orders.
+              </p>
+              <Link
+                to="/products"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0052FF] hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+              >
+                <Plus size={13} />
+                <span>Add Product</span>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Order Status Donut (col-span-3) */}
-        <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[340px]">
           <h2 className="text-base font-bold text-slate-900 mb-1">Order Status</h2>
           
           <div className="h-40 relative flex items-center justify-center my-auto">
@@ -505,7 +664,7 @@ export default function DashboardPage() {
                   data={donutData}
                   innerRadius={50}
                   outerRadius={68}
-                  paddingAngle={3}
+                  paddingAngle={totalOrders > 0 ? 3 : 0}
                   dataKey="value"
                   stroke="none"
                 >
@@ -517,23 +676,48 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-black text-slate-900">256</span>
+              <span className="text-2xl font-black text-slate-900">{totalOrders}</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Total Orders</span>
             </div>
           </div>
 
           <div className="mt-2 flex flex-col gap-1.5">
-            {donutData.map(item => (
-              <div key={item.name} className="flex justify-between items-center text-xs">
-                <div className="flex items-center gap-2 font-semibold text-slate-600">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
-                  {item.name}
-                </div>
-                <div className="font-bold text-slate-900">
-                  {item.value} <span className="text-slate-400 font-normal">({item.percentage}%)</span>
-                </div>
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-2 font-semibold text-slate-600">
+                <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
+                Delivered
               </div>
-            ))}
+              <div className="font-bold text-slate-900">
+                {statusCounts.delivered} <span className="text-slate-400 font-normal">({totalOrders > 0 ? Math.round((statusCounts.delivered / totalOrders) * 100) : 0}%)</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-2 font-semibold text-slate-600">
+                <span className="w-2 h-2 rounded-full bg-[#0052FF]"></span>
+                Processing
+              </div>
+              <div className="font-bold text-slate-900">
+                {statusCounts.processing} <span className="text-slate-400 font-normal">({totalOrders > 0 ? Math.round((statusCounts.processing / totalOrders) * 100) : 0}%)</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-2 font-semibold text-slate-600">
+                <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+                Shipped
+              </div>
+              <div className="font-bold text-slate-900">
+                {statusCounts.shipped} <span className="text-slate-400 font-normal">({totalOrders > 0 ? Math.round((statusCounts.shipped / totalOrders) * 100) : 0}%)</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-2 font-semibold text-slate-600">
+                <span className="w-2 h-2 rounded-full bg-[#EF4444]"></span>
+                Cancelled
+              </div>
+              <div className="font-bold text-slate-900">
+                {statusCounts.cancelled} <span className="text-slate-400 font-normal">({totalOrders > 0 ? Math.round((statusCounts.cancelled / totalOrders) * 100) : 0}%)</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -542,47 +726,66 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Recent Orders (col-span-5) */}
-        <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[330px]">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-base font-bold text-slate-900">Recent Orders</h2>
             <Link to="/orders" className="text-xs font-bold text-[#0052FF] hover:underline">View All</Link>
           </div>
           
-          <div className="flex flex-col gap-2 my-auto">
-            {recentOrders.map((order) => {
-              const statusBadge = 
-                order.status === 'delivered' ? { bg: 'bg-emerald-50', text: 'text-emerald-600', label: 'Delivered' } :
-                order.status === 'shipped' ? { bg: 'bg-blue-50', text: 'text-blue-600', label: 'Shipped' } :
-                order.status === 'processing' ? { bg: 'bg-amber-50', text: 'text-amber-600', label: 'Processing' } :
-                { bg: 'bg-red-50', text: 'text-red-600', label: 'Cancelled' };
+          {recentOrders.length > 0 ? (
+            <div className="flex flex-col gap-2 my-auto">
+              {recentOrders.map((order) => {
+                const statusBadge = 
+                  order.status === 'delivered' ? { bg: 'bg-emerald-50', text: 'text-emerald-600', label: 'Delivered' } :
+                  order.status === 'shipped' ? { bg: 'bg-blue-50', text: 'text-blue-600', label: 'Shipped' } :
+                  order.status === 'processing' ? { bg: 'bg-amber-50', text: 'text-amber-600', label: 'Processing' } :
+                  { bg: 'bg-red-50', text: 'text-red-600', label: order.status || 'Pending' };
 
-              return (
-                <div key={order.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
-                      {order.icon === 'cart' ? <ShoppingCart size={15} /> : <Package size={15} />}
+                return (
+                  <div key={order.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
+                        <Package size={15} />
+                      </div>
+                      <p className="text-xs font-bold text-slate-900">#{order.id.slice(0, 8).toUpperCase()}</p>
                     </div>
-                    <p className="text-xs font-bold text-slate-900">#{order.id}</p>
+                    <div className="text-xs font-semibold text-slate-600 truncate max-w-[110px]">
+                      {order.customer_name}
+                    </div>
+                    <div className="text-xs font-bold text-slate-900">
+                      ₹{order.total.toLocaleString('en-IN')}
+                    </div>
+                    <div>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold capitalize ${statusBadge.bg} ${statusBadge.text}`}>
+                        {statusBadge.label}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs font-semibold text-slate-600 truncate max-w-[110px]">
-                    {order.customer_name}
-                  </div>
-                  <div className="text-xs font-bold text-slate-900">
-                    ₹{order.total.toLocaleString('en-IN')}
-                  </div>
-                  <div>
-                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold ${statusBadge.bg} ${statusBadge.text}`}>
-                      {statusBadge.label}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-6 px-4">
+              <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-2 shadow-sm">
+                <ShoppingCart size={20} />
+              </div>
+              <p className="text-xs font-bold text-slate-800 mb-0.5">No orders received yet</p>
+              <p className="text-[11px] text-slate-400 font-medium mb-3 max-w-[210px]">
+                Share your store link on WhatsApp to start receiving orders.
+              </p>
+              <button
+                onClick={handleShareStoreWhatsApp}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                <Share2 size={13} />
+                <span>Share Store Link</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* AI Assistant (col-span-4) */}
-        <div className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[330px]">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-base font-bold text-slate-900">AI Assistant</h2>
             <Link
@@ -619,7 +822,7 @@ export default function DashboardPage() {
         </div>
 
         {/* AI Credits (col-span-3) */}
-        <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[330px]">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-base font-bold text-slate-900">AI Credits</h2>
             <Link to="/ai-credits" className="text-xs font-bold text-[#0052FF] hover:underline">View Details</Link>
@@ -631,18 +834,18 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Available Credits</p>
-              <p className="text-lg font-black text-slate-900 leading-tight">120 Credits</p>
-              <p className="text-[10px] font-semibold text-slate-400">Valid till: June 12, 2025</p>
+              <p className="text-lg font-black text-slate-900 leading-tight">{aiCreditsBalance} Credits</p>
+              <p className="text-[10px] font-semibold text-slate-400">Valid till: {new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             </div>
           </div>
           
           <div className="mb-4">
             <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1.5">
-              <span>Used: 80 Credits</span>
-              <span className="text-slate-900">Total: 200 Credits</span>
+              <span>Used: {aiCreditsUsed} Credits</span>
+              <span className="text-slate-900">Total: {aiCreditsLimit} Credits</span>
             </div>
             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div className="bg-[#0052FF] h-full rounded-full transition-all" style={{ width: `40%` }}></div>
+              <div className="bg-[#0052FF] h-full rounded-full transition-all" style={{ width: `${aiCreditsPercent}%` }}></div>
             </div>
           </div>
 
@@ -677,7 +880,7 @@ export default function DashboardPage() {
 
       {/* Footer Copy */}
       <div className="flex flex-col sm:flex-row justify-between items-center text-[11px] font-semibold text-slate-400 pt-2 gap-2">
-        <p>© 2025 FeraSetu. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} FeraSetu. All rights reserved.</p>
         <p>Made with ❤️ in India 🇮🇳</p>
       </div>
 

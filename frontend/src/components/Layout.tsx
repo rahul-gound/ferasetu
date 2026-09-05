@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Package,
@@ -25,10 +26,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import PlanBadge from './ui/PlanBadge';
-import { isFreePlan } from '../config/plans';
 import SEO from './SEO';
-import LanguageSelector from './LanguageSelector';
+import api from '../services/api';
 import type { TranslationKey } from '../i18n/types';
 
 interface NavItem {
@@ -40,20 +39,6 @@ interface NavItem {
   badgeColor?: 'orange' | 'blue';
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-  { path: '/products', icon: <Package size={20} />, label: 'Products' },
-  { path: '/orders', icon: <ShoppingCart size={20} />, label: 'Orders', badge: 12, badgeColor: 'orange' },
-  { path: '/analytics', icon: <BarChart3 size={20} />, label: 'Analytics' },
-  { path: '/fera-ai', icon: <Sparkles size={20} />, label: 'Fera AI' },
-  { path: '/ai-assistant', icon: <Bot size={20} />, label: 'AI Assistant' },
-  { path: '/ai-credits', icon: <Coins size={20} />, label: 'AI Credits', badge: 120, badgeColor: 'blue' },
-  { path: '/survey-feedback', icon: <MessageSquareText size={20} />, label: 'Survey & Feedback' },
-  { path: '/website-builder', icon: <Globe size={20} />, label: 'Website Builder' },
-  { path: '/support', icon: <LifeBuoy size={20} />, label: 'Support' },
-  { path: '/settings/email', icon: <Mail size={20} />, label: 'Email Settings' }
-];
-
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { translate } = useLanguage();
@@ -62,6 +47,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch genuine orders count
+  const { data: ordersData } = useQuery<{ orders: any[] }>({
+    queryKey: ['orders-count-nav'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/orders');
+        return res.data;
+      } catch {
+        return { orders: [] };
+      }
+    },
+    staleTime: 30000,
+  });
+
+  const ordersCount = useMemo(() => ordersData?.orders?.length ?? 0, [ordersData]);
+  const pendingOrdersCount = useMemo(() => {
+    return (ordersData?.orders ?? []).filter(o => o.status === 'pending' || o.status === 'processing').length;
+  }, [ordersData]);
+
+  const navItems: NavItem[] = useMemo(() => [
+    { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+    { path: '/products', icon: <Package size={20} />, label: 'Products' },
+    { path: '/orders', icon: <ShoppingCart size={20} />, label: 'Orders', badge: ordersCount > 0 ? ordersCount : undefined, badgeColor: 'orange' },
+    { path: '/analytics', icon: <BarChart3 size={20} />, label: 'Analytics' },
+    { path: '/fera-ai', icon: <Sparkles size={20} />, label: 'Fera AI' },
+    { path: '/ai-assistant', icon: <Bot size={20} />, label: 'AI Assistant' },
+    { path: '/ai-credits', icon: <Coins size={20} />, label: 'AI Credits', badge: user?.ai_credits_balance ?? 20, badgeColor: 'blue' },
+    { path: '/survey-feedback', icon: <MessageSquareText size={20} />, label: 'Survey & Feedback' },
+    { path: '/website-builder', icon: <Globe size={20} />, label: 'Website Builder' },
+    { path: '/support', icon: <LifeBuoy size={20} />, label: 'Support' },
+    { path: '/settings/email', icon: <Mail size={20} />, label: 'Email Settings' }
+  ], [ordersCount, user?.ai_credits_balance]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -78,6 +96,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
+  const planTitle = user?.plan ? (user.plan.charAt(0).toUpperCase() + user.plan.slice(1)) : 'Free';
+  const planSubtitle = user?.plan === 'pro' ? 'Unlimited Access' : user?.plan === 'business' ? '500 Products Limit' : user?.plan === 'starter' ? '50 Products Limit' : 'Free Forever';
+  const storeDisplayName = user?.business_name || user?.name || 'My Store';
+  const storeSubdomain = user?.subdomain ? `${user.subdomain}.ferasetu.shop` : 'mystore.ferasetu.shop';
+  const avatarLetter = (storeDisplayName || user?.email || 'M').charAt(0).toUpperCase();
+
   const sidebarContent = (
     <div className='flex h-full w-[280px] flex-col overflow-y-auto border-r border-slate-200 bg-white'>
       <div className='flex flex-col border-b border-slate-100 px-6 py-5'>
@@ -92,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav aria-label="Merchant Navigation" className='flex flex-1 flex-col gap-1.5 px-4 py-6'>
-        {NAV_ITEMS.map(item => {
+        {navItems.map(item => {
           const badgeVal = item.badge;
           return (
             <NavLink
@@ -126,8 +150,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className='border-t border-slate-100 px-5 py-4'>
         <div className='rounded-2xl border border-slate-100 bg-slate-50/80 p-4'>
           <p className='text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1'>Current Plan</p>
-          <h4 className='text-xl font-extrabold text-[#0052FF] mb-0.5'>Pro</h4>
-          <p className='text-xs text-slate-500 mb-3.5'>Unlimited Access</p>
+          <h4 className='text-xl font-extrabold text-[#0052FF] mb-0.5'>{planTitle}</h4>
+          <p className='text-xs text-slate-500 mb-3.5'>{planSubtitle}</p>
           <button
             onClick={() => navigate('/upgrade')}
             className='flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052FF] px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/20 transition-all hover:bg-blue-600 cursor-pointer'
@@ -138,20 +162,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         <div className='mt-3 flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm'>
           <div className='flex items-center gap-3 min-w-0'>
-            <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80"
-              alt="Arjun Store"
-              className="h-10 w-10 shrink-0 rounded-full object-cover border border-slate-100 shadow-sm"
-              onError={(e) => {
-                (e.currentTarget as HTMLElement).style.display = 'none';
-              }}
-            />
+            <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-sm'>
+              {avatarLetter}
+            </div>
             <div className='min-w-0'>
               <div className='truncate text-sm font-bold text-slate-900'>
-                {user?.business_name || user?.name || 'Arjun Store'}
+                {storeDisplayName}
               </div>
               <div className='truncate text-xs text-slate-400 font-medium'>
-                {user?.subdomain ? `${user.subdomain}.ferasetu.shop` : 'arjunstore.ferasetu.shop'}
+                {storeSubdomain}
               </div>
             </div>
           </div>
@@ -224,12 +243,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Notification Bell */}
             <button
               className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
-              title="5 Notifications"
+              title={pendingOrdersCount > 0 ? `${pendingOrdersCount} pending orders` : 'Notifications'}
             >
               <Bell size={18} />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow">
-                5
-              </span>
+              {pendingOrdersCount > 0 ? (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow">
+                  {pendingOrdersCount}
+                </span>
+              ) : null}
             </button>
 
             {/* User Profile Pill with downward caret & interactive menu */}
@@ -244,7 +265,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   className='flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-sm'
                   aria-hidden='true'
                 >
-                  {(user?.name || user?.email || 'A').charAt(0).toUpperCase()}
+                  {avatarLetter}
                 </div>
                 <ChevronDown size={14} className={`text-slate-500 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -252,8 +273,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white p-2 shadow-xl border border-slate-100 z-50">
                   <div className="px-3 py-2.5 border-b border-slate-100">
-                    <p className="text-xs font-bold text-slate-900 truncate">{user?.name || 'Arjun Store'}</p>
-                    <p className="text-[11px] text-slate-400 font-medium truncate">{user?.email || 'arjun@ferasetu.shop'}</p>
+                    <p className="text-xs font-bold text-slate-900 truncate">{storeDisplayName}</p>
+                    <p className="text-[11px] text-slate-400 font-medium truncate">{user?.email || storeSubdomain}</p>
                   </div>
                   <div className="py-1">
                     <button
