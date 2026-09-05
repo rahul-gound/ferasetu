@@ -31,6 +31,7 @@
 
 // ---------------------------------------------------------------------------
 import { handleAdminRoutes } from "./routes/admin.js";
+import { feraRouter } from "./ai/router.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -212,6 +213,7 @@ async function getProfile(request, env) {
         email: me.email,
         name: me.name,
         plan: "beta",
+        market: "IN",
         preferred_language: "en",
         ai_credits_balance: 20,
       },
@@ -219,7 +221,10 @@ async function getProfile(request, env) {
     });
   }
 
-  return json({ user });
+  // Safe fallback for market if missing in legacy records
+  const market = user.market || (user.phone?.startsWith('+1') ? 'US' : 'IN');
+
+  return json({ user: { ...user, market } });
 }
 
 async function updateProfile(request, env) {
@@ -233,6 +238,10 @@ async function updateProfile(request, env) {
     .first();
 
   if (!existing) {
+    const market = (body.market && ['IN', 'US', 'EU'].includes(body.market.toUpperCase()))
+      ? body.market.toUpperCase()
+      : (body.phone?.startsWith('+1') ? 'US' : 'IN');
+
     const newUser = {
       id: me.$id,
       email: me.email,
@@ -240,6 +249,7 @@ async function updateProfile(request, env) {
       phone: body.phone || null,
       business_name: body.business_name || null,
       plan: "beta",
+      market,
       preferred_language: body.preferred_language || "en",
       subdomain: body.subdomain || null,
       custom_domain: null,
@@ -254,20 +264,39 @@ async function updateProfile(request, env) {
       updated_at: now,
     };
 
-    await env.DB.prepare(
-      `INSERT INTO users (
-        id, email, name, phone, business_name, plan, preferred_language, subdomain,
-        ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
-        storage_used_bytes, storage_limit_bytes, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
-        newUser.plan, newUser.preferred_language, newUser.subdomain,
-        newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
-        newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
+    // Check if market column exists before inserting
+    try {
+      await env.DB.prepare(
+        `INSERT INTO users (
+          id, email, name, phone, business_name, plan, market, preferred_language, subdomain,
+          ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
+          storage_used_bytes, storage_limit_bytes, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run();
+        .bind(
+          newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
+          newUser.plan, newUser.market, newUser.preferred_language, newUser.subdomain,
+          newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
+          newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
+        )
+        .run();
+    } catch (insertErr) {
+      // Fallback if market column hasn't migrated yet
+      await env.DB.prepare(
+        `INSERT INTO users (
+          id, email, name, phone, business_name, plan, preferred_language, subdomain,
+          ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
+          storage_used_bytes, storage_limit_bytes, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(
+          newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
+          newUser.plan, newUser.preferred_language, newUser.subdomain,
+          newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
+          newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
+        )
+        .run();
+    }
 
     return json({ user: newUser }, 201);
   }
@@ -275,7 +304,7 @@ async function updateProfile(request, env) {
   // Update existing
   const updates = [];
   const values = [];
-  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain"];
+  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain", "market"];
 
   for (const key of allowed) {
     if (body[key] !== undefined) {
@@ -753,9 +782,10 @@ async function callSarvamAI({ messages, model, isComplex, sarvamApiKey, requestI
 }
 
 /**
- * Main handler for POST /api/v1/ai/chat
+ * Main handler for POST /api/v1/ai/chat and POST /api/ai/chat
  * The primary Fera AI endpoint. Verifies auth, loads shop context,
- * runs the CEO orchestrator, and returns a structured response.
+ * atomically reserves credits in D1, executes through Fera Router,
+ * and returns a structured response.
  */
 async function handleV1AIChat(request, env) {
   const me = await getAuthenticatedUser(request, env);
@@ -767,7 +797,7 @@ async function handleV1AIChat(request, env) {
     throw new HttpError('message is required and must be under 4000 characters', 422);
   }
 
-  const language = typeof body.language === 'string' && body.language.length <= 5
+  const language = typeof body.language === 'string' && body.language.length <= 10
     ? body.language
     : 'en';
 
@@ -775,19 +805,25 @@ async function handleV1AIChat(request, env) {
     ? body.conversationHistory.slice(-10) // last 5 exchanges max
     : [];
 
+  // Atomic credit reservation in D1 BEFORE calling AI to prevent concurrent overspending
+  const now = new Date().toISOString();
+  const reserveResult = await env.DB.prepare(
+    'UPDATE users SET ai_credits_balance = ai_credits_balance - 1, ai_credits_used_month = ai_credits_used_month + 1, updated_at = ? WHERE id = ? AND ai_credits_balance > 0'
+  ).bind(now, me.$id).run();
+
+  const reserved = (reserveResult?.meta?.changes ?? reserveResult?.changes ?? 0) > 0;
+  if (!reserved) {
+    // Check if user is out of credits or doesn't exist
+    const checkUser = await env.DB.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').bind(me.$id).first();
+    if (!checkUser || (checkUser.ai_credits_balance ?? 0) <= 0) {
+      throw new HttpError('AI credits exhausted. Please upgrade your plan to continue.', 402);
+    }
+  }
+
   // Load shop context from D1
   const shopCtx = await loadShopContextFromD1(me.$id, env.DB);
 
-  // Check AI credits
-  const credits = shopCtx.user ? (shopCtx.user.ai_credits_balance ?? 0) : 0;
-  if (credits <= 0) {
-    throw new HttpError('AI credits exhausted. Please upgrade your plan to continue.', 402);
-  }
-
-  const requestId = crypto.randomUUID();
-  const startMs = Date.now();
-
-  // Build context block (aggregated, minimal)
+  // Build structured shop data context lines (in English, never translated)
   const { products, orders } = shopCtx;
   const contextLines = [
     `SHOP: ${shopCtx.shopName} (Plan: ${shopCtx.plan})`,
@@ -800,86 +836,48 @@ async function handleV1AIChat(request, env) {
     `PENDING ORDERS: ${orders.pending}`,
   ].filter(Boolean).join('\n');
 
-  // Classify intent (deterministic, no AI call)
-  const { skills, isComplex } = classifyIntent(message, language);
-  const model = isComplex ? 'sarvam-2-105b' : 'sarvam-m';
-
-  // Build history block for context
-  const historyBlock = conversationHistory
-    .slice(-6)
-    .map(m => `${m.role === 'user' ? 'SHOPKEEPER' : 'FERA AI'}: ${m.content}`)
-    .join('\n');
-
-  const systemPrompt = buildFeraSystemPrompt(language, skills);
-  const userContent = [
-    `SHOP DATA:\n${contextLines}`,
-    historyBlock ? `RECENT CONVERSATION:\n${historyBlock}` : '',
-    `SHOPKEEPER: ${message}`,
-  ].filter(Boolean).join('\n\n');
-
-  const messages_ = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userContent },
-  ];
-
-  let content;
-  const sarvamKey = env.SARVAM_API_KEY;
-
-  if (!sarvamKey || sarvamKey.length < 5) {
-    // Development fallback — never return fake business data
-    content = `Namaste! \ud83d\ude4f I'm Fera AI. Your shop has ${products.total} products and ${orders.weekCount} orders this week (\u20b9${Math.round(orders.weekRevenue)} revenue). How can I help you grow today?`;
-  } else {
-    // Retry up to 2 times for transient errors
-    let lastErr;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const raw = await callSarvamAI({ messages: messages_, model, isComplex, sarvamApiKey: sarvamKey, requestId });
-        content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        lastErr = null;
-        break;
-      } catch (err) {
-        lastErr = err;
-        // Don't retry on auth or payment errors
-        if (err instanceof HttpError && (err.status === 401 || err.status === 402)) break;
-        if (attempt < 1) await new Promise(r => setTimeout(r, 800));
-      }
-    }
-    if (lastErr) throw lastErr;
-  }
-
-  // Deduct 1 credit (best-effort — non-blocking)
-  let newBalance = credits;
   try {
-    newBalance = Math.max(0, credits - 1);
-    await env.DB.prepare(
-      'UPDATE users SET ai_credits_balance = ?, ai_credits_used_month = ai_credits_used_month + 1, updated_at = ? WHERE id = ?'
-    ).bind(newBalance, new Date().toISOString(), me.$id).run();
-  } catch (creditErr) {
-    console.error('[credits] Failed to deduct credit:', creditErr);
+    // Route request through the unified Fera Router
+    const routerResponse = await feraRouter.respond({
+      user: shopCtx.user,
+      message,
+      conversationId: body.conversationId,
+      language,
+      conversationHistory,
+      shopContextLines: contextLines,
+      env,
+    });
+
+    // Query remaining credit balance
+    const updatedUser = await env.DB.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').bind(me.$id).first();
+    const currentBalance = updatedUser?.ai_credits_balance ?? 0;
+
+    return json({
+      content: routerResponse.content,
+      model: routerResponse.model,
+      provider: routerResponse.provider,
+      skillsUsed: routerResponse.skillsUsed,
+      hasProposedActions: false,
+      proposedActions: [],
+      requestId: routerResponse.requestId,
+      latencyMs: routerResponse.latencyMs,
+      aiCreditsBalance: currentBalance,
+      routing: routerResponse.routing,
+      usage: routerResponse.usage,
+      degraded: routerResponse.degraded || false,
+      translationBackFailed: routerResponse.translationBackFailed || false,
+    });
+  } catch (aiErr) {
+    // Refund reserved credit if fatal failure occurred before model completion
+    try {
+      await env.DB.prepare(
+        'UPDATE users SET ai_credits_balance = ai_credits_balance + 1, ai_credits_used_month = MAX(0, ai_credits_used_month - 1), updated_at = ? WHERE id = ?'
+      ).bind(new Date().toISOString(), me.$id).run();
+    } catch (refundErr) {
+      console.error('[credits] Failed to refund reserved credit:', refundErr);
+    }
+    throw aiErr;
   }
-
-  // Audit log (best-effort)
-  console.log(JSON.stringify({
-    type: 'ai_request',
-    requestId,
-    userId: me.$id,
-    model,
-    skills,
-    latencyMs: Date.now() - startMs,
-    language,
-    timestamp: new Date().toISOString(),
-  }));
-
-  return json({
-    content,
-    model,
-    skillsUsed: skills,
-    hasProposedActions: false,
-    proposedActions: [],
-    requestId,
-    latencyMs: Date.now() - startMs,
-    aiCreditsBalance: newBalance,
-  });
 }
 
 function safeParseArray(value) {
@@ -962,8 +960,8 @@ async function route(request, env) {
     throw new HttpError("Method not allowed", 405);
   }
 
-  // v1 versioned AI endpoints
-  if (path === "/api/v1/ai/chat" && method === "POST") return handleV1AIChat(request, env);
+  // v1 and legacy AI endpoints (all routed through Fera Router)
+  if ((path === "/api/v1/ai/chat" || path === "/api/ai/chat") && method === "POST") return handleV1AIChat(request, env);
   if (path === "/api/v1/health" && method === "GET") {
     return json({ status: "ok", version: "2.0.0", service: "fera-ai", timestamp: new Date().toISOString() });
   }
