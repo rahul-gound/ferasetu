@@ -14,22 +14,23 @@ export default function RegisterPage() {
   const directAuthUrl = 'https://decent-grass-08.authkit.app/sign-up';
 
   useEffect(() => {
-    // Detect redirect loop: if bounced back within 5 seconds more than twice
+    // Immediate check: If the user was just redirected here from AuthKit or WorkOS, stop auto-redirecting
+    const fromAuthKit = typeof document !== 'undefined' && (
+      document.referrer.includes('authkit.app') || 
+      document.referrer.includes('workos.com')
+    );
+
     const now = Date.now();
     const lastAttempt = parseInt(sessionStorage.getItem('workos_signup_redirect_ts') || '0', 10);
     const attemptCount = parseInt(sessionStorage.getItem('workos_signup_attempts') || '0', 10);
 
-    if (now - lastAttempt < 5000) {
-      const newCount = attemptCount + 1;
-      sessionStorage.setItem('workos_signup_attempts', newCount.toString());
-      if (newCount >= 2) {
-        setHasLoopDetected(true);
-        setShowManualButton(true);
-        return;
-      }
-    } else {
-      sessionStorage.setItem('workos_signup_attempts', '1');
+    if (fromAuthKit || (now - lastAttempt < 8000 && attemptCount >= 1)) {
+      setHasLoopDetected(true);
+      setShowManualButton(true);
+      return;
     }
+
+    sessionStorage.setItem('workos_signup_attempts', (attemptCount + 1).toString());
     sessionStorage.setItem('workos_signup_redirect_ts', now.toString());
 
     if (isLoading) return;
@@ -96,12 +97,38 @@ export default function RegisterPage() {
               </p>
             </>
           ) : (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs mb-2">
-              It looks like you were redirected back. Click the button below to open sign up.
+            <div className="w-full space-y-4">
+              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-slate-300 text-xs leading-relaxed text-left">
+                <p className="font-semibold text-blue-400 mb-1 text-sm">Welcome to FeraSetu</p>
+                <p className="text-slate-400">
+                  Ready to create your store or log in? Click below to continue with secure WorkOS authentication.
+                </p>
+              </div>
+
+              <a
+                href={directAuthUrl}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleManualRedirect();
+                }}
+                className="w-full py-3.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Continue to WorkOS Sign-up</span>
+                <ArrowRight size={16} />
+              </a>
+
+              <div className="pt-3 border-t border-slate-800">
+                <p className="text-xs text-slate-400">
+                  Already registered?{' '}
+                  <a href="/login" className="font-semibold text-blue-400 hover:underline">
+                    Sign in here &rarr;
+                  </a>
+                </p>
+              </div>
             </div>
           )}
 
-          {showManualButton && (
+          {showManualButton && !hasLoopDetected && (
             <div className="mt-4 pt-4 border-t border-slate-800 w-full animate-fadeIn">
               <a
                 href={directAuthUrl}
