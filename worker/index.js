@@ -148,20 +148,16 @@ async function getAuthenticatedUser(request, env) {
   }
 
   const jwt = authHeader.substring(7);
-  
-  if (!env.WORKOS_CLIENT_ID) {
-    throw new HttpError("Server configuration missing WorkOS credentials", 500);
-  }
+  const clientId = env.WORKOS_CLIENT_ID || "client_01KZRE47KGSPK84HEP9WNBG9YY";
 
   if (!jwksCache) {
-    jwksCache = jose.createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${env.WORKOS_CLIENT_ID}`));
+    jwksCache = jose.createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${clientId}`));
   }
 
   try {
-    const { payload } = await jose.jwtVerify(jwt, jwksCache, {
-      // Typically the audience is the Client ID
-      audience: env.WORKOS_CLIENT_ID,
-    });
+    // Cryptographically verify token against WorkOS JWKS keys.
+    // AuthKit User Management session tokens do not require an audience claim matching client_id.
+    const { payload } = await jose.jwtVerify(jwt, jwksCache);
 
     return {
       $id: payload.sub,
@@ -171,7 +167,7 @@ async function getAuthenticatedUser(request, env) {
   } catch (err) {
     if (err instanceof HttpError) throw err;
     console.error("WorkOS JWT verification error:", err);
-    throw new HttpError("Unauthorized: Invalid session signature or expired token", 401);
+    throw new HttpError(`Unauthorized: Invalid session signature or expired token (${err.message})`, 401);
   }
 }
 

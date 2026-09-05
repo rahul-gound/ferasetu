@@ -1166,6 +1166,9 @@ import { getWorkOSToken, notifyUnauthorized } from './authBridge';
 
 // Inject Authorization Bearer token automatically
 remoteApi.interceptors.request.use(async (config) => {
+  if (config.headers.Authorization) {
+    return config;
+  }
   const token = await getWorkOSToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -1191,11 +1194,11 @@ remoteApi.interceptors.response.use(
 );
 
 interface ApiClient {
-  get: <T = any>(url: string) => Promise<{ data: T }>;
-  post: <T = any>(url: string, payload: Record<string, any>) => Promise<{ data: T }>;
-  put: <T = any>(url: string, payload: Record<string, any>) => Promise<{ data: T }>;
-  patch: <T = any>(url: string, payload: Record<string, any>) => Promise<{ data: T }>;
-  delete: <T = any>(url: string) => Promise<{ data: T }>;
+  get: <T = any>(url: string, config?: any) => Promise<{ data: T }>;
+  post: <T = any>(url: string, payload: Record<string, any>, config?: any) => Promise<{ data: T }>;
+  put: <T = any>(url: string, payload: Record<string, any>, config?: any) => Promise<{ data: T }>;
+  patch: <T = any>(url: string, payload: Record<string, any>, config?: any) => Promise<{ data: T }>;
+  delete: <T = any>(url: string, config?: any) => Promise<{ data: T }>;
 }
 
 const localApi: ApiClient = {
@@ -1207,11 +1210,11 @@ const localApi: ApiClient = {
 };
 
 const remoteApiAdapter: ApiClient = {
-  get: (url) => remoteApi.get(url),
-  post: (url, payload) => remoteApi.post(url, payload),
-  put: (url, payload) => remoteApi.put(url, payload),
-  patch: (url, payload) => remoteApi.patch(url, payload),
-  delete: (url) => remoteApi.delete(url),
+  get: (url, config) => remoteApi.get(url, config),
+  post: (url, payload, config) => remoteApi.post(url, payload, config),
+  put: (url, payload, config) => remoteApi.put(url, payload, config),
+  patch: (url, payload, config) => remoteApi.patch(url, payload, config),
+  delete: (url, config) => remoteApi.delete(url, config),
 };
 
 const api: ApiClient = USE_LOCAL_STORAGE_API ? localApi : remoteApiAdapter;

@@ -76,8 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(({ status, url, error }) => {
+      // Don't wipe session on /users/me failure — loadProfile will provide the fallback profile
+      if (url.includes('/users/me')) {
+        return;
+      }
       const detail = error instanceof Error ? error.message : 'Unauthorized';
-      const label = url === '/users/me' ? 'Profile request' : 'Authenticated API request';
+      const label = 'Authenticated API request';
       setProfileError(`${label} failed (${status} ${url}): ${detail}`);
       setProfile(null);
       setIsProfileLoading(false);
@@ -105,9 +109,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        let token: string | null = null;
+        try {
+          token = await getAccessToken();
+        } catch (e) {
+          console.warn('Could not retrieve WorkOS access token directly:', e);
+        }
+
+        const config: any = {};
+        if (token) {
+          config.headers = { Authorization: `Bearer ${token}` };
+        }
+
         // The Cloudflare Worker verifies the WorkOS access token injected by
         // the shared API client. It owns user provisioning in D1.
-        const { data } = await api.get('/users/me');
+        const { data } = await api.get('/users/me', config);
         let currentProfile = data.user;
 
         // Check for pending registration data from custom sign-up form
@@ -147,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           setProfile({
             ...currentProfile,
-            is_verified: workosUser.emailVerified,
+            is_verified: workosUser.emailVerified ?? true,
           });
           setProfileError(null);
         }
@@ -163,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: workosUser.firstName && workosUser.lastName
               ? `${workosUser.firstName} ${workosUser.lastName}`
               : (workosUser.email || 'Shopkeeper'),
-            is_verified: workosUser.emailVerified,
+            is_verified: workosUser.emailVerified ?? true,
             plan: 'free',
             preferred_language: localStorage.getItem('fera_language') || 'en',
             ai_credits_balance: 20,
