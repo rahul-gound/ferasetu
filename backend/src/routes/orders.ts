@@ -115,6 +115,89 @@ router.get('/public/track', async (req: Request, res: Response): Promise<void> =
 
 router.use(authenticate);
 
+// Authenticated: Create order (called by merchant / admin / direct API)
+router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const {
+    customer_name, customerName,
+    customer_phone, customerPhone,
+    delivery_address, deliveryAddress,
+    delivery_type, deliveryType = 'delivery',
+    items = [],
+    status = 'pending',
+    notes,
+    payment_status = 'unpaid'
+  } = req.body;
+
+  const finalCustomerName = customer_name || customerName || 'Guest';
+  const finalCustomerPhone = customer_phone || customerPhone || null;
+  const finalDeliveryAddress = delivery_address || deliveryAddress || null;
+  const finalDeliveryType = delivery_type || deliveryType || 'delivery';
+
+  let calculatedTotal = 0;
+  const resolvedItems = [];
+
+  for (const it of (Array.isArray(items) ? items : [])) {
+    const productId = it.product_id || it.productId || it.id;
+    const quantity = Math.max(1, parseInt(it.quantity || it.qty || 1));
+    let price = Number(it.price) || 0;
+
+    if (productId) {
+      const prod = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ?').get(productId, userId) as any;
+      if (prod) {
+        price = prod.sale_price || prod.price || price;
+      }
+    }
+
+    const itemTotal = price * quantity;
+    calculatedTotal += itemTotal;
+    resolvedItems.push({
+      product_id: productId,
+      productId: productId,
+      name: it.name || 'Product',
+      price,
+      quantity,
+      total: itemTotal
+    });
+  }
+
+  const deliveryFee = finalDeliveryType === 'delivery' ? 30 : 0;
+  const total = req.body.total !== undefined ? Number(req.body.total) : (calculatedTotal + deliveryFee);
+  const orderId = uuidv4();
+
+  db.prepare(`
+    INSERT INTO orders (id, user_id, customer_name, customer_phone, delivery_address, delivery_type, items, subtotal, delivery_fee, total, status, notes, payment_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    orderId, userId, finalCustomerName, finalCustomerPhone, finalDeliveryAddress, finalDeliveryType,
+    JSON.stringify(resolvedItems), calculatedTotal, deliveryFee, total, status, notes || null, payment_status
+  );
+
+  res.status(201).json({
+    id: orderId,
+    user_id: userId,
+    customer_name: finalCustomerName,
+    customer_phone: finalCustomerPhone,
+    delivery_address: finalDeliveryAddress,
+    delivery_type: finalDeliveryType,
+    items: resolvedItems,
+    subtotal: calculatedTotal,
+    delivery_fee: deliveryFee,
+    total,
+    status,
+    notes,
+    payment_status,
+    order: {
+      id: orderId,
+      user_id: userId,
+      customer_name: finalCustomerName,
+      total,
+      status
+    }
+  });
+});
+
 // Get all orders
 router.get('/', (req: AuthenticatedRequest, res: Response): void => {
   const db = getDatabase();
@@ -222,11 +305,15 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response): Promise<voi
   }
 
   const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(order.id);
+  const parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
 
   res.json({
+    id: order.id,
+    ...order,
+    items: parsedItems,
     order: {
       ...order,
-      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+      items: parsedItems,
     },
     invoice: invoice ? {
       ...invoice,

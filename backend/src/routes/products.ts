@@ -109,25 +109,25 @@ router.post('/',
 
       const price = safeFloat(req.body.price);
       if (price === null || price < 0) {
-        res.status(422).json({ error: 'Price must be a valid non-negative number' });
+        res.status(400).json({ error: 'Price must be a valid non-negative number' });
         return;
       }
 
       const costPrice = safeFloat(req.body.cost_price ?? req.body.costPrice);
       if (costPrice !== null && costPrice < 0) {
-        res.status(422).json({ error: 'Cost price cannot be negative' });
+        res.status(400).json({ error: 'Cost price cannot be negative' });
         return;
       }
 
       const salePrice = safeFloat(req.body.sale_price ?? req.body.salePrice);
       if (salePrice !== null && salePrice < 0) {
-        res.status(422).json({ error: 'Sale price cannot be negative' });
+        res.status(400).json({ error: 'Sale price cannot be negative' });
         return;
       }
 
       const stockQuantity = safeInt(req.body.stock_quantity ?? req.body.stockQuantity ?? req.body.stock, 0);
       if (stockQuantity < 0) {
-        res.status(422).json({ error: 'Stock quantity cannot be negative' });
+        res.status(400).json({ error: 'Stock quantity cannot be negative' });
         return;
       }
 
@@ -145,7 +145,7 @@ router.post('/',
         const candidateUrl = req.body.image_url || req.body.imageUrl;
         if (typeof candidateUrl === 'string' && candidateUrl.trim()) {
           if (!isValidImageUrl(candidateUrl)) {
-            res.status(422).json({ error: 'Invalid image URL format. Only HTTP/HTTPS URLs are allowed.' });
+            res.status(400).json({ error: 'Invalid image URL format. Only HTTP/HTTPS URLs are allowed.' });
             return;
           }
           imageUrl = candidateUrl.trim();

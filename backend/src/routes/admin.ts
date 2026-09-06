@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
-import { verify, TOTP } from 'otplib';
 import os from 'os';
 import { getDatabase } from '../models/database';
 import { adminOnly, AdminRequest, verifyAdminCredentials } from '../middleware/adminAuth';
@@ -57,6 +56,7 @@ router.post('/login', adminLoginLimiter, async (req: Request, res: Response): Pr
     }
     
     // Verify TOTP
+    const { verify } = require('otplib');
     const isValidTotp = verify({ token: totp, secret: adminTotpSecret });
     if (!isValidTotp) {
       res.status(401).json({ error: 'Invalid MFA code' });

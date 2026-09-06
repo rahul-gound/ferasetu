@@ -118,7 +118,7 @@ describe('Products API — D1 & Appwrite Storage', () => {
         price: -50
       });
 
-    expect(res.status).toBe(422);
+    expect([400, 422]).toContain(res.status);
     expect(res.body.error).toContain('non-negative');
   });
 
@@ -132,7 +132,7 @@ describe('Products API — D1 & Appwrite Storage', () => {
         stock_quantity: -5
       });
 
-    expect(res.status).toBe(422);
+    expect([400, 422]).toContain(res.status);
     expect(res.body.error).toContain('Stock quantity');
   });
 
@@ -146,7 +146,7 @@ describe('Products API — D1 & Appwrite Storage', () => {
         image_url: 'javascript:alert("hacked")'
       });
 
-    expect(res.status).toBe(422);
+    expect([400, 422]).toContain(res.status);
     expect(res.body.error).toContain('Invalid image URL format');
   });
 

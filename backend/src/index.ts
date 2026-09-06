@@ -150,6 +150,7 @@ app.get('/api/csrf-token', (req, res) => {
 const CSRF_EXEMPT_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/logout',
   '/api/auth/send-otp',
   '/api/auth/verify-otp',
   '/api/auth/send-verification-email',
@@ -158,6 +159,7 @@ const CSRF_EXEMPT_ROUTES = [
   '/api/auth/workos/exchange',
   '/api/auth/workos/session-token',
   '/api/users/workos-session',
+  '/api/orders/create',
 ];
 
 app.use((req, res, next) => {
@@ -266,21 +268,23 @@ if (IS_PRODUCTION) {
 app.use(errorHandler);
 
 // Start
-initializeDatabase().then(async () => {
-  try {
-    await verifyMailService();
-  } catch (mailErr: any) {
-    console.warn(`⚠️ Mail service initialization notice: ${mailErr?.message || mailErr}`);
-  }
-  app.listen(Number(PORT), HOST, () => {
-    console.log(`🚀 FeraSetu running on http://${HOST}:${PORT}`);
-    if (IS_PRODUCTION) {
-      console.log(`🌐 Serving frontend + API on port ${PORT}`);
+if (process.env.NODE_ENV !== 'test') {
+  initializeDatabase().then(async () => {
+    try {
+      await verifyMailService();
+    } catch (mailErr: any) {
+      console.warn(`⚠️ Mail service initialization notice: ${mailErr?.message || mailErr}`);
     }
+    app.listen(Number(PORT), HOST, () => {
+      console.log(`🚀 FeraSetu running on http://${HOST}:${PORT}`);
+      if (IS_PRODUCTION) {
+        console.log(`🌐 Serving frontend + API on port ${PORT}`);
+      }
+    });
+  }).catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('Failed to initialize database:', err);
-  process.exit(1);
-});
+}
 
 export default app;
