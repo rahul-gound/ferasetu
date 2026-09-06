@@ -1,2 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /callback
+Disallow: /verify-email
+
+Sitemap: https://ferasetu.com/sitemap.xml

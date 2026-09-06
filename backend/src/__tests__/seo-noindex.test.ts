@@ -47,10 +47,13 @@ describe('SEO Noindex & Crawler Configuration', () => {
       expect(res.headers.get('x-robots-tag')).toBe('noindex, nofollow');
     });
 
-    it('returns 404 and X-Robots-Tag on /sitemap.xml (sitemap disabled)', async () => {
+    it('returns 200 and XML on /sitemap.xml', async () => {
       const res = await fetch(`${baseUrl}/sitemap.xml`);
-      expect(res.status).toBe(404);
-      expect(res.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('xml');
+      const text = await res.text();
+      expect(text).toContain('<urlset');
+      expect(text).toContain('https://ferasetu.com/');
     });
   });
 
@@ -64,14 +67,13 @@ describe('SEO Noindex & Crawler Configuration', () => {
       expect(content).not.toMatch(/<meta\s+name=["']robots["']\s+content=["']noindex,\s*nofollow["']/i);
     });
 
-    it('public/robots.txt allows crawling so noindex can be discovered', () => {
+    it('public/robots.txt allows crawling and declares sitemap', () => {
       const robotsPath = path.join(frontendDir, 'public/robots.txt');
       expect(fs.existsSync(robotsPath)).toBe(true);
       const content = fs.readFileSync(robotsPath, 'utf8');
       expect(content).toMatch(/User-agent:\s*\*/i);
       expect(content).toMatch(/Allow:\s*\//i);
-      expect(content).not.toMatch(/Disallow:\s*\//i);
-      expect(content).not.toMatch(/sitemap/i);
+      expect(content).toMatch(/Sitemap:\s*https:\/\/ferasetu\.com\/sitemap\.xml/i);
     });
 
     it('public/_headers preserves security headers without a global noindex directive', () => {
@@ -83,9 +85,12 @@ describe('SEO Noindex & Crawler Configuration', () => {
       expect(content).toMatch(/X-Content-Type-Options:\s*nosniff/i);
     });
 
-    it('public/sitemap.xml is absent (not actively advertised)', () => {
+    it('public/sitemap.xml is present and contains canonical URLs', () => {
       const sitemapPath = path.join(frontendDir, 'public/sitemap.xml');
-      expect(fs.existsSync(sitemapPath)).toBe(false);
+      expect(fs.existsSync(sitemapPath)).toBe(true);
+      const content = fs.readFileSync(sitemapPath, 'utf8');
+      expect(content).toContain('<urlset');
+      expect(content).toContain('https://ferasetu.com/');
     });
   });
 
