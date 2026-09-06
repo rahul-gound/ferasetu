@@ -78,9 +78,9 @@ test('callback, guard, and logout routing semantics remain intact', async () => 
   const callbackSource = await readFile(new URL('../src/pages/AuthCallbackPage.tsx', import.meta.url), 'utf8');
   const layoutSource = await readFile(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8');
 
-  assert.match(appSource, /path="login" element=\{user \? <Navigate to="\/dashboard" replace \/> : <LoginPage \/>}/);
-  assert.match(appSource, /path="register" element=\{user \? <Navigate to="\/dashboard" replace \/> : <RegisterPage \/>}/);
-  assert.match(appSource, /path="callback" element=\{<AuthCallbackPage \/>}/);
+  assert.match(appSource, /path="(\/)?login" element=\{user \? <Navigate to="\/dashboard" replace \/> : <LoginPage \/>}/);
+  assert.match(appSource, /path="(\/)?register" element=\{user \? <Navigate to="\/dashboard" replace \/> : <RegisterPage \/>}/);
+  assert.match(appSource, /path="(\/)?callback" element=\{<AuthCallbackPage \/>}/);
   assert.match(appSource, /if \(!user\) return <Navigate to="\/login" replace \/>/);
   assert.match(appSource, /if \(!user\.is_verified && !isVerifyPage\)/);
   assert.match(callbackSource, /navigate\('\/dashboard', \{ replace: true \}\)/);

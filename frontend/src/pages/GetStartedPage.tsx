@@ -190,7 +190,7 @@ export default function GetStartedPage() {
         className="grid grid-cols-1 md:grid-cols-2 rounded-2xl bg-white shadow-xl overflow-hidden max-w-[900px] w-full"
       >
         {/* Left Panel - Content */}
-        <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div className="p-6 sm:p-10 flex flex-col justify-between">
           {/* Header */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
@@ -426,13 +426,9 @@ export default function GetStartedPage() {
         {/* Right Panel - Info */}
         <div
           data-gs-right
+          className="hidden md:flex flex-col justify-between p-10 text-white"
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: '#fff',
-            padding: '40px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
           }}
         >
           <div>

@@ -80,38 +80,38 @@ export default function AdminOrdersPage() {
                       No orders found.
                     </td>
                   </tr>
-                ) : orders.map((order) => (
-                  <tr key={order.id || Math.random()} className="hover:bg-slate-50/50 transition-colors">
+                ) : orders.map((order, idx) => (
+                  <tr key={order?.id || idx} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-5">
-                      <div className="font-black text-slate-900">#{String(order.id || '').slice(0, 8)}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{order.customer_name || 'Customer'}</div>
+                      <div className="font-black text-slate-900">#{String(order?.id || '').slice(0, 8)}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">{order?.customer_name || 'Customer'}</div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-2">
                         <Store size={14} className="text-orange-500" />
-                        <span className="font-bold text-slate-700">{order.shop_name || 'Store'}</span>
+                        <span className="font-bold text-slate-700">{order?.shop_name || 'Store'}</span>
                       </div>
-                      <div className="text-xs text-slate-400 ml-6">{order.user_email || ''}</div>
+                      <div className="text-xs text-slate-400 ml-6">{order?.user_email || ''}</div>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="font-black text-slate-900">₹{(order.total || 0).toLocaleString()}</div>
-                      <div className={`text-[10px] font-black uppercase ${order.payment_status === 'paid' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {order.payment_status || 'unpaid'}
+                      <div className="font-black text-slate-900">₹{(order?.total || 0).toLocaleString()}</div>
+                      <div className={`text-[10px] font-black uppercase ${order?.payment_status === 'paid' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {order?.payment_status || 'unpaid'}
                       </div>
                     </td>
                     <td className="px-6 py-5">
                       <span className={`
                         px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border
-                        ${order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
-                          order.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
+                        ${order?.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
+                          order?.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
                           'bg-blue-100 text-blue-700 border-blue-200'}
                       `}>
-                        {order.status || 'pending'}
+                        {order?.status || 'pending'}
                       </span>
                     </td>
                     <td className="px-6 py-5">
                       <div className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                        <Clock size={12} /> {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
+                        <Clock size={12} /> {order?.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                       </div>
                     </td>
                   </tr>

@@ -67,13 +67,13 @@ export default function ShopifyAlternativeIndia() {
           <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '620px', margin: '0 auto 32px', lineHeight: 1.7 }}>
             Shopify ₹2,000+/month se shuru hota hai. <strong style={{ color: '#818cf8' }}>FeraSetu ₹0 (beta)</strong> me hai. Hindi + 22 Indian languages, WhatsApp orders, aur AI jo aapki bhasha me baat kare.
           </p>
-          <a href="/register" style={{
+          <Link to="/register" style={{
             display: 'inline-block', background: '#6366f1', color: '#fff',
             padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
             fontWeight: 700, fontSize: '17px',
           }}>
             Free Me Try Karo →
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -175,13 +175,13 @@ export default function ShopifyAlternativeIndia() {
         <p style={{ fontSize: '18px', opacity: 0.9, maxWidth: '500px', margin: '0 auto 32px' }}>
           Free beta me sab kuch hai jo ek Indian shopkeeper ko chahiye. Abhi start karo.
         </p>
-        <a href="/register" style={{
+        <Link to="/register" style={{
           display: 'inline-block', background: '#fff', color: '#4f46e5',
           padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
           fontWeight: 700, fontSize: '17px',
         }}>
           Free Me Shuru Karo →
-        </a>
+        </Link>
       </section>
 
       {/* Internal links */}

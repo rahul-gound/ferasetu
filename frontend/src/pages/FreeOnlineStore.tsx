@@ -67,13 +67,13 @@ export default function FreeOnlineStore() {
           <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '600px', margin: '0 auto 32px', lineHeight: 1.7 }}>
             ₹299/month ka plan <strong style={{ color: '#10b981' }}>abhi bilkul free</strong> hai. Koi credit card nahi, koi hidden charge nahi. Bas register karo aur dukaan online karo.
           </p>
-          <a href="/register" style={{
+          <Link to="/register" style={{
             display: 'inline-block', background: '#10b981', color: '#fff',
             padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
             fontWeight: 700, fontSize: '17px',
           }}>
             Free Me Shuru Karo →
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -166,13 +166,13 @@ export default function FreeOnlineStore() {
         <p style={{ fontSize: '18px', opacity: 0.9, maxWidth: '500px', margin: '0 auto 32px' }}>
           Koi credit card nahi. Koi commitment nahi. Bas 2 minute lagenge.
         </p>
-        <a href="/register" style={{
+        <Link to="/register" style={{
           display: 'inline-block', background: '#fff', color: '#059669',
           padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
           fontWeight: 700, fontSize: '17px',
         }}>
           Free Account Banaye →
-        </a>
+        </Link>
       </section>
 
       {/* Internal links */}

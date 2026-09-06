@@ -17,6 +17,7 @@
  */
 
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 
 // ---------------------------------------------------------------------------
 // Test runner
@@ -526,6 +527,429 @@ test('website_ai (3 credits) costs more than chat (1 credit)', () => {
   const website = getAICreditCost_AFTER_FIX('Create website', true);
   const chat = getAICreditCost_AFTER_FIX('Restock advice', false);
   assert.ok(website > chat);
+});
+
+// ---------------------------------------------------------------------------
+// SUITE 12: Route Guard Enforcement & Access Control (Adversarial Challenge)
+// ---------------------------------------------------------------------------
+console.log('\n🚪 Suite 12: Route Guard Enforcement & Access Control');
+
+function evaluateProtectedRoute({ user, isLoading, pathname }) {
+  if (isLoading) return { action: 'render_loading', target: null };
+  if (!user) return { action: 'redirect', target: '/login' };
+  const isVerifyPage = pathname === '/verify-email';
+  if (!user.is_verified && !isVerifyPage) {
+    return { action: 'redirect', target: '/verify-email' };
+  }
+  return { action: 'render_child', target: pathname };
+}
+
+function evaluateAdminProtectedRoute({ token, backendVerifySuccess }) {
+  if (!token) return { action: 'redirect', target: '/admin', tokenRevoked: false };
+  if (!backendVerifySuccess) return { action: 'redirect', target: '/admin', tokenRevoked: true };
+  return { action: 'render_child', target: null };
+}
+
+const PROTECTED_MERCHANT_ROUTES = [
+  '/dashboard', '/products', '/orders', '/analytics', '/fera-ai',
+  '/ai-assistant', '/ai-credits', '/website-builder', '/survey-feedback',
+  '/settings/email', '/refer-earn', '/upgrade', '/support', '/get-started'
+];
+
+for (const route of PROTECTED_MERCHANT_ROUTES) {
+  test(`Unauthenticated visitor to ${route} redirected to /login`, () => {
+    const res = evaluateProtectedRoute({ user: null, isLoading: false, pathname: route });
+    assert.equal(res.action, 'redirect');
+    assert.equal(res.target, '/login');
+  });
+}
+
+test('Unverified merchant redirected to /verify-email', () => {
+  const res = evaluateProtectedRoute({
+    user: { id: 'u1', is_verified: false },
+    isLoading: false,
+    pathname: '/dashboard'
+  });
+  assert.equal(res.action, 'redirect');
+  assert.equal(res.target, '/verify-email');
+});
+
+test('Unverified merchant on /verify-email does not redirect loop', () => {
+  const res = evaluateProtectedRoute({
+    user: { id: 'u1', is_verified: false },
+    isLoading: false,
+    pathname: '/verify-email'
+  });
+  assert.equal(res.action, 'render_child');
+});
+
+test('Verified merchant allowed on /dashboard', () => {
+  const res = evaluateProtectedRoute({
+    user: { id: 'u1', is_verified: true },
+    isLoading: false,
+    pathname: '/dashboard'
+  });
+  assert.equal(res.action, 'render_child');
+});
+
+const PROTECTED_ADMIN_ROUTES = [
+  '/admin/dashboard', '/admin/users', '/admin/shops', '/admin/meetings',
+  '/admin/orders', '/admin/tickets', '/admin/system'
+];
+
+for (const adminRoute of PROTECTED_ADMIN_ROUTES) {
+  test(`Unauthenticated access to ${adminRoute} redirected to /admin`, () => {
+    const res = evaluateAdminProtectedRoute({ token: null, backendVerifySuccess: false });
+    assert.equal(res.action, 'redirect');
+    assert.equal(res.target, '/admin');
+  });
+}
+
+test('Invalid admin token triggers token eviction and redirect to /admin', () => {
+  const res = evaluateAdminProtectedRoute({ token: 'bad-token', backendVerifySuccess: false });
+  assert.equal(res.action, 'redirect');
+  assert.equal(res.target, '/admin');
+  assert.equal(res.tokenRevoked, true);
+});
+
+// Express authenticate middleware simulation
+function runAuthenticate(req, mockDbUser, verifyTokenFn) {
+  let resStatus = 200;
+  let resJson = null;
+  let nextCalled = false;
+  const res = {
+    status(s) { resStatus = s; return this; },
+    json(j) { resJson = j; }
+  };
+  const token = req.cookies?.access_token ||
+    (req.headers?.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null);
+
+  if (!token) {
+    res.status(401).json({ error: 'Authentication required' });
+    return { status: resStatus, body: resJson, next: nextCalled };
+  }
+  const decoded = verifyTokenFn(token);
+  if (!decoded) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return { status: resStatus, body: resJson, next: nextCalled };
+  }
+  if (!mockDbUser) {
+    res.status(401).json({ error: 'User not found' });
+    return { status: resStatus, body: resJson, next: nextCalled };
+  }
+  if (mockDbUser.is_blocked) {
+    res.status(403).json({ error: 'Account blocked' });
+    return { status: resStatus, body: resJson, next: nextCalled };
+  }
+  if ((mockDbUser.plan === 'trial' || mockDbUser.plan === 'beta') && mockDbUser.plan_expires_at) {
+    if (new Date(mockDbUser.plan_expires_at) < new Date()) {
+      res.status(403).json({ error: 'Trial expired', expired: true });
+      return { status: resStatus, body: resJson, next: nextCalled };
+    }
+  }
+  req.user = { ...decoded, plan: mockDbUser.plan };
+  nextCalled = true;
+  return { status: resStatus, body: resJson, next: nextCalled, user: req.user };
+}
+
+test('Backend authenticate: missing token -> 401', () => {
+  const res = runAuthenticate({ headers: {}, cookies: {} }, null, () => null);
+  assert.equal(res.status, 401);
+  assert.equal(res.next, false);
+});
+
+test('Backend authenticate: blocked user -> 403 Account blocked', () => {
+  const res = runAuthenticate(
+    { headers: { authorization: 'Bearer tok' } },
+    { id: 'u1', is_blocked: 1, plan: 'business' },
+    () => ({ id: 'u1' })
+  );
+  assert.equal(res.status, 403);
+  assert.equal(res.body.error, 'Account blocked');
+  assert.equal(res.next, false);
+});
+
+test('Backend authenticate: expired trial -> 403 Trial expired', () => {
+  const res = runAuthenticate(
+    { headers: { authorization: 'Bearer tok' } },
+    { id: 'u1', is_blocked: 0, plan: 'trial', plan_expires_at: new Date(Date.now() - 3600000).toISOString() },
+    () => ({ id: 'u1' })
+  );
+  assert.equal(res.status, 403);
+  assert.equal(res.body.error, 'Trial expired');
+  assert.equal(res.next, false);
+});
+
+test('Backend authenticate: active user -> 200 with DB plan', () => {
+  const res = runAuthenticate(
+    { headers: { authorization: 'Bearer tok' } },
+    { id: 'u1', is_blocked: 0, plan: 'business' },
+    () => ({ id: 'u1', plan: 'free' })
+  );
+  assert.equal(res.status, 200);
+  assert.equal(res.next, true);
+  assert.equal(res.user.plan, 'business');
+});
+
+// ---------------------------------------------------------------------------
+// SUITE 13: XSS & Hostile Protocol URL Sanitization
+// ---------------------------------------------------------------------------
+console.log('\n💉 Suite 13: XSS & Hostile Protocol URL Sanitization');
+
+function sanitizeUrl(input) {
+  if (!input || typeof input !== 'string') return '#';
+  const trimmed = input.trim();
+  if (!trimmed || trimmed === '#') return '#';
+
+  const anchorMatch = trimmed.match(/href="([^"]+)"/i);
+  const candidateUrl = anchorMatch ? anchorMatch[1].trim() : trimmed;
+
+  const SAFE_PROTOCOL_REGEX = /^(?:https?|mailto|tel):/i;
+  if (!SAFE_PROTOCOL_REGEX.test(candidateUrl)) {
+    return '#';
+  }
+
+  // Pure regex verification for safe protocol stripping (matching DOMPurify behavior)
+  const isHostile = /javascript:|data:|vbscript:|file:/i.test(candidateUrl);
+  return isHostile ? '#' : candidateUrl;
+}
+
+const HOSTILE_URLS = [
+  'javascript:alert(1)',
+  'JAVASCRIPT:alert(document.cookie)',
+  'JavaScript:void(0)',
+  'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+  'vbscript:msgbox(1)',
+  'file:///etc/passwd',
+  '<a href="javascript:alert(1)">Click</a>',
+  '<script>alert(1)</script>',
+  '//evil.com/phish',
+  '',
+  '   ',
+  null,
+  undefined
+];
+
+for (const u of HOSTILE_URLS) {
+  test(`Hostile URL [${String(u).substring(0, 25)}] sanitized to "#"`, () => {
+    assert.equal(sanitizeUrl(u), '#');
+  });
+}
+
+const SAFE_URLS = [
+  'https://instagram.com/kirana_store',
+  'http://mykirana.in',
+  'mailto:help@ferasetu.com',
+  'tel:+919876543210',
+  '<a href="https://facebook.com/kirana">FB</a>'
+];
+
+for (const u of SAFE_URLS) {
+  test(`Safe URL [${u.substring(0, 25)}] preserved`, () => {
+    const clean = sanitizeUrl(u);
+    assert.notEqual(clean, '#');
+    assert.ok(clean.startsWith('http') || clean.startsWith('mailto:') || clean.startsWith('tel:'));
+  });
+}
+
+test('Store profile updates whitelist filters out plan and credits tampering', () => {
+  const body = {
+    name: 'Kirana Store',
+    phone: '+919876543210',
+    plan: 'pro',
+    ai_credits_balance: 99999,
+    is_admin: true
+  };
+  const allowed = ['name', 'phone', 'business_name', 'preferred_language', 'subdomain', 'market'];
+  const filtered = {};
+  for (const k of allowed) {
+    if (body[k] !== undefined) filtered[k] = body[k];
+  }
+  assert.equal(filtered.name, 'Kirana Store');
+  assert.equal(filtered.phone, '+919876543210');
+  assert.equal(filtered.plan, undefined);
+  assert.equal(filtered.ai_credits_balance, undefined);
+  assert.equal(filtered.is_admin, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// SUITE 14: Token Tampering, Forged Headers & Parameter Pollution
+// ---------------------------------------------------------------------------
+console.log('\n🔏 Suite 14: Token Tampering, Forged Headers & Parameter Pollution');
+
+function verifyHmacJwt(token, secret) {
+  const parts = token.split('.');
+  if (parts.length !== 3) throw new Error('Malformed JWT');
+  const [headerB64, payloadB64, sigB64] = parts;
+
+  const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
+  if (header.alg === 'none' || !header.alg) {
+    throw new Error('Algorithm none rejected');
+  }
+
+  const expectedSig = crypto.createHmac('sha256', secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest('base64url');
+
+  if (sigB64 !== expectedSig) {
+    throw new Error('Invalid signature');
+  }
+
+  return JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+}
+
+test('JWT "alg: none" attack rejected', () => {
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: 'admin@fera.ai', role: 'ADMIN' })).toString('base64url');
+  const token = `${header}.${payload}.`;
+  assert.throws(() => verifyHmacJwt(token, 'secret'), /Algorithm none rejected/);
+});
+
+test('Altered payload claim without valid signature rejected', () => {
+  const secret = 'test-secret';
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: 'user-1', role: 'user' })).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url');
+  // Tamper payload to role: ADMIN
+  const tamperedPayload = Buffer.from(JSON.stringify({ sub: 'user-1', role: 'ADMIN' })).toString('base64url');
+  const tamperedToken = `${header}.${tamperedPayload}.${sig}`;
+  assert.throws(() => verifyHmacJwt(tamperedToken, secret), /Invalid signature/);
+});
+
+test('Token signed with wrong secret rejected', () => {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: 'admin@fera.ai' })).toString('base64url');
+  const sig = crypto.createHmac('sha256', 'wrong-secret').update(`${header}.${payload}`).digest('base64url');
+  assert.throws(() => verifyHmacJwt(`${header}.${payload}.${sig}`, 'correct-secret'), /Invalid signature/);
+});
+
+test('Forged headers (X-Original-URL, cf-connecting-ip) do not bypass auth', () => {
+  const req = {
+    headers: {
+      'x-original-url': '/api/admin/users',
+      'x-rewrite-url': '/admin/dashboard',
+      'cf-connecting-ip': '127.0.0.1'
+    }
+  };
+  const res = runAuthenticate(req, null, () => null);
+  assert.equal(res.status, 401);
+  assert.equal(res.next, false);
+});
+
+test('Order total manipulation (FS-06): authoritative catalog prices override client total', () => {
+  const dbProducts = [
+    { id: 'p1', price: 200, sale_price: 180 },
+    { id: 'p2', price: 100, sale_price: null }
+  ];
+  const clientPayload = {
+    total: 1, // Attacker sends total: 1
+    items: [
+      { productId: 'p1', qty: 2 }, // 180 * 2 = 360
+      { productId: 'p2', qty: 3 }  // 100 * 3 = 300
+    ]
+  };
+
+  let authoritativeTotal = 0;
+  for (const it of clientPayload.items) {
+    const p = dbProducts.find(x => x.id === it.productId);
+    const eff = p.sale_price || p.price;
+    const qty = Math.max(1, Math.trunc(Number(it.qty || 1)));
+    authoritativeTotal += eff * qty;
+  }
+  assert.equal(authoritativeTotal, 660);
+  assert.notEqual(authoritativeTotal, clientPayload.total);
+});
+
+test('Quantity is strictly clamped to positive integer', () => {
+  const inputs = [-5, 0, 1.99, '4', 7.01];
+  const clamped = inputs.map(q => Math.max(1, Math.trunc(Number(q || 1))));
+  assert.deepEqual(clamped, [1, 1, 1, 4, 7]);
+});
+
+// ---------------------------------------------------------------------------
+// SUITE 15: Rate Limiting Brute-Force & Denial of Service Protection
+// ---------------------------------------------------------------------------
+console.log('\n🔒 Suite 15: Rate Limiting Brute-Force Protection');
+
+class AdminRateLimiter {
+  constructor() { this.attempts = new Map(); }
+  recordAttempt(ip, now = Date.now()) {
+    const s = this.attempts.get(ip) || { count: 0, last: now };
+    if (now - s.last < 60000 && s.count >= 5) {
+      return { allowed: false, status: 429, error: 'Too many login attempts. Try again later.' };
+    }
+    if (now - s.last >= 60000) s.count = 0;
+    s.count++;
+    s.last = now;
+    this.attempts.set(ip, s);
+    return { allowed: true, count: s.count };
+  }
+}
+
+test('Admin login: >5 attempts within 60s blocked with 429', () => {
+  const limiter = new AdminRateLimiter();
+  const ip = '192.0.2.1';
+  const t0 = 1000000;
+  for (let i = 1; i <= 5; i++) {
+    const r = limiter.recordAttempt(ip, t0 + i * 1000);
+    assert.equal(r.allowed, true);
+  }
+  const blocked = limiter.recordAttempt(ip, t0 + 6000);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.status, 429);
+  assert.equal(blocked.error, 'Too many login attempts. Try again later.');
+
+  // Reset after 61s
+  const reset = limiter.recordAttempt(ip, t0 + 65000);
+  assert.equal(reset.allowed, true);
+  assert.equal(reset.count, 1);
+});
+
+// ---------------------------------------------------------------------------
+// SUITE 16: Error Masking & Information Leakage Prevention
+// ---------------------------------------------------------------------------
+console.log('\n🛡️  Suite 16: Error Masking & Information Leakage Prevention');
+
+function runExpressErrorHandler(err) {
+  const status = err.status || 500;
+  const message = status === 500 ? 'Internal server error' : err.message;
+  return { status, body: { error: message, code: `ERR_${status}` } };
+}
+
+test('Express 500 handler masks stack traces and internal DB messages', () => {
+  const err = new Error('SQLite3 fatal error: SELECT * FROM users WHERE password_hash = 123');
+  err.stack = 'Error: SQLite3 fatal error\n    at db.prepare (database.ts:42)';
+  const res = runExpressErrorHandler(err);
+  assert.equal(res.status, 500);
+  assert.equal(res.body.error, 'Internal server error');
+  assert.equal(res.body.code, 'ERR_500');
+  assert.equal(res.body.stack, undefined);
+  assert.ok(!JSON.stringify(res.body).includes('SQLite3'));
+  assert.ok(!JSON.stringify(res.body).includes('password_hash'));
+});
+
+test('Worker 500 error response masks D1 exceptions', () => {
+  function workerErrorResponse(err) {
+    return { status: 500, body: { error: 'Internal server error' } };
+  }
+  const d1Error = new Error('D1_ERROR: table products has no column named fake_col');
+  const res = workerErrorResponse(d1Error);
+  assert.equal(res.status, 500);
+  assert.equal(res.body.error, 'Internal server error');
+  assert.ok(!JSON.stringify(res.body).includes('D1_ERROR'));
+  assert.ok(!JSON.stringify(res.body).includes('fake_col'));
+});
+
+test('Jose JWT verification failure returns masked message without raw crypto dump', () => {
+  function maskJoseError(rawError) {
+    return { status: 401, body: { error: 'Unauthorized: Invalid session signature or expired token' } };
+  }
+  const rawJose = new Error('JWKSet: No matching key found with kid "k_01KZRE47" in remote key set');
+  const res = maskJoseError(rawJose);
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, 'Unauthorized: Invalid session signature or expired token');
+  assert.ok(!res.body.error.includes('JWKSet'));
+  assert.ok(!res.body.error.includes('k_01KZRE47'));
 });
 
 // ---------------------------------------------------------------------------

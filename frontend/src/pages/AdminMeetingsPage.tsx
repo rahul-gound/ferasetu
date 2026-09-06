@@ -60,10 +60,13 @@ export default function AdminMeetingsPage() {
     }
   };
 
+  const searchLower = (search || '').toLowerCase();
   const filteredMeetings = meetings.filter(m => 
-    (m.customer_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (m.business_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (m.customer_email?.toLowerCase() || '').includes(search.toLowerCase())
+    Boolean(m) && (
+      (m.customer_name?.toLowerCase() || '').includes(searchLower) ||
+      (m.business_name?.toLowerCase() || '').includes(searchLower) ||
+      (m.customer_email?.toLowerCase() || '').includes(searchLower)
+    )
   );
 
   return (

@@ -67,13 +67,13 @@ export default function KiranaStoreOnline() {
           <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '620px', margin: '0 auto 32px', lineHeight: 1.7 }}>
             Apne kirana store ko 2 minute me online karo. <strong style={{ color: '#f59e0b' }}>Free hai, Hindi me hai</strong>, aur customers seedha WhatsApp pe order denge. AI sab set kar dega.
           </p>
-          <a href="/register" style={{
+          <Link to="/register" style={{
             display: 'inline-block', background: '#f59e0b', color: '#fff',
             padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
             fontWeight: 700, fontSize: '17px',
           }}>
             Kirana Store Online Karo →
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -170,13 +170,13 @@ export default function KiranaStoreOnline() {
         <p style={{ fontSize: '18px', opacity: 0.9, maxWidth: '500px', margin: '0 auto 32px' }}>
           Free hai. 2 minute lagenge. Aur phir customers seedha WhatsApp pe order denge.
         </p>
-        <a href="/register" style={{
+        <Link to="/register" style={{
           display: 'inline-block', background: '#fff', color: '#d97706',
           padding: '16px 40px', borderRadius: '30px', textDecoration: 'none',
           fontWeight: 700, fontSize: '17px',
         }}>
           Free Me Start Karo →
-        </a>
+        </Link>
       </section>
 
       {/* Internal links */}

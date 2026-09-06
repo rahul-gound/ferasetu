@@ -271,7 +271,7 @@ function ThinkingIndicator() {
         }}
       >
         <Loader2 size={15} color="#FF6B35" className="animate-spin" />
-        <span style={{ fontSize: 13, color: '#64748B', fontWeight: 600, fontStyle: 'italic' }}>
+        <span style={{ fontSize: 13, color: '#94A3B8', fontWeight: 600, fontStyle: 'italic' }}>
           Thinking about your shop...
         </span>
       </div>
@@ -727,7 +727,7 @@ export default function FeraAIPage() {
                     color: activeCategory === cat.key ? cat.color : '#94A3B8',
                   }}
                 >
-                  <span style={{ color: activeCategory === cat.key ? cat.color : '#4B5563' }}>
+                  <span style={{ color: activeCategory === cat.key ? cat.color : '#94A3B8' }}>
                     {cat.icon}
                   </span>
                   <span style={{
