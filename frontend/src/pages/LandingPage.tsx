@@ -50,6 +50,7 @@ import TransformationFlow from '../components/marketing/TransformationFlow';
 import ValueCurveSection from '../components/marketing/ValueCurveSection';
 import HeroProductVisual from '../components/marketing/HeroProductVisual';
 import MarketingReveal from '../components/marketing/MarketingReveal';
+import LanguageScroller from '../components/marketing/LanguageScroller';
 import SEO from '../components/SEO';
 
 /** Outcome-oriented feature block: Feature → Does → Matters */
@@ -105,8 +106,8 @@ export default function LandingPage() {
   return (
     <>
       <SEO
-        title="FeraSetu — Your Own Online Store for Indian Shopkeepers"
-        description="Turn your shop into an online business. Get your own store link, accept WhatsApp orders, receive UPI payments, and use AI to manage your shop — starting at ₹0."
+        title={t('seo.landing.title') || "FeraSetu — Zero-Bloat Online Store Builder with Built-in AI"}
+        description={t('seo.landing.desc') || "Launch your independent online store in minutes. 0% commissions, no plugin bloat, and proactive AI assistance built-in."}
         noindex={false}
         structuredData={{
           '@context': 'https://schema.org',
@@ -114,11 +115,11 @@ export default function LandingPage() {
           name: 'FeraSetu',
           applicationCategory: 'BusinessApplication',
           description:
-            'Online store builder for Indian shopkeepers. Zero commissions, WhatsApp ordering, UPI payments, and FeraSetu AI assistant.',
+            'Online store builder. Zero commissions, direct ordering, fast payments, and FeraSetu AI assistant.',
           offers: {
             '@type': 'Offer',
             price: '0',
-            priceCurrency: 'INR',
+            priceCurrency: 'USD',
             description: 'Free forever for up to 25 products',
           },
           operatingSystem: 'Web, iOS, Android',
@@ -127,37 +128,36 @@ export default function LandingPage() {
       />
 
       <PublicLayout>
+        {/* Top Language Scroller */}
+        <LanguageScroller />
+
         {/* ================================================================
           SECTION 1 — HERO (ATTENTION)
-          Purple Cow: "Your own store. Your customers. Your profits."
-          First viewport answers: What? Who for? Why care? What's different?
         ================================================================ */}
-        <section className="relative pt-20 pb-24 md:pt-24 md:pb-28 overflow-hidden bg-gradient-to-b from-blue-50/60 via-white to-white">
+        <section className="relative pt-12 pb-24 md:pt-16 md:pb-28 overflow-hidden bg-gradient-to-b from-blue-50/60 via-white to-white">
           <div className="max-w-[1000px] mx-auto px-6 relative z-10 text-center">
 
-            {/* Purple Cow Badge */}
+            {/* Badge */}
             <div className="hero-card-enter inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100/70 border border-blue-200 text-blue-800 text-xs sm:text-sm font-bold tracking-wide mb-6 uppercase shadow-sm">
               <Store size={14} className="text-blue-600" />
-              <span>{t('hero.badge') || 'For Indian Shopkeepers & Local Retailers'}</span>
+              <span>{t('hero.badge') || 'For Independent Businesses & Sellers'}</span>
             </div>
 
-            {/* Main Headline — Purple Cow positioning */}
+            {/* Main Headline */}
             <h1 className="hero-card-enter hero-card-delay-1 text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-4">
-              Apni dukaan ko online le jao.{' '}
-              <span className="text-blue-600">
-                Orders badhao, business sambhalo
-              </span>{' '}
-              — ek hi jagah se.
+              {t('hero.title') || 'Launch your online store. Grow your orders, manage your business — all in one place.'}
             </h1>
 
-            {/* Translation */}
-            <p className="text-sm sm:text-base font-semibold text-slate-400 mb-5 max-w-2xl mx-auto">
-              (Build your online store, accept more orders, and manage your business from one place.)
-            </p>
+            {/* Translation / Subtitle (if available) */}
+            {t('hero.titleTranslation') ? (
+              <p className="text-sm sm:text-base font-semibold text-slate-400 mb-5 max-w-2xl mx-auto">
+                {t('hero.titleTranslation')}
+              </p>
+            ) : null}
 
-            {/* Purple Cow differentiator line */}
+            {/* Differentiator line */}
             <p className="hero-card-enter hero-card-delay-2 text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-              {t('hero.subtitle') || 'No technical knowledge needed. Your own store link. WhatsApp orders. Direct UPI payments. FeraSetu AI handles the rest.'}
+              {t('hero.subtitle') || 'No technical knowledge needed. Your own store link, streamlined orders, and proactive AI assistance for inventory and sales.'}
             </p>
 
             {/* Hero CTAs */}

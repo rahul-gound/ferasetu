@@ -2,7 +2,27 @@ import type { Dictionary } from './types';
 import en from './en';
 
 const dictionaryImports: Record<string, () => Promise<{ default: Dictionary }>> = {
+  // Global English
   en: () => import('./en'),
+
+  // European Union (EU) Languages
+  fr: () => import('./fr'),
+  de: () => import('./de'),
+  es: () => import('./es'),
+  it: () => import('./it'),
+  nl: () => import('./nl'),
+  pt: () => import('./pt'),
+  pl: () => import('./pl'),
+  sv: () => import('./sv'),
+  da: () => import('./da'),
+  fi: () => import('./fi'),
+  el: () => import('./el'),
+  cs: () => import('./cs'),
+  ro: () => import('./ro'),
+  hu: () => import('./hu'),
+  ga: () => import('./ga'),
+
+  // Indian Languages (22)
   as: () => import('./as'),
   bn: () => import('./bn'),
   brx: () => import('./brx'),

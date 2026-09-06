@@ -1,0 +1,48 @@
+import type { Dictionary } from './types';
+import en from './en';
+
+const dict: Dictionary = {
+  ...en,
+  "nav.howItWorks": "Sådan fungerer det",
+  "nav.features": "Funktioner",
+  "nav.pricing": "Priser",
+  "nav.signIn": "Log ind",
+  "nav.startFree": "Start gratis",
+  "nav.dashboard": "Kontrolpanel",
+  "seo.landing.title": "FeraSetu — Din enkle webshop uden kommission",
+  "seo.landing.desc": "Opret din webshop på få minutter med FeraSetu. Nul kommission, ingen unødvendige plugins, med integreret AI-hjælp.",
+  "hero.badge": "TIL SELVSTÆNDIGE KØBMÆND & SKABERE",
+  "hero.title": "Få din butik online. Flere ordrer, mindre besvær.",
+  "hero.titleHighlight": "Flere ordrer, mindre besvær",
+  "hero.titleTranslation": "(Build your online store, accept more orders, and manage your business from one place.)",
+  "hero.subtitle": "Ingen teknisk viden påkrævet. Dit eget butikslink, organiserede ordrer og smart AI til lagerstyring.",
+  "hero.cta": "Start gratis (0 kr.)",
+  "hero.pricingCta": "Se priser",
+  "hero.howItWorks": "Se hvordan det fungerer",
+  "hero.noCreditCard": "Intet kreditkort påkrævet",
+  "hero.setupIn": "Klar på 5 minutter",
+  "hero.zeroStart": "0 kr. at starte",
+  "problem.title": "Det er hårdt nok at drive en forretning — dine værktøjer bør hjælpe, ikke genere.",
+  "problem.subtitle": "Slut med at miste ordrer i chattråde, bruge tid på regneark eller betale høje platformgebyrer.",
+  "problem.marketplace.title": "Nul kommission (0%)",
+  "problem.marketplace.desc": "Stop med at betale 15–30 % af din omsætning til mellemmænd. Behold 100 % af dit overskud.",
+  "solution.title": "Din butik. Dine kunder. Dit overskud.",
+  "solution.subtitle": "FeraSetu giver dig alt til professionelt online salg uden skjulte omkostninger.",
+  "solution.step1.title": "Tilføj dine produkter",
+  "solution.step1.desc": "Upload dit katalog med billeder, priser og lager på få minutter fra mobilen.",
+  "solution.step2.title": "Del dit link",
+  "solution.step2.desc": "Del dit butikslink på Instagram, WhatsApp eller via en QR-kode i din fysiske butik.",
+  "solution.step3.title": "Modtag direkte ordrer",
+  "solution.step3.desc": "Kunder handler direkte hos dig. Du bevarer 100 % af kunderelationen.",
+  "features.title": "Alt hvad du behøver for at vokse",
+  "features.subtitle": "Enkle og pålidelige funktioner bygget til uafhængige forretninger.",
+  "pricingPreview.title": "Gennemskuelige og ærlige priser",
+  "pricingPreview.subtitle": "Start gratis. Opgrader når din virksomhed vokser. Ingen skjulte gebyrer.",
+  "pricingPreview.recommended": "MEST POPULÆRE",
+  "pricingPreview.viewAll": "Sammenlign alle funktioner",
+  "plan.free.name": "Gratis",
+  "plan.business.name": "Business",
+  "plan.pro.name": "Pro"
+};
+
+export default dict;

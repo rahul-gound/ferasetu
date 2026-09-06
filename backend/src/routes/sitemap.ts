@@ -4,7 +4,19 @@ const router = Router();
 
 const BASE_URL = 'https://ferasetu.com';
 
-const PUBLIC_PAGES = [
+// EU Languages (15)
+const EU_LANGUAGES = [
+  'fr', 'de', 'es', 'it', 'nl', 'pt', 'pl', 'sv', 'da', 'fi', 'el', 'cs', 'ro', 'hu', 'ga'
+];
+
+// Indian Languages (21 non-English)
+const IN_LANGUAGES = [
+  'hi', 'bn', 'mr', 'gu', 'ta', 'te', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'sa', 'ks', 'gom', 'mai', 'brx', 'doi', 'mni', 'sd'
+];
+
+const ALL_LANGUAGES = [...EU_LANGUAGES, ...IN_LANGUAGES];
+
+const PUBLIC_CORE_PAGES = [
   { path: '', priority: '1.0', changefreq: 'weekly' },
   { path: '/pricing', priority: '0.9', changefreq: 'weekly' },
   { path: '/free-online-store', priority: '0.8', changefreq: 'weekly' },
@@ -15,10 +27,18 @@ const PUBLIC_PAGES = [
   { path: '/privacy', priority: '0.5', changefreq: 'monthly' },
 ];
 
+const LANGUAGE_LANDING_PAGES = ALL_LANGUAGES.map(lang => ({
+  path: `/${lang}`,
+  priority: '0.8',
+  changefreq: 'weekly'
+}));
+
+const ALL_PAGES = [...PUBLIC_CORE_PAGES, ...LANGUAGE_LANDING_PAGES];
+
 function generateSitemapXml(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${PUBLIC_PAGES.map(page => `  <url>
+${ALL_PAGES.map(page => `  <url>
     <loc>${BASE_URL}${page.path}</loc>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
