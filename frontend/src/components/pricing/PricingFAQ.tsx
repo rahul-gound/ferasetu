@@ -36,8 +36,8 @@ const FAQ_ITEMS: FAQItem[] = [
     answer: 'Yes. You can export your product list and order history. Your data is yours — we don\'t hold it hostage. You can always contact support to get a full export.',
   },
   {
-    question: 'How does Fera AI help me?',
-    answer: 'Fera AI is your business assistant. You can ask it things like "Which products are selling best?", "Help me write a product description", "What should I restock?", or "Create a WhatsApp promotion message". It uses your actual shop data — it never makes up numbers.',
+    question: 'How does FeraSetu AI help me?',
+    answer: 'FeraSetu AI is your business assistant. You can ask it things like "Which products are selling best?", "Help me write a product description", "What should I restock?", or "Create a WhatsApp promotion message". It uses your actual shop data — it never makes up numbers.',
   },
   {
     question: 'What happens to my store if I don\'t upgrade?',

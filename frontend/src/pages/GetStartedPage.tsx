@@ -310,7 +310,7 @@ export default function GetStartedPage() {
                     alignItems: 'center',
                     gap: '6px',
                   }}
-                  title="Ask AI Assistant for help"
+                  title="Ask FeraSetu AI for help"
                 >
                   <MessageCircle size={18} />
                 </button>
@@ -318,7 +318,7 @@ export default function GetStartedPage() {
             </>
           ) : (
             <>
-              {/* AI Assistant Chat */}
+              {/* FeraSetu AI Chat */}
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',

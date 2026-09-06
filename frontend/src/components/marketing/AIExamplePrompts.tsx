@@ -56,7 +56,7 @@ interface AIExamplePromptsProps {
 export default function AIExamplePrompts({
   showCTA = true,
   ctaHref = '/register',
-  ctaText = 'Try Fera AI Free',
+  ctaText = 'Try FeraSetu AI Free',
 }: AIExamplePromptsProps) {
   const { getLocalizedLink } = useLanguage();
   const { register } = useAuth();
@@ -64,14 +64,14 @@ export default function AIExamplePrompts({
   return (
     <section
       className="py-20 md:py-24 bg-slate-900 text-white"
-      aria-label="Fera AI examples"
-      id="fera-ai"
+      aria-label="FeraSetu AI examples"
+      id="ferasetu-ai"
     >
       <div className="max-w-[1200px] mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-900/60 border border-purple-700 text-purple-300 text-xs font-bold uppercase tracking-wider mb-4">
             <Sparkles size={12} />
-            Fera AI
+            FeraSetu AI
           </div>
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-4">
             AI that reduces work,{' '}
@@ -80,7 +80,7 @@ export default function AIExamplePrompts({
             </span>
           </h2>
           <p className="text-slate-400 text-lg">
-            Not generic chat. Fera AI understands Indian retail — your local language, seasonal sales, inventory formulas, and WhatsApp messaging.
+            Not generic chat. FeraSetu AI understands Indian retail — your local language, seasonal sales, inventory formulas, and WhatsApp messaging.
           </p>
         </div>
 
@@ -115,11 +115,11 @@ export default function AIExamplePrompts({
                 </p>
               </div>
 
-              {/* Fera AI response preview */}
+              {/* FeraSetu AI response preview */}
               <div className="flex-1 flex flex-col justify-between">
                 <div>
                   <p className="text-xs text-purple-400 font-semibold mb-1 uppercase tracking-wider">
-                    Fera AI does:
+                    FeraSetu AI does:
                   </p>
                   <p className="text-sm text-slate-300 leading-relaxed">
                     {item.response}

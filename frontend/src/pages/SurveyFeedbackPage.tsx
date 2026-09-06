@@ -226,11 +226,11 @@ export default function SurveyFeedbackPage() {
 
         <div style={{ padding: 20, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
           <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Bot size={18} /> AI Assistant
+            <Bot size={18} /> FeraSetu AI
           </h2>
           <div
             role="log"
-            aria-label="AI Assistant conversation"
+            aria-label="FeraSetu AI conversation"
             style={{ flex: 1, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 10, padding: 10, background: '#f8fafc', marginBottom: 10 }}
           >
             {aiMessages.map((message, i) => (

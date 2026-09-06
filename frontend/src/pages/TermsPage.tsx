@@ -44,7 +44,7 @@ const TERMS_SECTIONS: LegalSection[] = [
           `Merchant Customer or End Customer means a person who visits, contacts, buys from, or otherwise transacts with a Merchant.`,
           `Content means text, images, product information, logos, audio, video, files, prompts, and other material submitted to or generated through the Services.`,
           `Merchant Data means business records, catalogs, customer information, orders, analytics, configuration, and other data associated with a Merchant Account or Store.`,
-          `Fera AI means automated features that generate or process content, summaries, suggestions, translations, insights, or other outputs.`,
+          `FeraSetu AI means automated features that generate or process content, summaries, suggestions, translations, insights, or other outputs.`,
           `Subscription means a recurring or non-recurring right to use a paid version of the Services for a defined period.`,
           `Paid Plan means a plan for which FeraSetu charges a fee.`,
           `Trial or Beta Offer means a limited-time, limited-feature, promotional, beta, pilot, or free plan or pricing arrangement, as made available by FeraSetu.`,
@@ -192,18 +192,18 @@ const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     id: 'fera-ai',
-    title: 'Fera AI and Automated Features',
+    title: 'FeraSetu AI and Automated Features',
     blocks: [
       {
         kind: 'paragraph',
-        text: `Fera AI may generate product descriptions, marketing copy, translations, catalog content, suggestions, summaries, business insights, or other automated outputs. Fera AI is intended to help you work faster, not to replace your review or judgment.`
+        text: `FeraSetu AI may generate product descriptions, marketing copy, translations, catalog content, suggestions, summaries, business insights, or other automated outputs. FeraSetu AI is intended to help you work faster, not to replace your review or judgment.`
       },
       {
         kind: 'list',
         items: [
           `AI output can be inaccurate, incomplete, outdated, unsuitable, biased, or inappropriate for your business or jurisdiction.`,
           `You are responsible for reviewing AI output before publishing it or relying on it for a business decision.`,
-          `Fera AI does not provide legal, financial, tax, medical, regulatory, audit, or other professional advice.`,
+          `FeraSetu AI does not provide legal, financial, tax, medical, regulatory, audit, or other professional advice.`,
           `You remain responsible for published Content, product claims, pricing, compliance, and customer communications.`,
           `Availability, providers, models, limits, and behavior of automated features may change.`,
           `FeraSetu does not guarantee that AI output is unique, commercially effective, error-free, or fit for a particular purpose.`

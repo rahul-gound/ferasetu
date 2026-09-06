@@ -20,7 +20,7 @@ const faqSchema = {
       name: 'Kya free plan me products add kar sakte hain?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Haan! Free plan me 25 products add kar sakte ho, custom subdomain milta hai, order management, invoices, aur Fera AI assistant sab included hai.',
+        text: 'Haan! Free plan me 25 products add kar sakte ho, custom subdomain milta hai, order management, invoices, aur FeraSetu AI assistant sab included hai.',
       },
     },
     {
@@ -88,7 +88,7 @@ export default function FreeOnlineStore() {
             { icon: '📦', title: '19 Products Tak', desc: 'Products add karo with photos, prices, descriptions. Sab free.' },
             { icon: '🧾', title: 'Invoices', desc: 'Har order pe automatic tax invoice. Professional lagta hai.' },
             { icon: '📊', title: 'Order Management', desc: 'Orders track karo, status update karo, customers ko inform karo.' },
-            { icon: '🤖', title: 'AI Assistant', desc: 'Hindi me sawaal pucho — products suggest karo, website edit karo.' },
+            { icon: '🤖', title: 'FeraSetu AI', desc: 'Hindi me sawaal pucho — products suggest karo, website edit karo.' },
             { icon: '💬', title: 'WhatsApp Ready', desc: 'Customers ko WhatsApp pe share karo. Indian shopkeepers ke liye best.' },
           ].map((item) => (
             <div key={item.title} style={{
@@ -113,7 +113,7 @@ export default function FreeOnlineStore() {
             {[
               { feature: 'Website + Subdomain', free: '✅', paid: '✅' },
               { feature: 'Products', free: '25 tak', paid: '500 / Unlimited' },
-              { feature: 'AI Assistant', free: '20 messages/mo', paid: 'Full access (200+)' },
+              { feature: 'FeraSetu AI', free: '20 messages/mo', paid: 'Full access (200+)' },
               { feature: 'Custom Domain', free: '❌', paid: '✅' },
               { feature: 'Sales Analytics & Stock Alerts', free: 'Basic', paid: 'Advanced' },
               { feature: 'Invoices & WhatsApp Bills', free: '✅', paid: '✅' },

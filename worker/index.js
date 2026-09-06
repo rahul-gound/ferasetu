@@ -32,6 +32,11 @@
 // ---------------------------------------------------------------------------
 import { handleAdminRoutes } from "./routes/admin.js";
 import { feraRouter } from "./ai/router.js";
+import {
+  classifyHostname,
+  handleStorefrontRequest,
+  proxyPagesAsset,
+} from "./storefront.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -46,11 +51,25 @@ function isOriginAllowed(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   
-  // Allow any subdomain of ferasetu.com or fera-search.tech
   try {
     const url = new URL(origin);
-    const host = url.hostname;
-    return host.endsWith(".ferasetu.com") || host.endsWith(".fera-search.tech");
+    // Disallow non-http/https schemes
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    // For non-localhost, require https
+    if (url.protocol === "http:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") return false;
+
+    const host = url.hostname.toLowerCase();
+    const classification = classifyHostname(host);
+
+    // Permit valid merchant storefront subdomains and API subdomains
+    if (classification.type === "merchant" || classification.type === "api") {
+      return true;
+    }
+    // Allow app or www if configured
+    if (classification.type === "platform_reserved" && (classification.subdomain === "app" || classification.subdomain === "www")) {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -920,6 +939,77 @@ function safeParseArray(value) {
 }
 
 // ---------------------------------------------------------------------------
+// Public Storefront Metadata (No auth required)
+// ---------------------------------------------------------------------------
+async function getPublicShop(shopName, request, env) {
+  if (!shopName || shopName === "undefined" || shopName === "null" || shopName === "me") {
+    return errorResponse("Shop not found", 404, undefined, request);
+  }
+
+  const cleanShopName = shopName.trim().toLowerCase();
+
+  const user = await env.DB.prepare(
+    "SELECT id, name, business_name, subdomain, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(custom_domain) = ?"
+  )
+    .bind(cleanShopName, cleanShopName)
+    .first();
+
+  if (!user) {
+    return errorResponse("Shop not found", 404, undefined, request);
+  }
+
+  if (user.is_blocked) {
+    return errorResponse("This shop is currently unavailable", 403, undefined, request);
+  }
+
+  const website = await env.DB.prepare(
+    "SELECT * FROM websites WHERE user_id = ? AND is_published = 1"
+  )
+    .bind(user.id)
+    .first();
+
+  if (!website) {
+    return errorResponse("Shop is not published yet", 404, undefined, request);
+  }
+
+  let products = [];
+  try {
+    const productsResult = await env.DB.prepare(
+      "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? ORDER BY created_at DESC"
+    )
+      .bind(user.id)
+      .all();
+    products = productsResult?.results || [];
+  } catch (err) {
+    console.error("Failed to load products for public shop:", err);
+  }
+
+  let config = {};
+  try {
+    config = typeof website.config === "string" ? JSON.parse(website.config) : (website.config || {});
+  } catch {}
+
+  let sections = [];
+  try {
+    sections = typeof website.sections === "string" ? JSON.parse(website.sections) : (website.sections || []);
+  } catch {}
+
+  return json({
+    shop: {
+      id: user.id,
+      name: user.business_name || user.name,
+      subdomain: user.subdomain,
+    },
+    website: {
+      ...website,
+      config,
+      sections,
+    },
+    products,
+  }, 200, {}, request);
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 async function route(request, env) {
@@ -948,12 +1038,22 @@ async function route(request, env) {
         "GET  /api/meetings",
         "POST /api/meetings",
         "PATCH /api/meetings/:id",
+        "GET  /api/website/public/:shopName",
       ],
     });
   }
 
   if (path === "/api/health" && method === "GET") {
     return json({ status: "ok", timestamp: new Date().toISOString(), version: "1.0.0" });
+  }
+
+  // Public shop metadata endpoint
+  if (path.startsWith("/api/website/public/")) {
+    if (method === "GET") {
+      const shopName = path.slice("/api/website/public/".length);
+      return getPublicShop(shopName, request, env);
+    }
+    throw new HttpError("Method not allowed", 405);
   }
 
   if (path === "/api/users/me") {
@@ -1045,8 +1145,63 @@ export default {
     }
 
     try {
+      const url = new URL(request.url);
+      const hostClassification = classifyHostname(url.hostname);
+
+      // 1. Platform root (ferasetu.com) — must NOT replace Pages handling
+      if (hostClassification.type === "platform_root") {
+        if (url.pathname.startsWith("/api/")) {
+          if (!env.DB) {
+            return errorResponse("Database not configured.", 503, undefined, request);
+          }
+          return await route(request, env);
+        }
+        return await proxyPagesAsset(request, env);
+      }
+
+      // 2. Reserved platform subdomains (api, www, app, admin, docs, status, mail, support, etc.)
+      if (hostClassification.type === "platform_reserved") {
+        if (hostClassification.subdomain === "www") {
+          if (url.pathname.startsWith("/api/")) {
+            if (!env.DB) {
+              return errorResponse("Database not configured.", 503, undefined, request);
+            }
+            return await route(request, env);
+          }
+          return await proxyPagesAsset(request, env);
+        }
+
+        if (url.pathname.startsWith("/api/")) {
+          if (!env.DB) {
+            return errorResponse("Database not configured.", 503, undefined, request);
+          }
+          return await route(request, env);
+        }
+
+        return new Response("Reserved platform subdomain", {
+          status: 404,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "X-Robots-Tag": "noindex, nofollow",
+            "Cache-Control": "private, no-cache, no-store",
+          },
+        });
+      }
+
+      // 3. Merchant storefront subdomain (e.g. rajeshmart-mumbai-mh-in.ferasetu.com)
+      if (hostClassification.type === "merchant") {
+        // Direct API calls on the merchant subdomain
+        if (url.pathname.startsWith("/api/")) {
+          if (!env.DB) {
+            return errorResponse("Database not configured.", 503, undefined, request);
+          }
+          return await route(request, env);
+        }
+        return await handleStorefrontRequest(request, env, ctx, hostClassification);
+      }
+
+      // 4. Default / API Domain handling (api.ferasetu.com, *.workers.dev, localhost, etc.)
       if (!env.DB) {
-        // D1 binding missing — usually wrangler.toml database_id not set.
         return errorResponse(
           "Database not configured. Set the D1 `database_id` in wrangler.toml and redeploy.",
           503,

@@ -29,14 +29,14 @@ export const LANDING_FAQS: FAQItem[] = [
       'None. We charge a flat monthly fee — Free (₹0), Business (₹399/month), or Pro (₹999/month). When a customer pays ₹1,000, you keep ₹1,000. No percentage cut, ever.',
   },
   {
-    question: 'What is Fera AI and how does it help my shop?',
+    question: 'What is FeraSetu AI and how does it help my shop?',
     answer:
-      'Fera AI is an AI assistant that knows your actual shop data — your products, inventory, and orders. You can ask it things like "which products are running low?", "write a Diwali promo message", or "what should I restock this week?" It gives shop-specific answers, not generic advice.',
+      'FeraSetu AI is an AI assistant that knows your actual shop data — your products, inventory, and orders. You can ask it things like "which products are running low?", "write a Diwali promo message", or "what should I restock this week?" It gives shop-specific answers, not generic advice.',
   },
   {
     question: 'Can I try FeraSetu before paying?',
     answer:
-      'Yes. The Free plan is completely free forever with up to 25 products. You can run a real store, take orders, and use Fera AI before deciding whether to upgrade. No credit card required to start.',
+      'Yes. The Free plan is completely free forever with up to 25 products. You can run a real store, take orders, and use FeraSetu AI before deciding whether to upgrade. No credit card required to start.',
   },
   {
     question: 'What happens after I sign up?',

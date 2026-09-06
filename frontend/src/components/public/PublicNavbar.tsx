@@ -16,8 +16,8 @@ export default function PublicNavbar() {
       to: `${getLocalizedLink('/')}#how-it-works`
     },
     {
-      label: 'Fera AI',
-      to: `${getLocalizedLink('/')}#fera-ai`
+      label: 'FeraSetu AI',
+      to: `${getLocalizedLink('/')}#ferasetu-ai`
     },
     {
       label: t('nav.features'),

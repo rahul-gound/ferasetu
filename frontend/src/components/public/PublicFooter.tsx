@@ -57,11 +57,11 @@ export default function PublicFooter() {
               </li>
               <li>
                 <a
-                  href="/#fera-ai"
+                  href="/#ferasetu-ai"
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium flex items-center gap-1.5"
                 >
                   <Sparkles size={12} className="text-purple-500" />
-                  Fera AI
+                  FeraSetu AI
                 </a>
               </li>
               <li>

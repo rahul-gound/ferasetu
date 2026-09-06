@@ -38,7 +38,7 @@ const OUTCOMES = [
   {
     icon: <Bot size={22} color="#2563EB" aria-hidden="true" />,
     title: 'An AI that knows your shop',
-    desc: 'Fera AI uses your actual data. Ask it "what should I restock?" or "write a promo for Diwali" and it answers with context. No generic answers.',
+    desc: 'FeraSetu AI uses your actual data. Ask it "what should I restock?" or "write a promo for Diwali" and it answers with context. No generic answers.',
   },
 ];
 
@@ -46,7 +46,7 @@ const TRUST_SIGNALS = [
   '₹0 to start — no credit card needed',
   'Data stays in India',
   'Cancel anytime, no penalty',
-  'Fera AI uses your real shop data, not guesses',
+  'FeraSetu AI uses your real shop data, not guesses',
   'No hidden fees, ever',
 ];
 

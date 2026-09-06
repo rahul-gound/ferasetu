@@ -30,8 +30,8 @@ const COMPARISON_ROWS: CompareRow[] = [
   { feature: 'Profit tracking', free: false, business: true, pro: true },
   { feature: 'Sales trends', free: false, business: true, pro: true },
   { feature: 'AI sales forecasting', free: false, business: false, pro: true },
-  // Fera AI
-  { feature: 'Fera AI credits/month', free: '20', business: '200', pro: '1,000', category: 'Fera AI' },
+  // FeraSetu AI
+  { feature: 'FeraSetu AI credits/month', free: '20', business: '200', pro: '1,000', category: 'FeraSetu AI' },
   { feature: 'Product descriptions', free: true, business: true, pro: true },
   { feature: 'WhatsApp promo drafts', free: true, business: true, pro: true },
   { feature: 'Advanced analysis & forecasting', free: false, business: false, pro: true },

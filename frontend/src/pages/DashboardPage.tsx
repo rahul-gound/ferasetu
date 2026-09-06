@@ -743,7 +743,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Bottom Row: Recent Orders, AI Assistant, AI Credits */}
+      {/* Bottom Row: Recent Orders, FeraSetu AI, AI Credits */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Recent Orders (col-span-5) */}
@@ -805,12 +805,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* AI Assistant (col-span-4) */}
+        {/* FeraSetu AI (col-span-4) */}
         <div className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[330px]">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="text-base font-bold text-slate-900">AI Assistant</h2>
+            <h2 className="text-base font-bold text-slate-900">FeraSetu AI</h2>
             <Link
-              to="/ai-assistant"
+              to="/ferasetu-ai"
               className="text-xs font-bold text-[#0052FF] hover:text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100/80 transition-colors"
             >
               New Chat
@@ -831,7 +831,7 @@ export default function DashboardPage() {
               'Show low stock products'
             ].map((q, i) => (
               <Link
-                to={`/ai-assistant?q=${encodeURIComponent(q)}`}
+                to={`/ferasetu-ai?q=${encodeURIComponent(q)}`}
                 key={i}
                 className="flex justify-between items-center p-2.5 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 hover:border-blue-200 hover:bg-blue-50/60 hover:text-[#0052FF] transition-all group"
               >

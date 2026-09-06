@@ -822,7 +822,7 @@ export default function WebsiteBuilderPage() {
                     }}>
                       <Globe size={48} style={{ opacity: 0.3 }} />
                       <p style={{ fontSize: '20px', fontWeight: 600 }}>Your storefront preview will appear here</p>
-                      <p style={{ fontSize: '14px' }}>Pick a template or let Fera AI create your first sections.</p>
+                      <p style={{ fontSize: '14px' }}>Pick a template or let FeraSetu AI create your first sections.</p>
                       <p style={{ fontSize: '13px', color: '#64748B' }}>
                         Next: choose a starting point. Your preview updates as you add sections.
                       </p>

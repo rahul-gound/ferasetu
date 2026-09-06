@@ -133,13 +133,48 @@ app.use(cookieParser());
 const csrfTokens = new Map<string, { token: string; expires: number }>();
 const CSRF_TOKEN_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
+// Dedicated endpoint to fetch CSRF token
+app.get('/api/csrf-token', (req, res) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  csrfTokens.set(token, { token, expires: Date.now() + CSRF_TOKEN_TTL });
+  res.cookie('csrf_token', token, {
+    httpOnly: false, // Must be readable by client JS to attach in x-csrf-token header
+    secure: IS_PRODUCTION,
+    sameSite: 'lax',
+    maxAge: CSRF_TOKEN_TTL,
+  });
+  res.json({ csrfToken: token });
+});
+
+// Public auth and session establishment routes that must NOT require prior CSRF token
+const CSRF_EXEMPT_ROUTES = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/send-otp',
+  '/api/auth/verify-otp',
+  '/api/auth/send-verification-email',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/workos/exchange',
+  '/api/auth/workos/session-token',
+  '/api/users/workos-session',
+];
+
 app.use((req, res, next) => {
-  // Skip CSRF for GET, HEAD, OPTIONS
+  // Skip CSRF for safe methods (GET, HEAD, OPTIONS)
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
   // Skip CSRF for webhook endpoints
   if (req.path.startsWith('/api/payment/webhook') || req.path.startsWith('/api/auth/webhook')) {
+    return next();
+  }
+  // Skip CSRF for public authentication & session onboarding endpoints
+  if (CSRF_EXEMPT_ROUTES.some(route => req.path === route || req.path.startsWith(route))) {
+    return next();
+  }
+  // Custom header authorization (Bearer token) is immune to standard browser CSRF attacks
+  if (req.headers.authorization?.startsWith('Bearer ')) {
     return next();
   }
   
@@ -159,27 +194,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Issue CSRF token on login/auth endpoints
-app.use('/api/auth/login', (req, res, next) => {
-  const token = crypto.randomBytes(32).toString('hex');
-  csrfTokens.set(token, { token, expires: Date.now() + CSRF_TOKEN_TTL });
-  res.cookie('csrf_token', token, {
-    httpOnly: true,
-    secure: IS_PRODUCTION,
-    sameSite: 'lax',
-    maxAge: CSRF_TOKEN_TTL,
-  });
-  req.csrfToken = token;
-  next();
-});
-
 // Periodic cleanup of expired CSRF tokens
-setInterval(() => {
+const csrfCleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, value] of csrfTokens.entries()) {
     if (value.expires < now) csrfTokens.delete(key);
   }
 }, 60 * 60 * 1000); // Every hour
+if (csrfCleanupTimer.unref) csrfCleanupTimer.unref();
 
 // Static uploads with path traversal protection
 const uploadDir = path.join(__dirname, '..', 'uploads');
@@ -245,7 +267,11 @@ app.use(errorHandler);
 
 // Start
 initializeDatabase().then(async () => {
-  await verifyMailService();
+  try {
+    await verifyMailService();
+  } catch (mailErr: any) {
+    console.warn(`⚠️ Mail service initialization notice: ${mailErr?.message || mailErr}`);
+  }
   app.listen(Number(PORT), HOST, () => {
     console.log(`🚀 FeraSetu running on http://${HOST}:${PORT}`);
     if (IS_PRODUCTION) {

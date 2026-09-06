@@ -20,7 +20,7 @@ const faqSchema = {
       name: 'Kya dukaan ka website banana free hai?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Haan! FeraSetu ka Free plan bilkul ₹0 me available hai. Isme aapko apna custom subdomain, products add karne ki suvidha, direct WhatsApp orders, invoices, aur Fera AI assistant sab milta hai.',
+        text: 'Haan! FeraSetu ka Free plan bilkul ₹0 me available hai. Isme aapko apna custom subdomain, products add karne ki suvidha, direct WhatsApp orders, invoices, aur FeraSetu AI assistant sab milta hai.',
       },
     },
     {

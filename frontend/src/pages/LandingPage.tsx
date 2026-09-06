@@ -114,7 +114,7 @@ export default function LandingPage() {
           name: 'FeraSetu',
           applicationCategory: 'BusinessApplication',
           description:
-            'Online store builder for Indian shopkeepers. Zero commissions, WhatsApp ordering, UPI payments, and Fera AI assistant.',
+            'Online store builder for Indian shopkeepers. Zero commissions, WhatsApp ordering, UPI payments, and FeraSetu AI assistant.',
           offers: {
             '@type': 'Offer',
             price: '0',
@@ -157,7 +157,7 @@ export default function LandingPage() {
 
             {/* Purple Cow differentiator line */}
             <p className="hero-card-enter hero-card-delay-2 text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-              {t('hero.subtitle') || 'No technical knowledge needed. Your own store link. WhatsApp orders. Direct UPI payments. Fera AI handles the rest.'}
+              {t('hero.subtitle') || 'No technical knowledge needed. Your own store link. WhatsApp orders. Direct UPI payments. FeraSetu AI handles the rest.'}
             </p>
 
             {/* Hero CTAs */}
@@ -366,7 +366,7 @@ export default function LandingPage() {
                       <div className="flex items-center gap-3">
                         <Sparkles className="text-blue-400 flex-shrink-0" size={18} />
                         <div>
-                          <div className="text-sm font-semibold text-white">Fera AI Alert</div>
+                          <div className="text-sm font-semibold text-white">FeraSetu AI Alert</div>
                           <div className="text-xs text-slate-400">Fortune Mustard Oil — 2 units left</div>
                         </div>
                       </div>
@@ -424,10 +424,10 @@ export default function LandingPage() {
         </section>
 
         {/* ================================================================
-          SECTION 6 — FERA AI (DESIRE — Purple Cow differentiator)
+          SECTION 6 — FERASETU AI (DESIRE — Purple Cow differentiator)
           Real AI examples with shop-specific context.
         ================================================================ */}
-        <AIExamplePrompts showCTA ctaHref="/register" ctaText="Try Fera AI Free" />
+        <AIExamplePrompts showCTA ctaHref="/register" ctaText="Try FeraSetu AI Free" />
 
         {/* ================================================================
           SECTION 7 — PROOF (TRUST — No fake testimonials)
@@ -470,7 +470,7 @@ export default function LandingPage() {
                     <span className="text-slate-400 text-sm ml-1.5">/month</span>
                   </div>
                   <ul className="text-sm space-y-3 text-slate-300 mb-7">
-                    {['Online storefront with your own link', 'Up to 25 products', 'WhatsApp ordering & UPI payments', 'Order dashboard & inventory tracking', '20 Fera AI queries/month'].map((f, i) => (
+                    {['Online storefront with your own link', 'Up to 25 products', 'WhatsApp ordering & UPI payments', 'Order dashboard & inventory tracking', '20 FeraSetu AI queries/month'].map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5">
                         <Check size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                         <span>{f}</span>
@@ -509,7 +509,7 @@ export default function LandingPage() {
                     <span className="text-blue-200 text-sm ml-1.5">/month</span>
                   </div>
                   <ul className="text-sm space-y-3 text-white mb-7">
-                    {['Everything in Free', 'Up to 500 products + categories', 'Advanced analytics & profit tracking', 'Automated low-stock alerts', '200 Fera AI queries/month', 'Custom domain & remove branding'].map((f, i) => (
+                    {['Everything in Free', 'Up to 500 products + categories', 'Advanced analytics & profit tracking', 'Automated low-stock alerts', '200 FeraSetu AI queries/month', 'Custom domain & remove branding'].map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5">
                         <Check size={15} className="text-amber-300 flex-shrink-0 mt-0.5" />
                         <span>{f}</span>
@@ -545,7 +545,7 @@ export default function LandingPage() {
                     <span className="text-slate-400 text-sm ml-1.5">/month</span>
                   </div>
                   <ul className="text-sm space-y-3 text-slate-300 mb-7">
-                    {['Everything in Business', 'Unlimited products', '1,000 Fera AI queries + forecasting', 'Up to 5 staff accounts', 'Priority phone & chat support', 'White-label (remove FeraSetu branding)'].map((f, i) => (
+                    {['Everything in Business', 'Unlimited products', '1,000 FeraSetu AI queries + forecasting', 'Up to 5 staff accounts', 'Priority phone & chat support', 'White-label (remove FeraSetu branding)'].map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5">
                         <Check size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                         <span>{f}</span>

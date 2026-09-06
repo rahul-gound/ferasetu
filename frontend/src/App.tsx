@@ -29,7 +29,6 @@ const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
-const AIAssistantPage = lazy(() => import('./pages/AIAssistantPage'));
 const AICreditsPage = lazy(() => import('./pages/AICreditsPage'));
 const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
@@ -50,8 +49,8 @@ const Layout = lazy(() => import('./components/Layout'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
-// Fera AI — lazy load
-const FeraAIPage = lazy(() => import('./pages/FeraAIPage'));
+// FeraSetu AI — lazy load
+const FeraSetuAIPage = lazy(() => import('./pages/FeraSetuAIPage'));
 
 // VerifyEmailPage — lazy load
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
@@ -124,8 +123,9 @@ function AppRoutes() {
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/fera-ai" element={<FeraAIPage />} />
-          <Route path="/ai-assistant" element={<AIAssistantPage />} />
+          <Route path="/ferasetu-ai" element={<FeraSetuAIPage />} />
+          <Route path="/fera-ai" element={<Navigate to="/ferasetu-ai" replace />} />
+          <Route path="/ai-assistant" element={<Navigate to="/ferasetu-ai" replace />} />
           <Route path="/ai-credits" element={<AICreditsPage />} />
           <Route path="/website-builder" element={<WebsiteBuilderPage />} />
           <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />

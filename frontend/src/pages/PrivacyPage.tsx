@@ -421,7 +421,7 @@ export default function PrivacyPage() {
                     3.4 AI Prompts &amp; Store Generation Data
                   </h3>
                   <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-600">
-                    <li><strong>Fera AI Queries:</strong> Text inputs, audio transcriptions, product generation prompts, and catalog inquiries submitted to Fera AI tools to generate marketing copy, translations, or product descriptions.</li>
+                    <li><strong>FeraSetu AI Queries:</strong> Text inputs, audio transcriptions, product generation prompts, and catalog inquiries submitted to FeraSetu AI tools to generate marketing copy, translations, or product descriptions.</li>
                   </ul>
                 </div>
               </div>

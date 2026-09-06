@@ -18,7 +18,7 @@ export const TRANSFORMATION_STEPS: TransformationStep[] = [
   {
     id: 'online-business',
     title: 'Your online business',
-    description: 'Share your store, receive orders, and ask Fera AI what to do next.',
+    description: 'Share your store, receive orders, and ask FeraSetu AI what to do next.',
   },
 ];
 
@@ -40,7 +40,7 @@ export const BEFORE_AFTER = {
       'Your products become a browsable online catalog',
       'Orders arrive in one dashboard with clear status',
       'Inventory and revenue live beside your storefront',
-      'Fera AI explains what to restock, improve, or do next',
+      'FeraSetu AI explains what to restock, improve, or do next',
     ],
   },
 };
@@ -100,7 +100,7 @@ export const PRICING_STAGES: PricingStage[] = [
       'Your own store link',
       'Up to 25 products',
       'WhatsApp ordering',
-      '20 Fera AI queries per month',
+      '20 FeraSetu AI queries per month',
     ],
   },
   {
@@ -111,7 +111,7 @@ export const PRICING_STAGES: PricingStage[] = [
       'Up to 500 products',
       'Advanced analytics and profit tracking',
       'Automated low-stock alerts',
-      '200 Fera AI queries per month',
+      '200 FeraSetu AI queries per month',
       'Custom domain',
     ],
   },
@@ -121,7 +121,7 @@ export const PRICING_STAGES: PricingStage[] = [
     promise: 'Operate with more capacity and support',
     proof: [
       'Unlimited products',
-      '1,000 Fera AI queries and forecasting',
+      '1,000 FeraSetu AI queries and forecasting',
       'Up to 5 staff accounts',
       'Priority phone and chat support',
       'White-label storefront',
@@ -139,7 +139,7 @@ export const AI_WORKFLOWS: AIWorkflow[] = [
   {
     title: 'Add product information',
     prompt: 'Help me add this product.',
-    outcome: 'Fera AI drafts clear details you review before saving.',
+    outcome: 'FeraSetu AI drafts clear details you review before saving.',
   },
   {
     title: 'Improve your store',

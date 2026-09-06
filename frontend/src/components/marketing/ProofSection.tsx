@@ -43,8 +43,8 @@ const PROOF_ITEMS = [
   },
   {
     icon: <Sparkles size={20} />,
-    title: 'Fera AI knows your shop',
-    desc: 'Ask "which products are low on stock?" or "write a Diwali offer message" — Fera AI uses your actual store data, not generic answers.',
+    title: 'FeraSetu AI knows your shop',
+    desc: 'Ask "which products are low on stock?" or "write a Diwali offer message" — FeraSetu AI uses your actual store data, not generic answers.',
     highlight: 'AI that uses your data',
     iconBg: 'bg-purple-50',
     iconColor: 'text-purple-600',

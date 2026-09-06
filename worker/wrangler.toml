@@ -7,6 +7,7 @@ compatibility_date = "2025-06-01"
 
 [vars]
 WORKOS_CLIENT_ID = "client_01KZRE47KGSPK84HEP9WNBG9YY"
+PAGES_ORIGIN = "https://ferasetu.pages.dev"
 
 # D1 database binding.
 [[d1_databases]]
