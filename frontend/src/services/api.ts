@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const USE_LOCAL_STORAGE_API = import.meta.env?.VITE_USE_LOCAL_STORAGE !== 'false';
+const USE_LOCAL_STORAGE_API = import.meta.env?.VITE_USE_LOCAL_STORAGE === 'true';
 
 interface LocalUser {
   id: string;
@@ -1161,14 +1161,20 @@ export const remoteApi = axios.create({
 
 import { getWorkOSToken, notifyUnauthorized } from './authBridge';
 
-// Inject Authorization Bearer token automatically
+// Inject Authorization Bearer token automatically & normalize redundant /api prefixes
 remoteApi.interceptors.request.use(async (config) => {
-  if (config.headers.Authorization) {
-    return config;
+  if (config.url) {
+    if (config.url.startsWith('/api/')) {
+      config.url = config.url.replace(/^\/api\//, '/');
+    } else if (config.url === '/api') {
+      config.url = '/';
+    }
   }
-  const token = await getWorkOSToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (config.headers && !config.headers.Authorization) {
+    const token = await getWorkOSToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 }, (error) => {

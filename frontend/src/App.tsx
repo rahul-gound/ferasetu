@@ -1,11 +1,12 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthKitProvider } from '@workos-inc/authkit-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { MarketProvider } from './contexts/MarketContext';
+import { ENABLED_LANGUAGES } from './i18n';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Public landing page — lazy loaded for fast initial entry
@@ -55,6 +56,18 @@ const FeraSetuAIPage = lazy(() => import('./pages/FeraSetuAIPage'));
 
 // VerifyEmailPage — lazy load
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+
+// 404 Not Found Page — lazy load
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+
+function LanguageRouteGuard() {
+  const { lang } = useParams<{ lang: string }>();
+  const isValidLang = Boolean(lang && ENABLED_LANGUAGES.some((l) => l.code === lang));
+  if (!isValidLang) {
+    return <NotFoundPage />;
+  }
+  return <Outlet />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -153,7 +166,7 @@ function AppRoutes() {
         <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* Localized Public Routes (/hi, /gu/pricing, etc.) */}
-        <Route path="/:lang">
+        <Route path="/:lang" element={<LanguageRouteGuard />}>
           <Route index element={<LandingPage />} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
@@ -164,6 +177,7 @@ function AppRoutes() {
           <Route path="kirana-store-online" element={<KiranaStoreOnline />} />
           <Route path="terms" element={<TermsPage />} />
           <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
 
         {/* Admin Routes */}
@@ -191,7 +205,7 @@ function AppRoutes() {
         } />
 
         {/* Catch-all fallback */}
-        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );

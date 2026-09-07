@@ -23,8 +23,11 @@ interface User {
   storage_limit_bytes?: number;
 }
 
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
+
 interface AuthContextType {
   user: User | null;
+  authStatus: AuthStatus;
   isLoading: boolean;
   profileError: string | null;
   login: (options?: { loginHint?: string }) => void;
@@ -50,14 +53,8 @@ const PROFILE_KEYS: (keyof User)[] = [
 
 // Global token retriever for Axios
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem('fera_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  // Authoritative state machine: never initialize as authenticated before WorkOS verification
+  const [profile, setProfile] = useState<User | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -301,8 +298,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const createAccountAfterOTP = useCallback(async () => {}, []);
   const getToken = useCallback(async () => getAccessToken(), [getAccessToken]);
 
+  const authStatus: AuthStatus = useMemo(() => {
+    if (isWorkOSLoading || isProfileLoading) return 'loading';
+    if (profile && workosUser) return 'authenticated';
+    if (profileError) return 'error';
+    return 'unauthenticated';
+  }, [isWorkOSLoading, isProfileLoading, profile, workosUser, profileError]);
+
   const contextValue = useMemo<AuthContextType>(() => ({
     user: profile,
+    authStatus,
     isLoading: isWorkOSLoading || isProfileLoading,
     profileError,
     login,
@@ -317,6 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getAccessToken: getToken
   }), [
     profile,
+    authStatus,
     isWorkOSLoading,
     isProfileLoading,
     profileError,

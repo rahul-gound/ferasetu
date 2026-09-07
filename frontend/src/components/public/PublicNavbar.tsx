@@ -70,7 +70,11 @@ export default function PublicNavbar() {
               <LanguageSelector variant='light' />
             </div>
 
-            {user ? (
+            {isLoading ? (
+              <div className='hidden items-center gap-2 md:flex'>
+                <div className='h-9 w-24 rounded-full bg-slate-100 animate-pulse' />
+              </div>
+            ) : user ? (
               <div className='flex items-center gap-2.5'>
                 <Link
                   to='/dashboard'
@@ -82,15 +86,8 @@ export default function PublicNavbar() {
                 </Link>
                 <button
                   type='button'
-                  onClick={() => register()}
-                  className='hidden lg:inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50'
-                >
-                  <span>{t('nav.startFree') || 'Sign Up'}</span>
-                </button>
-                <button
-                  type='button'
                   onClick={() => logout()}
-                  className='hidden sm:inline-block cursor-pointer text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors'
+                  className='inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm'
                 >
                   Sign Out
                 </button>
@@ -163,7 +160,9 @@ export default function PublicNavbar() {
                   <LanguageSelector variant='light' />
                 </div>
               </div>
-              {user ? (
+              {isLoading ? (
+                <div className='h-12 w-full rounded-2xl bg-slate-100 animate-pulse' />
+              ) : user ? (
                 <>
                   <Link
                     to='/dashboard'

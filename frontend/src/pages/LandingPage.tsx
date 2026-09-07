@@ -166,34 +166,41 @@ export default function LandingPage() {
 
             {/* Hero CTAs */}
             <div className="hero-card-enter hero-card-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-              {user && (
-                <Link
-                  to="/dashboard"
-                  className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer ring-4 ring-blue-100"
-                >
-                  <LayoutDashboard size={20} />
-                  <span>Dashboard</span>
-                  <ArrowRight size={18} />
-                </Link>
+              {user ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer ring-4 ring-blue-100"
+                  >
+                    <LayoutDashboard size={20} />
+                    <span>Go to Dashboard</span>
+                    <ArrowRight size={18} />
+                  </Link>
+                  <a
+                    href="#how-it-works"
+                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
+                  >
+                    See how it works
+                  </a>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => register()}
+                    className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-lg bg-blue-600 text-white shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>{market === 'IN' ? (t('hero.cta') || 'Start Free (₹0)') : 'Start 14-Day Free Trial'}</span>
+                    <ArrowRight size={18} />
+                  </button>
+                  <a
+                    href="#how-it-works"
+                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
+                  >
+                    See how it works
+                  </a>
+                </>
               )}
-              <button
-                type="button"
-                onClick={() => register()}
-                className={`w-full sm:w-auto px-8 py-4 rounded-full font-bold text-lg transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer ${
-                  user
-                    ? 'bg-slate-900 text-white shadow-lg hover:bg-slate-800'
-                    : 'bg-blue-600 text-white shadow-xl shadow-blue-600/25 hover:bg-blue-700'
-                }`}
-              >
-                <span>{market === 'IN' ? (t('hero.cta') || 'Start Free (₹0)') : 'Start 14-Day Free Trial'}</span>
-                <ArrowRight size={18} />
-              </button>
-              <a
-                href="#how-it-works"
-                className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
-              >
-                See how it works
-              </a>
             </div>
 
             {/* Trust badges */}

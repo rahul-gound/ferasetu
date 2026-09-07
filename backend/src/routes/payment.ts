@@ -139,8 +139,14 @@ router.post('/initialize',
         return;
       }
 
-      // Paid plans require a Razorpay order before activation in production.
-      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET || RAZORPAY_KEY_ID.includes('your_key_id') || process.env.NODE_ENV === 'test') {
+      // Paid plans require a Razorpay order before activation.
+      if (process.env.NODE_ENV !== 'test') {
+        if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET || RAZORPAY_KEY_ID.includes('your_key_id')) {
+          res.status(503).json({ error: 'Payment gateway credentials are not configured on this server. Please contact support.' });
+          return;
+        }
+      } else {
+        // Test environment only
         db.prepare(`
           INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
           VALUES (?, ?, ?, ?, ?, 'completed', ?)
