@@ -20,7 +20,7 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
   // 1. If shopName is provided as a parameter (slug)
   if (shopName && shopName !== 'undefined' && shopName !== 'null' && shopName !== 'me') {
     user = db.prepare(
-      'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE subdomain = ? OR custom_domain = ?'
+      'SELECT id, name, business_name, subdomain, custom_domain, phone, logo_url FROM users WHERE subdomain = ? OR custom_domain = ?'
     ).get(shopName, shopName) as any;
   }
 
@@ -28,7 +28,7 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
   if (!user && host && !baseDomains.includes(host) && !host.includes('localhost') && !host.includes('github.dev')) {
     // Try matching the whole host as a custom domain
     user = db.prepare(
-      'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE custom_domain = ?'
+      'SELECT id, name, business_name, subdomain, custom_domain, phone, logo_url FROM users WHERE custom_domain = ?'
     ).get(host) as any;
 
     // 3. Try matching as a subdomain against any of the supported base domains
@@ -37,7 +37,7 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
       if (matchingBase) {
         const subdomain = host.replace('.' + matchingBase, '');
         user = db.prepare(
-          'SELECT id, name, business_name, subdomain, custom_domain FROM users WHERE subdomain = ?'
+          'SELECT id, name, business_name, subdomain, custom_domain, phone, logo_url FROM users WHERE subdomain = ?'
         ).get(subdomain) as any;
       }
     }
@@ -61,14 +61,26 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
     'SELECT id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active, created_at FROM products WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC'
   ).all(user.id);
 
+  let parsedTheme: any = website.theme;
+  if (typeof website.theme === 'string') {
+    try {
+      parsedTheme = JSON.parse(website.theme);
+    } catch {
+      parsedTheme = website.theme;
+    }
+  }
+
   res.json({
     shop: {
       id: user.id,
       name: user.business_name || user.name,
       subdomain: user.subdomain,
+      phone: user.phone || '',
+      logo_url: user.logo_url || null,
     },
     website: {
       ...website,
+      theme: parsedTheme || website.template || 'market',
       config: typeof website.config === 'string' ? JSON.parse(website.config as string) : website.config,
       sections: typeof website.sections === 'string' ? JSON.parse(website.sections as string) : (website.sections ?? []),
     },
@@ -182,68 +194,139 @@ router.patch('/publish', (req: AuthenticatedRequest, res: Response): void => {
   res.json({ published });
 });
 
-// Get website templates (rich definitions with default sections)
+// Get website templates (5 launch-quality production themes)
 router.get('/templates', (_req: AuthenticatedRequest, res: Response): void => {
   const templates = [
     {
-      id: 'grocery',
-      name: 'Grocery Store',
-      description: 'Perfect for kirana stores and grocery shops',
+      id: 'market',
+      version: 1,
+      name: 'Market',
+      tagline: 'Modern Commerce & Maximum Efficiency',
+      description: 'Built for high-velocity Indian retail, groceries, general merchants, and electronics. High clarity, fast discovery, instant WhatsApp order triggers.',
       category: 'retail',
-      primaryColor: '#2E7D32',
-      accentColor: '#FF6B35',
-      emoji: '🛒',
-      defaultSections: buildDefaultSections('grocery', 'My Kirana Store', {}),
-    },
-    {
-      id: 'fashion',
-      name: 'Fashion & Clothing',
-      description: 'Modern template for clothing and accessories',
-      category: 'fashion',
-      primaryColor: '#6D28D9',
-      accentColor: '#F59E0B',
-      emoji: '👗',
-      defaultSections: buildDefaultSections('fashion', 'My Fashion Store', {}),
-    },
-    {
-      id: 'restaurant',
-      name: 'Restaurant & Food',
-      description: 'Ideal for dhabas, restaurants, and tiffin services',
-      category: 'food',
-      primaryColor: '#DC2626',
-      accentColor: '#F59E0B',
-      emoji: '🍛',
-      defaultSections: buildDefaultSections('restaurant', 'My Restaurant', {}),
-    },
-    {
-      id: 'electronics',
-      name: 'Electronics Shop',
-      description: 'For mobile, computer, and electronics retailers',
-      category: 'electronics',
-      primaryColor: '#1D4ED8',
-      accentColor: '#06B6D4',
-      emoji: '📱',
-      defaultSections: buildDefaultSections('electronics', 'My Electronics', {}),
-    },
-    {
-      id: 'medical',
-      name: 'Medical & Pharmacy',
-      description: 'For medical stores and pharmacies',
-      category: 'healthcare',
-      primaryColor: '#0891B2',
-      accentColor: '#10B981',
-      emoji: '💊',
-      defaultSections: buildDefaultSections('medical', 'My Pharmacy', {}),
-    },
-    {
-      id: 'general',
-      name: 'General Store',
-      description: 'Flexible template for any type of business',
-      category: 'general',
-      primaryColor: '#FF6B35',
-      accentColor: '#004E89',
+      primaryColor: '#0F172A',
+      accentColor: '#16A34A',
       emoji: '🏪',
-      defaultSections: buildDefaultSections('general', 'My Store', {}),
+      targetCategories: ['Kirana & Grocery', 'Consumer Electronics', 'Supermarkets', 'General Retail', 'Multi-Category'],
+      cardVariant: 'clean',
+      headerVariant: 'commerce',
+      heroVariant: 'commerce-banner',
+      footerVariant: 'commerce',
+      defaultSections: [
+        { id: 'announcement-1', type: 'announcement', variant: 'ticker', enabled: true, config: { text: '⚡ Free Express Delivery on orders above ₹499 | Cash on Delivery available at checkout | WhatsApp Orders Available' } },
+        { id: 'header-1', type: 'header', variant: 'commerce', enabled: true, config: { showSearch: true, showAccount: true } },
+        { id: 'hero-1', type: 'hero', variant: 'commerce-banner', enabled: true, config: { eyebrow: 'DIRECT FROM STORE', headline: 'Authentic Essentials. Best Local Prices.', subheadline: 'Shop fresh inventory with fast dispatch and zero-hassle WhatsApp confirmation.', ctaText: 'Browse Catalog', ctaHref: '#products' } },
+        { id: 'trust-1', type: 'trust-strip', variant: 'commerce-badges', enabled: true, config: {} },
+        { id: 'categories-1', type: 'category-grid', variant: 'visual-cards', enabled: true, config: { title: 'Top Categories' } },
+        { id: 'products-1', type: 'product-grid', variant: 'clean', enabled: true, config: { title: 'Featured Products', columns: 4 } },
+        { id: 'testimonials-1', type: 'testimonials', variant: 'verified-buyer-feed', enabled: true, config: { title: 'Customer Feedback' } },
+        { id: 'faq-1', type: 'faq', variant: 'accordion', enabled: true, config: { title: 'Frequently Asked Questions' } },
+        { id: 'footer-1', type: 'footer', variant: 'commerce', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'atelier',
+      version: 1,
+      name: 'Atelier',
+      tagline: 'Luxury, Editorial & Haute Boutique',
+      description: 'Designed for fashion, fine jewellery, luxury beauty, and curated design houses where imagery and quiet elegance drive prestige.',
+      category: 'luxury',
+      primaryColor: '#121212',
+      accentColor: '#D4AF37',
+      emoji: '✨',
+      targetCategories: ['Luxury Fashion', 'Fine Jewellery', 'Cosmetics', 'Designer Studio', 'Boutique Fragrance'],
+      cardVariant: 'editorial',
+      headerVariant: 'editorial',
+      heroVariant: 'editorial',
+      footerVariant: 'editorial',
+      defaultSections: [
+        { id: 'announcement-1', type: 'announcement', variant: 'minimal', enabled: true, config: { text: 'Complimentary white-glove dispatch on bespoke orders across India' } },
+        { id: 'header-1', type: 'header', variant: 'editorial', enabled: true, config: { showSearch: true } },
+        { id: 'hero-1', type: 'hero', variant: 'editorial', enabled: true, config: { eyebrow: 'MAISON COLLECTION 2026', headline: 'Quiet Sophistication, Enduring Craft', subheadline: 'Each piece is deliberately composed with artisanal precision and unyielding attention to material purity.', ctaText: 'Explore Collection', ctaHref: '#products' } },
+        { id: 'trust-1', type: 'trust-strip', variant: 'luxury-guarantee', enabled: true, config: {} },
+        { id: 'products-1', type: 'product-grid', variant: 'editorial', enabled: true, config: { title: 'Selected Curations', columns: 3 } },
+        { id: 'brand-story-1', type: 'brand-story', variant: 'quote-center', enabled: true, config: { quote: '“We do not manufacture for seasons. We cultivate artifacts meant to outlive trends and honor the hands that shaped them.”', author: 'The Creative Director' } },
+        { id: 'newsletter-1', type: 'newsletter', variant: 'minimal', enabled: true, config: { title: 'The Atelier Dispatch' } },
+        { id: 'footer-1', type: 'footer', variant: 'editorial', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'mono',
+      version: 1,
+      name: 'Mono',
+      tagline: 'Minimalist, Swiss & Architectural',
+      description: 'Monochrome foundation, mathematical grid alignment, 1px rules, and tabular pricing. Built for technology, furniture, and design-first goods.',
+      category: 'design',
+      primaryColor: '#000000',
+      accentColor: '#000000',
+      emoji: '📐',
+      targetCategories: ['Hardware & Tech', 'Industrial Design', 'Modern Furniture', 'Stationery', 'Audio Equipment'],
+      cardVariant: 'mono',
+      headerVariant: 'minimal',
+      heroVariant: 'minimal',
+      footerVariant: 'minimal',
+      defaultSections: [
+        { id: 'header-1', type: 'header', variant: 'minimal', enabled: true, config: { showSearch: true } },
+        { id: 'hero-1', type: 'hero', variant: 'minimal', enabled: true, config: { eyebrow: 'SYSTEM // 01', headline: 'Functional Objects for Contemplative Living', subheadline: 'Engineered without superfluous ornamentation. Pure geometry, tactile materials, honest utility.', ctaText: 'Index of Products', ctaHref: '#products' } },
+        { id: 'products-1', type: 'product-grid', variant: 'mono', enabled: true, config: { title: 'Catalog', columns: 3 } },
+        { id: 'featured-1', type: 'featured-product', variant: 'spotlight', enabled: true, config: {} },
+        { id: 'newsletter-1', type: 'newsletter', variant: 'minimal', enabled: true, config: { title: 'Technical Releases' } },
+        { id: 'footer-1', type: 'footer', variant: 'minimal', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'bold',
+      version: 1,
+      name: 'Bold',
+      tagline: 'Contemporary Consumer Brand & High Energy',
+      description: 'Vibrant color blocking, large display headlines, pill badges, and secondary image hover dynamics. Built for D2C lifestyle, apparel, and youth brands.',
+      category: 'lifestyle',
+      primaryColor: '#0B0F19',
+      accentColor: '#2563EB',
+      emoji: '⚡',
+      targetCategories: ['Streetwear & Apparel', 'Activewear', 'Specialty Snacks', 'Youth Lifestyle', 'Cosmetics D2C'],
+      cardVariant: 'bold',
+      headerVariant: 'bold',
+      heroVariant: 'product-focused',
+      footerVariant: 'bold',
+      defaultSections: [
+        { id: 'announcement-1', type: 'announcement', variant: 'ticker', enabled: true, config: { text: '🔥 DROP 03 NOW LIVE // NATIONWIDE EXPRESS DISPATCH // ZERO COMPROMISE' } },
+        { id: 'header-1', type: 'header', variant: 'bold', enabled: true, config: { showSearch: true } },
+        { id: 'hero-1', type: 'hero', variant: 'product-focused', enabled: true, config: { eyebrow: 'NEW ARRIVALS 2026', headline: 'Engineered for Action. Designed to Turn Heads.', subheadline: 'Crafted with premium high-density fabrics and structured silhouettes for everyday movement.', ctaText: 'Shop the Drop', ctaHref: '#products' } },
+        { id: 'categories-1', type: 'category-grid', variant: 'pill-slider', enabled: true, config: { title: 'Explore Categories' } },
+        { id: 'products-1', type: 'product-grid', variant: 'bold', enabled: true, config: { title: 'Trending Drops', columns: 3 } },
+        { id: 'brand-story-1', type: 'brand-story', variant: 'split-right-image', enabled: true, config: { eyebrow: 'THE MANIFESTO', title: 'Born in India. Built for the Modern World.' } },
+        { id: 'testimonials-1', type: 'testimonials', variant: 'grid-cards', enabled: true, config: { title: 'Community Verified' } },
+        { id: 'newsletter-1', type: 'newsletter', variant: 'bold', enabled: true, config: { title: 'Join the Inner Circle' } },
+        { id: 'footer-1', type: 'footer', variant: 'bold', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'artisan',
+      version: 1,
+      name: 'Artisan',
+      tagline: 'Craft, Storytelling & Heritage Warmth',
+      description: 'Warm earth tones, tactile surfaces, maker storytelling sections, and authentic craft badges. Perfect for handmade goods, organic food, ceramics, and regional heritage.',
+      category: 'craft',
+      primaryColor: '#2C221E',
+      accentColor: '#C25E3E',
+      emoji: '🌿',
+      targetCategories: ['Handcrafted Goods', 'Organic Gourmet', 'Regional Textiles', 'Ceramics & Home', 'Artisanal Tea & Coffee'],
+      cardVariant: 'artisan',
+      headerVariant: 'artisan',
+      heroVariant: 'artisan-story',
+      footerVariant: 'artisan',
+      defaultSections: [
+        { id: 'announcement-1', type: 'announcement', variant: 'static-center', enabled: true, config: { text: 'Handcrafted in small batches • 100% plastic-free packaging • Direct from master artisans' } },
+        { id: 'header-1', type: 'header', variant: 'artisan', enabled: true, config: { showSearch: true } },
+        { id: 'hero-1', type: 'hero', variant: 'artisan-story', enabled: true, config: { eyebrow: 'HEIRLOOM TRADITIONS', headline: 'Crafted with Patience. Cherished for Generations.', subheadline: 'Every batch is prepared with heritage methods, unadulterated natural materials, and fair living wages.', ctaText: 'Discover Our Craft', ctaHref: '#products' } },
+        { id: 'trust-1', type: 'trust-strip', variant: 'artisan-values', enabled: true, config: {} },
+        { id: 'categories-1', type: 'category-grid', variant: 'editorial-cards', enabled: true, config: { title: 'Curated Craft Collections' } },
+        { id: 'products-1', type: 'product-grid', variant: 'artisan', enabled: true, config: { title: 'Handmade Creations', columns: 3 } },
+        { id: 'brand-story-1', type: 'brand-story', variant: 'heritage-story', enabled: true, config: { eyebrow: 'FROM OUR WORKSHOP', title: 'Honoring centuries of regional mastery' } },
+        { id: 'testimonials-1', type: 'testimonials', variant: 'editorial-quote', enabled: true, config: { title: 'Words from Our Patrons' } },
+        { id: 'footer-1', type: 'footer', variant: 'artisan', enabled: true, config: {} },
+      ],
     },
   ];
   res.json(templates);

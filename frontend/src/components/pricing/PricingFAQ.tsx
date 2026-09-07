@@ -1,49 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useMarket } from '../../contexts/MarketContext';
 
 interface FAQItem {
   question: string;
   answer: string;
 }
-
-const FAQ_ITEMS: FAQItem[] = [
-  {
-    question: 'Do I need technical knowledge?',
-    answer: 'No. FeraSetu is built for shopkeepers, not developers. If you can use WhatsApp, you can use FeraSetu. Adding products, managing orders, and sharing your store link is fast and simple — no coding, no design skills.',
-  },
-  {
-    question: 'Can I continue using WhatsApp?',
-    answer: 'Absolutely. FeraSetu works with WhatsApp, not against it. Your store has a shareable link you can send on WhatsApp. Customers can browse and place orders, and you get a notification. You can still chat on WhatsApp — FeraSetu just organises the orders for you.',
-  },
-  {
-    question: 'Do I need a domain or website?',
-    answer: 'No. You get a free store link (yourshop.ferasetu.com) from day one. Custom domain connection is available on Business and Pro plans. Most shopkeepers start with the free link and upgrade later.',
-  },
-  {
-    question: 'Can I start without paying?',
-    answer: 'Yes. The Free plan costs nothing — no credit card required. You can add up to 25 products, manage orders, and share your store. When your shop grows and you need more, Business is ₹399/month.',
-  },
-  {
-    question: 'What happens after the free plan?',
-    answer: 'Nothing changes without you taking action. Your store stays up, your products stay visible, and your orders continue to work. When you need more than 25 products or want advanced analytics, you upgrade at ₹399/month. We\'ll always tell you before charging anything.',
-  },
-  {
-    question: 'Can I cancel anytime?',
-    answer: 'Yes. No contracts, no penalties. You can cancel from your account settings whenever you like. If you cancel a paid plan, you keep access until the end of your billing period. Your data remains yours.',
-  },
-  {
-    question: 'Can I export my data?',
-    answer: 'Yes. You can export your product list and order history. Your data is yours — we don\'t hold it hostage. You can always contact support to get a full export.',
-  },
-  {
-    question: 'How does FeraSetu AI help me?',
-    answer: 'FeraSetu AI is your business assistant. You can ask it things like "Which products are selling best?", "Help me write a product description", "What should I restock?", or "Create a WhatsApp promotion message". It uses your actual shop data — it never makes up numbers.',
-  },
-  {
-    question: 'What happens to my store if I don\'t upgrade?',
-    answer: 'If you\'re on the Free plan and don\'t upgrade, your store keeps working with all features available in the Free plan. You won\'t lose your products or orders. You just won\'t be able to add more than 25 products or access advanced analytics until you upgrade.',
-  },
-];
 
 interface PricingFAQProps {
   className?: string;
@@ -51,6 +13,46 @@ interface PricingFAQProps {
 
 export default function PricingFAQ({ className = '' }: PricingFAQProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const { market, config } = useMarket();
+
+  const isIndia = market === 'IN';
+
+  const faqItems: FAQItem[] = useMemo(() => {
+    return [
+      {
+        question: 'Do I need technical or coding knowledge?',
+        answer: 'No. FeraSetu is built for independent shopkeepers and small businesses, not software developers. Adding products, setting prices, managing customer orders, and sharing your store link is fast, intuitive, and mobile-friendly — no coding or design skills required.',
+      },
+      {
+        question: isIndia ? 'Can I start without paying?' : 'How does the 14-day free trial work?',
+        answer: isIndia
+          ? 'Yes. In India, the Free plan costs ₹0/month forever with no credit card required. You can add up to 25 products, accept direct WhatsApp and online orders, and manage inventory. Upgrade to Business (₹399/mo) whenever your catalog expands.'
+          : `You receive a full-featured ${config.trialDays}-day free trial with access to all Business features. Explore the store builder, product manager, and built-in AI assistant with zero risk. No surprise charges ever.`,
+      },
+      {
+        question: isIndia ? 'What happens if I stay on the free plan?' : 'What happens when my 14-day trial expires?',
+        answer: isIndia
+          ? 'Nothing changes without your action. Your store stays up, your products stay browsable, and orders continue to function within free limits. We never charge without your explicit confirmation.'
+          : `Trust-First Billing: We never surprise-charge you at the end of your trial. If you do not activate a paid subscription (${config.symbol}${config.plans.business.monthly}/month for Business), your account, products, and configurations remain safely preserved. You can activate a subscription at any time to resume paid functionality.`,
+      },
+      {
+        question: 'Can I cancel my subscription anytime?',
+        answer: 'Yes. There are zero contracts or lock-in penalties. You can cancel directly from your account settings at any time. When you cancel, future renewal is stopped, and your paid access continues until the end of your current billing period.',
+      },
+      {
+        question: 'Can I use a custom domain?',
+        answer: 'Yes. Every store automatically gets a clean FeraSetu storefront link. Connecting your own custom domain (e.g., yourstore.com) is supported on all paid plans.',
+      },
+      {
+        question: 'How does FeraSetu AI help my business?',
+        answer: 'FeraSetu AI is your built-in business copilot. It uses your actual catalog and sales data to draft product descriptions, suggest restocks, forecast sales trends, and create promotional campaigns. It never invents generic numbers.',
+      },
+      {
+        question: 'Can I export my store data?',
+        answer: 'Yes. You can export your product catalog and order history at any time. Your business data belongs completely to you.',
+      },
+    ];
+  }, [isIndia, config]);
 
   const toggle = (i: number) => setOpenIndex(prev => prev === i ? null : i);
 
@@ -58,87 +60,74 @@ export default function PricingFAQ({ className = '' }: PricingFAQProps) {
     <section
       aria-label="Frequently asked questions"
       className={className}
-      style={{ maxWidth: 760, margin: '0 auto' }}
     >
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+      <div style={{ textAlign: 'center', marginBottom: 48 }}>
         <p style={{
           display: 'inline-block', fontSize: 12, fontWeight: 800,
           letterSpacing: '0.08em', textTransform: 'uppercase',
-          color: '#FF6B35', marginBottom: 12,
-          background: 'rgba(255,107,53,0.08)', padding: '4px 12px', borderRadius: 999,
+          color: '#2563EB', marginBottom: 12,
+          background: 'rgba(37,99,235,0.08)', padding: '4px 12px', borderRadius: 999,
         }}>
-          Questions & Answers
+          FAQ
         </p>
         <h2 style={{
-          fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, color: '#0f172a',
-          letterSpacing: '-0.03em', margin: '0 0 12px', lineHeight: 1.1,
+          fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900,
+          letterSpacing: '-0.03em', color: '#0f172a', margin: '0 0 12px',
         }}>
-          Honest answers to real questions
+          Frequently Asked Questions
         </h2>
-        <p style={{ color: '#64748b', fontSize: 16, fontWeight: 500, margin: 0 }}>
-          No marketing speak. We'll tell you exactly how it works.
+        <p style={{ color: '#64748b', fontSize: 16, fontWeight: 500, maxWidth: 500, margin: '0 auto' }}>
+          Honest answers about plans, billing, and store management.
         </p>
       </div>
 
-      <dl>
-        {FAQ_ITEMS.map((item, i) => (
-          <div
-            key={i}
-            style={{
-              borderBottom: '1px solid #f1f5f9',
-              overflow: 'hidden',
-            }}
-          >
-            <dt>
+      <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {faqItems.map((item, index) => {
+          const isOpen = openIndex === index;
+          return (
+            <div
+              key={item.question}
+              style={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 16,
+                background: isOpen ? '#f8fafc' : '#fff',
+                transition: 'background 0.2s ease',
+                overflow: 'hidden',
+              }}
+            >
               <button
-                id={`faq-q-${i}`}
-                aria-expanded={openIndex === i}
-                aria-controls={`faq-a-${i}`}
-                onClick={() => toggle(i)}
+                type="button"
+                onClick={() => toggle(index)}
+                aria-expanded={isOpen}
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  width: '100%', padding: '18px 0', border: 'none', background: 'none',
-                  textAlign: 'left', cursor: 'pointer', gap: 16,
+                  width: '100%', padding: '20px 24px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                  background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
                 }}
               >
-                <span style={{
-                  fontSize: 15, fontWeight: 700, color: '#0f172a', lineHeight: 1.4,
-                }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
                   {item.question}
                 </span>
                 <ChevronDown
                   size={18}
-                  color="#94a3b8"
-                  aria-hidden="true"
+                  color="#64748b"
                   style={{
                     flexShrink: 0,
-                    transition: 'transform 0.25s ease',
-                    transform: openIndex === i ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
+                    transition: 'transform 0.2s ease',
                   }}
+                  aria-hidden="true"
                 />
               </button>
-            </dt>
-            <dd
-              id={`faq-a-${i}`}
-              role="region"
-              aria-labelledby={`faq-q-${i}`}
-              style={{
-                maxHeight: openIndex === i ? 400 : 0,
-                overflow: 'hidden',
-                transition: 'max-height 0.3s ease',
-                margin: 0,
-              }}
-            >
-              <p style={{
-                fontSize: 14, color: '#475569', lineHeight: 1.75,
-                padding: '0 0 18px', margin: 0, fontWeight: 500,
-              }}>
-                {item.answer}
-              </p>
-            </dd>
-          </div>
-        ))}
-      </dl>
+              {isOpen && (
+                <div style={{ padding: '0 24px 20px', color: '#475569', fontSize: 14, lineHeight: 1.7, fontWeight: 500 }}>
+                  {item.answer}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

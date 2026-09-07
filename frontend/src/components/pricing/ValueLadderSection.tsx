@@ -2,6 +2,7 @@ import { ArrowRight, Check } from 'lucide-react';
 import { PLANS } from '../../config/plans';
 import type { PlanDefinition, PlanId } from '../../config/plans';
 import { PRICING_STAGES } from '../../content/strategy';
+import { useMarket } from '../../contexts/MarketContext';
 
 interface ValueLadderSectionProps {
   currentPlan: PlanId | null;
@@ -14,6 +15,8 @@ export default function ValueLadderSection({
   isAuthenticated,
   onSelectPlan,
 }: ValueLadderSectionProps) {
+  const { config } = useMarket();
+
   return (
     <section
       id='value-ladder'
@@ -45,7 +48,7 @@ export default function ValueLadderSection({
           const isDisabled = isCurrentPlan || (isFreePlan && isAuthenticated);
           const priceLabel = plan.price.monthly === 0
             ? '₹0'
-            : `₹${plan.price.monthly.toLocaleString('en-IN')}/mo`;
+            : `${config.symbol}${plan.price.monthly.toLocaleString()}/mo`;
 
           return (
             <article

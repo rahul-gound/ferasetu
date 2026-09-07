@@ -406,4 +406,68 @@ router.get('/history', async (req: AuthenticatedRequest, res: Response): Promise
   }
 });
 
+/**
+ * @route   POST /api/payment/cancel-subscription
+ * @desc    Stop future renewal while retaining access until plan_expires_at
+ * @access  Private
+ */
+router.post('/cancel-subscription', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+
+  try {
+    const user = db.prepare('SELECT id, plan, plan_expires_at FROM users WHERE id = ?').get(userId) as any;
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE users
+      SET cancel_at_period_end = 1, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(userId);
+
+    res.json({
+      success: true,
+      cancel_at_period_end: true,
+      plan_expires_at: user.plan_expires_at,
+      message: 'Subscription renewal cancelled. Access continues until the end of the billing period.',
+    });
+  } catch (error: any) {
+    console.error('Cancel subscription failed:', error);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+});
+
+/**
+ * @route   POST /api/payment/resume-subscription
+ * @desc    Resume automatic renewal for a cancelled subscription
+ * @access  Private
+ */
+router.post('/resume-subscription', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+
+  try {
+    db.prepare(`
+      UPDATE users
+      SET cancel_at_period_end = 0, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(userId);
+
+    const user = db.prepare('SELECT id, plan, plan_expires_at, cancel_at_period_end FROM users WHERE id = ?').get(userId) as any;
+
+    res.json({
+      success: true,
+      cancel_at_period_end: false,
+      plan_expires_at: user.plan_expires_at,
+      message: 'Subscription renewal resumed.',
+    });
+  } catch (error: any) {
+    console.error('Resume subscription failed:', error);
+    res.status(500).json({ error: 'Failed to resume subscription' });
+  }
+});
+
 export default router;

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthKitProvider } from '@workos-inc/authkit-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { MarketProvider } from './contexts/MarketContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Public landing page — lazy loaded for fast initial entry
@@ -207,10 +208,12 @@ function AppContent() {
         <AuthProvider>
           <BrowserRouter>
             <LanguageProvider>
-              <ErrorBoundary>
-                <AppRoutes />
-              </ErrorBoundary>
-              <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+              <MarketProvider>
+                <ErrorBoundary>
+                  <AppRoutes />
+                </ErrorBoundary>
+                <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+              </MarketProvider>
             </LanguageProvider>
           </BrowserRouter>
         </AuthProvider>

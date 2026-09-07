@@ -10,12 +10,13 @@ import {
   TrendingUp, ShoppingCart, ShoppingBag, Package, Coins,
   ArrowRight, Download, 
   Users, Target, Sparkles, ShieldCheck, Calendar,
-  ChevronDown, CreditCard, Share2, Plus
+  ChevronDown, CreditCard, Share2, Plus, AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useMarket } from '../contexts/MarketContext';
 import OnboardingProgress from '../components/ui/OnboardingProgress';
 
 function getGreeting(): string {
@@ -92,6 +93,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { translate } = useLanguage();
+  const { config, subscription } = useMarket();
   const [downloading, setDownloading] = useState(false);
   const greeting = useMemo(() => getGreeting(), []);
 
@@ -346,15 +348,15 @@ export default function DashboardPage() {
         ['Period', dateRangeText],
         [],
         ['Metric', 'Value', 'Trend vs Last 7 Days'],
-        ['Total Revenue', `₹${totalRevenue.toLocaleString('en-IN')}`, `${revenueChange}%`],
+        ['Total Revenue', `${config.symbol}${totalRevenue.toLocaleString()}`, `${revenueChange}%`],
         ['Total Orders', `${totalOrders}`, `${ordersChange}%`],
         ['Total Customers', `${totalCustomers}`, `${customersChange}%`],
         ['Conversion Rate', `${conversionRate}%`, `${conversionChange}%`],
         [],
-        ['Daily Breakdown (Last 7 Days)', 'Revenue (INR)', 'Orders'],
+        ['Daily Breakdown (Last 7 Days)', `Revenue (${config.currency})`, 'Orders'],
         ...last7DaysData.map(d => [d.date, d.revenue, d.orders]),
         [],
-        ['Catalog Products', 'Price (INR)', 'Units Sold'],
+        ['Catalog Products', `Price (${config.currency})`, 'Units Sold'],
         ...topProducts.map(p => [p.name, p.price, p.sold_count]),
         [],
         ['Recent Orders', 'Customer', 'Amount (INR)', 'Status'],
@@ -398,6 +400,56 @@ export default function DashboardPage() {
   return (
     <div className="pb-10 max-w-[1380px] mx-auto space-y-6">
       
+      {/* 14-Day Trial Banner for US & EU */}
+      {subscription.isTrialing && (
+        <div className="rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/15 backdrop-blur-md shrink-0">
+              <Sparkles size={20} className="text-yellow-300" />
+            </div>
+            <div>
+              <div className="font-extrabold text-sm sm:text-base">
+                14-Day Free Trial: {subscription.trialDaysRemaining} days remaining
+              </div>
+              <p className="text-xs sm:text-sm text-blue-100 mt-0.5">
+                You have full access to Business capabilities. Choose a plan to ensure continuous storefront operations.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/upgrade"
+            className="shrink-0 px-4 py-2 rounded-xl bg-white text-blue-700 font-bold text-xs shadow hover:bg-blue-50 transition-all"
+          >
+            View Plans
+          </Link>
+        </div>
+      )}
+
+      {/* Expired Trial Notification */}
+      {subscription.isTrialExpired && (
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:p-5 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-100 shrink-0">
+              <AlertCircle size={20} className="text-amber-600" />
+            </div>
+            <div>
+              <div className="font-extrabold text-sm sm:text-base text-amber-900">
+                Your 14-day free trial has concluded
+              </div>
+              <p className="text-xs sm:text-sm text-amber-800 mt-0.5">
+                Your data and product catalog are safely preserved. Upgrade to a paid plan to continue accepting orders and managing storefront features.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/upgrade"
+            className="shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow hover:bg-blue-500 transition-all"
+          >
+            Select Plan
+          </Link>
+        </div>
+      )}
+
       {/* Dashboard Top Header Area */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -447,7 +499,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs font-bold text-slate-400">Total Revenue</p>
               <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                ₹{totalRevenue.toLocaleString('en-IN')}
+                {config.symbol}{totalRevenue.toLocaleString(config.market === 'IN' ? 'en-IN' : 'en-US')}
               </h3>
             </div>
           </div>
@@ -552,7 +604,7 @@ export default function DashboardPage() {
             <h2 className="text-base font-bold text-slate-900">Sales Overview</h2>
             <div className="flex items-center gap-3.5 text-xs font-bold text-slate-500">
               <span className="flex items-center gap-1.5 text-[#0052FF]">
-                <span className="w-2.5 h-0.5 rounded-full bg-[#0052FF]"></span> Revenue (₹)
+                <span className="w-2.5 h-0.5 rounded-full bg-[#0052FF]"></span> Revenue ({config.symbol})
               </span>
               <span className="flex items-center gap-1.5 text-[#93C5FD]">
                 <span className="w-2.5 h-0.5 rounded-full bg-[#93C5FD]"></span> Orders
@@ -580,7 +632,7 @@ export default function DashboardPage() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11, fill: '#94A3B8' }}
-                  tickFormatter={(val) => val >= 1000 ? `₹${Math.round(val / 1000)}K` : `₹${val}`}
+                  tickFormatter={(val) => val >= 1000 ? `${config.symbol}${Math.round(val / 1000)}K` : `${config.symbol}${val}`}
                 />
                 <YAxis
                   yAxisId="right"
@@ -593,7 +645,7 @@ export default function DashboardPage() {
                 <Tooltip 
                   contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
                   formatter={(value: any, name: any) => [
-                    name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : value,
+                    name === 'revenue' ? `${config.symbol}${Number(value).toLocaleString()}` : value,
                     name === 'revenue' ? 'Revenue' : 'Orders'
                   ]}
                 />
@@ -645,7 +697,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-xs font-bold text-slate-900">₹{prod.price.toLocaleString('en-IN')}</p>
+                    <p className="text-xs font-bold text-slate-900">{config.symbol}{prod.price.toLocaleString()}</p>
                     <p className="text-[10px] font-bold text-emerald-600">
                       {prod.sold_count} sold
                     </p>
@@ -774,7 +826,7 @@ export default function DashboardPage() {
                       {order.customer_name}
                     </div>
                     <div className="text-xs font-bold text-slate-900">
-                      ₹{order.total.toLocaleString('en-IN')}
+                      {config.symbol}{order.total.toLocaleString()}
                     </div>
                     <div>
                       <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold capitalize ${statusBadge.bg} ${statusBadge.text}`}>

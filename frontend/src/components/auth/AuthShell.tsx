@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import LanguageSelector from '../LanguageSelector';
+import MarketSelector from '../marketing/MarketSelector';
 
 interface AuthShellProps {
   title: string;
@@ -37,7 +38,10 @@ export default function AuthShell({
             <ArrowLeft size={15} aria-hidden='true' />
             {translate('auth.backToHome')}
           </Link>
-          <LanguageSelector variant='dark' />
+          <div className='flex items-center gap-2'>
+            <MarketSelector variant='dark' />
+            <LanguageSelector variant='dark' />
+          </div>
         </div>
 
         <main className='rounded-3xl border border-white/10 bg-slate-900/80 p-7 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-9'>
@@ -49,7 +53,7 @@ export default function AuthShell({
             <img
               src='/logo-official.png'
               alt='FeraSetu'
-              className='h-10 w-auto object-contain'
+              className='h-12 sm:h-14 w-auto object-contain'
             />
           </Link>
 

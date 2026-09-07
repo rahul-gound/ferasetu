@@ -212,7 +212,7 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
     const db = getDatabase();
     const ALLOWED: string[] = [
       'name', 'email', 'phone', 'business_name', 'preferred_language',
-      'subdomain', 'custom_domain',
+      'subdomain', 'custom_domain', 'market', 'trial_ends_at',
     ];
 
     const updates: Record<string, unknown> = {};

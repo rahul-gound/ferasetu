@@ -41,6 +41,8 @@ import {
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useMarket } from '../contexts/MarketContext';
+import { getMarketPlans } from '../config/plans';
 import HowItWorksSection from '../components/marketing/HowItWorksSection';
 import ProofSection from '../components/marketing/ProofSection';
 import FAQSection from '../components/marketing/FAQSection';
@@ -59,28 +61,28 @@ const FEATURE_OUTCOMES = [
     icon: <Globe size={20} />,
     feature: 'Your own store URL',
     does: 'Your catalog lives at yourshop.ferasetu.com — permanently yours to share anywhere.',
-    matters: 'Customers know exactly where to find you. No searching on a marketplace or scrolling through WhatsApp.',
+    matters: 'Customers know exactly where to find you. No searching on a crowded marketplace or scrolling through chat.',
     iconBg: 'bg-blue-50 text-blue-600',
   },
   {
     icon: <Percent size={20} />,
     feature: 'Zero commissions',
-    does: 'We charge a flat monthly fee. You keep 100% of every sale.',
-    matters: 'On ₹1 lakh monthly sales, that\'s ₹15,000–₹30,000 in commission you don\'t pay to anyone.',
+    does: 'We charge a flat subscription. You keep 100% of every sale.',
+    matters: 'Unlike marketplace platforms taking 15%–30% cuts on every order, 100% of your customer revenue stays yours.',
     iconBg: 'bg-emerald-50 text-emerald-600',
   },
   {
     icon: <Zap size={20} />,
-    feature: 'Direct UPI payments',
-    does: 'Customers pay via Google Pay, PhonePe, Paytm — money goes directly to your account.',
-    matters: 'No payment gateway delays. No merchant account setup. Money in your bank the same day.',
+    feature: 'Direct payments',
+    does: 'Customers pay via UPI, cards, and direct channels — money goes straight to your account.',
+    matters: 'No weeks of payout escrow. No merchant lock-in. Faster cash flow directly to your business.',
     iconBg: 'bg-amber-50 text-amber-600',
   },
   {
     icon: <MessageSquare size={20} />,
-    feature: 'WhatsApp ordering',
-    does: 'Customers build a cart in your store and send the order via WhatsApp.',
-    matters: 'No more chaos in your personal chat. Orders come in formatted and ready to fulfill.',
+    feature: 'Streamlined ordering',
+    does: 'Customers build a cart in your store and submit clean, formatted orders instantly.',
+    matters: 'No chaotic back-and-forth messaging. Orders arrive structured and ready to fulfill.',
     iconBg: 'bg-green-50 text-green-600',
   },
   {
@@ -102,6 +104,8 @@ const FEATURE_OUTCOMES = [
 export default function LandingPage() {
   const { getLocalizedLink, translate: t } = useLanguage();
   const { user, register } = useAuth();
+  const { market, config } = useMarket();
+  const previewPlans = getMarketPlans(market);
 
   return (
     <>
@@ -181,7 +185,7 @@ export default function LandingPage() {
                     : 'bg-blue-600 text-white shadow-xl shadow-blue-600/25 hover:bg-blue-700'
                 }`}
               >
-                <span>{t('hero.cta') || 'Start Free (₹0)'}</span>
+                <span>{market === 'IN' ? (t('hero.cta') || 'Start Free (₹0)') : 'Start 14-Day Free Trial'}</span>
                 <ArrowRight size={18} />
               </button>
               <a
@@ -194,22 +198,45 @@ export default function LandingPage() {
 
             {/* Trust badges */}
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm font-semibold text-slate-600">
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
-                {t('hero.zeroStart') || '₹0 to start'}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
-                {t('hero.noCreditCard') || 'No credit card required'}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
-                0% commission on sales
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
-                {t('hero.dataInIndia') || '100% Data in India'}
-              </span>
+              {market === 'IN' ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                    {t('hero.zeroStart') || '₹0 to start'}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                    {t('hero.noCreditCard') || 'No credit card required'}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                    0% commission on sales
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                    Instant UPI & WhatsApp
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                    14-Day Free Trial
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                    No credit card required to start
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-blue-600 flex-shrink-0" />
+                    0% transaction fees
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                    Cancel anytime • No surprise charges
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -356,10 +383,14 @@ export default function LandingPage() {
                         <MessageSquare className="text-emerald-400 flex-shrink-0" size={18} />
                         <div>
                           <div className="text-sm font-semibold text-white">New Order #1042</div>
-                          <div className="text-xs text-slate-400">Ramesh K. · 4 items · Paid via UPI</div>
+                          <div className="text-xs text-slate-400">
+                            {market === 'IN' ? 'Ramesh K. · 4 items · Paid via UPI' : 'Alex M. · 3 items · Paid direct'}
+                          </div>
                         </div>
                       </div>
-                      <span className="text-emerald-400 font-bold text-sm">₹1,240</span>
+                      <span className="text-emerald-400 font-bold text-sm">
+                        {market === 'IN' ? '₹1,240' : `${config.symbol}84`}
+                      </span>
                     </div>
 
                     <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
@@ -367,7 +398,9 @@ export default function LandingPage() {
                         <Sparkles className="text-blue-400 flex-shrink-0" size={18} />
                         <div>
                           <div className="text-sm font-semibold text-white">FeraSetu AI Alert</div>
-                          <div className="text-xs text-slate-400">Fortune Mustard Oil — 2 units left</div>
+                          <div className="text-xs text-slate-400">
+                            {market === 'IN' ? 'Fortune Mustard Oil — 2 units left' : 'Artisan Roast Blend — 3 units left'}
+                          </div>
                         </div>
                       </div>
                       <span className="text-blue-400 text-xs font-semibold px-2 py-1 bg-blue-500/10 rounded-md">Restock</span>
@@ -381,7 +414,7 @@ export default function LandingPage() {
                           <div className="text-xs text-slate-400">100% credited to your bank</div>
                         </div>
                       </div>
-                      <span className="text-amber-400 font-bold text-sm">₹0 Cut</span>
+                      <span className="text-amber-400 font-bold text-sm">{config.symbol}0 Cut</span>
                     </div>
                   </div>
                 </div>
@@ -455,121 +488,94 @@ export default function LandingPage() {
                 {t('pricingPreview.title') || 'Simple, honest pricing'}
               </h2>
               <p className="text-slate-400 text-lg">
-                {t('pricingPreview.subtitle') || 'Start for ₹0. Upgrade when your business needs more. No hidden charges — ever.'}
+                {market === 'IN'
+                  ? (t('pricingPreview.subtitle') || 'Start for ₹0. Upgrade when your business needs more. No hidden charges — ever.')
+                  : 'Start your 14-day free trial. Choose a plan to continue after your trial. No surprise charges — ever.'}
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10 items-stretch">
-              {/* Free */}
-              <div className="rounded-2xl p-7 bg-slate-800/90 border border-slate-700 flex flex-col">
-                <div>
-                  <h3 className="font-bold text-2xl text-white mb-1">{t('plan.free.name') || 'Free'}</h3>
-                  <p className="text-slate-400 text-sm mb-5">Start your online store with zero risk.</p>
-                  <div className="mb-6">
-                    <span className="text-4xl font-black text-white">₹0</span>
-                    <span className="text-slate-400 text-sm ml-1.5">/month</span>
-                  </div>
-                  <ul className="text-sm space-y-3 text-slate-300 mb-7">
-                    {['Online storefront with your own link', 'Up to 25 products', 'WhatsApp ordering & UPI payments', 'Order dashboard & inventory tracking', '20 FeraSetu AI queries/month'].map((f, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <Check size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {user ? (
-                  <Link
-                    to="/dashboard"
-                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
-                  >
-                    Go to Dashboard
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => register()}
-                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
-                  >
-                    Start Free (₹0)
-                  </button>
-                )}
-              </div>
+            <div className={`grid gap-6 mx-auto mb-10 items-stretch ${
+              previewPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl'
+            }`}>
+              {previewPlans.map((plan) => {
+                const isPopular = plan.id === 'business';
+                const isFree = plan.price.monthly === 0;
 
-              {/* Business — Most Popular */}
-              <div className="rounded-2xl p-7 bg-blue-600 border-2 border-blue-400 flex flex-col relative transform md:-translate-y-3 shadow-2xl shadow-blue-900/60">
-                <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-                  {t('pricingPreview.recommended') || 'MOST POPULAR'}
-                </div>
-                <div>
-                  <h3 className="font-bold text-2xl text-white mb-1">{t('plan.business.name') || 'Business'}</h3>
-                  <p className="text-blue-100 text-sm mb-5">Run and grow your retail business.</p>
-                  <div className="mb-6">
-                    <span className="text-4xl font-black text-white">₹399</span>
-                    <span className="text-blue-200 text-sm ml-1.5">/month</span>
+                return (
+                  <div
+                    key={plan.id}
+                    className={`rounded-2xl p-7 flex flex-col relative ${
+                      isPopular
+                        ? 'bg-blue-600 border-2 border-blue-400 transform md:-translate-y-3 shadow-2xl shadow-blue-900/60 text-white'
+                        : 'bg-slate-800/90 border border-slate-700 text-white'
+                    }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                        {market === 'IN' ? (t('pricingPreview.recommended') || 'MOST POPULAR') : '14-DAY TRIAL • MOST POPULAR'}
+                      </div>
+                    )}
+                    {!isPopular && !isFree && market !== 'IN' && (
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-slate-700 text-slate-200 text-xs font-bold px-3 py-0.5 rounded-full uppercase tracking-wider border border-slate-600">
+                        14-DAY FREE TRIAL
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-bold text-2xl text-white mb-1">{plan.name}</h3>
+                      <p className={`text-sm mb-5 ${isPopular ? 'text-blue-100' : 'text-slate-400'}`}>
+                        {plan.tagline}
+                      </p>
+                      <div className="mb-6">
+                        <span className="text-4xl font-black text-white">
+                          {config.symbol}{plan.price.monthly}
+                        </span>
+                        <span className={`text-sm ml-1.5 ${isPopular ? 'text-blue-200' : 'text-slate-400'}`}>
+                          /month
+                        </span>
+                        {market !== 'IN' && !isFree && (
+                          <div className={`text-xs mt-1 font-semibold ${isPopular ? 'text-blue-100' : 'text-slate-400'}`}>
+                            Free for 14 days, then {config.symbol}{plan.price.monthly}/mo
+                          </div>
+                        )}
+                      </div>
+                      <ul className={`text-sm space-y-3 mb-7 ${isPopular ? 'text-white' : 'text-slate-300'}`}>
+                        {plan.features.slice(0, 6).map((f, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <Check size={15} className={`flex-shrink-0 mt-0.5 ${isPopular ? 'text-amber-300' : 'text-emerald-400'}`} />
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {user ? (
+                      <Link
+                        to={isFree ? "/dashboard" : "/upgrade"}
+                        className={`mt-auto w-full py-3.5 rounded-xl font-bold text-center transition-colors block text-sm ${
+                          isPopular
+                            ? 'bg-white hover:bg-slate-100 text-blue-700 shadow-md'
+                            : 'bg-slate-700 hover:bg-slate-600 text-white'
+                        }`}
+                      >
+                        {isFree ? 'Go to Dashboard' : `Upgrade to ${plan.name}`}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => register()}
+                        className={`mt-auto w-full py-3.5 rounded-xl font-bold text-center transition-colors block text-sm cursor-pointer ${
+                          isPopular
+                            ? 'bg-white hover:bg-slate-100 text-blue-700 shadow-md'
+                            : 'bg-slate-700 hover:bg-slate-600 text-white'
+                        }`}
+                      >
+                        {isFree
+                          ? 'Start Free (₹0)'
+                          : (market === 'IN' ? `Start ${plan.name} Plan` : `Start 14-Day Free Trial`)}
+                      </button>
+                    )}
                   </div>
-                  <ul className="text-sm space-y-3 text-white mb-7">
-                    {['Everything in Free', 'Up to 500 products + categories', 'Advanced analytics & profit tracking', 'Automated low-stock alerts', '200 FeraSetu AI queries/month', 'Custom domain & remove branding'].map((f, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <Check size={15} className="text-amber-300 flex-shrink-0 mt-0.5" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {user ? (
-                  <Link
-                    to="/upgrade"
-                    className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md"
-                  >
-                    Upgrade to Business
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => register()}
-                    className="mt-auto w-full py-3.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 font-bold text-center transition-colors block text-sm shadow-md cursor-pointer"
-                  >
-                    Start Business Plan
-                  </button>
-                )}
-              </div>
-
-              {/* Pro */}
-              <div className="rounded-2xl p-7 bg-slate-800/90 border border-slate-700 flex flex-col">
-                <div>
-                  <h3 className="font-bold text-2xl text-white mb-1">{t('plan.pro.name') || 'Pro'}</h3>
-                  <p className="text-slate-400 text-sm mb-5">Unlimited scale for serious merchants.</p>
-                  <div className="mb-6">
-                    <span className="text-4xl font-black text-white">₹999</span>
-                    <span className="text-slate-400 text-sm ml-1.5">/month</span>
-                  </div>
-                  <ul className="text-sm space-y-3 text-slate-300 mb-7">
-                    {['Everything in Business', 'Unlimited products', '1,000 FeraSetu AI queries + forecasting', 'Up to 5 staff accounts', 'Priority phone & chat support', 'White-label (remove FeraSetu branding)'].map((f, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <Check size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {user ? (
-                  <Link
-                    to="/upgrade"
-                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm"
-                  >
-                    Upgrade to Pro
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => register()}
-                    className="mt-auto w-full py-3.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-center transition-colors block text-sm cursor-pointer"
-                  >
-                    Get Pro Plan
-                  </button>
-                )}
-              </div>
+                );
+              })}
             </div>
 
             <div className="text-center">
@@ -590,7 +596,7 @@ export default function LandingPage() {
         ================================================================ */}
         <MarketingReveal>
           <FAQSection
-            title="Questions shopkeepers ask"
+            title="Questions merchants ask"
             subtitle="Honest answers — no fluff."
           />
         </MarketingReveal>
@@ -601,13 +607,17 @@ export default function LandingPage() {
         ================================================================ */}
         <MarketingReveal>
           <FinalCTA
-            title={"Your shop is already real.\nNow give it an online front door."}
-            subtitle="Start free today. Your store URL is ready in minutes — no technical setup required."
-            primaryText="Start Free Store (₹0)"
+            title={market === 'IN' ? "Your shop is already real.\nNow give it an online front door." : "Your business is already real.\nNow give it an online front door."}
+            subtitle={market === 'IN'
+              ? "Start free today. Your store URL is ready in minutes — no technical setup required."
+              : "Start your 14-day free trial today. Your store URL is ready in minutes — no technical setup required."}
+            primaryText={market === 'IN' ? "Start Free Store (₹0)" : "Start 14-Day Free Trial"}
             primaryHref="/register"
             secondaryText="See pricing"
             secondaryHref="/pricing"
-            trustItems={['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Data stays in India']}
+            trustItems={market === 'IN'
+              ? ['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Secure cloud hosted']
+              : ['14-day free trial', 'No credit card to start', '0% transaction fees', 'Setup in minutes', 'Cancel anytime']}
           />
         </MarketingReveal>
       </PublicLayout>

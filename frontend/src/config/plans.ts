@@ -13,6 +13,8 @@
 // Canonical Plan IDs
 // ---------------------------------------------------------------------------
 
+import { MARKET_CONFIGS, type Market, DEFAULT_MARKET } from './pricing';
+
 export type PlanId = 'free' | 'business' | 'pro';
 
 /**
@@ -283,11 +285,71 @@ export const PLANS: PlanDefinition[] = [
 // Helper Functions
 // ---------------------------------------------------------------------------
 
-/** Get plan definition by ID (handles legacy aliases and optional A/B pricing variant). */
-export function getPlan(planId: string | undefined | null, variant?: string | null): PlanDefinition {
+/**
+ * Get market-aware plan definitions.
+ * - India ('IN'): Returns 3 plans (Free, Business, Pro) with INR pricing and Free entry.
+ * - US ('US'): Returns 2 plans (Business, Pro) with USD pricing and 14-day trial. NO Free plan.
+ * - Europe ('EU'): Returns 2 plans (Business, Pro) with EUR pricing and 14-day trial. NO Free plan.
+ */
+export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[] {
+  const cfg = MARKET_CONFIGS[market] || MARKET_CONFIGS.US;
+
+  if (market === 'IN') {
+    return [
+      {
+        ...PLANS[0],
+        price: cfg.plans.free || PLAN_PRICES.free,
+        ctaText: 'Start Free',
+        ctaHref: '/register?market=IN',
+      },
+      {
+        ...PLANS[1],
+        price: cfg.plans.business,
+        ctaText: 'Get Business',
+        ctaHref: '/register?plan=business&market=IN',
+      },
+      {
+        ...PLANS[2],
+        price: cfg.plans.pro,
+        ctaText: 'Get Pro',
+        ctaHref: '/register?plan=pro&market=IN',
+      },
+    ];
+  }
+
+  // US and EU: NO Free plan! Business and Pro with 14-day trial CTAs.
+  return [
+    {
+      ...PLANS[1],
+      price: cfg.plans.business,
+      tagline: 'For growing independent businesses and merchants.',
+      badge: '14 Days Free • Most Popular',
+      ctaText: 'Start 14-Day Free Trial',
+      ctaHref: `/register?plan=business&market=${market}`,
+    },
+    {
+      ...PLANS[2],
+      price: cfg.plans.pro,
+      tagline: 'For businesses and brands operating at larger scale.',
+      badge: '14 Days Free',
+      ctaText: 'Start 14-Day Free Trial',
+      ctaHref: `/register?plan=pro&market=${market}`,
+    },
+  ];
+}
+
+/** Get plan definition by ID (handles legacy aliases, optional A/B pricing variant, and market). */
+export function getPlan(
+  planId: string | undefined | null,
+  variant?: string | null,
+  market: Market = DEFAULT_MARKET
+): PlanDefinition {
   const normalized = normalizePlanId(planId);
-  const base = PLANS.find(p => p.id === normalized) ?? PLANS[0];
-  if (normalized === 'business' && variant) {
+  const marketPlans = getMarketPlans(market);
+  const foundInMarket = marketPlans.find(p => p.id === normalized);
+  const base = foundInMarket ?? (PLANS.find(p => p.id === normalized) ?? PLANS[0]);
+
+  if (normalized === 'business' && variant && market === 'IN') {
     const variantPrice = getBusinessPlanPrice(variant);
     return {
       ...base,

@@ -238,9 +238,24 @@ export async function initializeDatabase(customEnv?: { DB?: any }): Promise<void
   // Initialize D1 Schema
   for (const sql of getD1SchemaStatements()) {
     try {
-      dbInstance.exec(sql);
+      await dbInstance.exec(sql);
     } catch (err: any) {
       console.warn(`D1 schema initialization statement failed: ${err.message}`);
+    }
+  }
+
+  // Safe incremental column additions
+  const migrations = [
+    "ALTER TABLE users ADD COLUMN storage_limit_bytes INTEGER NOT NULL DEFAULT 1073741824",
+    "ALTER TABLE users ADD COLUMN market TEXT NOT NULL DEFAULT 'IN'",
+    "ALTER TABLE users ADD COLUMN trial_ends_at DATETIME",
+    "ALTER TABLE users ADD COLUMN cancel_at_period_end INTEGER NOT NULL DEFAULT 0",
+  ];
+  for (const sql of migrations) {
+    try {
+      await dbInstance.exec(sql);
+    } catch {
+      // Ignored if column already exists
     }
   }
 
@@ -270,7 +285,10 @@ export function getD1SchemaStatements(): string[] {
       ai_credits_used_month INTEGER NOT NULL DEFAULT 0,
       ai_credits_reset_at DATETIME,
       storage_used_bytes INTEGER NOT NULL DEFAULT 0,
-      storage_limit_bytes INTEGER NOT NULL DEFAULT 52428800,
+      storage_limit_bytes INTEGER NOT NULL DEFAULT 1073741824,
+      market TEXT NOT NULL DEFAULT 'IN',
+      trial_ends_at DATETIME,
+      cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,

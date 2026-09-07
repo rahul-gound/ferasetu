@@ -20,8 +20,7 @@ export default {
   'auth.login.subtitle': 'Sign in to manage your online store, orders, and products.',
   'auth.login.workspaceTitle': 'Your FeraSetu workspace',
   'auth.loading.connect': 'Connecting to secure login...',
-  'auth.button.login': 'Continue to secure sign in',
-  'auth.trust': 'Secure login | Data stays in India | INR 0 to start',
+  'auth.trust': 'Secure login | Cloud hosted | No surprise charges',
   'language.selector.available': '22 languages available',
   'language.selector.noResults': 'No language found',
   'common.close': 'Close',
@@ -115,9 +114,9 @@ export default {
   "pricingPreview.mo": "/mo",
 
   // CTA
-  "cta.title": "Ready to take your dukaan online?",
-  "cta.subtitle": "Join thousands of independent Indian merchants taking control of their online sales.",
-  "cta.createStore": "Start Free Store (â‚¹0)",
+  "cta.title": "Ready to take your business online?",
+  "cta.subtitle": "Join thousands of independent merchants and business owners taking control of their sales.",
+  "cta.createStore": "Start Your Online Store",
   
   // Navigation & Footer
   "nav.howItWorks": "How it works",
@@ -126,7 +125,7 @@ export default {
   "nav.dashboard": "Dashboard",
   "nav.signIn": "Sign in",
   "nav.startFree": "Start Free",
-  "footer.tagline": "Independent digital commerce for Indian small businesses. Own your customers, keep your profits.",
+  "footer.tagline": "Independent digital commerce for small businesses and merchants. Own your customers, keep your profits.",
   "footer.product": "Product",
   "footer.account": "Account",
   "footer.legal": "Legal",
@@ -154,14 +153,14 @@ export default {
   "calc.disclaimerText": "These are your numbers, not ours. We can't promise how many orders you'll get or what your revenue will be â€” that depends on your shop, your products, and your customers. What FeraSetu does is make it easier to manage what you already have, and give it a better online presence. The rest is up to you.",
 
   // Pricing Page
-  "pricing.tag": "Sahi plan chunein",
-  "pricing.title": "No hidden fees.",
-  "pricing.subtitle": "Create your online store, accept orders, and manage your business â€” without needing technical knowledge or a big budget.",
-  "pricing.trust1": "â‚¹0 to start â€” no credit card needed",
-  "pricing.trust2": "Data stays in India",
+  "pricing.tag": "Choose the right plan",
+  "pricing.title": "Simple, honest pricing.",
+  "pricing.subtitle": "Launch your store, accept orders, and grow your business — without technical complexity or surprise fees.",
+  "pricing.trust1": "Transparent pricing — no hidden costs",
+  "pricing.trust2": "Cloud hosted & secure",
   "pricing.trust3": "Cancel anytime, no penalty",
-  "pricing.trust4": "FeraSetu AI uses your real shop data, not guesses",
-  "pricing.trust5": "No hidden fees, ever",
+  "pricing.trust4": "FeraSetu AI uses your real shop data, not generic guesses",
+  "pricing.trust5": "0% marketplace commission",
   "plan.feature.aiMessages1000": "1,000 FeraSetu AI messages/month",
   "plan.feature.advancedAI": "Advanced AI (insights, forecasts)",
   "pricing.monthly": "Monthly",

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag, BarChart3, Bot, ArrowRight, Check,
-  Package, Zap,
+  Package, Zap, Globe, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useMarket } from '../contexts/MarketContext';
 import SEO from '../components/SEO';
 import PublicLayout from '../components/public/PublicLayout';
 import PricingCard from '../components/pricing/PricingCard';
@@ -15,7 +16,8 @@ import ValueCalculator from '../components/pricing/ValueCalculator';
 import PricingFAQ from '../components/pricing/PricingFAQ';
 import ValueLadderSection from '../components/pricing/ValueLadderSection';
 import MarketingReveal from '../components/marketing/MarketingReveal';
-import { PLANS, normalizePlanId } from '../config/plans';
+import MarketSelector from '../components/marketing/MarketSelector';
+import { getMarketPlans, normalizePlanId } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
 
 /** Outcome value prop items */
@@ -23,7 +25,7 @@ const OUTCOMES = [
   {
     icon: <ShoppingBag size={22} color="#2563EB" aria-hidden="true" />,
     title: 'Sell without being there all day',
-    desc: 'Your store takes orders 24 hours a day, even when you\'re at home, sleeping, or at the shop doing other work. Customers browse your products and place orders — you just manage and fulfill.',
+    desc: 'Your store takes orders 24 hours a day, even when you\'re at home, sleeping, or doing other work. Customers browse your products and place orders — you just manage and fulfill.',
   },
   {
     icon: <BarChart3 size={22} color="#2563EB" aria-hidden="true" />,
@@ -32,36 +34,30 @@ const OUTCOMES = [
   },
   {
     icon: <Package size={22} color="#2563EB" aria-hidden="true" />,
-    title: 'Stop managing orders on WhatsApp',
-    desc: 'When orders come in, you get a clear list — not 30 chat threads. Update status, print invoice, track what\'s pending. All in one place.',
+    title: 'Streamline order and customer workflows',
+    desc: 'When orders come in, you get a clear centralized list — not scattered chat threads. Update status, print invoices, track inventory, all in one place.',
   },
   {
     icon: <Bot size={22} color="#2563EB" aria-hidden="true" />,
-    title: 'An AI that knows your shop',
-    desc: 'FeraSetu AI uses your actual data. Ask it "what should I restock?" or "write a promo for Diwali" and it answers with context. No generic answers.',
+    title: 'An AI that understands your business',
+    desc: 'FeraSetu AI uses your actual store data. Ask it "what should I restock?", "write a product description", or "create a seasonal promotion" and get contextual answers.',
   },
-];
-
-const TRUST_SIGNALS = [
-  '₹0 to start — no credit card needed',
-  'Data stays in India',
-  'Cancel anytime, no penalty',
-  'FeraSetu AI uses your real shop data, not guesses',
-  'No hidden fees, ever',
 ];
 
 export default function PricingPage() {
   const navigate = useNavigate();
   const { user, register, login } = useAuth();
   const { translate: t } = useLanguage();
+  const { market, setMarket, config, trialPolicy } = useMarket();
   const [searchParams] = useSearchParams();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [selectingPlan, setSelectingPlan] = useState<string | null>(null);
 
   const currentPlan = user ? normalizePlanId(user.plan) : null;
+  const marketPlans = getMarketPlans(market);
 
   const handleSelectPlan = async (plan: PlanDefinition) => {
-    // Free plan: go to register
+    // Free plan (India only): go to register
     if (plan.price.monthly === 0) {
       if (user) {
         navigate('/dashboard');
@@ -70,20 +66,45 @@ export default function PricingPage() {
       }
       return;
     }
-    // Paid plan: needs auth
+
+    // US/EU: 14-day trial signup
     if (!user) {
-      register();
+      navigate(`/register?plan=${plan.id}&market=${market}`);
       return;
     }
+
     // Already on this plan
     if (currentPlan === plan.id) return;
+
     // Go to upgrade flow
-    navigate('/upgrade');
+    navigate(`/upgrade?plan=${plan.id}`);
   };
 
-  const pageTitle = 'Pricing — FeraSetu | Online Store for Indian Shopkeepers';
-  const pageDescription =
-    'Free forever for the basics. ₹399/month for Business. Honest, simple pricing with no hidden fees. Start building your online shop today.';
+  const isIndia = market === 'IN';
+
+  const pageTitle = isIndia
+    ? 'Pricing — FeraSetu | Honest, Simple Pricing with Permanent Free Entry'
+    : `Pricing — FeraSetu | ${config.trialDays}-Day Free Trial for Independent Businesses`;
+
+  const pageDescription = isIndia
+    ? 'Start your online store for ₹0. Upgrade to Business (₹399/mo) or Pro (₹999/mo) as your catalog grows. Zero commissions, no hidden fees.'
+    : `Start your 14-day free trial on FeraSetu. ${config.symbol}${config.plans.business.monthly}/mo for Business, ${config.symbol}${config.plans.pro.monthly}/mo for Pro. Zero marketplace commissions and proactive AI assistance built-in.`;
+
+  const trustSignals = isIndia
+    ? [
+        '₹0 to start — no credit card needed',
+        'Data stays in India',
+        'Cancel anytime, no penalty',
+        'FeraSetu AI uses your real shop data',
+        '0% commissions on orders',
+      ]
+    : [
+        `${config.trialDays}-day free trial on all plans`,
+        'No surprise charges',
+        'Cancel anytime — keep access until period ends',
+        '0% transaction commissions',
+        'Dedicated AI inventory & sales assistant',
+      ];
 
   return (
     <>
@@ -109,67 +130,65 @@ export default function PricingPage() {
           className="animate-fade-in"
           style={{
             textAlign: 'center',
-            padding: 'clamp(60px, 10vw, 100px) 24px clamp(40px, 6vw, 60px)',
-            maxWidth: 760, margin: '0 auto',
+            padding: 'clamp(50px, 8vw, 80px) 24px clamp(30px, 5vw, 50px)',
+            maxWidth: 820, margin: '0 auto',
           }}
         >
+          {/* Market / Currency selector toggle */}
+          <div className="mb-5 flex justify-center">
+            <MarketSelector variant="pills" />
+          </div>
+
           <p
             className="animate-slide-up"
             style={{
               display: 'inline-block', fontSize: 12, fontWeight: 800,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: '#2563EB', marginBottom: 20,
+              color: '#2563EB', marginBottom: 16,
               background: 'rgba(37,99,235,0.08)', padding: '6px 16px', borderRadius: 999,
               border: '1px solid rgba(37,99,235,0.2)',
             }}
           >
-            {t('pricing.tag')}
+            {isIndia ? (t('pricing.tag') || 'Simple, Honest Pricing') : `${config.trialDays}-Day Free Trial`}
           </p>
 
           <h1
             className="animate-slide-up"
             style={{
-              fontSize: 'clamp(32px, 6vw, 60px)', fontWeight: 900,
-              letterSpacing: '-0.04em', lineHeight: 1.05,
-              color: '#0f172a', margin: '0 0 20px',
+              fontSize: 'clamp(32px, 5.5vw, 56px)', fontWeight: 900,
+              letterSpacing: '-0.04em', lineHeight: 1.1,
+              color: '#0f172a', margin: '0 0 18px',
             }}
           >
-            {t('pricing.title').replace('.', '')}{' '}
-            <span style={{
-              background: 'linear-gradient(135deg, #2563EB, #3b82f6)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              .
-            </span>
+            {isIndia ? (
+              <>Start free. Upgrade when you need more<span className="text-blue-600">.</span></>
+            ) : (
+              <>{config.trialDays} days free. No surprise charges<span className="text-blue-600">.</span></>
+            )}
           </h1>
 
           <p
             className="animate-slide-up"
             style={{
-              fontSize: 'clamp(16px, 2.5vw, 20px)', color: '#475569',
-              lineHeight: 1.7, margin: '0 0 32px', fontWeight: 500,
+              fontSize: 'clamp(16px, 2.2vw, 19px)', color: '#475569',
+              lineHeight: 1.65, margin: '0 0 28px', fontWeight: 500,
             }}
           >
-            {t('pricing.subtitle')}
+            {isIndia
+              ? (t('pricing.subtitle') || 'Put your shop online today for ₹0. Upgrade as your catalog grows. Zero commissions, no hidden fees.')
+              : 'Launch your independent storefront in minutes. Enjoy full access for 14 days, then choose a plan to continue. Zero commissions, cancel anytime.'
+            }
           </p>
 
           {/* Trust signals */}
           <ul
             className="animate-slide-up"
             style={{
-              listStyle: 'none', padding: 0, margin: '0 0 40px',
+              listStyle: 'none', padding: 0, margin: '0 0 32px',
               display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 20px',
             }}
           >
-            {[
-              t('pricing.trust1'),
-              t('pricing.trust2'),
-              t('pricing.trust3'),
-              t('pricing.trust4'),
-              t('pricing.trust5')
-            ].map(signal => (
+            {trustSignals.map(signal => (
               <li
                 key={signal}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', fontWeight: 600 }}
@@ -213,7 +232,7 @@ export default function PricingPage() {
                     color: '#10b981', background: 'rgba(16,185,129,0.1)',
                     padding: '2px 6px', borderRadius: 6,
                   }}>
-                    {t('pricing.save2Months')}
+                    {t('pricing.save2Months') || 'Save 2 months'}
                   </span>
                 )}
               </button>
@@ -221,26 +240,33 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <ValueLadderSection
-          currentPlan={currentPlan}
-          isAuthenticated={!!user}
-          onSelectPlan={handleSelectPlan}
-        />
+        {/* Value Progression (India only or tailored) */}
+        {isIndia && (
+          <ValueLadderSection
+            currentPlan={currentPlan}
+            isAuthenticated={!!user}
+            onSelectPlan={handleSelectPlan}
+          />
+        )}
 
         {/* ================================================================
           PRICING CARDS
         ================================================================ */}
         <section
           aria-label="Pricing plans"
-          style={{ padding: '0 24px 80px', maxWidth: 1200, margin: '0 auto' }}
+          style={{
+            padding: '0 24px 60px',
+            maxWidth: isIndia ? 1200 : 840,
+            margin: '0 auto'
+          }}
         >
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
             gap: 'clamp(16px, 2vw, 24px)',
             alignItems: 'start',
           }}>
-            {PLANS.map(plan => (
+            {marketPlans.map(plan => (
               <PricingCard
                 key={plan.id}
                 plan={plan}
@@ -252,14 +278,23 @@ export default function PricingPage() {
               />
             ))}
           </div>
+
+          {/* Tax note */}
+          {config.taxNote && (
+            <p className="text-center text-xs text-slate-400 mt-6 font-medium">
+              {config.taxNote}
+            </p>
+          )}
         </section>
 
         {/* ================================================================
-          FOUNDING OFFER BANNER
+          FOUNDING OFFER BANNER (India only or active promotions)
         ================================================================ */}
-        <section style={{ padding: '0 24px 80px', maxWidth: 1100, margin: '0 auto' }}>
-          <FoundingOfferBanner />
-        </section>
+        {isIndia && (
+          <section style={{ padding: '0 24px 80px', maxWidth: 1100, margin: '0 auto' }}>
+            <FoundingOfferBanner />
+          </section>
+        )}
 
         {/* ================================================================
           OUTCOME VALUE PROPS
@@ -281,16 +316,16 @@ export default function PricingPage() {
                 color: '#2563EB', marginBottom: 16,
                 background: 'rgba(37,99,235,0.08)', padding: '4px 12px', borderRadius: 999,
               }}>
-                {t('pricing.outcomes.tag')}
+                {t('pricing.outcomes.tag') || 'Outcomes'}
               </p>
               <h2 style={{
                 fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 900,
                 letterSpacing: '-0.03em', margin: '0 0 14px', lineHeight: 1.1,
               }}>
-                {t('pricing.outcomes.title')}
+                {t('pricing.outcomes.title') || 'Built for real business outcomes'}
               </h2>
               <p style={{ color: '#64748b', fontSize: 17, fontWeight: 500, maxWidth: 600, margin: '0 auto' }}>
-                {t('pricing.outcomes.subtitle')}
+                {t('pricing.outcomes.subtitle') || 'Everything you need to sell online, keep more margin, and manage your store effortlessly.'}
               </p>
             </div>
 
@@ -372,24 +407,22 @@ export default function PricingPage() {
               color: '#3b82f6', marginBottom: 20,
               background: 'rgba(59,130,246,0.15)', padding: '4px 12px', borderRadius: 999,
             }}>
-              {t('pricing.cta.tag')}
+              {isIndia ? (t('pricing.cta.tag') || 'Ready to begin?') : `${config.trialDays}-Day Free Trial`}
             </p>
             <h2 style={{
               fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 900, color: '#fff',
               letterSpacing: '-0.04em', lineHeight: 1.1, margin: '0 0 20px',
             }}>
-              {t('pricing.cta.title')}<br />
-              <span style={{
-                background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                {t('pricing.cta.titleHighlight')}
-              </span>
+              {isIndia ? (
+                <>Start your store today.<br /><span className="text-blue-400">Zero risk, 0% commissions.</span></>
+              ) : (
+                <>Experience FeraSetu free.<br /><span className="text-blue-400">14 days free, no surprise charges.</span></>
+              )}
             </h2>
             <p style={{ color: '#94a3b8', fontSize: 17, margin: '0 0 36px', lineHeight: 1.7, fontWeight: 500 }}>
-              {t('pricing.cta.desc')}
+              {isIndia
+                ? 'Join thousands of independent merchants growing their sales directly with FeraSetu.'
+                : 'Built for independent shopkeepers and small businesses ready to sell directly — without marketplace commissions or technical complexity.'}
             </p>
             <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
@@ -407,7 +440,7 @@ export default function PricingPage() {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'none'; }}
               >
-                {t('pricing.cta.free')}
+                {isIndia ? 'Start Free' : `Start ${config.trialDays}-Day Free Trial`}
                 <ArrowRight size={16} />
               </button>
               <button
@@ -426,11 +459,11 @@ export default function PricingPage() {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
               >
-                {t('pricing.cta.login')}
+                Sign In
               </button>
             </div>
             <p style={{ color: '#475569', fontSize: 13, margin: '20px 0 0', fontWeight: 600 }}>
-              {t('pricing.cta.footer')}
+              {isIndia ? '₹0 to start • No credit card required • Cancel anytime' : '14 days free • No surprise charges • Cancel anytime'}
             </p>
           </div>
         </section>

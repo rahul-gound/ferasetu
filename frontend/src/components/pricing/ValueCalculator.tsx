@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { PLAN_PRICES } from '../../config/plans';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useMarket } from '../../contexts/MarketContext';
 
 interface ValueCalculatorProps {
   billingCycle?: 'monthly' | 'yearly';
@@ -8,13 +8,23 @@ interface ValueCalculatorProps {
 
 export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalculatorProps) {
   const { translate: t } = useLanguage();
-  const [ordersPerWeek, setOrdersPerWeek] = useState(10);
-  const [avgOrderValue, setAvgOrderValue] = useState(350);
+  const { market, config } = useMarket();
 
-  // Derive the active plan cost from the Business plan using the SSOT
+  const isIndia = market === 'IN';
+
+  const [ordersPerWeek, setOrdersPerWeek] = useState(15);
+  const [avgOrderValue, setAvgOrderValue] = useState(isIndia ? 350 : 25);
+
+  // Update default AOV if market switches
+  useEffect(() => {
+    setAvgOrderValue(isIndia ? 350 : 25);
+  }, [isIndia]);
+
+  // Derive active plan cost from the market configuration
+  const businessTier = config.plans.business;
   const monthlyPlanCost = billingCycle === 'yearly' 
-    ? PLAN_PRICES.business.yearlyPerMonth 
-    : PLAN_PRICES.business.monthly;
+    ? businessTier.yearlyPerMonth 
+    : businessTier.monthly;
 
   const weeklyRevenue = ordersPerWeek * avgOrderValue;
   const monthlyRevenue = weeklyRevenue * 4;
@@ -26,8 +36,14 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
     
   const timeSavedPerWeek = Math.round(ordersPerWeek * 5); // estimate 5 min/order saved
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => {
+    const locale = isIndia ? 'en-IN' : market === 'EU' ? 'de-DE' : 'en-US';
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: config.currency,
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
 
   return (
     <section
@@ -56,16 +72,16 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
           color: '#60a5fa', marginBottom: 12,
           background: 'rgba(59,130,246,0.15)', padding: '4px 12px', borderRadius: 999,
         }}>
-          {t('calc.tag')}
+          {t('calc.tag') || 'ROI Estimator'}
         </p>
         <h2 style={{
           fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 900,
           letterSpacing: '-0.03em', margin: '0 0 8px', lineHeight: 1.1, color: '#fff',
         }}>
-          {t('calc.title')}
+          {t('calc.title') || 'See how quickly FeraSetu pays for itself'}
         </h2>
         <p style={{ color: '#94a3b8', fontSize: 14, margin: '0 0 32px', lineHeight: 1.7, fontWeight: 500 }}>
-          {t('calc.desc')}
+          {t('calc.desc') || 'Slide to match your estimated weekly order volume and typical order value.'}
         </p>
 
         <div style={{
@@ -79,7 +95,7 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
               htmlFor="orders-slider"
               style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#cbd5e1', marginBottom: 12 }}
             >
-              {t('calc.orders')}
+              {t('calc.orders') || 'Orders per week'}
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <input
@@ -104,14 +120,20 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
               htmlFor="value-slider"
               style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#cbd5e1', marginBottom: 12 }}
             >
-              {t('calc.aov')}
+              {t('calc.aov') || 'Average order value'}
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <input
                 id="value-slider"
-                type="range" min="50" max="5000" step="50" value={avgOrderValue}
+                type="range"
+                min={isIndia ? 50 : 5}
+                max={isIndia ? 5000 : 250}
+                step={isIndia ? 50 : 5}
+                value={avgOrderValue}
                 onChange={e => setAvgOrderValue(Number(e.target.value))}
-                aria-valuemin={50} aria-valuemax={5000} aria-valuenow={avgOrderValue}
+                aria-valuemin={isIndia ? 50 : 5}
+                aria-valuemax={isIndia ? 5000 : 250}
+                aria-valuenow={avgOrderValue}
                 style={{ flex: 1, accentColor: '#2563EB', cursor: 'pointer' }}
               />
               <span style={{
@@ -136,10 +158,10 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
             border: '1px solid rgba(255,255,255,0.08)',
           }}>
             <p style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('calc.estOrders')}
+              {t('calc.estOrders') || 'Est. Monthly Orders'}
             </p>
             <p style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.03em' }}>
-              {(ordersPerWeek * 4).toLocaleString('en-IN')}
+              {(ordersPerWeek * 4).toLocaleString(isIndia ? 'en-IN' : 'en-US')}
             </p>
           </div>
           <div style={{
@@ -148,51 +170,31 @@ export default function ValueCalculator({ billingCycle = 'monthly' }: ValueCalcu
             border: '1px solid rgba(255,255,255,0.08)',
           }}>
             <p style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('calc.estRevenue')}
+              Est. Monthly Revenue
             </p>
-            <p style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.03em' }}>
+            <p style={{ fontSize: 28, fontWeight: 900, color: '#10b981', margin: 0, letterSpacing: '-0.03em' }}>
               {formatCurrency(monthlyRevenue)}
             </p>
           </div>
           <div style={{
             padding: '18px 20px', borderRadius: 16,
-            background: 'rgba(37,99,235,0.15)',
-            border: '1px solid rgba(37,99,235,0.3)',
-          }}>
-            <p style={{ fontSize: 12, color: '#93c5fd', fontWeight: 700, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('calc.planCost')}
-            </p>
-            <p style={{ fontSize: 28, fontWeight: 900, color: '#60a5fa', margin: 0, letterSpacing: '-0.03em' }}>
-              {planCostPct}%
-            </p>
-            <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0', fontWeight: 500 }}>
-              {t('calc.basedOn', { billing: billingCycle, price: formatCurrency(monthlyPlanCost) })}
-            </p>
-          </div>
-          <div style={{
-            padding: '18px 20px', borderRadius: 16,
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.08)',
           }}>
             <p style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('calc.timeSaved')}
+              FeraSetu Cost / Rev
             </p>
-            <p style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.03em' }}>
-              ~{timeSavedPerWeek} min
+            <p style={{ fontSize: 28, fontWeight: 900, color: '#60a5fa', margin: 0, letterSpacing: '-0.03em' }}>
+              {planCostPct}%
             </p>
           </div>
         </div>
 
-        {/* Honest disclaimer */}
-        <div style={{
-          padding: '14px 18px', borderRadius: 14,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', lineHeight: 1.7, fontWeight: 500 }}>
-            <strong style={{ color: '#cbd5e1' }}>{t('calc.disclaimerTitle')}</strong> {t('calc.disclaimerText')}
-          </p>
-        </div>
+        <p style={{ margin: 0, fontSize: 12, color: '#64748b', textAlign: 'center', fontWeight: 500 }}>
+          {isIndia
+            ? '0% transaction fee. FeraSetu does not take commissions from your sales.'
+            : '0% transaction fee. FeraSetu does not take marketplace cuts from your revenue.'}
+        </p>
       </div>
     </section>
   );

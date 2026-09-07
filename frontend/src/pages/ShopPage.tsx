@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import type { PublicShopData } from '../types/template';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
@@ -178,6 +178,9 @@ export default function ShopPage() {
     );
   }
 
+  const [searchParams] = useSearchParams();
+  const initialProductId = searchParams.get('product');
+
   return (
     <>
       {seoData && (
@@ -195,6 +198,11 @@ export default function ShopPage() {
         products={data!.products}
         shopName={data!.shop.name}
         shopId={data!.shop.id}
+        shopPhone={(data!.shop as any).phone || (data!.website.config as any)?.phone}
+        shopLogo={(data!.shop as any).logo_url || (data!.website.config as any)?.logo}
+        theme={(data!.website as any).theme || data!.website.template}
+        overrides={(data!.website as any).config?.overrides}
+        initialProductId={initialProductId}
       />
     </>
   );

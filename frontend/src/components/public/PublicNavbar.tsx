@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Menu, X, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useMarket } from '../../contexts/MarketContext';
 import LanguageSelector from '../LanguageSelector';
+import MarketSelector from '../marketing/MarketSelector';
 
 export default function PublicNavbar() {
   const { user, login, register, logout } = useAuth();
   const { translate: t, getLocalizedLink } = useLanguage();
+  const { market } = useMarket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const primaryLinks = [
@@ -45,7 +48,7 @@ export default function PublicNavbar() {
               src='/logo-official.png'
               alt='FeraSetu'
               fetchPriority='high'
-              className='h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]'
+              className='h-11 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]'
             />
           </Link>
 
@@ -62,7 +65,8 @@ export default function PublicNavbar() {
           </div>
 
           <div className='flex items-center gap-3'>
-            <div className='hidden md:block'>
+            <div className='hidden items-center gap-2 md:flex'>
+              <MarketSelector variant='light' />
               <LanguageSelector variant='light' />
             </div>
 
@@ -105,7 +109,7 @@ export default function PublicNavbar() {
                   onClick={() => register()}
                   className='inline-flex cursor-pointer items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
                 >
-                  {t('nav.startFree')}
+                  {market === 'IN' ? t('nav.startFree') : 'Start Trial'}
                   <ArrowRight size={15} aria-hidden='true' />
                 </button>
               </div>
@@ -127,7 +131,7 @@ export default function PublicNavbar() {
       {mobileMenuOpen && (
         <div className='fixed inset-0 z-[70] flex flex-col bg-white md:hidden'>
           <div className='flex h-20 items-center justify-between border-b border-slate-200 px-5'>
-            <img src='/logo-official.png' alt='FeraSetu' className='h-8 w-auto object-contain' />
+            <img src='/logo-official.png' alt='FeraSetu' className='h-10 sm:h-11 w-auto object-contain' />
             <button
               type='button'
               onClick={() => setMobileMenuOpen(false)}
@@ -153,7 +157,12 @@ export default function PublicNavbar() {
             </div>
 
             <div className='mt-8 flex flex-col gap-4 border-t border-slate-100 pt-6'>
-              <LanguageSelector variant='light' />
+              <div className='flex items-center gap-2'>
+                <MarketSelector variant='light' />
+                <div className='flex-1'>
+                  <LanguageSelector variant='light' />
+                </div>
+              </div>
               {user ? (
                 <>
                   <Link
@@ -196,7 +205,7 @@ export default function PublicNavbar() {
                     }}
                     className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
                   >
-                    {t('nav.startFree')}
+                    {market === 'IN' ? t('nav.startFree') : 'Start 14-Day Trial'}
                   </button>
                 </>
               )}

@@ -1,25 +1,55 @@
-import { useState, useEffect } from 'react';
-import type { TemplateSection, ShopProduct } from '../../types/template';
-import NavbarSection from './sections/NavbarSection';
-import HeroSection from './sections/HeroSection';
-import BannerSection from './sections/BannerSection';
-import ProductGridSection from './sections/ProductGridSection';
-import ContactSection from './sections/ContactSection';
-import FooterSection from './sections/FooterSection';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { ShopProduct, TemplateSection } from '../../types/template';
+import { StorefrontProvider } from '../../storefront/runtime/StorefrontProvider';
+import { resolveStorefrontTheme } from '../../storefront/theme/themeResolver';
+import { normalizeLegacySections } from '../../storefront/compatibility/legacySectionAdapter';
+
+// Sections
+import AnnouncementBarSection from '../../storefront/sections/AnnouncementBarSection';
+import HeaderSection from '../../storefront/sections/HeaderSection';
+import HeroSection from '../../storefront/sections/HeroSection';
+import CategoryGridSection from '../../storefront/sections/CategoryGridSection';
+import ProductGridSection from '../../storefront/sections/ProductGridSection';
+import FeaturedProductSection from '../../storefront/sections/FeaturedProductSection';
+import TrustStripSection from '../../storefront/sections/TrustStripSection';
+import BrandStorySection from '../../storefront/sections/BrandStorySection';
+import TestimonialsSection from '../../storefront/sections/TestimonialsSection';
+import FAQSection from '../../storefront/sections/FAQSection';
+import NewsletterSection from '../../storefront/sections/NewsletterSection';
+import FooterSection from '../../storefront/sections/FooterSection';
+
+// Overlays & Modals
+import ProductDetailModal from '../../storefront/components/ProductDetailModal';
+import CartDrawer from '../../storefront/components/CartDrawer';
 import TrackOrderModal from './TrackOrderModal';
 import Breadcrumb from './Breadcrumb';
 
-interface TemplateRendererProps {
-  sections: TemplateSection[];
+export interface TemplateRendererProps {
+  sections?: TemplateSection[] | any[];
   products: ShopProduct[];
   shopName: string;
   shopId: string;
+  shopPhone?: string;
+  shopLogo?: string;
+  theme?: string | Record<string, unknown>;
+  overrides?: Record<string, unknown>;
   isPreview?: boolean;
+  initialProductId?: string | null;
 }
 
-export default function TemplateRenderer({ sections, products, shopName, shopId, isPreview }: TemplateRendererProps) {
+export default function TemplateRenderer({
+  sections = [],
+  products,
+  shopName,
+  shopId,
+  shopPhone = '',
+  shopLogo,
+  theme,
+  overrides,
+  isPreview = false,
+  initialProductId,
+}: TemplateRendererProps) {
   const [showTrackModal, setShowTrackModal] = useState(false);
-  const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const handleOpenTrack = () => setShowTrackModal(true);
@@ -27,102 +57,139 @@ export default function TemplateRenderer({ sections, products, shopName, shopId,
     return () => window.removeEventListener('fera-open-track-order', handleOpenTrack);
   }, []);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            setVisibleSections(prev => new Set([...prev, entry.target.id]));
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
+  // 1. Resolve theme ID safely
+  const themeId = useMemo(() => {
+    if (typeof theme === 'string') return theme;
+    if (theme && typeof theme === 'object' && 'id' in theme && typeof (theme as any).id === 'string') {
+      return (theme as any).id;
+    }
+    return 'market';
+  }, [theme]);
 
-    document.querySelectorAll('[data-section]').forEach(el => observer.observe(el));
-    return () => observer.disconnect();
-  }, [sections]);
+  // 2. Normalize sections safely (guarantees legacy sections work seamlessly)
+  const normalizedSections = useMemo(() => {
+    return normalizeLegacySections(sections, shopName);
+  }, [sections, shopName]);
 
-  const contactSection = sections.find(s => s.type === 'contact');
-  const shopPhone = (contactSection?.config?.phone as string) || '';
+  // 3. Resolve theme definition and CSS variables
+  const resolvedTheme = useMemo(() => {
+    return resolveStorefrontTheme(themeId, overrides, normalizedSections);
+  }, [themeId, overrides, normalizedSections]);
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        [data-section] {
-          animation: fadeInUp 0.8s ease-out forwards;
-        }
-        
-        [data-section]:nth-child(1) { animation-delay: 0s; }
-        [data-section]:nth-child(2) { animation-delay: 0.1s; }
-        [data-section]:nth-child(3) { animation-delay: 0.2s; }
-        [data-section]:nth-child(4) { animation-delay: 0.3s; }
-        [data-section]:nth-child(5) { animation-delay: 0.4s; }
-        [data-section]:nth-child(6) { animation-delay: 0.5s; }
-        
-        section {
-          scroll-behavior: smooth;
-        }
-      `}</style>
-      
-      {isPreview && (
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 200,
-          background: 'linear-gradient(90deg, #2563EB, #4F46E5)',
-          color: '#fff', padding: '8px 16px',
-          display: 'flex', alignItems: 'center', gap: '8px',
-          fontSize: '13px', fontWeight: 600,
-        }}>
-          <span>🔍</span> Live Preview
-          <span style={{ marginLeft: 'auto', opacity: 0.7, fontWeight: 400 }}>
-            Changes are saved automatically
-          </span>
-        </div>
-      )}
-      
-      {showTrackModal && (
-        <TrackOrderModal 
-          shopId={shopId} 
-          onClose={() => setShowTrackModal(false)} 
-        />
-      )}
-
-      {!isPreview && <Breadcrumb shopName={shopName} />}
-
-      {sections.map((section, index) => {
-        const key = `${section.type}-${index}`;
-        const isVisible = visibleSections.has(key);
-        
-        return (
-          <div
-            key={section.id}
-            id={key}
-            data-section
-            style={{
-              opacity: isVisible ? 1 : 0.9,
-            }}
-          >
-            {section.type === 'navbar' && <NavbarSection config={section.config} shopName={shopName} />}
-            {section.type === 'hero' && <HeroSection config={section.config} shopName={shopName} />}
-            {section.type === 'banner' && <BannerSection config={section.config} />}
-            {section.type === 'productGrid' && <ProductGridSection config={section.config} products={products} shopId={shopId} shopPhone={shopPhone} />}
-            {section.type === 'contact' && <ContactSection config={section.config} />}
-            {section.type === 'footer' && <FooterSection config={section.config} />}
+    <StorefrontProvider
+      shopId={shopId}
+      shopName={shopName}
+      shopPhone={shopPhone}
+      shopLogo={shopLogo}
+      products={products}
+      initialProductId={initialProductId}
+    >
+      <div
+        className="fera-storefront-root min-h-screen text-[var(--theme-color-text)] bg-[var(--theme-color-bg)] transition-colors duration-200"
+        style={{
+          ...resolvedTheme.cssVariables,
+          fontFamily: 'var(--theme-font-body), system-ui, sans-serif',
+        }}
+      >
+        {/* Preview Banner */}
+        {isPreview && (
+          <div className="sticky top-0 z-[100] bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 flex items-center justify-between text-xs font-bold shadow-sm">
+            <span className="flex items-center gap-1.5">
+              <span>👁️</span> Live Store Preview &mdash; Theme: <span className="uppercase">{resolvedTheme.name}</span>
+            </span>
+            <span className="opacity-80 font-normal hidden sm:inline">
+              Changes update in real time
+            </span>
           </div>
-        );
-      })}
-    </div>
+        )}
+
+        {/* Optional Breadcrumb */}
+        {!isPreview && <Breadcrumb shopName={shopName} />}
+
+        {/* Render Normalized Storefront Sections */}
+        {resolvedTheme.sections.map((section) => {
+          if (section.enabled === false) return null;
+
+          const key = section.id;
+          const config = section.config || {};
+          const variant = section.variant;
+
+          switch (section.type) {
+            case 'announcement':
+              return <AnnouncementBarSection key={key} config={config} variant={variant} />;
+
+            case 'header':
+              return (
+                <HeaderSection
+                  key={key}
+                  config={config}
+                  variant={variant || resolvedTheme.headerVariant}
+                />
+              );
+
+            case 'hero':
+              return (
+                <HeroSection
+                  key={key}
+                  config={config}
+                  variant={variant || resolvedTheme.heroVariant}
+                />
+              );
+
+            case 'category-grid':
+              return <CategoryGridSection key={key} config={config} variant={variant} />;
+
+            case 'product-grid':
+              return (
+                <ProductGridSection
+                  key={key}
+                  config={config}
+                  variant={variant || resolvedTheme.cardVariant}
+                />
+              );
+
+            case 'featured-product':
+              return <FeaturedProductSection key={key} config={config} variant={variant} />;
+
+            case 'trust-strip':
+              return <TrustStripSection key={key} config={config} variant={variant} />;
+
+            case 'brand-story':
+              return <BrandStorySection key={key} config={config} variant={variant} />;
+
+            case 'testimonials':
+              return <TestimonialsSection key={key} config={config} variant={variant} />;
+
+            case 'faq':
+              return <FAQSection key={key} config={config} variant={variant} />;
+
+            case 'newsletter':
+              return <NewsletterSection key={key} config={config} variant={variant} />;
+
+            case 'footer':
+              return (
+                <FooterSection
+                  key={key}
+                  config={config}
+                  variant={variant || resolvedTheme.footerVariant}
+                />
+              );
+
+            default:
+              return null;
+          }
+        })}
+
+        {/* Global Storefront Overlays */}
+        <ProductDetailModal />
+        <CartDrawer />
+
+        {/* Track Order Modal */}
+        {showTrackModal && (
+          <TrackOrderModal shopId={shopId} onClose={() => setShowTrackModal(false)} />
+        )}
+      </div>
+    </StorefrontProvider>
   );
 }

@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react';
-import { PLANS, type PlanId } from '../../config/plans';
+import { getMarketPlans } from '../../config/plans';
+import { useMarket } from '../../contexts/MarketContext';
 
 interface CompareRow {
   feature: string;
@@ -20,7 +21,7 @@ const COMPARISON_ROWS: CompareRow[] = [
   { feature: 'Store customization', free: false, business: true, pro: true },
   // Orders & Operations
   { feature: 'Order management', free: true, business: true, pro: true, category: 'Operations' },
-  { feature: 'WhatsApp ordering link', free: true, business: true, pro: true },
+  { feature: 'Direct ordering link', free: true, business: true, pro: true },
   { feature: 'Invoices', free: 'Basic', business: 'Professional', pro: 'Professional' },
   { feature: 'Inventory management', free: false, business: true, pro: true },
   { feature: 'Low-stock alerts', free: false, business: true, pro: true },
@@ -33,7 +34,7 @@ const COMPARISON_ROWS: CompareRow[] = [
   // FeraSetu AI
   { feature: 'FeraSetu AI credits/month', free: '20', business: '200', pro: '1,000', category: 'FeraSetu AI' },
   { feature: 'Product descriptions', free: true, business: true, pro: true },
-  { feature: 'WhatsApp promo drafts', free: true, business: true, pro: true },
+  { feature: 'Campaign promo drafts', free: true, business: true, pro: true },
   { feature: 'Advanced analysis & forecasting', free: false, business: false, pro: true },
   // Support
   { feature: 'Support', free: 'Community', business: 'Priority', pro: '24/7 Priority', category: 'Support' },
@@ -55,6 +56,9 @@ function CellContent({ value }: { value: string | boolean | undefined }) {
 }
 
 export default function FeatureComparison() {
+  const { market, config } = useMarket();
+  const plans = getMarketPlans(market);
+  const isIndia = market === 'IN';
   let lastCategory = '';
 
   return (
@@ -87,10 +91,10 @@ export default function FeatureComparison() {
         >
           <thead>
             <tr style={{ background: '#0f172a' }}>
-              <th scope="col" style={{ padding: '18px 20px', textAlign: 'left', color: '#94a3b8', fontSize: 13, fontWeight: 700, width: '35%' }}>
+              <th scope="col" style={{ padding: '18px 20px', textAlign: 'left', color: '#94a3b8', fontSize: 13, fontWeight: 700, width: isIndia ? '34%' : '44%' }}>
                 Feature
               </th>
-              {PLANS.map(plan => (
+              {plans.map(plan => (
                 <th
                   key={plan.id}
                   scope="col"
@@ -101,11 +105,9 @@ export default function FeatureComparison() {
                   }}
                 >
                   {plan.displayName}
-                  {plan.id !== 'free' && (
-                    <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginTop: 2 }}>
-                      ₹{plan.price.monthly}/mo
-                    </span>
-                  )}
+                  <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#94a3b8', marginTop: 2 }}>
+                    {plan.id === 'free' ? '₹0/mo' : `${config.symbol}${plan.price.monthly}/mo`}
+                  </span>
                 </th>
               ))}
             </tr>
@@ -116,39 +118,39 @@ export default function FeatureComparison() {
               if (row.category) lastCategory = row.category;
 
               return (
-                <>
+                <tr key={row.feature} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                   {showCategory && (
-                    <tr key={`cat-${row.category}`} style={{ background: '#f8fafc' }}>
-                      <td
-                        colSpan={4}
-                        style={{
-                          padding: '8px 20px',
-                          fontSize: 11, fontWeight: 900, letterSpacing: '0.08em',
-                          textTransform: 'uppercase', color: '#94a3b8',
-                        }}
-                      >
-                        {row.category}
-                      </td>
-                    </tr>
+                    <td
+                      colSpan={isIndia ? 4 : 3}
+                      style={{
+                        padding: '8px 20px',
+                        fontSize: 11, fontWeight: 900, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', color: '#94a3b8',
+                        background: '#f8fafc',
+                      }}
+                    >
+                      {row.category}
+                    </td>
                   )}
-                  <tr
-                    key={row.feature}
-                    style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}
-                  >
-                    <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600, color: '#334155' }}>
-                      {row.feature}
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <CellContent value={row.free} />
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center', background: 'rgba(255,107,53,0.03)' }}>
-                      <CellContent value={row.business ?? row.growth} />
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <CellContent value={row.pro} />
-                    </td>
-                  </tr>
-                </>
+                  {!showCategory && (
+                    <>
+                      <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600, color: '#334155' }}>
+                        {row.feature}
+                      </td>
+                      {isIndia && (
+                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          <CellContent value={row.free} />
+                        </td>
+                      )}
+                      <td style={{ padding: '14px 16px', textAlign: 'center', background: 'rgba(255,107,53,0.03)' }}>
+                        <CellContent value={row.business ?? row.growth} />
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <CellContent value={row.pro} />
+                      </td>
+                    </>
+                  )}
+                </tr>
               );
             })}
           </tbody>

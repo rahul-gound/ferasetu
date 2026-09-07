@@ -1,6 +1,7 @@
 import { Check, X, ArrowRight, Loader2 } from 'lucide-react';
 import type { PlanDefinition } from '../../config/plans';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useMarket } from '../../contexts/MarketContext';
 
 interface PricingCardProps {
   plan: PlanDefinition;
@@ -20,6 +21,8 @@ export default function PricingCard({
   isAuthenticated,
 }: PricingCardProps) {
   const { translate: t } = useLanguage();
+  const { market, config } = useMarket();
+
   const price = billingCycle === 'yearly' ? plan.price.yearlyPerMonth : plan.price.monthly;
   const totalYearly = plan.price.yearly;
   const isFree = plan.price.monthly === 0;
@@ -57,6 +60,16 @@ export default function PricingCard({
   const accentColor = ACCENT_COLORS[plan.id] ?? '#64748b';
   const cardStyle = CARD_STYLES[plan.id] ?? CARD_STYLES.free;
 
+  const formattedPrice = isFree
+    ? '0'
+    : market === 'IN'
+      ? price.toLocaleString('en-IN')
+      : price.toLocaleString(market === 'EU' ? 'de-DE' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  const formattedTotalYearly = market === 'IN'
+    ? totalYearly.toLocaleString('en-IN')
+    : totalYearly.toLocaleString(market === 'EU' ? 'de-DE' : 'en-US');
+
   const getButtonLabel = () => {
     if (isCurrentPlan) return t('card.current');
     if (isFree) return isAuthenticated ? t('card.current') : plan.ctaText;
@@ -64,9 +77,11 @@ export default function PricingCard({
     return plan.ctaText;
   };
 
+  const badgeText = plan.badge || (plan.highlighted ? t('card.popular') : null);
+
   return (
     <article
-      aria-label={`${plan.displayName} plan — ₹${price}/month`}
+      aria-label={`${plan.displayName} plan — ${config.symbol}${formattedPrice}/month`}
       style={{
         position: 'relative',
         display: 'flex',
@@ -90,10 +105,10 @@ export default function PricingCard({
         }
       }}
     >
-      {/* Most Popular badge */}
-      {plan.highlighted && (
+      {/* Popular / 14-day trial badge */}
+      {badgeText && (
         <div
-          aria-label="Most popular plan"
+          aria-label={badgeText}
           style={{
             position: 'absolute', top: -1, left: '50%', transform: 'translateX(-50%)',
             background: '#FF6B35', color: '#fff',
@@ -102,12 +117,12 @@ export default function PricingCard({
             whiteSpace: 'nowrap',
           }}
         >
-          {t('card.popular')}
+          {badgeText}
         </div>
       )}
 
       {/* Plan header */}
-      <div style={{ marginBottom: 20, paddingTop: plan.highlighted ? 8 : 0 }}>
+      <div style={{ marginBottom: 20, paddingTop: badgeText ? 8 : 0 }}>
         <h2 style={{
           fontSize: 22, fontWeight: 900, color: '#0f172a',
           letterSpacing: '-0.03em', margin: '0 0 6px',
@@ -122,12 +137,12 @@ export default function PricingCard({
       {/* Price */}
       <div style={{ marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-          <span style={{ fontSize: 18, fontWeight: 800, color: '#64748b' }}>₹</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#64748b' }}>{config.symbol}</span>
           <span style={{
             fontSize: 52, fontWeight: 900, color: '#0f172a',
             letterSpacing: '-0.05em', lineHeight: 1,
           }}>
-            {isFree ? '0' : price.toLocaleString('en-IN')}
+            {formattedPrice}
           </span>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 600, marginLeft: 4 }}>
             /mo
@@ -139,12 +154,15 @@ export default function PricingCard({
             background: 'rgba(16,185,129,0.1)', padding: '3px 8px',
             borderRadius: 999, display: 'inline-block',
           }}>
-            {t('card.save', { total: totalYearly.toLocaleString('en-IN') })}
+            {t('card.save', { total: `${config.symbol}${formattedTotalYearly}` })}
           </p>
         )}
         {!isFree && billingCycle === 'monthly' && (
           <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-            {t('card.day', { price: Math.round(price / 30).toLocaleString('en-IN') })}
+            {market === 'IN'
+              ? t('card.day', { price: `${config.symbol}${Math.round(price / 30).toLocaleString('en-IN')}` })
+              : `${config.symbol}${(price / 30).toFixed(2)}/day`
+            }
           </p>
         )}
       </div>
@@ -244,7 +262,7 @@ export default function PricingCard({
           textAlign: 'center', margin: '10px 0 0',
           fontSize: 11, color: '#94a3b8', fontWeight: 600,
         }}>
-          {t('card.cancel')}
+          {market === 'IN' ? t('card.cancel') : '14 days free. Cancel anytime.'}
         </p>
       )}
     </article>

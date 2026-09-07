@@ -56,7 +56,7 @@ export const VALUE_CURVE_FACTORS: ValueCurveFactor[] = [
   { factor: 'Learning curve', traditional: 'Steep', ferasetu: 'Phone-first' },
   { factor: 'Tool fragmentation', traditional: 'Multiple tools', ferasetu: 'One workspace' },
   { factor: 'AI help', traditional: 'Generic or absent', ferasetu: 'Shop context' },
-  { factor: 'Local relevance', traditional: 'Global-first', ferasetu: 'Indian merchants' },
+  { factor: 'Merchant accessibility', traditional: 'Enterprise-heavy', ferasetu: 'Independent merchants' },
   { factor: 'Business guidance', traditional: 'Low', ferasetu: 'Next best action' },
 ];
 
@@ -76,7 +76,7 @@ export const FOUR_ACTIONS: FourAction[] = [
   },
   {
     action: 'Raise',
-    description: 'Improve guidance, local relevance, clarity, AI assistance, and business understanding.',
+    description: 'Improve guidance, merchant accessibility, clarity, AI assistance, and business understanding.',
   },
   {
     action: 'Create',

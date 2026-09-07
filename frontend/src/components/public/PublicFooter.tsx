@@ -24,14 +24,14 @@ export default function PublicFooter() {
                 src="/logo-official.png"
                 alt="FeraSetu"
                 loading="lazy"
-                className="h-7 w-auto object-contain opacity-90"
+                className="h-10 sm:h-11 w-auto object-contain opacity-95"
               />
             </Link>
             <p className="text-sm text-slate-500 font-medium max-w-xs leading-relaxed mb-4">
               Your own online store. Your customers. Your profits.
             </p>
             <p className="text-xs text-slate-400 font-medium leading-relaxed">
-              Built for Indian shopkeepers who want to sell directly — without marketplace commissions or technical complexity.
+              Built for independent shopkeepers and small businesses ready to sell directly — without marketplace commissions or technical complexity.
             </p>
           </div>
 

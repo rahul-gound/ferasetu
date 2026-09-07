@@ -27,7 +27,7 @@ export default function ValueCurveSection() {
             A simpler path from offline shop to online business
           </h2>
           <p className='text-lg leading-relaxed text-slate-600'>
-            FeraSetu is not a smaller version of a traditional ecommerce platform. It is one workflow built around how Indian shopkeepers already work.
+            FeraSetu is not a smaller version of a traditional ecommerce platform. It is one workflow built around how independent shopkeepers and small businesses actually work.
           </p>
         </div>
 
