@@ -17,6 +17,7 @@ import {
   getCleanPath,
   getLanguagePath,
   loadDictionary,
+  resolveLanguageCode,
   type Dictionary,
   type TranslationKey
 } from '../i18n';
@@ -26,28 +27,37 @@ interface LanguageContextType {
   setLanguage: (lang: string) => void;
   translate: (key: TranslationKey, vars?: Record<string, string | number>) => string;
   getLocalizedLink: (path: string) => string;
+  suggestedLanguage: string | null;
+  suggestedStateName: string | null;
+  dismissSuggestion: () => void;
+  acceptSuggestion: () => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 const LANGUAGE_STORAGE_KEY = 'fera_language';
 const PRE_LOGIN_LANGUAGE_KEY = 'fera_prelogin_language';
+const PROMPT_DISMISSED_KEY = 'fera_lang_prompt_dismissed';
 
 function isSupportedLanguage(lang: string | null | undefined): boolean {
-  return Boolean(lang && ENABLED_LANGUAGES.some(language => language.code === lang));
+  if (!lang) return false;
+  const resolved = resolveLanguageCode(lang);
+  return Boolean(ENABLED_LANGUAGES.some(language => language.code === resolved));
 }
 
 function getBrowserLanguage(): string {
   if (typeof navigator === 'undefined' || !navigator.languages) return 'en';
   for (const browserLanguage of navigator.languages) {
-    const code = browserLanguage.split('-')[0]?.toLowerCase();
-    if (isSupportedLanguage(code)) return code;
+    const resolved = resolveLanguageCode(browserLanguage);
+    if (isSupportedLanguage(resolved)) return resolved;
   }
   return 'en';
 }
 
 function getStoredLanguage(): string {
   const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  if (stored !== null && isSupportedLanguage(stored)) return stored;
+  if (stored !== null && isSupportedLanguage(stored)) {
+    return resolveLanguageCode(stored);
+  }
   return getBrowserLanguage();
 }
 
@@ -62,13 +72,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const isPublicRoute = PUBLIC_ROUTES.includes(cleanPath);
 
   const [localLanguage, setLocalLanguage] = useState(() => (
-    isPublicRoute && isValidUrlLanguage ? urlLanguage : getStoredLanguage()
+    isPublicRoute && isValidUrlLanguage ? resolveLanguageCode(urlLanguage) : getStoredLanguage()
   ));
   const [dictionaries, setDictionaries] = useState<Record<string, Dictionary>>({
     en: fallbackDictionary
   });
 
-  const activeLanguage = isPublicRoute && isValidUrlLanguage ? urlLanguage : localLanguage;
+  // Suggestion state for privacy-conscious Google-Translate-style popup
+  const [suggestedLanguage, setSuggestedLanguage] = useState<string | null>(null);
+  const [suggestedStateName, setSuggestedStateName] = useState<string | null>(null);
+
+  const activeLanguage = isPublicRoute && isValidUrlLanguage ? resolveLanguageCode(urlLanguage) : localLanguage;
   const dictionary = dictionaries[activeLanguage] || fallbackDictionary;
 
   useEffect(() => {
@@ -92,6 +106,36 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     };
   }, [activeLanguage, dictionaries]);
 
+  // Privacy-conscious smart geo detection:
+  // Only runs if user hasn't explicitly chosen and hasn't dismissed before
+  useEffect(() => {
+    const hasExplicitChoice = localStorage.getItem(LANGUAGE_STORAGE_KEY) !== null;
+    const isDismissed = localStorage.getItem(PROMPT_DISMISSED_KEY) === 'true';
+
+    if (hasExplicitChoice || isDismissed || user?.preferred_language) {
+      return;
+    }
+
+    let isMounted = true;
+    fetch('/api/geo')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!isMounted || !data || !data.suggestedLanguage) return;
+        const resolved = resolveLanguageCode(data.suggestedLanguage);
+        if (resolved && resolved !== activeLanguage && isSupportedLanguage(resolved)) {
+          setSuggestedLanguage(resolved);
+          setSuggestedStateName(data.subdivision || data.name || null);
+        }
+      })
+      .catch(() => {
+        // Graceful fallback on network/offline failure
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeLanguage, user]);
+
   useEffect(() => {
     if (!user) {
       accountPreferenceApplied.current = false;
@@ -106,8 +150,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
     const applyPreference = window.setTimeout(() => {
       if (!isSupportedLanguage(preferredLanguage)) return;
-      setLocalLanguage(preferredLanguage);
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, preferredLanguage);
+      const resolved = resolveLanguageCode(preferredLanguage);
+      setLocalLanguage(resolved);
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, resolved);
     }, 0);
 
     if (preLoginLanguage) {
@@ -121,21 +166,38 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [user, updateUser, localLanguage]);
 
   const setLanguage = useCallback((lang: string) => {
-    if (!isSupportedLanguage(lang) || lang === activeLanguage) return;
+    const resolved = resolveLanguageCode(lang);
+    if (!isSupportedLanguage(resolved) || resolved === activeLanguage) return;
 
-    setLocalLanguage(lang);
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    setLocalLanguage(resolved);
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, resolved);
+
+    // Dismiss suggestion once explicit choice is made
+    setSuggestedLanguage(null);
+    localStorage.setItem(PROMPT_DISMISSED_KEY, 'true');
 
     if (!user) {
-      sessionStorage.setItem(PRE_LOGIN_LANGUAGE_KEY, lang);
+      sessionStorage.setItem(PRE_LOGIN_LANGUAGE_KEY, resolved);
       return;
     }
 
     sessionStorage.removeItem(PRE_LOGIN_LANGUAGE_KEY);
-    if (user.preferred_language !== lang) {
-      updateUser({ preferred_language: lang });
+    if (user.preferred_language !== resolved) {
+      updateUser({ preferred_language: resolved });
     }
   }, [activeLanguage, user, updateUser]);
+
+  const dismissSuggestion = useCallback(() => {
+    setSuggestedLanguage(null);
+    localStorage.setItem(PROMPT_DISMISSED_KEY, 'true');
+  }, []);
+
+  const acceptSuggestion = useCallback(() => {
+    if (suggestedLanguage) {
+      setLanguage(suggestedLanguage);
+    }
+    dismissSuggestion();
+  }, [suggestedLanguage, setLanguage, dismissSuggestion]);
 
   const translate = useCallback((key: TranslationKey, vars?: Record<string, string | number>) => {
     let text = dictionary[key] || fallbackDictionary[key] || key;
@@ -163,7 +225,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguage,
     translate,
     getLocalizedLink,
-  }), [activeLanguage, setLanguage, translate, getLocalizedLink]);
+    suggestedLanguage,
+    suggestedStateName,
+    dismissSuggestion,
+    acceptSuggestion
+  }), [activeLanguage, setLanguage, translate, getLocalizedLink, suggestedLanguage, suggestedStateName, dismissSuggestion, acceptSuggestion]);
 
   return (
     <LanguageContext.Provider value={contextValue}>
@@ -177,3 +243,4 @@ export function useLanguage() {
   if (!context) throw new Error('useLanguage must be used within LanguageProvider');
   return context;
 }
+

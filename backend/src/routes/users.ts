@@ -147,15 +147,22 @@ router.post('/workos-session', async (req: Request, res: Response): Promise<void
       const existingSub = db.prepare('SELECT id FROM users WHERE subdomain = ?').get(subdomain);
       if (existingSub) subdomain = `${subdomain}-${Math.random().toString(36).substring(2, 6)}`;
 
+      const cfCountry = req.headers['cf-ipcountry'] as string | undefined;
+      const detectedMarket = cfCountry === 'IN' ? 'IN' : (cfCountry === 'US' ? 'US' : 'IN');
+      const now = new Date();
+      const trialStartedAt = now.toISOString();
+      const trialEndsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
       db.prepare(`
         INSERT INTO users (
           id, workos_user_id, email, password_hash, name, is_verified,
           plan, plan_expires_at, subdomain,
-          ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at
-        ) VALUES (?, ?, ?, ?, ?, 1, 'beta', ?, ?, 20, 20, datetime('now', '+30 days'))
-      `).run(userId, workosUserId, email, '', name, expiresAt.toISOString(), subdomain);
+          ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at,
+          market, trial_started_at, trial_ends_at
+        ) VALUES (?, ?, ?, ?, ?, 1, 'beta', ?, ?, 20, 20, datetime('now', '+30 days'), ?, ?, ?)
+      `).run(userId, workosUserId, email, '', name, expiresAt.toISOString(), subdomain, detectedMarket, trialStartedAt, trialEndsAt);
 
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+      user = getUserById(userId) as any;
       if (!user) throw new Error('Failed to provision user after WorkOS sign-in');
       console.log(`✅ [workos-session] Provisioned new user: ${email} (${userId})`);
     }
@@ -212,7 +219,7 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
     const db = getDatabase();
     const ALLOWED: string[] = [
       'name', 'email', 'phone', 'business_name', 'preferred_language',
-      'subdomain', 'custom_domain', 'market', 'trial_ends_at',
+      'subdomain', 'custom_domain', 'market', 'trial_started_at', 'trial_ends_at',
     ];
 
     const updates: Record<string, unknown> = {};

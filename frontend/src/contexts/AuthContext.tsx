@@ -10,7 +10,11 @@ interface User {
   is_verified: boolean;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'business' | 'pro';
+  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'business' | 'pro' | 'starter';
+  market?: 'IN' | 'US' | 'EU' | 'OTHER';
+  trial_started_at?: string;
+  trial_ends_at?: string;
+  cancel_at_period_end?: number | boolean;
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -45,8 +49,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_KEYS: (keyof User)[] = [
-  'email', 'name', 'phone', 'business_name', 'plan', 'preferred_language',
-  'subdomain', 'custom_domain', 'plan_expires_at', 'ai_credits_balance',
+  'email', 'name', 'phone', 'business_name', 'plan', 'market', 'preferred_language',
+  'subdomain', 'custom_domain', 'trial_started_at', 'trial_ends_at', 'cancel_at_period_end',
+  'plan_expires_at', 'ai_credits_balance',
   'ai_credits_monthly_limit', 'ai_credits_used_month', 'ai_credits_reset_at',
   'storage_used_bytes', 'storage_limit_bytes',
 ];

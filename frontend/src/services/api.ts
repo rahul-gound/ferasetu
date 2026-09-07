@@ -11,7 +11,11 @@ interface LocalUser {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'business' | 'pro' | 'beta';
+  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'business' | 'pro' | 'beta' | 'starter';
+  market?: 'IN' | 'US' | 'EU' | 'OTHER';
+  trial_started_at?: string;
+  trial_ends_at?: string;
+  cancel_at_period_end?: number | boolean;
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -848,44 +852,75 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     const userId = getCurrentUserId();
     const user = userId ? db.users.find(u => u.id === userId) : null;
     const planRaw = String(payload.plan || 'business').toLowerCase();
-    const plan = (planRaw === 'pro' || planRaw === 'premium' ? 'pro' : planRaw === 'free' ? 'free' : 'business') as LocalUser['plan'];
+    const region = (payload.market || user?.market || 'IN').toUpperCase();
+    const plan = (planRaw === 'pro' || planRaw === 'premium' ? 'pro' : planRaw === 'starter' || planRaw === 'basic' ? 'starter' : planRaw === 'free' ? 'free' : 'business') as LocalUser['plan'];
     const billingCycle = payload.billingCycle || payload.billing || 'monthly';
-    const creditsByPlan: Record<string, number> = { free: 20, business: 200, pro: 1000 };
-    const priceByPlan: Record<string, { monthly: number; yearly: number }> = {
-      free: { monthly: 0, yearly: 0 },
-      business: { monthly: 399, yearly: 3990 },
-      pro: { monthly: 999, yearly: 9990 },
-    };
-    const expectedAmount = billingCycle === 'yearly'
-      ? priceByPlan[plan]?.yearly ?? 3990
-      : priceByPlan[plan]?.monthly ?? 399;
 
-    if (user) {
-      user.plan = plan;
-      user.ai_credits_balance = (user.ai_credits_balance || 0) + (creditsByPlan[plan] || 0);
-      user.ai_credits_monthly_limit = creditsByPlan[plan] || 200;
-      user.ai_credits_used_month = 0;
-      saveDb(db);
-      try {
-        const rawUser = localStorage.getItem('fera_user');
-        if (rawUser) {
-          const parsed = JSON.parse(rawUser);
-          parsed.plan = plan;
-          localStorage.setItem('fera_user', JSON.stringify(parsed));
-        }
-      } catch { /* ignore */ }
+    if (plan === 'free') {
+      if (region !== 'IN') {
+        throw createHttpError(400, 'The Free tier is only available for merchants based in India.');
+      }
+      if (user) {
+        user.plan = 'free';
+        user.ai_credits_balance = 20;
+        user.ai_credits_monthly_limit = 20;
+        user.ai_credits_used_month = 0;
+        saveDb(db);
+        try {
+          const rawUser = localStorage.getItem('fera_user');
+          if (rawUser) {
+            const parsed = JSON.parse(rawUser);
+            parsed.plan = 'free';
+            localStorage.setItem('fera_user', JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
+      }
+      return createResponse({
+        success: true,
+        requiresPayment: false,
+        id: createId(),
+        plan: 'free',
+        amount: 0,
+        currency: 'INR',
+        message: 'Plan activated: free'
+      }, 201);
     }
+
+    // Regional pricing calculation
+    let expectedAmount: number;
+    let currency: string;
+    let gateway: 'razorpay' | 'stripe';
+
+    if (region === 'IN') {
+      currency = 'INR';
+      gateway = 'razorpay';
+      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 9990 : 999) : (billingCycle === 'yearly' ? 3990 : 399);
+    } else if (region === 'EU') {
+      currency = 'EUR';
+      gateway = 'stripe';
+      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 490 : 49) : plan === 'business' ? (billingCycle === 'yearly' ? 190 : 19) : (billingCycle === 'yearly' ? 90 : 9);
+    } else {
+      currency = 'USD';
+      gateway = 'stripe';
+      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 490 : 49) : plan === 'business' ? (billingCycle === 'yearly' ? 190 : 19) : (billingCycle === 'yearly' ? 90 : 9);
+    }
+
+    const txId = createId();
     return createResponse({
       success: true,
-      id: createId(),
-      orderId: `order_${createId().substring(0, 14)}`,
-      providerOrderId: `order_${createId().substring(0, 14)}`,
+      requiresPayment: true,
+      gateway,
+      id: txId,
       plan,
       amount: expectedAmount,
-      currency: 'INR',
+      currency,
+      razorpayOrderId: gateway === 'razorpay' ? `order_${txId.substring(0, 14)}` : undefined,
+      razorpayKeyId: gateway === 'razorpay' ? 'rzp_test_mock_key' : undefined,
+      stripeSessionId: gateway === 'stripe' ? `cs_sess_${txId}` : undefined,
       key: LOCAL_PAYMENT_PROVIDER_KEY,
       keyId: 'mock_key',
       status: 'created',
+      message: `Checkout session created for plan: ${plan}`
     }, 201);
   }
 
@@ -913,14 +948,29 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
 
   if (path === '/payment/verify') {
     const userId = getCurrentUserId();
+    const planRaw = String(payload.plan || 'business').toLowerCase();
+    const plan = (planRaw === 'pro' || planRaw === 'premium' ? 'pro' : planRaw === 'starter' || planRaw === 'basic' ? 'starter' : 'business') as LocalUser['plan'];
+    const creditsByPlan: Record<string, number> = { starter: 50, business: 200, pro: 1000 };
+
     if (userId) {
       const user = db.users.find(u => u.id === userId);
       if (user) {
-        user.plan = 'premium';
+        user.plan = plan;
+        user.ai_credits_balance = (user.ai_credits_balance || 0) + (creditsByPlan[plan] || 200);
+        user.ai_credits_monthly_limit = creditsByPlan[plan] || 200;
+        user.ai_credits_used_month = 0;
         saveDb(db);
+        try {
+          const rawUser = localStorage.getItem('fera_user');
+          if (rawUser) {
+            const parsed = JSON.parse(rawUser);
+            parsed.plan = plan;
+            localStorage.setItem('fera_user', JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
       }
     }
-    return createResponse({ success: true, message: 'Plan upgraded successfully' });
+    return createResponse({ success: true, plan, message: `Plan activated: ${plan}` });
   }
 
   if (path === '/voice/text-to-speech') {

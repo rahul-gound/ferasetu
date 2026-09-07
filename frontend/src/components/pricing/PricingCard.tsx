@@ -29,32 +29,38 @@ export default function PricingCard({
 
   const CARD_STYLES: Record<string, React.CSSProperties> = {
     free: {
-      background: '#fff',
+      background: '#ffffff',
       border: '1px solid #e2e8f0',
     },
+    starter: {
+      background: '#ffffff',
+      border: '1px solid #cbd5e1',
+    },
     business: {
-      background: 'linear-gradient(160deg, #fff7ed 0%, #ffffff 50%)',
-      border: '2px solid #FF6B35',
+      background: '#ffffff',
+      border: '2px solid #2563eb',
       transform: 'translateY(-8px)',
-      boxShadow: '0 24px 60px rgba(255,107,53,0.15)',
+      boxShadow: '0 24px 60px rgba(37,99,235,0.12)',
     },
     growth: {
-      background: 'linear-gradient(160deg, #fff7ed 0%, #ffffff 50%)',
-      border: '2px solid #FF6B35',
+      background: '#ffffff',
+      border: '2px solid #2563eb',
       transform: 'translateY(-8px)',
-      boxShadow: '0 24px 60px rgba(255,107,53,0.15)',
+      boxShadow: '0 24px 60px rgba(37,99,235,0.12)',
     },
     pro: {
-      background: 'linear-gradient(160deg, #f5f3ff 0%, #ffffff 50%)',
-      border: '1px solid rgba(124,58,237,0.3)',
+      background: '#ffffff',
+      border: '1px solid #94a3b8',
+      boxShadow: '0 8px 32px rgba(15,23,42,0.06)',
     },
   };
 
   const ACCENT_COLORS: Record<string, string> = {
     free: '#64748b',
-    business: '#FF6B35',
-    growth: '#FF6B35',
-    pro: '#7c3aed',
+    starter: '#2563eb',
+    business: '#2563eb',
+    growth: '#2563eb',
+    pro: '#1e3a8a',
   };
 
   const accentColor = ACCENT_COLORS[plan.id] ?? '#64748b';
@@ -170,8 +176,8 @@ export default function PricingCard({
       {/* Outcome */}
       <div style={{
         margin: '16px 0', padding: '12px 14px', borderRadius: 12,
-        background: `rgba(${accentColor === '#FF6B35' ? '255,107,53' : accentColor === '#7c3aed' ? '124,58,237' : '100,116,139'},0.06)`,
-        borderLeft: `3px solid ${accentColor}`,
+        background: plan.id === 'business' || plan.id === 'growth' ? 'rgba(37,99,235,0.06)' : 'rgba(100,116,139,0.06)',
+        borderLeft: `3px solid ${plan.id === 'business' || plan.id === 'growth' ? '#2563eb' : accentColor}`,
       }}>
         <p style={{ margin: 0, fontSize: 13, color: '#334155', fontWeight: 700, lineHeight: 1.5 }}>
           {plan.outcome}
@@ -228,16 +234,16 @@ export default function PricingCard({
           width: '100%', minHeight: 50, borderRadius: 14, border: 'none',
           background: isCurrentPlan || (isFree && isAuthenticated)
             ? '#e2e8f0'
-            : accentColor === '#FF6B35'
-              ? '#FF6B35'
-              : accentColor === '#7c3aed'
-                ? '#7c3aed'
-                : '#0f172a',
+            : plan.id === 'pro'
+              ? '#0f172a'
+              : '#2563eb',
           color: isCurrentPlan || (isFree && isAuthenticated) ? '#64748b' : '#fff',
           fontSize: 14, fontWeight: 800, cursor: isCurrentPlan || (isFree && isAuthenticated) ? 'not-allowed' : 'pointer',
           transition: 'transform 0.2s ease, filter 0.2s ease',
           boxShadow: isCurrentPlan || (isFree && isAuthenticated) ? 'none'
-            : `0 10px 28px ${accentColor}40`,
+            : plan.id === 'pro'
+              ? '0 10px 24px rgba(15,23,42,0.2)'
+              : '0 10px 24px rgba(37,99,235,0.25)',
         }}
         onMouseEnter={e => {
           if (!isCurrentPlan && !(isFree && isAuthenticated)) {

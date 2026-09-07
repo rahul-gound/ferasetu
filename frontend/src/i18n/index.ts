@@ -1,28 +1,15 @@
 import type { Dictionary } from './types';
 import en from './en';
+import { resolveLanguageCode } from './config';
 
 const dictionaryImports: Record<string, () => Promise<{ default: Dictionary }>> = {
-  // Global English
+  // Global / US Primary (1)
   en: () => import('./en'),
 
-  // European Union (EU) Languages
-  fr: () => import('./fr'),
-  de: () => import('./de'),
-  es: () => import('./es'),
-  it: () => import('./it'),
-  nl: () => import('./nl'),
-  pt: () => import('./pt'),
-  pl: () => import('./pl'),
-  sv: () => import('./sv'),
-  da: () => import('./da'),
-  fi: () => import('./fi'),
-  el: () => import('./el'),
-  cs: () => import('./cs'),
-  ro: () => import('./ro'),
-  hu: () => import('./hu'),
-  ga: () => import('./ga'),
+  // Hinglish (1)
+  'hi-latn': () => import('./hi-latn'),
 
-  // Indian Languages (22)
+  // All 22 Scheduled Indian Languages (22)
   as: () => import('./as'),
   bn: () => import('./bn'),
   brx: () => import('./brx'),
@@ -40,20 +27,55 @@ const dictionaryImports: Record<string, () => Promise<{ default: Dictionary }>> 
   or: () => import('./or'),
   pa: () => import('./pa'),
   sa: () => import('./sa'),
+  sat: () => import('./sat'),
+  sd: () => import('./sd'),
   ta: () => import('./ta'),
   te: () => import('./te'),
   ur: () => import('./ur'),
-  sd: () => import('./sd')
+
+  // All 24 Official European Union (EU) Languages (24)
+  bg: () => import('./bg'),
+  hr: () => import('./hr'),
+  cs: () => import('./cs'),
+  da: () => import('./da'),
+  nl: () => import('./nl'),
+  'en-gb': () => import('./en-gb'),
+  et: () => import('./et'),
+  fi: () => import('./fi'),
+  fr: () => import('./fr'),
+  de: () => import('./de'),
+  el: () => import('./el'),
+  hu: () => import('./hu'),
+  ga: () => import('./ga'),
+  it: () => import('./it'),
+  lv: () => import('./lv'),
+  lt: () => import('./lt'),
+  mt: () => import('./mt'),
+  pl: () => import('./pl'),
+  pt: () => import('./pt'),
+  ro: () => import('./ro'),
+  sk: () => import('./sk'),
+  sl: () => import('./sl'),
+  es: () => import('./es'),
+  sv: () => import('./sv')
 };
 
 export async function loadDictionary(langCode: string): Promise<Dictionary> {
-  const load = dictionaryImports[langCode];
+  const normalizedCode = resolveLanguageCode(langCode);
+  const load = dictionaryImports[normalizedCode] || dictionaryImports[langCode];
   if (!load) return fallbackDictionary;
-  const module = await load();
-  return module.default;
+  try {
+    const module = await load();
+    return module.default;
+  } catch (err) {
+    console.warn(`Failed to load dictionary for ${langCode} (${normalizedCode}), using English fallback:`, err);
+    return fallbackDictionary;
+  }
 }
 
 export const fallbackDictionary: Dictionary = en;
 
 export * from './config';
 export * from './types';
+export * from './formatters';
+

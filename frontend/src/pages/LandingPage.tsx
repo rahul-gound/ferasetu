@@ -485,16 +485,16 @@ export default function LandingPage() {
           SECTION 8 — PRICING PREVIEW (DESIRE → ACTION)
           Transparent pricing. No fake discounts. No manufactured urgency.
         ================================================================ */}
-        <section className="py-20 md:py-24 bg-slate-900 text-white" id="pricing" aria-label="FeraSetu pricing plans">
+        <section className="py-20 md:py-24 bg-white text-slate-900 border-t border-slate-100" id="pricing" aria-label="FeraSetu pricing plans">
           <div className="max-w-[1200px] mx-auto px-6">
             <div className="text-center mb-14 max-w-2xl mx-auto">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/60 border border-blue-700 text-blue-300 text-xs font-bold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4">
                 Transparent Pricing
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">
+              <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight text-slate-900">
                 {t('pricingPreview.title') || 'Simple, honest pricing'}
               </h2>
-              <p className="text-slate-400 text-lg">
+              <p className="text-slate-600 text-lg">
                 {market === 'IN'
                   ? (t('pricingPreview.subtitle') || 'Start for ₹0. Upgrade when your business needs more. No hidden charges — ever.')
                   : 'Start your 14-day free trial. Choose a plan to continue after your trial. No surprise charges — ever.'}
@@ -513,42 +513,42 @@ export default function LandingPage() {
                     key={plan.id}
                     className={`rounded-2xl p-7 flex flex-col relative ${
                       isPopular
-                        ? 'bg-blue-600 border-2 border-blue-400 transform md:-translate-y-3 shadow-2xl shadow-blue-900/60 text-white'
-                        : 'bg-slate-800/90 border border-slate-700 text-white'
+                        ? 'bg-white border-2 border-blue-600 transform md:-translate-y-3 shadow-2xl shadow-blue-600/15 text-slate-900'
+                        : 'bg-white border border-slate-200 shadow-md text-slate-900'
                     }`}
                   >
                     {isPopular && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-orange-500 text-white text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
                         {market === 'IN' ? (t('pricingPreview.recommended') || 'MOST POPULAR') : '14-DAY TRIAL • MOST POPULAR'}
                       </div>
                     )}
                     {!isPopular && !isFree && market !== 'IN' && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-slate-700 text-slate-200 text-xs font-bold px-3 py-0.5 rounded-full uppercase tracking-wider border border-slate-600">
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-slate-100 text-slate-700 text-xs font-bold px-3 py-0.5 rounded-full uppercase tracking-wider border border-slate-200">
                         14-DAY FREE TRIAL
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-2xl text-white mb-1">{plan.displayName}</h3>
-                      <p className={`text-sm mb-5 ${isPopular ? 'text-blue-100' : 'text-slate-400'}`}>
+                      <h3 className="font-bold text-2xl text-slate-900 mb-1">{plan.displayName}</h3>
+                      <p className="text-sm mb-5 text-slate-600">
                         {plan.tagline}
                       </p>
                       <div className="mb-6">
-                        <span className="text-4xl font-black text-white">
+                        <span className="text-4xl font-black text-slate-900">
                           {config.symbol}{plan.price.monthly}
                         </span>
-                        <span className={`text-sm ml-1.5 ${isPopular ? 'text-blue-200' : 'text-slate-400'}`}>
+                        <span className="text-sm ml-1.5 text-slate-500 font-semibold">
                           /month
                         </span>
                         {market !== 'IN' && !isFree && (
-                          <div className={`text-xs mt-1 font-semibold ${isPopular ? 'text-blue-100' : 'text-slate-400'}`}>
+                          <div className={`text-xs mt-1 font-semibold ${isPopular ? 'text-blue-700' : 'text-slate-500'}`}>
                             Free for 14 days, then {config.symbol}{plan.price.monthly}/mo
                           </div>
                         )}
                       </div>
-                      <ul className={`text-sm space-y-3 mb-7 ${isPopular ? 'text-white' : 'text-slate-300'}`}>
+                      <ul className="text-sm space-y-3 mb-7 text-slate-700">
                         {plan.features.filter(f => typeof f === 'string' || f.included).slice(0, 6).map((f, i) => (
                           <li key={i} className="flex items-start gap-2.5">
-                            <Check size={15} className={`flex-shrink-0 mt-0.5 ${isPopular ? 'text-amber-300' : 'text-emerald-400'}`} />
+                            <Check size={15} className={`flex-shrink-0 mt-0.5 ${isPopular ? 'text-blue-600' : 'text-emerald-600'}`} />
                             <span>{typeof f === 'string' ? f : f.label}</span>
                           </li>
                         ))}
@@ -559,8 +559,8 @@ export default function LandingPage() {
                         to={isFree ? "/dashboard" : "/upgrade"}
                         className={`mt-auto w-full py-3.5 rounded-xl font-bold text-center transition-colors block text-sm ${
                           isPopular
-                            ? 'bg-white hover:bg-slate-100 text-blue-700 shadow-md'
-                            : 'bg-slate-700 hover:bg-slate-600 text-white'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white'
                         }`}
                       >
                         {isFree ? 'Go to Dashboard' : `Upgrade to ${plan.displayName}`}
@@ -571,8 +571,8 @@ export default function LandingPage() {
                         onClick={() => register()}
                         className={`mt-auto w-full py-3.5 rounded-xl font-bold text-center transition-colors block text-sm cursor-pointer ${
                           isPopular
-                            ? 'bg-white hover:bg-slate-100 text-blue-700 shadow-md'
-                            : 'bg-slate-700 hover:bg-slate-600 text-white'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white'
                         }`}
                       >
                         {isFree
@@ -588,7 +588,7 @@ export default function LandingPage() {
             <div className="text-center">
               <Link
                 to={getLocalizedLink('/pricing')}
-                className="text-blue-400 hover:text-blue-300 font-semibold transition-colors inline-flex items-center gap-2 text-sm group"
+                className="text-blue-600 hover:text-blue-700 font-bold transition-colors inline-flex items-center gap-2 text-sm group"
               >
                 <span>{t('pricingPreview.viewAll') || 'See full feature comparison'}</span>
                 <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import PublicNavbar from './PublicNavbar';
 import PublicFooter from './PublicFooter';
+import LanguageSuggestionBanner from '../LanguageSuggestionBanner';
 
 interface PublicLayoutProps {
   children: ReactNode;
@@ -20,7 +21,9 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
         {children}
       </main>
       
+      <LanguageSuggestionBanner />
       <PublicFooter />
     </div>
   );
 }
+

@@ -15,11 +15,11 @@
 
 import { MARKET_CONFIGS, type Market, DEFAULT_MARKET } from './pricing';
 
-export type PlanId = 'free' | 'business' | 'pro';
+export type PlanId = 'free' | 'starter' | 'business' | 'pro';
 
 /**
  * Legacy Plan Aliases Map
- * Normalizes all legacy backend/DB plan IDs to canonical 3-tier PlanId.
+ * Normalizes all legacy backend/DB plan IDs to canonical 4-tier PlanId.
  */
 export const LEGACY_PLAN_MAP: Record<string, PlanId> = {
   // Free tier aliases
@@ -27,11 +27,13 @@ export const LEGACY_PLAN_MAP: Record<string, PlanId> = {
   beta: 'free',
   trial: 'free',
 
-  // Business tier aliases (mapped from basic, starter, standard, growth, business)
+  // Starter tier aliases (mapped from basic, starter)
+  starter: 'starter',
+  basic: 'starter',
+
+  // Business tier aliases (mapped from growth, standard, business)
   business: 'business',
   growth: 'business',
-  basic: 'business',
-  starter: 'business',
   standard: 'business',
 
   // Pro tier aliases (mapped from pro, premium, scale, enterprise)
@@ -67,6 +69,11 @@ export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
     monthly: 0,
     yearly: 0,
     yearlyPerMonth: 0,
+  },
+  starter: {
+    monthly: 299,
+    yearly: 2990,
+    yearlyPerMonth: 249,
   },
   business: {
     monthly: 399,
@@ -162,6 +169,16 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     removeBranding: false,
     prioritySupport: false,
   },
+  starter: {
+    products: 100,
+    aiCreditsPerMonth: 50,
+    storageBytes: 250 * 1024 * 1024, // 250 MB
+    customDomain: false,
+    advancedAnalytics: false,
+    staffAccounts: 1,
+    removeBranding: false,
+    prioritySupport: false,
+  },
   business: {
     products: 500,
     aiCreditsPerMonth: 200,
@@ -236,6 +253,32 @@ export const PLANS: PlanDefinition[] = [
     ],
   },
   {
+    id: 'starter',
+    displayName: 'Starter',
+    tagline: 'Essential online storefront tools for launching.',
+    outcome: 'Put your shop online, manage up to 100 products, and process orders with ease.',
+    price: PLAN_PRICES.starter,
+    limits: PLAN_LIMITS.starter,
+    ctaText: 'Get Starter',
+    ctaHref: '/register?plan=starter',
+    features: [
+      { label: 'Online storefront with your own link', included: true },
+      { label: 'Up to 100 products', included: true },
+      { label: 'Product & inventory management', included: true },
+      { label: 'Order management dashboard', included: true },
+      { label: 'WhatsApp ordering link', included: true },
+      { label: 'Basic sales overview', included: true },
+      { label: 'FeraSetu subdomain (yourshop.ferasetu.com)', included: true },
+      { label: '50 FeraSetu AI credits/month', included: true },
+      { label: '250MB media storage', included: true },
+      { label: '1 staff account', included: true },
+      { label: 'Custom domain connection', included: false },
+      { label: 'Advanced analytics & profit tracking', included: false },
+      { label: 'Remove FeraSetu branding', included: false },
+      { label: 'Priority WhatsApp & phone support', included: false },
+    ],
+  },
+  {
     id: 'business',
     displayName: 'Business',
     tagline: 'Run and grow your retail business efficiently.',
@@ -247,7 +290,7 @@ export const PLANS: PlanDefinition[] = [
     ctaText: 'Get Business',
     ctaHref: '/register?plan=business',
     features: [
-      { label: 'Everything in Free', included: true },
+      { label: 'Everything in Starter', included: true },
       { label: 'Up to 500 products', included: true },
       { label: '200 FeraSetu AI credits/month', included: true },
       { label: '1GB media & invoice storage', included: true },
@@ -288,28 +331,30 @@ export const PLANS: PlanDefinition[] = [
 /**
  * Get market-aware plan definitions.
  * - India ('IN'): Returns 3 plans (Free, Business, Pro) with INR pricing and Free entry.
- * - US ('US'): Returns 2 plans (Business, Pro) with USD pricing and 14-day trial. NO Free plan.
- * - Europe ('EU'): Returns 2 plans (Business, Pro) with EUR pricing and 14-day trial. NO Free plan.
+ * - US ('US'), Europe ('EU'), Other: Returns 3 paid plans (Starter, Business, Pro) with 14-day trial. NO Free plan.
  */
 export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[] {
   const cfg = MARKET_CONFIGS[market] || MARKET_CONFIGS.US;
 
   if (market === 'IN') {
+    const freeDef = PLANS.find(p => p.id === 'free') || PLANS[0];
+    const bizDef = PLANS.find(p => p.id === 'business') || PLANS[2];
+    const proDef = PLANS.find(p => p.id === 'pro') || PLANS[3];
     return [
       {
-        ...PLANS[0],
+        ...freeDef,
         price: cfg.plans.free || PLAN_PRICES.free,
         ctaText: 'Start Free',
         ctaHref: '/register?market=IN',
       },
       {
-        ...PLANS[1],
+        ...bizDef,
         price: cfg.plans.business,
         ctaText: 'Get Business',
         ctaHref: '/register?plan=business&market=IN',
       },
       {
-        ...PLANS[2],
+        ...proDef,
         price: cfg.plans.pro,
         ctaText: 'Get Pro',
         ctaHref: '/register?plan=pro&market=IN',
@@ -317,10 +362,22 @@ export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[
     ];
   }
 
-  // US and EU: NO Free plan! Business and Pro with 14-day trial CTAs.
+  // US, EU, and OTHER: 3 paid plans (Starter, Business, Pro) with 14-day trial. NO Free plan!
+  const starterDef = PLANS.find(p => p.id === 'starter') || PLANS[1];
+  const bizDef = PLANS.find(p => p.id === 'business') || PLANS[2];
+  const proDef = PLANS.find(p => p.id === 'pro') || PLANS[3];
+
   return [
     {
-      ...PLANS[1],
+      ...starterDef,
+      price: cfg.plans.starter || { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+      tagline: 'For small stores and independent sellers launching online.',
+      badge: '14 Days Free',
+      ctaText: 'Start 14-Day Free Trial',
+      ctaHref: `/register?plan=starter&market=${market}`,
+    },
+    {
+      ...bizDef,
       price: cfg.plans.business,
       tagline: 'For growing independent businesses and merchants.',
       badge: '14 Days Free • Most Popular',
@@ -328,7 +385,7 @@ export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[
       ctaHref: `/register?plan=business&market=${market}`,
     },
     {
-      ...PLANS[2],
+      ...proDef,
       price: cfg.plans.pro,
       tagline: 'For businesses and brands operating at larger scale.',
       badge: '14 Days Free',

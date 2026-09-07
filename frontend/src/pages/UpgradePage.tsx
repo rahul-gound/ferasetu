@@ -204,21 +204,43 @@ export default function UpgradePage() {
 
         {/* Subscription Status Banners */}
         <div style={{ maxWidth: 1100, margin: '0 auto 24px', padding: '0 24px' }}>
-          {/* Active 14-day trial banner */}
-          {subscription.isTrialing && (
-            <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white shadow-lg">
+          {/* Active 14-day trial banner (> 3 days remaining) */}
+          {subscription.isTrialing && !subscription.isEndingSoon && (
+            <div className="rounded-2xl bg-blue-600 border border-blue-700 p-5 text-white shadow-lg">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 font-black text-lg">
-                    <Sparkles size={20} className="text-yellow-300" />
-                    <span>14-Day Free Trial: {subscription.trialDaysRemaining} days remaining</span>
+                    <Sparkles size={20} className="text-orange-300" />
+                    <span>14-Day Free Trial: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} remaining</span>
                   </div>
                   <p className="text-sm text-blue-100 mt-1">
-                    Enjoy full access to Business features. Select a plan below to ensure uninterrupted service when your trial finishes.
+                    Enjoy full access to Business capabilities. Select a plan below to ensure uninterrupted service when your trial finishes.
                   </p>
                 </div>
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-xs font-extrabold uppercase tracking-wider backdrop-blur-sm">
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-500 text-xs font-extrabold uppercase tracking-wider text-white">
                   Trial Active
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Trial Ending Soon banner (<= 3 days remaining) */}
+          {subscription.isTrialing && subscription.isEndingSoon && (
+            <div className="rounded-2xl bg-orange-50 border-2 border-orange-500 p-5 text-slate-900 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={24} className="text-orange-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-black text-base text-slate-900">
+                      Free Trial Ending Soon: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} remaining
+                    </h3>
+                    <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                      Your trial will conclude soon. Select a plan below to maintain active storefront features and uninterrupted customer ordering.
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-600 text-xs font-extrabold uppercase tracking-wider text-white animate-pulse">
+                  Ending Soon
                 </span>
               </div>
             </div>
@@ -226,15 +248,15 @@ export default function UpgradePage() {
 
           {/* Expired trial alert */}
           {subscription.isTrialExpired && (
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-amber-900 shadow-sm">
+            <div className="rounded-2xl bg-white border-2 border-orange-500 p-5 text-slate-900 shadow-sm">
               <div className="flex items-start gap-3">
-                <AlertCircle size={22} className="text-amber-600 shrink-0 mt-0.5" />
+                <AlertCircle size={24} className="text-orange-600 shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-black text-base text-amber-900">
-                    Your 14-Day Free Trial Has Ended
+                  <h3 className="font-black text-base text-slate-900">
+                    Your 14-Day Free Trial Has Concluded
                   </h3>
-                  <p className="text-sm text-amber-800 mt-1 leading-relaxed">
-                    Trust-First Billing: We did not surprise-charge you. Your products, orders, and store configurations are safely saved. Select a plan below to continue running your store.
+                  <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                    Trust-First Billing: We did not surprise-charge you. Your products, orders, and store configurations are safely preserved. Select a plan below to reactivate customer ordering and continue running your store.
                   </p>
                 </div>
               </div>

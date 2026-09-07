@@ -14,6 +14,9 @@ export default function LanguageScroller({ className = '' }: LanguageScrollerPro
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'eu' | 'in'>('all');
 
+  const euCount = useMemo(() => SUPPORTED_LANGUAGES.filter(l => l.region === 'eu').length, []);
+  const inCount = useMemo(() => SUPPORTED_LANGUAGES.filter(l => l.region === 'in').length, []);
+
   const cleanPath = getCleanPath(location.pathname);
 
   const filteredLanguages = useMemo(() => {
@@ -55,7 +58,7 @@ export default function LanguageScroller({ className = '' }: LanguageScrollerPro
                 filter === 'eu' ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span>🇪🇺</span> Europe (15)
+              <span>🇪🇺</span> Europe ({euCount})
             </button>
             <button
               type="button"
@@ -64,7 +67,7 @@ export default function LanguageScroller({ className = '' }: LanguageScrollerPro
                 filter === 'in' ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span>🇮🇳</span> India (22)
+              <span>🇮🇳</span> India ({inCount})
             </button>
           </div>
         </div>

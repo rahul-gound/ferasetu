@@ -1,7 +1,7 @@
 // src/config/pricing.ts
 import { EU_COUNTRY_CODES } from '../lib/i18n';
 
-export type Market = 'IN' | 'US' | 'EU';
+export type Market = 'IN' | 'US' | 'EU' | 'OTHER';
 export type CurrencyCode = 'INR' | 'USD' | 'EUR';
 
 export interface PlanPricingTier {
@@ -22,6 +22,7 @@ export interface MarketPricingConfig {
   gateway: 'razorpay' | 'stripe';
   plans: {
     free?: PlanPricingTier;
+    starter?: PlanPricingTier;
     business: PlanPricingTier;
     pro: PlanPricingTier;
   };
@@ -55,8 +56,9 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     taxNote: 'Prices in USD. Local sales tax may apply',
     gateway: 'stripe',
     plans: {
-      business: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
-      pro: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      starter: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+      business: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      pro: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
     },
   },
   EU: {
@@ -70,8 +72,25 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     taxNote: 'Prices exclude EU VAT where applicable',
     gateway: 'stripe',
     plans: {
-      business: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
-      pro: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      starter: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+      business: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      pro: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+    },
+  },
+  OTHER: {
+    market: 'OTHER',
+    name: 'International',
+    currency: 'USD',
+    symbol: '$',
+    flag: '🌐',
+    permanentFreePlan: false,
+    trialDays: 14,
+    taxNote: 'Prices in USD via Stripe Checkout',
+    gateway: 'stripe',
+    plans: {
+      starter: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+      business: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      pro: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
     },
   },
 };
@@ -94,13 +113,13 @@ export function resolveMarket(options?: {
   // 1. Explicit account market
   if (options?.accountMarket) {
     const norm = options.accountMarket.toUpperCase().trim();
-    if (norm === 'IN' || norm === 'US' || norm === 'EU') return norm as Market;
+    if (norm === 'IN' || norm === 'US' || norm === 'EU' || norm === 'OTHER') return norm as Market;
   }
 
   // 2. User-selected market in localStorage
   if (options?.storedMarket) {
     const norm = options.storedMarket.toUpperCase().trim();
-    if (norm === 'IN' || norm === 'US' || norm === 'EU') return norm as Market;
+    if (norm === 'IN' || norm === 'US' || norm === 'EU' || norm === 'OTHER') return norm as Market;
   }
 
   // 3. Country code if passed
@@ -109,6 +128,7 @@ export function resolveMarket(options?: {
     if (cc === 'IN') return 'IN';
     if ((EU_COUNTRY_CODES as readonly string[]).includes(cc)) return 'EU';
     if (cc === 'US') return 'US';
+    return 'OTHER';
   }
 
   // 4. Locale inspection
@@ -125,7 +145,7 @@ export function resolveMarket(options?: {
   if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
     try {
       const stored = localStorage.getItem('fera_market');
-      if (stored === 'IN' || stored === 'US' || stored === 'EU') return stored;
+      if (stored === 'IN' || stored === 'US' || stored === 'EU' || stored === 'OTHER') return stored;
 
       const langs = navigator.languages || [navigator.language || ''];
       for (const lang of langs) {

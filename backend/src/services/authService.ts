@@ -23,7 +23,7 @@ export interface User {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'pro';
+  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'business' | 'pro' | 'starter';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -34,6 +34,10 @@ export interface User {
   ai_credits_reset_at?: string;
   storage_used_bytes?: number;
   storage_limit_bytes?: number;
+  market?: string;
+  trial_started_at?: string;
+  trial_ends_at?: string;
+  cancel_at_period_end?: number;
   created_at: string;
 }
 
@@ -44,18 +48,18 @@ export async function registerUser(data: {
   phone?: string;
   businessName?: string;
   preferredLanguage?: string;
+  market?: string;
 }): Promise<{ user: User; token: string }> {
   const db = getDatabase();
 
   // Check if user exists
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(data.email);
-  if (existing) {
-    throw Object.assign(new Error('Email already registered'), { status: 409 });
+  const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(data.email);
+  if (existingUser) {
+    throw Object.assign(new Error('A user with this email already exists'), { status: 400 });
   }
 
-  const passwordHash = await bcrypt.hash(data.password, 12);
   const userId = uuidv4();
-  
+  const passwordHash = await bcrypt.hash(data.password, 10);
   let subdomain = generateSubdomain(data.businessName || data.name);
   
   // Ensure subdomain uniqueness
@@ -64,15 +68,25 @@ export async function registerUser(data: {
     subdomain = `${subdomain}-${Math.random().toString(36).substring(2, 6)}`;
   }
 
-  // Set initial plan expiration (10 years for Beta Plan)
+  // Determine market & trial dates
+  const market = data.market || (data.phone?.startsWith('+1') ? 'US' : 'IN');
+  const now = new Date();
+  const trialStartedAt = now.toISOString();
+  const trialEndsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Set initial plan expiration
   const expiresAt = new Date();
   expiresAt.setFullYear(expiresAt.getFullYear() + 10);
   const expiresAtStr = expiresAt.toISOString();
 
   try {
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, name, phone, business_name, preferred_language, subdomain, plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'beta', ?, 20, 20, datetime('now', '+30 days'))
+      INSERT INTO users (
+        id, email, password_hash, name, phone, business_name, preferred_language, subdomain,
+        plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at,
+        market, trial_started_at, trial_ends_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'beta', ?, 20, 20, datetime('now', '+30 days'), ?, ?, ?)
     `).run(
       userId,
       data.email,
@@ -82,27 +96,28 @@ export async function registerUser(data: {
       data.businessName || null,
       data.preferredLanguage || 'en',
       subdomain,
-      expiresAtStr
+      expiresAtStr,
+      market,
+      trialStartedAt,
+      trialEndsAt
     );
   } catch (err: any) {
     console.error('Database INSERT error:', err);
     throw new Error(`Failed to create user: ${err.message}`);
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+  const user = getUserById(userId);
   if (!user) {
     throw new Error('Failed to retrieve user after registration');
   }
 
-  const { password_hash: _ph, ...safeUser } = user;
-
   const token = jwt.sign(
-    { id: userId, email: data.email, plan: 'beta', businessName: data.businessName || data.name },
+    { id: userId, email: data.email, plan: user.plan, businessName: data.businessName || data.name },
     getJwtSecret(),
     { expiresIn: '30d' } as jwt.SignOptions
   );
 
-  return { user: safeUser as User, token };
+  return { user, token };
 }
 
 export async function loginUser(emailOrUsername: string, password: string): Promise<{ user: User; token: string }> {
@@ -136,7 +151,8 @@ export async function loginUser(emailOrUsername: string, password: string): Prom
   }
 
   console.log(`✅ Login successful: ${user.email} (Plan: ${user.plan})`);
-  const { password_hash: _ph, ...safeUser } = user;
+  const safeUser = getUserById(user.id);
+  if (!safeUser) throw new Error('Failed to retrieve user profile');
 
   const token = jwt.sign(
     { id: user.id, email: user.email, plan: user.plan, businessName: user.business_name || user.name },
@@ -144,7 +160,7 @@ export async function loginUser(emailOrUsername: string, password: string): Prom
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
 
-  return { user: safeUser as User, token };
+  return { user: safeUser, token };
 }
 
 export function verifyToken(token: string): Record<string, unknown> | null {
@@ -160,10 +176,32 @@ export function getUserById(userId: string): User | null {
   const user = db.prepare(`
     SELECT id, email, name, phone, business_name, plan, preferred_language, subdomain, custom_domain,
            plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at,
-           storage_used_bytes, storage_limit_bytes, created_at
+           storage_used_bytes, storage_limit_bytes, market, trial_started_at, trial_ends_at, cancel_at_period_end, created_at
     FROM users WHERE id = ?
-  `).get(userId) as User | undefined;
-  return user || null;
+  `).get(userId) as (User & Record<string, any>) | undefined;
+
+  if (!user) return null;
+
+  // Auto-backfill missing trial timestamps deterministically based on user.created_at
+  if (!user.trial_ends_at && user.created_at) {
+    const signupTime = new Date(user.created_at).getTime();
+    const trialStartedAt = user.trial_started_at || new Date(signupTime).toISOString();
+    const trialEndsAt = new Date(signupTime + 14 * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      db.prepare('UPDATE users SET trial_started_at = ?, trial_ends_at = ? WHERE id = ?')
+        .run(trialStartedAt, trialEndsAt, user.id);
+    } catch {
+      // Ignored if update fails
+    }
+    user.trial_started_at = trialStartedAt;
+    user.trial_ends_at = trialEndsAt;
+  }
+
+  if (!user.market) {
+    user.market = user.phone?.startsWith('+1') ? 'US' : 'IN';
+  }
+
+  return user;
 }
 
 export async function updateUserPlan(userId: string, plan: 'trial' | 'beta' | 'basic' | 'standard' | 'pro'): Promise<void> {

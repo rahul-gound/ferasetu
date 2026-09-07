@@ -76,8 +76,8 @@ const queryClient = new QueryClient({
 // Branded full-screen loader shown while a code-split chunk downloads.
 function PageLoader() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#060818' }}>
-      <div style={{ width: 40, height: 40, border: '3px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#ffffff' }}>
+      <div style={{ width: 40, height: 40, border: '3px solid #2563eb', borderTopColor: '#f97316', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
     </div>
   );
 }

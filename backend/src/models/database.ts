@@ -248,6 +248,7 @@ export async function initializeDatabase(customEnv?: { DB?: any }): Promise<void
   const migrations = [
     "ALTER TABLE users ADD COLUMN storage_limit_bytes INTEGER NOT NULL DEFAULT 1073741824",
     "ALTER TABLE users ADD COLUMN market TEXT NOT NULL DEFAULT 'IN'",
+    "ALTER TABLE users ADD COLUMN trial_started_at DATETIME",
     "ALTER TABLE users ADD COLUMN trial_ends_at DATETIME",
     "ALTER TABLE users ADD COLUMN cancel_at_period_end INTEGER NOT NULL DEFAULT 0",
   ];
@@ -287,6 +288,7 @@ export function getD1SchemaStatements(): string[] {
       storage_used_bytes INTEGER NOT NULL DEFAULT 0,
       storage_limit_bytes INTEGER NOT NULL DEFAULT 1073741824,
       market TEXT NOT NULL DEFAULT 'IN',
+      trial_started_at DATETIME,
       trial_ends_at DATETIME,
       cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

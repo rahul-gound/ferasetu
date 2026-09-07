@@ -400,16 +400,19 @@ export default function DashboardPage() {
   return (
     <div className="pb-10 max-w-[1380px] mx-auto space-y-6">
       
-      {/* 14-Day Trial Banner for US & EU */}
-      {subscription.isTrialing && (
-        <div className="rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+      {/* Active Trial (> 3 days remaining) */}
+      {subscription.isTrialing && !subscription.isEndingSoon && (
+        <div className="rounded-2xl bg-blue-600 border border-blue-700 p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-white/15 backdrop-blur-md shrink-0">
-              <Sparkles size={20} className="text-yellow-300" />
+              <Sparkles size={20} className="text-orange-300" />
             </div>
             <div>
-              <div className="font-extrabold text-sm sm:text-base">
-                14-Day Free Trial: {subscription.trialDaysRemaining} days remaining
+              <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base">
+                <span>14-Day Free Trial: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} remaining</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-orange-500 text-[10px] font-black uppercase tracking-wider text-white">
+                  Active
+                </span>
               </div>
               <p className="text-xs sm:text-sm text-blue-100 mt-0.5">
                 You have full access to Business capabilities. Choose a plan to ensure continuous storefront operations.
@@ -425,27 +428,58 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Expired Trial Notification */}
-      {subscription.isTrialExpired && (
-        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:p-5 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+      {/* Trial Ending Soon (<= 3 days remaining) */}
+      {subscription.isTrialing && subscription.isEndingSoon && (
+        <div className="rounded-2xl bg-orange-50 border-2 border-orange-500 p-4 sm:p-5 text-slate-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-100 shrink-0">
-              <AlertCircle size={20} className="text-amber-600" />
+            <div className="p-2.5 rounded-xl bg-orange-100 text-orange-600 shrink-0">
+              <AlertCircle size={22} />
             </div>
             <div>
-              <div className="font-extrabold text-sm sm:text-base text-amber-900">
-                Your 14-day free trial has concluded
+              <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-slate-900">
+                <span>Free Trial Ending Soon: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} remaining</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-orange-600 text-[10px] font-black uppercase tracking-wider text-white animate-pulse">
+                  Ending Soon
+                </span>
               </div>
-              <p className="text-xs sm:text-sm text-amber-800 mt-0.5">
-                Your data and product catalog are safely preserved. Upgrade to a paid plan to continue accepting orders and managing storefront features.
+              <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                Upgrade now to ensure your storefront and ordering features continue without interruption.
               </p>
             </div>
           </div>
           <Link
             to="/upgrade"
-            className="shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow hover:bg-blue-500 transition-all"
+            className="shrink-0 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow transition-all"
           >
-            Select Plan
+            Upgrade Now
+          </Link>
+        </div>
+      )}
+
+      {/* Expired Trial Notification */}
+      {subscription.isTrialExpired && (
+        <div className="rounded-2xl bg-white border-2 border-orange-500 p-4 sm:p-5 text-slate-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-orange-100 text-orange-600 shrink-0">
+              <AlertCircle size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-slate-900">
+                <span>Trial Expired</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-900 text-[10px] font-black uppercase tracking-wider text-white">
+                  Action Required
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                Your 14-day free trial has expired. Your catalog and data are safe. Upgrade to a paid plan to reactivate continuous storefront operations.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/upgrade"
+            className="shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow hover:bg-blue-700 transition-all"
+          >
+            Select Plan to Reactivate
           </Link>
         </div>
       )}

@@ -51,17 +51,33 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
   }
 
   // Check Subscription Expiration (for trial users)
-  if ((user.plan === 'trial' || user.plan === 'beta') && user.plan_expires_at) {
-    const expiresAt = new Date(user.plan_expires_at);
-    if (expiresAt < new Date()) {
-      console.warn(`⏳ Auth: Trial expired for user: ${user.email}`);
-      res.status(403).json({ 
-        error: 'Trial expired', 
-        expired: true,
-        message: 'Your 7-day trial has ended. Please upgrade to a paid plan to continue using FeraSetu.',
-        upgradeUrl: '/upgrade'
-      });
-      return;
+  const isTrialPlan = user.plan === 'trial' || Boolean(user.trial_ends_at);
+  const trialExpiredDate = user.trial_ends_at || user.plan_expires_at;
+  if (isTrialPlan && trialExpiredDate) {
+    const trialEnd = new Date(trialExpiredDate).getTime();
+    if (trialEnd < Date.now()) {
+      // In India, when trial expires, transition user to Indian Free plan (₹0)
+      if (user.market === 'IN') {
+        const db = getDatabase();
+        db.prepare("UPDATE users SET plan = 'free', updated_at = datetime('now') WHERE id = ?").run(user.id);
+        user.plan = 'free';
+      } else {
+        // Outside India or non-India merchants: Allow access to account and payment endpoints so they can upgrade
+        const isUpgradePath = req.baseUrl.includes('payment') || 
+                              req.path.includes('payment') || 
+                              req.path === '/me' || 
+                              req.path.includes('/users/me');
+        if (!isUpgradePath) {
+          console.warn(`⏳ Auth: Trial expired for user: ${user.email}`);
+          res.status(403).json({ 
+            error: 'Trial expired', 
+            expired: true,
+            message: 'Your 14-day free trial has concluded. Please upgrade to a paid plan to continue using FeraSetu.',
+            upgradeUrl: '/upgrade'
+          });
+          return;
+        }
+      }
     }
   }
 

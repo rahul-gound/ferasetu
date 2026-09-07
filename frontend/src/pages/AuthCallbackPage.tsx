@@ -62,17 +62,17 @@ export default function AuthCallbackPage() {
   return (
     <>
       <SEO title="Opening your shop • FeraSetu" noindex />
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#060818] px-4 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 text-center">
         <div className="flex flex-col items-center gap-4">
           <span
-            className="h-10 w-10 animate-spin rounded-full border-3 border-blue-500 border-t-transparent"
+            className="h-10 w-10 animate-spin rounded-full border-3 border-blue-600 border-t-orange-500"
             role="status"
             aria-label="Opening your shop..."
           />
-          <p className="text-base font-semibold text-slate-200">
+          <p className="text-base font-bold text-slate-800">
             Opening your shop...
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 font-medium">
             Finalizing your secure session
           </p>
         </div>

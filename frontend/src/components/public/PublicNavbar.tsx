@@ -8,7 +8,7 @@ import LanguageSelector from '../LanguageSelector';
 import MarketSelector from '../marketing/MarketSelector';
 
 export default function PublicNavbar() {
-  const { user, login, register, logout } = useAuth();
+  const { user, login, register, logout, isLoading } = useAuth();
   const { translate: t, getLocalizedLink } = useLanguage();
   const { market } = useMarket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,7 +48,7 @@ export default function PublicNavbar() {
               src='/logo-official.png'
               alt='FeraSetu'
               fetchPriority='high'
-              className='h-11 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]'
+              className='h-13 sm:h-14 md:h-15 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]'
             />
           </Link>
 
@@ -128,7 +128,7 @@ export default function PublicNavbar() {
       {mobileMenuOpen && (
         <div className='fixed inset-0 z-[70] flex flex-col bg-white md:hidden'>
           <div className='flex h-20 items-center justify-between border-b border-slate-200 px-5'>
-            <img src='/logo-official.png' alt='FeraSetu' className='h-10 sm:h-11 w-auto object-contain' />
+            <img src='/logo-official.png' alt='FeraSetu' className='h-12 w-auto object-contain' />
             <button
               type='button'
               onClick={() => setMobileMenuOpen(false)}
