@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { ShopProduct, TemplateSection } from '../../types/template';
 import { StorefrontProvider } from '../../storefront/runtime/StorefrontProvider';
 import { resolveStorefrontTheme } from '../../storefront/theme/themeResolver';
+import type { MerchantThemeOverrides } from '../../storefront/theme/themeTypes';
 import { normalizeLegacySections } from '../../storefront/compatibility/legacySectionAdapter';
 
 // Sections
@@ -32,7 +33,7 @@ export interface TemplateRendererProps {
   shopPhone?: string;
   shopLogo?: string;
   theme?: string | Record<string, unknown>;
-  overrides?: Record<string, unknown>;
+  overrides?: MerchantThemeOverrides | Record<string, unknown>;
   isPreview?: boolean;
   initialProductId?: string | null;
 }

@@ -438,8 +438,8 @@ export const FOUNDING_OFFER_MONTHS = 3;
 // ---------------------------------------------------------------------------
 // Legacy Compatibility Exports
 // ---------------------------------------------------------------------------
-export const BETA_MODE = typeof process !== 'undefined' && process.env?.VITE_BETA_MODE
-  ? process.env.VITE_BETA_MODE !== 'false'
+export const BETA_MODE = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process?.env?.VITE_BETA_MODE
+  ? (globalThis as any).process.env.VITE_BETA_MODE !== 'false'
   : (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BETA_MODE !== 'false');
 
 /** @deprecated Use getPlanLimits() and isFreePlan() instead */

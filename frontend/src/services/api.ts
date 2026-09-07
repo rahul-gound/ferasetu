@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { BETA_MODE, getEffectivePlanPrice, isBetaFreePlan } from '../config/beta';
 
 const USE_LOCAL_STORAGE_API = import.meta.env?.VITE_USE_LOCAL_STORAGE !== 'false';
 
@@ -12,7 +11,7 @@ interface LocalUser {
   name: string;
   phone?: string;
   business_name?: string;
-  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'pro' | 'beta';
+  plan: 'free' | 'premium' | 'trial' | 'basic' | 'standard' | 'business' | 'pro' | 'beta';
   preferred_language: string;
   subdomain?: string;
   custom_domain?: string;
@@ -576,10 +575,21 @@ async function localGet(url: string) {
     return Promise.resolve(createResponse({ host: '', port: 587, ssl: false, tls: true }));
   }
 
+  if (path === '/pricing/founding-offer') {
+    return Promise.resolve(createResponse({
+      enabled: false,
+      slotsTotal: 50,
+      slotsUsed: 0,
+      slotsRemaining: null,
+      plan: 'growth',
+      months: 3,
+    }));
+  }
+
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
-async function localPost(url: string, payload: Record<string, any>) {
+async function localPost(url: string, payload: Record<string, any> = {}) {
   const { path } = splitUrl(url);
   const db = loadDb();
 
@@ -917,19 +927,6 @@ async function localPost(url: string, payload: Record<string, any>) {
     return createResponse({ audio: null });
   }
 
-  // Founding shopkeeper offer — mirrors the Worker endpoint.
-  // In local dev, always returns disabled=false so no fake counts appear.
-  if (path === '/pricing/founding-offer' && method === 'GET') {
-    return createResponse({
-      enabled: false,
-      slotsTotal: 50,
-      slotsUsed: 0,
-      slotsRemaining: null,
-      plan: 'growth',
-      months: 3,
-    });
-  }
-
   if (path === '/settings/smtp/test') {
     requireAuth();
     const email = String(payload.email || '');
@@ -1201,25 +1198,25 @@ remoteApi.interceptors.response.use(
 
 interface ApiClient {
   get: <T = any>(url: string, config?: any) => Promise<{ data: T }>;
-  post: <T = any>(url: string, payload: Record<string, any>, config?: any) => Promise<{ data: T }>;
-  put: <T = any>(url: string, payload: Record<string, any>, config?: any) => Promise<{ data: T }>;
-  patch: <T = any>(url: string, payload: Record<string, any>, config?: any) => Promise<{ data: T }>;
+  post: <T = any>(url: string, payload?: Record<string, any>, config?: any) => Promise<{ data: T }>;
+  put: <T = any>(url: string, payload?: Record<string, any>, config?: any) => Promise<{ data: T }>;
+  patch: <T = any>(url: string, payload?: Record<string, any>, config?: any) => Promise<{ data: T }>;
   delete: <T = any>(url: string, config?: any) => Promise<{ data: T }>;
 }
 
 const localApi: ApiClient = {
   get: (url: string) => localGet(url) as any,
-  post: (url: string, payload: Record<string, any>) => localPost(url, payload) as any,
-  put: (url: string, payload: Record<string, any>) => localPut(url, payload) as any,
-  patch: (url: string, payload: Record<string, any>) => localPatch(url, payload) as any,
+  post: (url: string, payload: Record<string, any> = {}) => localPost(url, payload) as any,
+  put: (url: string, payload: Record<string, any> = {}) => localPut(url, payload) as any,
+  patch: (url: string, payload: Record<string, any> = {}) => localPatch(url, payload) as any,
   delete: (url: string) => localDelete(url) as any,
 };
 
 const remoteApiAdapter: ApiClient = {
   get: (url, config) => remoteApi.get(url, config),
-  post: (url, payload, config) => remoteApi.post(url, payload, config),
-  put: (url, payload, config) => remoteApi.put(url, payload, config),
-  patch: (url, payload, config) => remoteApi.patch(url, payload, config),
+  post: (url, payload = {}, config) => remoteApi.post(url, payload, config),
+  put: (url, payload = {}, config) => remoteApi.put(url, payload, config),
+  patch: (url, payload = {}, config) => remoteApi.patch(url, payload, config),
   delete: (url, config) => remoteApi.delete(url, config),
 };
 

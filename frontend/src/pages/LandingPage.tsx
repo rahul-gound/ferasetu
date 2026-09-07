@@ -521,7 +521,7 @@ export default function LandingPage() {
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-2xl text-white mb-1">{plan.name}</h3>
+                      <h3 className="font-bold text-2xl text-white mb-1">{plan.displayName}</h3>
                       <p className={`text-sm mb-5 ${isPopular ? 'text-blue-100' : 'text-slate-400'}`}>
                         {plan.tagline}
                       </p>
@@ -539,10 +539,10 @@ export default function LandingPage() {
                         )}
                       </div>
                       <ul className={`text-sm space-y-3 mb-7 ${isPopular ? 'text-white' : 'text-slate-300'}`}>
-                        {plan.features.slice(0, 6).map((f, i) => (
+                        {plan.features.filter(f => typeof f === 'string' || f.included).slice(0, 6).map((f, i) => (
                           <li key={i} className="flex items-start gap-2.5">
                             <Check size={15} className={`flex-shrink-0 mt-0.5 ${isPopular ? 'text-amber-300' : 'text-emerald-400'}`} />
-                            <span>{f}</span>
+                            <span>{typeof f === 'string' ? f : f.label}</span>
                           </li>
                         ))}
                       </ul>
@@ -556,7 +556,7 @@ export default function LandingPage() {
                             : 'bg-slate-700 hover:bg-slate-600 text-white'
                         }`}
                       >
-                        {isFree ? 'Go to Dashboard' : `Upgrade to ${plan.name}`}
+                        {isFree ? 'Go to Dashboard' : `Upgrade to ${plan.displayName}`}
                       </Link>
                     ) : (
                       <button
@@ -570,7 +570,7 @@ export default function LandingPage() {
                       >
                         {isFree
                           ? 'Start Free (₹0)'
-                          : (market === 'IN' ? `Start ${plan.name} Plan` : `Start 14-Day Free Trial`)}
+                          : (market === 'IN' ? `Start ${plan.displayName} Plan` : `Start 14-Day Free Trial`)}
                       </button>
                     )}
                   </div>
