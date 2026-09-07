@@ -724,19 +724,7 @@ export default function FeraSetuAIPage() {
       />
 
       {/* ── Top Header Bar ─────────────────────────────────────────────── */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-          background: 'rgba(6, 8, 24, 0.9)',
-          backdropFilter: 'blur(20px)',
-          flexShrink: 0,
-          zIndex: 10,
-        }}
-      >
+      <header className="flex flex-wrap items-center justify-between gap-3 p-3 sm:px-5 sm:py-3 border-b border-white/10 bg-slate-950/90 backdrop-blur-xl shrink-0 z-10">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
@@ -771,14 +759,14 @@ export default function FeraSetuAIPage() {
                 LIVE · COPILOT
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
+            <p className="hidden sm:block" style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
               Your store operations copilot & retail growth advisor
             </p>
           </div>
         </div>
 
         {/* Header Action Tools */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="flex items-center gap-2">
           {/* AI Credits Button */}
           <button
             type="button"

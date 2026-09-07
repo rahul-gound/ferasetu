@@ -195,15 +195,15 @@ export default function ProductsPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>{translate('products')}</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
+          <h1 className="text-2xl font-bold text-slate-900">{translate('products')}</h1>
+          <p className="text-slate-500 text-sm mt-1">
             {products.length} products
             {productLimit !== Infinity && ` · ${Math.max(0, productLimit - products.length)} of ${productLimit} remaining on your plan`}
           </p>
         </div>
-        <button onClick={openAdd} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={openAdd} className="btn btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2">
           <Plus size={18} /> {translate('addProduct')}
         </button>
       </div>
@@ -231,28 +231,26 @@ export default function ProductsPage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            className="input"
+            className="input w-full pl-9"
             placeholder={translate('products.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ paddingLeft: '38px', width: '100%', boxSizing: 'border-box' }}
           />
         </div>
-        <div style={{ position: 'relative' }}>
+        <div className="relative sm:w-52">
           <select
-            className="input"
+            className="input w-full pr-8 cursor-pointer"
             value={category}
             onChange={e => setCategory(e.target.value)}
-            style={{ paddingRight: '32px', cursor: 'pointer', minWidth: '160px' }}
           >
             <option value="">All Categories</option>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <ChevronDown size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
         </div>
       </div>
 

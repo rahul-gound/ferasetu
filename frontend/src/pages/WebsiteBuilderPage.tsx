@@ -177,6 +177,7 @@ export default function WebsiteBuilderPage() {
 
   const [activeTab, setActiveTab] = useState<'gallery' | 'customize' | 'sections' | 'ai'>('gallery');
   const [deviceView, setDeviceView] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [mobileMode, setMobileMode] = useState<'controls' | 'preview'>('controls');
 
   // Store metadata
   const [shopName, setShopName] = useState('');
@@ -387,7 +388,29 @@ export default function WebsiteBuilderPage() {
           </div>
         </div>
 
-        {/* Device Switcher */}
+        {/* Mobile controls/preview toggle */}
+        <div className="flex md:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setMobileMode('controls')}
+            className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${
+              mobileMode === 'controls' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'
+            }`}
+          >
+            Editor
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileMode('preview')}
+            className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${
+              mobileMode === 'preview' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'
+            }`}
+          >
+            Preview
+          </button>
+        </div>
+
+        {/* Device Switcher (Desktop/Tablet) */}
         <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             type="button"
@@ -425,37 +448,40 @@ export default function WebsiteBuilderPage() {
               href={liveUrl}
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors"
+              className="hidden lg:flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors"
             >
-              <ExternalLink size={13} /> View Live Store
+              <ExternalLink size={13} /> Live Store
             </a>
           )}
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-slate-900 text-white hover:bg-black rounded-lg shadow-sm transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 text-xs font-bold bg-slate-900 text-white hover:bg-black rounded-lg shadow-sm transition-colors disabled:opacity-50"
           >
-            <Save size={13} /> {saving ? 'Saving…' : 'Save Changes'}
+            <Save size={13} /> <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save Changes'}</span><span className="sm:hidden">{saving ? '...' : 'Save'}</span>
           </button>
           <button
             type="button"
             onClick={() => publishMutation.mutate()}
             disabled={publishMutation.isPending}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-colors ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-colors ${
               isPublished ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'
             }`}
           >
             {isPublished ? <EyeOff size={13} /> : <Globe size={13} />}
-            {isPublished ? 'Take Offline' : 'Publish Store'}
+            <span className="hidden sm:inline">{isPublished ? 'Take Offline' : 'Publish Store'}</span>
+            <span className="sm:hidden">{isPublished ? 'Offline' : 'Publish'}</span>
           </button>
         </div>
       </div>
 
       {/* Main Workspace Layout (Sidebar + Live Preview Frame) */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Left Control Sidebar */}
-        <div className="w-80 md:w-96 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 overflow-hidden">
+        <div className={`${
+          mobileMode === 'controls' ? 'flex' : 'hidden md:flex'
+        } w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex-col flex-shrink-0 overflow-hidden`}>
           {/* Studio Tab Navigation */}
           <div className="flex border-b border-slate-200 bg-slate-50/50 p-1">
             <button
@@ -865,14 +891,16 @@ export default function WebsiteBuilderPage() {
         </div>
 
         {/* Right Live Interactive Preview Workspace */}
-        <div className="flex-1 bg-slate-200/80 overflow-y-auto p-4 sm:p-6 flex justify-center items-start">
+        <div className={`${
+          mobileMode === 'preview' ? 'flex' : 'hidden md:flex'
+        } flex-1 bg-slate-200/80 overflow-y-auto p-2 sm:p-4 md:p-6 justify-center items-start`}>
           <div
             className={`bg-white shadow-2xl transition-all duration-300 overflow-hidden flex flex-col ${
               deviceView === 'mobile'
-                ? 'w-[390px] rounded-[36px] border-[10px] border-slate-800 min-h-[780px]'
+                ? 'w-full max-w-[390px] rounded-[28px] sm:rounded-[36px] border-[6px] sm:border-[10px] border-slate-800 min-h-[720px]'
                 : deviceView === 'tablet'
-                ? 'w-[768px] rounded-2xl border-[8px] border-slate-800 min-h-[900px]'
-                : 'w-full max-w-[1340px] rounded-xl border border-slate-300 min-h-[900px]'
+                ? 'w-full max-w-[768px] rounded-2xl border-[6px] sm:border-[8px] border-slate-800 min-h-[850px]'
+                : 'w-full max-w-[1340px] rounded-xl border border-slate-300 min-h-[850px]'
             }`}
           >
             {/* Mock device status bar on mobile */}

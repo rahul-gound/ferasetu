@@ -140,27 +140,27 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
           </button>
         </div>
 
-        <div style={{ padding: '28px 32px' }}>
+        <div className="p-4 sm:p-7">
           {/* Handshake Panel */}
           {order.payment_status !== 'paid' && (
-            <div style={{ background: '#FFF7ED', border: '2px solid #FFEDD5', borderRadius: '14px', padding: '20px', marginBottom: '24px' }}>
+            <div style={{ background: '#FFF7ED', border: '2px solid #FFEDD5', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                   <ShieldCheck size={20} color="#FF6B35" />
                   <span style={{ fontWeight: 800, fontSize: '15px', color: '#9A3412' }}>Secure Payment Verification</span>
                </div>
-               <p style={{ fontSize: '13px', color: '#C2410C', marginBottom: '16px' }}>
+               <p style={{ fontSize: '13px', color: '#C2410C', marginBottom: '14px' }}>
                   Please ask the customer for the <b>{order.delivery_type === 'delivery' ? 'Security Code' : 'Payment OTP'}</b> to confirm this transaction.
                </p>
-               <div style={{ display: 'flex', gap: '10px' }}>
+               <div className="flex flex-col sm:flex-row gap-2.5">
                   <input 
                     placeholder="Enter Code/OTP" 
                     value={otpValue}
                     onChange={e => setOtpValue(e.target.value.toUpperCase())}
-                    style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #FFD8A8', fontWeight: 700, fontSize: '16px', outline: 'none' }}
+                    className="flex-1 p-3 rounded-xl border border-amber-200 font-bold text-base outline-none bg-white"
                   />
                   <button 
                     onClick={() => onVerifyOtp(order.id, otpValue)}
-                    style={{ background: '#FF6B35', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' }}
+                    className="bg-[#FF6B35] text-white border-0 py-3 px-5 rounded-xl font-bold cursor-pointer hover:bg-orange-600 transition-colors"
                   >
                     Verify & Pay
                   </button>
@@ -169,7 +169,7 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
           )}
 
           {/* Shop & Customer info */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>From</div>
               <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>FeraSetu Shop Partner</div>
@@ -413,103 +413,177 @@ export default function OrdersPage() {
             )}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                  {['Customer', 'Phone', 'Items', 'Total', 'Type', 'Status', 'Payment', 'Date', 'Update', ''].map(h => (
-                    <th key={h} style={{
-                      padding: '12px 16px', textAlign: 'left',
-                      fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(order => (
-                  <tr
-                    key={order.id}
-                    style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
-                  >
-                    <td
-                      style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text)' }}
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      {order.customer_name}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={12} /> {order.customer_phone}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Package size={12} /> {order.items_count || order.items?.length || 0}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text)' }}>
-                      ₹{order.total.toLocaleString('en-IN')}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                        background: order.delivery_type === 'delivery' ? 'rgba(6,182,212,0.15)' : 'rgba(16,185,129,0.15)',
-                        color: order.delivery_type === 'delivery' ? '#0891B2' : '#059669',
-                      }}>
-                        {order.delivery_type === 'delivery' ? '🛵 Delivery' : '🏪 Pickup'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <StatusBadge status={order.status} />
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <PaymentBadge status={order.payment_status} />
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                      {new Date(order.created_at).toLocaleDateString('en-IN', {
-                        day: '2-digit', month: 'short', year: 'numeric',
-                      })}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ position: 'relative' }}>
-                        <select
-                          value={order.status}
-                          disabled={updatingId === order.id}
-                          onChange={e => handleStatusChange(order.id, e.target.value)}
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            padding: '6px 28px 6px 10px', borderRadius: '6px', fontSize: '12px',
-                            border: '1px solid var(--border)', background: 'var(--bg)',
-                            color: 'var(--text)', cursor: 'pointer', appearance: 'none',
-                            opacity: updatingId === order.id ? 0.5 : 1,
-                          }}
-                        >
-                          {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                            <option key={k} value={k}>{v}</option>
-                          ))}
-                        </select>
-                        <ChevronDown size={12} style={{
-                          position: 'absolute', right: '6px', top: '50%',
-                          transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)',
-                        }} />
+          <>
+            {/* Mobile Card View (visible on < md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filtered.map(order => (
+                <div
+                  key={order.id}
+                  className="p-4 flex flex-col gap-3 bg-white hover:bg-slate-50/80 transition-colors cursor-pointer"
+                  onClick={() => setSelectedOrder(order)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-900 text-sm">{order.customer_name}</div>
+                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                        <Phone size={11} />
+                        <span>{order.customer_phone}</span>
                       </div>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <button
-                        className="btn btn-secondary"
-                        onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
-                        style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-extrabold text-slate-900 text-base">
+                        ₹{order.total.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {new Date(order.created_at).toLocaleDateString('en-IN', {
+                          day: '2-digit', month: 'short'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={order.status} />
+                    <PaymentBadge status={order.payment_status} />
+                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                      order.delivery_type === 'delivery'
+                        ? 'bg-cyan-50 text-cyan-700'
+                        : 'bg-emerald-50 text-emerald-700'
+                    }`}>
+                      {order.delivery_type === 'delivery' ? '🛵 Delivery' : '🏪 Pickup'}
+                    </span>
+                    <span className="text-xs text-slate-400 ml-auto flex items-center gap-1">
+                      <Package size={12} />
+                      {order.items_count || order.items?.length || 0} items
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-50" onClick={e => e.stopPropagation()}>
+                    <div className="relative flex-1">
+                      <select
+                        value={order.status}
+                        disabled={updatingId === order.id}
+                        onChange={e => handleStatusChange(order.id, e.target.value)}
+                        className="w-full text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                       >
-                        🧾 Invoice
-                      </button>
-                    </td>
+                        {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceOrder(order)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      🧾 Invoice
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (visible on >= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                    {['Customer', 'Phone', 'Items', 'Total', 'Type', 'Status', 'Payment', 'Date', 'Update', ''].map(h => (
+                      <th key={h} style={{
+                        padding: '12px 16px', textAlign: 'left',
+                        fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
+                      }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.map(order => (
+                    <tr
+                      key={order.id}
+                      style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                    >
+                      <td
+                        style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text)' }}
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        {order.customer_name}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={12} /> {order.customer_phone}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Package size={12} /> {order.items_count || order.items?.length || 0}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text)' }}>
+                        ₹{order.total.toLocaleString('en-IN')}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                          background: order.delivery_type === 'delivery' ? 'rgba(6,182,212,0.15)' : 'rgba(16,185,129,0.15)',
+                          color: order.delivery_type === 'delivery' ? '#0891B2' : '#059669',
+                        }}>
+                          {order.delivery_type === 'delivery' ? '🛵 Delivery' : '🏪 Pickup'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <StatusBadge status={order.status} />
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <PaymentBadge status={order.payment_status} />
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                        {new Date(order.created_at).toLocaleDateString('en-IN', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                        })}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ position: 'relative' }}>
+                          <select
+                            value={order.status}
+                            disabled={updatingId === order.id}
+                            onChange={e => handleStatusChange(order.id, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              padding: '6px 28px 6px 10px', borderRadius: '6px', fontSize: '12px',
+                              border: '1px solid var(--border)', background: 'var(--bg)',
+                              color: 'var(--text)', cursor: 'pointer', appearance: 'none',
+                              opacity: updatingId === order.id ? 0.5 : 1,
+                            }}
+                          >
+                            {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
+                              <option key={k} value={k}>{v}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={12} style={{
+                            position: 'absolute', right: '6px', top: '50%',
+                            transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)',
+                          }} />
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
+                          style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                        >
+                          🧾 Invoice
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

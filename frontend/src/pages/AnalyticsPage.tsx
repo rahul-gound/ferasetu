@@ -231,7 +231,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Charts Row 2: Orders Bar & Category Pie */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '32px', flexWrap: 'wrap' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8">
          {/* Orders Distribution */}
           <div className="analytics-chart-card animate-fade-up" style={{ animationDelay: '0.5s' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>Order Volume</h2>
@@ -377,7 +377,6 @@ export default function AnalyticsPage() {
         }
         @media (max-width: 640px) {
           .analytics-grid { grid-template-columns: 1fr !important; }
-          div[style*="gridTemplateColumns: 1.2fr 0.8fr"] { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
