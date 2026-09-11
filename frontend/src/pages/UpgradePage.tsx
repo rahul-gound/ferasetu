@@ -77,6 +77,16 @@ export default function UpgradePage() {
         return;
       }
 
+      // Paid plans via Stripe Checkout (US & Europe markets)
+      if (res.data.gateway === 'stripe' || res.data.stripeUrl) {
+        if (res.data.stripeUrl) {
+          window.location.href = res.data.stripeUrl;
+          return;
+        }
+        toast.error('Stripe checkout session URL was not provided.');
+        return;
+      }
+
       // Paid plans go through Razorpay Checkout.
       const razorpayLoaded = await loadRazorpayScript();
       if (!razorpayLoaded || !window.Razorpay) {

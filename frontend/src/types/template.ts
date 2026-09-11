@@ -32,7 +32,7 @@ export interface ShopProduct {
 }
 
 export interface PublicShopData {
-  shop: { id: string; name: string; subdomain: string };
+  shop: { id: string; name: string; subdomain: string; hostname?: string };
   website: {
     id: string;
     name: string;

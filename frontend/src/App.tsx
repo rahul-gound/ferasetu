@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { MarketProvider } from './contexts/MarketContext';
 import { ENABLED_LANGUAGES } from './i18n';
 import ErrorBoundary from './components/ErrorBoundary';
+import { RESERVED_SUBDOMAINS } from './utils/canonicalHostname';
 
 // Public landing page — lazy loaded for fast initial entry
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -69,6 +70,18 @@ function LanguageRouteGuard() {
   return <Outlet />;
 }
 
+function ReferralRedirect() {
+  const { code } = useParams<{ code: string }>();
+  useEffect(() => {
+    if (code) {
+      try {
+        localStorage.setItem('fera_referral_code', code);
+      } catch {}
+    }
+  }, [code]);
+  return <Navigate to={`/register${code ? `?ref=${encodeURIComponent(code)}` : ''}`} replace />;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
 });
@@ -112,9 +125,15 @@ function AppRoutes() {
   const isLocalOrPreview = hostname === 'localhost' || hostname.includes('127.0.0.1') || hostname.includes('app.github.dev');
   
   // Check if hostname ends with any of our platform domains but is not the root domain itself
-  const isShopSubdomain = platformDomains.some(domain => 
+  const matchingDomain = platformDomains.find(domain => 
     hostname.endsWith(`.${domain}`) && hostname !== domain
-  ) && !isLocalOrPreview;
+  );
+  const potentialSubdomain = matchingDomain
+    ? hostname.slice(0, -(matchingDomain.length + 1)).toLowerCase()
+    : null;
+  const isReserved = potentialSubdomain ? RESERVED_SUBDOMAINS.has(potentialSubdomain) : false;
+
+  const isShopSubdomain = Boolean(potentialSubdomain && !isReserved && !isLocalOrPreview);
 
   if (isShopSubdomain) {
     return (
@@ -154,6 +173,7 @@ function AppRoutes() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+        <Route path="/ref/:code" element={<ReferralRedirect />} />
         <Route path="/callback" element={<AuthCallbackPage />} />
         
         {/* SEO landing pages & public pages */}

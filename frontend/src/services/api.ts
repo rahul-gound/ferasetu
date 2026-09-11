@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { generateCanonicalStorefront } from '../utils/canonicalHostname';
 
 const USE_LOCAL_STORAGE_API = import.meta.env?.VITE_USE_LOCAL_STORAGE === 'true';
 
@@ -18,6 +19,10 @@ interface LocalUser {
   cancel_at_period_end?: number | boolean;
   preferred_language: string;
   subdomain?: string;
+  hostname?: string;
+  city?: string;
+  district?: string;
+  state?: string;
   custom_domain?: string;
   plan_expires_at?: string;
   ai_credits_balance?: number;
@@ -174,7 +179,10 @@ function getCurrentUserId(): string | null {
 
 function userPublicData(user: LocalUser) {
   const { password, password_hash, password_salt, ...safeUser } = user;
-  return safeUser;
+  return {
+    ...safeUser,
+    hostname: safeUser.hostname || (safeUser.subdomain ? `${safeUser.subdomain}.ferasetu.com` : undefined),
+  };
 }
 
 function generateSubdomain(value: string): string {
@@ -651,6 +659,33 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
 
     const name = String(payload.name || 'User').trim();
     const businessName = String(payload.businessName || '').trim();
+    const city = payload.city ? String(payload.city).trim() : undefined;
+    const district = payload.district ? String(payload.district).trim() : undefined;
+    const state = payload.state ? String(payload.state).trim() : undefined;
+
+    let counter = 1;
+    while (counter < 1000) {
+      const candidate = generateCanonicalStorefront({
+        shopName: businessName || name || 'store',
+        city,
+        district,
+        state,
+        counter,
+      });
+      if (!db.users.some(u => u.subdomain === candidate.subdomain || u.hostname === candidate.hostname)) {
+        break;
+      }
+      counter++;
+    }
+
+    const canonical = generateCanonicalStorefront({
+      shopName: businessName || name || 'store',
+      city,
+      district,
+      state,
+      counter,
+    });
+
     const user: LocalUser = {
       id: createId(),
       email,
@@ -660,7 +695,11 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
       business_name: businessName || undefined,
       plan: 'free',
       preferred_language: String(payload.preferredLanguage || 'en'),
-      subdomain: generateSubdomain(businessName || name || 'my-store'),
+      subdomain: canonical.subdomain,
+      hostname: canonical.hostname,
+      city,
+      district,
+      state,
       custom_domain: undefined,
       plan_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       ai_credits_balance: 20,
@@ -1088,6 +1127,10 @@ async function localPut(url: string, payload: Record<string, any>) {
       preferred_language: payload.preferred_language ?? user.preferred_language,
       phone: payload.phone ?? user.phone,
       subdomain: payload.subdomain ?? user.subdomain,
+      hostname: payload.hostname ?? user.hostname,
+      city: payload.city ?? user.city,
+      district: payload.district ?? user.district,
+      state: payload.state ?? user.state,
       name: payload.name ?? user.name,
     });
     saveDb(db);

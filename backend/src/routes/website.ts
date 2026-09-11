@@ -17,28 +17,29 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
 
   let user;
 
-  // 1. If shopName is provided as a parameter (slug)
+  // 1. If shopName is provided as a parameter (slug or full hostname)
   if (shopName && shopName !== 'undefined' && shopName !== 'null' && shopName !== 'me') {
+    const clean = shopName.toLowerCase();
     user = db.prepare(
-      'SELECT id, name, business_name, subdomain, custom_domain, phone, logo_url FROM users WHERE subdomain = ? OR custom_domain = ?'
-    ).get(shopName, shopName) as any;
+      'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?'
+    ).get(clean, clean, clean) as any;
   }
 
   // 2. If not found by slug, or if accessed via a subdomain/custom domain directly
   if (!user && host && !baseDomains.includes(host) && !host.includes('localhost') && !host.includes('github.dev')) {
-    // Try matching the whole host as a custom domain
+    // Try matching the whole host as a custom domain or canonical hostname
     user = db.prepare(
-      'SELECT id, name, business_name, subdomain, custom_domain, phone, logo_url FROM users WHERE custom_domain = ?'
-    ).get(host) as any;
+      'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url FROM users WHERE LOWER(custom_domain) = ? OR LOWER(hostname) = ?'
+    ).get(host, host) as any;
 
     // 3. Try matching as a subdomain against any of the supported base domains
     if (!user) {
       const matchingBase = baseDomains.find(domain => host.endsWith('.' + domain));
       if (matchingBase) {
-        const subdomain = host.replace('.' + matchingBase, '');
+        const subdomain = host.replace('.' + matchingBase, '').toLowerCase();
         user = db.prepare(
-          'SELECT id, name, business_name, subdomain, custom_domain, phone, logo_url FROM users WHERE subdomain = ?'
-        ).get(subdomain) as any;
+          'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ?'
+        ).get(subdomain, host) as any;
       }
     }
   }
@@ -75,6 +76,7 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
       id: user.id,
       name: user.business_name || user.name,
       subdomain: user.subdomain,
+      hostname: user.hostname || (user.subdomain ? `${user.subdomain}.ferasetu.com` : null),
       phone: user.phone || '',
       logo_url: user.logo_url || null,
     },

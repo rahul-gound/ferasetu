@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMarket } from '../contexts/MarketContext';
 import OnboardingProgress from '../components/ui/OnboardingProgress';
+import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -382,7 +383,7 @@ export default function DashboardPage() {
   };
 
   const handleShareStoreWhatsApp = () => {
-    const storeUrl = user?.subdomain ? `https://${user.subdomain}.ferasetu.shop` : 'https://ferasetu.com';
+    const storeUrl = getStorefrontUrl(user);
     const text = encodeURIComponent(`Check out our online store catalog and place orders directly: ${storeUrl}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };

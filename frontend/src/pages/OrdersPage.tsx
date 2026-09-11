@@ -6,6 +6,7 @@ import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
+import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 interface OrderItem {
   product_id: string;
@@ -396,7 +397,7 @@ export default function OrdersPage() {
                 description="Share your store link with customers on WhatsApp so they can browse your catalog and send orders."
                 actionLabel="Share Store on WhatsApp"
                 onAction={() => {
-                  const url = user?.subdomain ? `https://${user.subdomain}.ferasetu.shop` : 'https://ferasetu.com';
+                  const url = getStorefrontUrl(user);
                   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent('Check out our catalog and order easily: ' + url)}`, '_blank');
                 }}
                 expectedOutcome="Customer orders appear here in real-time with automatic invoicing."

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { getStorefrontUrl } from '../utils/canonicalHostname';
 import { useLanguage } from '../contexts/LanguageContext';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
 import WebsiteAIBuilder from '../components/WebsiteAIBuilder';
@@ -364,8 +365,7 @@ export default function WebsiteBuilderPage() {
   const activeThemeDef = THEME_REGISTRY[selectedThemeId] || THEME_REGISTRY.market;
   const activeProducts = merchantProducts.length > 0 ? merchantProducts : DEMO_PRODUCTS;
 
-  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'ferasetu.com';
-  const liveUrl = `https://${user?.subdomain || shopName.toLowerCase().replace(/\s+/g, '-')}.${baseDomain}`;
+  const liveUrl = getStorefrontUrl(user);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId) || null;
 

@@ -77,7 +77,9 @@ export default function ShopPage() {
     const shop = data.shop;
     const firstProductImage = data.products?.[0]?.image_url;
     const ogImage = firstProductImage || DEFAULT_IMAGE;
-    const shopUrl = `${BASE_URL}/shop/${shop.subdomain || shopName}`;
+    const shopUrl = (typeof window !== 'undefined' && window.location.hostname !== 'ferasetu.com' && window.location.hostname !== 'localhost')
+      ? window.location.origin
+      : (shop.hostname ? `https://${shop.hostname}` : `${BASE_URL}/shop/${shop.subdomain || shopName}`);
     const description = data.products?.length
       ? `${shop.name} — ${data.products.length} products available online. Shop now on FeraSetu!`
       : `${shop.name} — Online store powered by FeraSetu. Dukaan ko online lao, orders WhatsApp par pao.`;

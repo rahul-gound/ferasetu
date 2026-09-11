@@ -37,6 +37,10 @@ import {
   handleStorefrontRequest,
   proxyPagesAsset,
 } from "./storefront.js";
+import {
+  generateCanonicalStorefront,
+  findNextAvailableStorefront,
+} from "./canonicalHostname.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -250,25 +254,74 @@ async function updateProfile(request, env) {
   const now = new Date().toISOString();
 
   // If user doesn't exist, this is a creation (PUT-as-create).
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE id = ?")
+  let existing = await env.DB.prepare("SELECT id FROM users WHERE id = ?")
     .bind(me.$id)
     .first();
+
+  const email = (body.email && typeof body.email === 'string' && body.email.trim())
+    ? body.email.trim()
+    : (me.email && typeof me.email === 'string' && me.email.trim()
+      ? me.email.trim()
+      : `${me.$id}@user.ferasetu.com`);
+
+  if (!existing) {
+    // Check if user already exists under the same email
+    const existingByEmail = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
+      .bind(email)
+      .first();
+
+    if (existingByEmail) {
+      existing = existingByEmail;
+    }
+  }
 
   if (!existing) {
     const market = (body.market && ['IN', 'US', 'EU'].includes(body.market.toUpperCase()))
       ? body.market.toUpperCase()
       : (body.phone?.startsWith('+1') ? 'US' : 'IN');
 
+    let subdomain = body.subdomain || null;
+    let hostname = body.hostname || null;
+
+    if (!subdomain && (body.business_name || body.name)) {
+      try {
+        const storefront = await findNextAvailableStorefront(
+          {
+            shopName: body.business_name || body.name,
+            city: body.city,
+            district: body.district,
+            state: body.state,
+          },
+          async (candidateSub) => {
+            const taken = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ?")
+              .bind(candidateSub, `${candidateSub}.ferasetu.com`)
+              .first();
+            return !!taken;
+          }
+        );
+        subdomain = storefront.subdomain;
+        hostname = storefront.hostname;
+      } catch (genErr) {
+        console.warn("Could not generate canonical storefront, falling back:", genErr?.message);
+      }
+    } else if (subdomain && !hostname) {
+      hostname = `${subdomain}.ferasetu.com`;
+    }
+
     const newUser = {
       id: me.$id,
-      email: me.email,
+      email,
       name: body.name || me.name || "User",
       phone: body.phone || null,
       business_name: body.business_name || null,
       plan: "beta",
       market,
       preferred_language: body.preferred_language || "en",
-      subdomain: body.subdomain || null,
+      subdomain,
+      hostname,
+      city: body.city || null,
+      district: body.district || null,
+      state: body.state || null,
       custom_domain: null,
       plan_expires_at: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000).toISOString(), // 10 years (Beta Plan)
       ai_credits_balance: 20,
@@ -281,47 +334,74 @@ async function updateProfile(request, env) {
       updated_at: now,
     };
 
-    // Check if market column exists before inserting
+    // Check if hostname / location columns exist before inserting
     try {
       await env.DB.prepare(
         `INSERT INTO users (
           id, email, name, phone, business_name, plan, market, preferred_language, subdomain,
+          hostname, city, district, state,
           ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
           storage_used_bytes, storage_limit_bytes, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
           newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
           newUser.plan, newUser.market, newUser.preferred_language, newUser.subdomain,
+          newUser.hostname, newUser.city, newUser.district, newUser.state,
           newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
           newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
         )
         .run();
     } catch (insertErr) {
-      // Fallback if market column hasn't migrated yet
-      await env.DB.prepare(
-        `INSERT INTO users (
-          id, email, name, phone, business_name, plan, preferred_language, subdomain,
-          ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
-          storage_used_bytes, storage_limit_bytes, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-        .bind(
-          newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
-          newUser.plan, newUser.preferred_language, newUser.subdomain,
-          newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
-          newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
+      // Fallback if schema doesn't have new columns yet
+      try {
+        await env.DB.prepare(
+          `INSERT INTO users (
+            id, email, name, phone, business_name, plan, market, preferred_language, subdomain,
+            ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
+            storage_used_bytes, storage_limit_bytes, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
-        .run();
+          .bind(
+            newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
+            newUser.plan, newUser.market, newUser.preferred_language, newUser.subdomain,
+            newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
+            newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
+          )
+          .run();
+      } catch (insertErr2) {
+        await env.DB.prepare(
+          `INSERT INTO users (
+            id, email, name, phone, business_name, plan, preferred_language, subdomain,
+            ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month,
+            storage_used_bytes, storage_limit_bytes, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+          .bind(
+            newUser.id, newUser.email, newUser.name, newUser.phone, newUser.business_name,
+            newUser.plan, newUser.preferred_language, newUser.subdomain,
+            newUser.ai_credits_balance, newUser.ai_credits_monthly_limit, newUser.ai_credits_used_month,
+            newUser.storage_used_bytes, newUser.storage_limit_bytes, newUser.created_at, newUser.updated_at
+          )
+          .run();
+      }
     }
 
     return json({ user: newUser }, 201);
   }
 
   // Update existing
+  const targetId = existing.id || me.$id;
   const updates = [];
   const values = [];
-  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain", "market"];
+  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain", "hostname", "city", "district", "state", "market"];
+  if (body.email && typeof body.email === 'string' && body.email.trim()) {
+    allowed.push("email");
+  }
+
+  if (body.subdomain && !body.hostname) {
+    body.hostname = `${body.subdomain}.ferasetu.com`;
+  }
 
   for (const key of allowed) {
     if (body[key] !== undefined) {
@@ -333,7 +413,7 @@ async function updateProfile(request, env) {
   if (updates.length > 0) {
     updates.push("updated_at = ?");
     values.push(now);
-    values.push(me.$id);
+    values.push(targetId);
 
     await env.DB.prepare(
       `UPDATE users SET ${updates.join(", ")} WHERE id = ?`
@@ -343,7 +423,7 @@ async function updateProfile(request, env) {
   }
 
   const updated = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
-    .bind(me.$id)
+    .bind(targetId)
     .first();
 
   return json({ user: updated });
@@ -1031,6 +1111,15 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS ai_credit_purchases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        credits INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        usage_scope TEXT DEFAULT 'shared',
+        status TEXT NOT NULL DEFAULT 'completed',
+        created_at TEXT NOT NULL
+      );
     `);
     tablesInitialized = true;
   } catch (err) {
@@ -1331,6 +1420,15 @@ async function handlePaymentAiCredits(request, env) {
   const user = await env.DB.prepare(
     "SELECT plan, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, plan_expires_at FROM users WHERE id = ?"
   ).bind(me.$id).first();
+
+  let purchases = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT id, credits, amount, usage_scope, status, created_at FROM ai_credit_purchases WHERE user_id = ? ORDER BY created_at DESC LIMIT 20"
+    ).bind(me.$id).all();
+    purchases = results || [];
+  } catch {}
+
   return json({
     credits: user || {
       plan: 'free',
@@ -1343,9 +1441,133 @@ async function handlePaymentAiCredits(request, env) {
       growth: { credits: 1000, amount: 499, label: '1,000 AI credits' },
       scale: { credits: 3000, amount: 1299, label: '3,000 AI credits' }
     },
-    purchases: [],
+    purchases,
     usage: []
   }, 200, {}, request);
+}
+
+async function handlePaymentAiCreditsPurchase(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+  const body = await readJsonBody(request);
+
+  const packs = {
+    small: { credits: 250, amount: 149, label: '250 AI credits' },
+    growth: { credits: 1000, amount: 499, label: '1,000 AI credits' },
+    scale: { credits: 3000, amount: 1299, label: '3,000 AI credits' }
+  };
+
+  const packKey = body.pack;
+  const pack = packs[packKey];
+  if (!pack) {
+    throw new HttpError("Invalid credit pack selected", 400);
+  }
+
+  const usageScope = body.usage_scope || 'shared';
+  const purchaseId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  // Record in ai_credit_purchases table
+  try {
+    await env.DB.prepare(
+      `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'completed', ?)`
+    ).bind(purchaseId, me.$id, pack.credits, pack.amount, usageScope, now).run();
+  } catch (err) {
+    console.warn("Could not insert into ai_credit_purchases:", err?.message);
+  }
+
+  // Record in transactions table
+  try {
+    await env.DB.prepare(
+      `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+       VALUES (?, ?, 'ai_credits', ?, ?, 'INR', 'completed', 'credits', 'one_time', ?, ?, ?)`
+    ).bind(
+      crypto.randomUUID(),
+      me.$id,
+      `credits_${purchaseId}`,
+      pack.amount,
+      JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, usage_scope: usageScope }),
+      now,
+      now
+    ).run();
+  } catch (err) {
+    console.warn("Could not record transaction for credit purchase:", err?.message);
+  }
+
+  // Authoritatively increment ai_credits_balance in users table
+  await env.DB.prepare(
+    "UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?"
+  ).bind(pack.credits, now, me.$id).run();
+
+  const user = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(me.$id).first();
+
+  return json({
+    success: true,
+    purchaseId,
+    pack,
+    usage_scope: usageScope,
+    ai_credits_balance: user?.ai_credits_balance ?? pack.credits
+  }, 201, {}, request);
+}
+
+async function handleVoiceTextToSpeech(request, env) {
+  await getAuthenticatedUser(request, env);
+  const body = await readJsonBody(request);
+
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (!text) {
+    throw new HttpError("Text is required", 400);
+  }
+
+  const language = body.language || 'en';
+  const sarvamLanguageMap = {
+    'en': 'en-IN',
+    'hi': 'hi-IN',
+    'bn': 'bn-IN',
+    'kn': 'kn-IN',
+    'ml': 'ml-IN',
+    'mr': 'mr-IN',
+    'or': 'or-IN',
+    'pa': 'pa-IN',
+    'ta': 'ta-IN',
+    'te': 'te-IN',
+    'gu': 'gu-IN'
+  };
+  const targetLanguageCode = sarvamLanguageMap[language] || 'hi-IN';
+
+  const sarvamKey = env.SARVAM_API_KEY || env.SARVAM_30B_API_KEY || '';
+  if (!sarvamKey) {
+    return json({ audio: null, format: 'wav', message: 'TTS provider key not configured' }, 200, {}, request);
+  }
+
+  try {
+    const ttsRes = await fetch("https://api.sarvam.ai/text-to-speech", {
+      method: "POST",
+      headers: {
+        "api-subscription-key": sarvamKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        inputs: [text],
+        target_language_code: targetLanguageCode,
+        speaker: "meera",
+        model: "bulbul:v1"
+      })
+    });
+
+    if (!ttsRes.ok) {
+      const errText = await ttsRes.text();
+      console.warn("Sarvam TTS API responded with non-200:", ttsRes.status, errText);
+      return json({ audio: null, format: 'wav', error: `TTS service error: ${ttsRes.status}` }, 200, {}, request);
+    }
+
+    const ttsData = await ttsRes.json();
+    const audioBase64 = ttsData.audios?.[0] || null;
+    return json({ audio: audioBase64, format: 'wav' }, 200, {}, request);
+  } catch (err) {
+    console.error("Sarvam TTS fetch error:", err);
+    return json({ audio: null, format: 'wav', error: err?.message || 'TTS failed' }, 200, {}, request);
+  }
 }
 
 async function handleCancelSubscription(request, env) {
@@ -1979,9 +2201,9 @@ async function getPublicShop(shopName, request, env) {
   const cleanShopName = shopName.trim().toLowerCase();
 
   const user = await env.DB.prepare(
-    "SELECT id, name, business_name, subdomain, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(custom_domain) = ?"
+    "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
   )
-    .bind(cleanShopName, cleanShopName)
+    .bind(cleanShopName, cleanShopName, cleanShopName)
     .first();
 
   if (!user) {
@@ -2038,6 +2260,7 @@ async function getPublicShop(shopName, request, env) {
       id: user.id,
       name: user.business_name || user.name,
       subdomain: user.subdomain,
+      hostname: user.hostname || (user.subdomain ? `${user.subdomain}.ferasetu.com` : null),
     },
     website: {
       ...website,
@@ -2073,11 +2296,13 @@ async function route(request, env) {
         "GET  /api/health",
         "GET  /api/v1/health",
         "POST /api/v1/ai/chat",
+        "POST /api/voice/text-to-speech",
         "GET  /api/users/me",
         "PUT  /api/users/me",
         "POST /api/payment/initialize",
         "POST /api/payment/verify",
         "GET  /api/payment/ai-credits",
+        "POST /api/payment/ai-credits/purchase",
         "POST /api/payment/cancel-subscription",
         "POST /api/payment/resume-subscription",
         "GET  /api/payment/history",
@@ -2146,6 +2371,9 @@ async function route(request, env) {
   }
   if (path === "/api/payment/ai-credits" && method === "GET") {
     return handlePaymentAiCredits(request, env);
+  }
+  if (path === "/api/payment/ai-credits/purchase" && method === "POST") {
+    return handlePaymentAiCreditsPurchase(request, env);
   }
   if (path === "/api/payment/cancel-subscription" && method === "POST") {
     return handleCancelSubscription(request, env);
@@ -2292,6 +2520,7 @@ async function route(request, env) {
 
   // v1 and legacy AI endpoints (all routed through Fera Router)
   if ((path === "/api/v1/ai/chat" || path === "/api/ai/chat") && method === "POST") return handleV1AIChat(request, env);
+  if (path === "/api/voice/text-to-speech" && method === "POST") return handleVoiceTextToSpeech(request, env);
   if (path === "/api/v1/health" && method === "GET") {
     return json({ status: "ok", version: "2.0.0", service: "fera-ai", timestamp: new Date().toISOString() });
   }
@@ -2361,7 +2590,7 @@ export default {
 
       // 2. Reserved platform subdomains (api, www, app, admin, docs, status, mail, support, etc.)
       if (hostClassification.type === "platform_reserved") {
-        if (hostClassification.subdomain === "www") {
+        if (hostClassification.subdomain === "www" || hostClassification.subdomain === "app") {
           if (url.pathname.startsWith("/api/")) {
             if (!env.DB) {
               return errorResponse("Database not configured.", 503, undefined, request);

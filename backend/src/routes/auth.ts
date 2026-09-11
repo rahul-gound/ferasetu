@@ -11,6 +11,7 @@ import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { OTPService } from '../services/otpService';
 import { getSmtpSettings, sendOtpViaCustomSmtp } from '../services/smtpService';
 import { createRateLimiter } from '../middleware/rateLimiter';
+import { findNextAvailableStorefront } from '../utils/canonicalHostname';
 
 const router = Router();
 
@@ -173,7 +174,7 @@ router.post('/register',
       return;
     }
 
-    const { email, otp, name, password, businessName } = req.body;
+    const { email, otp, name, password, businessName, city, district, state } = req.body;
 
     try {
       const db = getDatabase();
@@ -198,17 +199,47 @@ router.post('/register',
       const betaEndsAt = new Date();
       betaEndsAt.setFullYear(betaEndsAt.getFullYear() + 10);
 
+      // Generate canonical storefront URL
+      const storefront = await findNextAvailableStorefront(
+        {
+          shopName: businessName || name,
+          city,
+          district,
+          state,
+        },
+        (subdomain: string) => {
+          const existing = db.prepare('SELECT id FROM users WHERE subdomain = ? OR hostname = ?').get(subdomain, `${subdomain}.ferasetu.com`);
+          return !!existing;
+        }
+      );
+
       db.prepare(`
-        INSERT INTO users (id, email, password_hash, name, business_name, is_verified, plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at)
-        VALUES (?, ?, ?, ?, ?, 1, 'beta', ?, 20, 20, datetime('now', '+30 days'))
-      `).run(userId, email, hashedPassword, name, businessName || name, betaEndsAt.toISOString());
+        INSERT INTO users (
+          id, email, password_hash, name, business_name, is_verified, plan, plan_expires_at,
+          subdomain, hostname, city, district, state,
+          ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at
+        )
+        VALUES (?, ?, ?, ?, ?, 1, 'beta', ?, ?, ?, ?, ?, ?, 20, 20, datetime('now', '+30 days'))
+      `).run(
+        userId,
+        email,
+        hashedPassword,
+        name,
+        businessName || name,
+        betaEndsAt.toISOString(),
+        storefront.subdomain,
+        storefront.hostname,
+        city || null,
+        district || null,
+        state || null
+      );
 
       // 3. Send Onboarding Welcome Email
       sendOnboardingEmail(email, name).catch(err => console.error('Welcome email failed:', err.message));
 
       // 4. Generate Token
       const token = jwt.sign(
-        { id: userId, email, plan: 'beta' },
+        { id: userId, email, plan: 'beta', subdomain: storefront.subdomain, hostname: storefront.hostname },
         JWT_SECRET,
         { expiresIn: '30d' }
       );
@@ -226,7 +257,19 @@ router.post('/register',
       // Return user data without token
       res.status(201).json({
         success: true,
-        user: { id: userId, email, name, plan: 'beta', ai_credits_balance: 20, ai_credits_monthly_limit: 20, ai_credits_used_month: 0, plan_expires_at: betaEndsAt.toISOString() }
+        user: {
+          id: userId,
+          email,
+          name,
+          plan: 'beta',
+          subdomain: storefront.subdomain,
+          hostname: storefront.hostname,
+          store_url: storefront.storeUrl,
+          ai_credits_balance: 20,
+          ai_credits_monthly_limit: 20,
+          ai_credits_used_month: 0,
+          plan_expires_at: betaEndsAt.toISOString(),
+        }
       });
     } catch (err: any) {
       console.error('Registration error:', err);

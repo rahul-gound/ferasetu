@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Plus, Search, Edit2, Trash2, X, Upload, Package,
@@ -55,11 +55,19 @@ export default function ProductsPage() {
   const { user } = useAuth();
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
 
   const planLimits = getPlanLimits(user?.plan);
   const productLimit = planLimits.products; // Infinity for pro
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearch(q);
+    }
+  }, [searchParams]);
   const [category, setCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -145,11 +153,45 @@ export default function ProductsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+
     const reader = new FileReader();
     reader.onload = ev => {
-      const url = ev.target?.result as string;
-      setImagePreview(url);
-      setForm(f => ({ ...f, image_url: url }));
+      const dataUrl = ev.target?.result as string;
+      const img = new window.Image();
+      img.onload = () => {
+        const MAX_DIM = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          setImagePreview(compressed);
+          setForm(f => ({ ...f, image_url: compressed }));
+        } else {
+          setImagePreview(dataUrl);
+          setForm(f => ({ ...f, image_url: dataUrl }));
+        }
+      };
+      img.onerror = () => {
+        setImagePreview(dataUrl);
+        setForm(f => ({ ...f, image_url: dataUrl }));
+      };
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
   };

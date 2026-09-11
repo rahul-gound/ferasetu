@@ -43,6 +43,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { translate } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const planTitle = user?.plan ? (user.plan.charAt(0).toUpperCase() + user.plan.slice(1)) : 'Free';
   const planSubtitle = user?.plan === 'pro' ? 'Unlimited Access' : user?.plan === 'business' ? '500 Products Limit' : user?.plan === 'starter' ? '50 Products Limit' : 'Free Forever';
   const storeDisplayName = user?.business_name || user?.name || 'My Store';
-  const storeSubdomain = user?.subdomain ? `${user.subdomain}.ferasetu.shop` : 'mystore.ferasetu.shop';
+  const storeSubdomain = user?.hostname || (user?.subdomain ? `${user.subdomain}.ferasetu.com` : 'mystore.ferasetu.com');
   const avatarLetter = (storeDisplayName || user?.email || 'M').charAt(0).toUpperCase();
 
   const sidebarContent = (
@@ -232,14 +233,24 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </button>
 
           {/* Search bar matching screenshot */}
-          <div className="hidden md:flex items-center gap-2.5 bg-slate-50 px-4 py-2 rounded-xl text-slate-400 text-sm max-w-sm w-full border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQuery.trim()) {
+                navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+              }
+            }}
+            className="hidden md:flex items-center gap-2.5 bg-slate-50 px-4 py-2 rounded-xl text-slate-400 text-sm max-w-sm w-full border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all"
+          >
             <Search size={16} className="text-slate-400 shrink-0" />
             <input
               type="text"
-              placeholder="Search anything..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products..."
               className="bg-transparent border-none outline-none text-slate-800 text-sm w-full placeholder:text-slate-400"
             />
-          </div>
+          </form>
 
           <div className='ml-auto flex items-center gap-3'>
             {/* Refer & Earn button */}

@@ -167,32 +167,105 @@ export async function handleAdminRoutes(request, env) {
     
     // DASHBOARD STATS
     if (path === "/api/admin/dashboard-stats" && method === "GET") {
-      const usersCount = await env.DB.prepare("SELECT COUNT(*) as count FROM users").first("count");
-      const ordersCount = await env.DB.prepare("SELECT COUNT(*) as count FROM orders").first("count");
-      const productsCount = await env.DB.prepare("SELECT COUNT(*) as count FROM products").first("count");
+      const usersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM users").first("count")) || 0;
+      const ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders").first("count")) || 0;
+      const productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products").first("count")) || 0;
       const revenueRow = await env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'").first();
-      
+      const totalRevenue = revenueRow?.rev || 0;
+      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
+
+      // 7-day revenue chart
+      const revenueChart = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const ymd = d.toISOString().slice(0, 10);
+        try {
+          const dayRow = await env.DB.prepare(
+            "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
+          ).bind(`${ymd}%`).first();
+          revenueChart.push({
+            date: ymd,
+            revenue: dayRow?.rev || 0,
+            orders: dayRow?.cnt || 0
+          });
+        } catch {
+          revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+        }
+      }
+
       return json({
         users: usersCount,
         orders: ordersCount,
         products: productsCount,
-        revenue: revenueRow?.rev || 0,
-        system: { platform: "Cloudflare Workers", status: "Healthy" }
+        revenue: totalRevenue,
+        system: { platform: "Cloudflare Workers", status: "Healthy" },
+        stats: {
+          totalRevenue,
+          totalUsers: usersCount,
+          activeUsers: usersCount,
+          totalOrders: ordersCount,
+          totalProducts: productsCount,
+          conversionRate,
+          premiumUsers: 0
+        },
+        revenueChart,
+        health: {
+          database: "Healthy",
+          smtp: "Healthy",
+          ai: "Healthy"
+        }
       });
     }
 
     // USERS LIST
     if (path === "/api/admin/users" && method === "GET") {
-      const { results } = await env.DB.prepare("SELECT id, email, name, plan, created_at, is_blocked FROM users ORDER BY created_at DESC").all();
+      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+      const limit = Math.max(1, parseInt(url.searchParams.get("limit") || "10", 10));
+      const offset = (page - 1) * limit;
+      const search = (url.searchParams.get("search") || "").trim();
+
+      let query = "SELECT id, email, name, plan, created_at, is_blocked FROM users";
+      let countQuery = "SELECT COUNT(*) as total FROM users";
+      const params = [];
+      const countParams = [];
+
+      if (search) {
+        query += " WHERE email LIKE ? OR name LIKE ?";
+        countQuery += " WHERE email LIKE ? OR name LIKE ?";
+        params.push(`%${search}%`, `%${search}%`);
+        countParams.push(`%${search}%`, `%${search}%`);
+      }
+
+      query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+      params.push(limit, offset);
+
+      let total = 0;
+      try {
+        const totalRow = await (countParams.length > 0 
+          ? env.DB.prepare(countQuery).bind(...countParams).first()
+          : env.DB.prepare(countQuery).first());
+        total = totalRow?.total || 0;
+      } catch (err) {
+        console.warn("Could not count total users:", err);
+      }
+
+      const { results } = await env.DB.prepare(query).bind(...params).all();
       
-      // Enrich with counts (N+1 query, but fine for small admin tables; in large scale, use JOIN)
-      for (const user of results) {
-        user.shopsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM websites WHERE user_id = ?").bind(user.id).first("count")) || 0;
-        user.ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders WHERE user_id = ?").bind(user.id).first("count")) || 0;
-        user.productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products WHERE user_id = ?").bind(user.id).first("count")) || 0;
+      // Enrich with counts
+      for (const user of (results || [])) {
+        try {
+          user.shopsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM websites WHERE user_id = ?").bind(user.id).first("count")) || 0;
+          user.ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders WHERE user_id = ?").bind(user.id).first("count")) || 0;
+          user.productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products WHERE user_id = ?").bind(user.id).first("count")) || 0;
+        } catch {
+          user.shopsCount = 0;
+          user.ordersCount = 0;
+          user.productsCount = 0;
+        }
       }
       
-      return json({ users: results });
+      return json({ users: results || [], total, page, limit });
     }
 
     // USER STATUS (Block/Unblock)
@@ -238,19 +311,76 @@ export async function handleAdminRoutes(request, env) {
 
     // SHOPS (Websites)
     if (path === "/api/admin/shops" && method === "GET") {
+      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+      const limit = Math.max(1, parseInt(url.searchParams.get("limit") || "10", 10));
+      const offset = (page - 1) * limit;
+
+      let total = 0;
+      try {
+        const totalRow = await env.DB.prepare(
+          "SELECT COUNT(*) as total FROM websites w JOIN users u ON w.user_id = u.id"
+        ).first();
+        total = totalRow?.total || 0;
+      } catch (err) {
+        console.warn("Could not count shops:", err);
+      }
+
       const { results } = await env.DB.prepare(`
-        SELECT w.*, u.email as user_email, u.name as user_name 
+        SELECT 
+          w.id,
+          COALESCE(w.shop_name, w.name, u.business_name, u.name, 'My Shop') as shop_name,
+          COALESCE(w.subdomain, u.subdomain, 'store') as subdomain,
+          u.hostname as hostname,
+          u.name as owner_name,
+          u.email as owner_email,
+          w.created_at,
+          (SELECT COUNT(*) FROM products p WHERE p.user_id = w.user_id) as product_count,
+          w.*,
+          u.email as user_email,
+          u.name as user_name
         FROM websites w 
         JOIN users u ON w.user_id = u.id 
         ORDER BY w.created_at DESC
-      `).all();
-      return json({ shops: results });
+        LIMIT ? OFFSET ?
+      `).bind(limit, offset).all();
+
+      return json({ shops: results || [], total, page, limit });
     }
 
     // ORDERS
     if (path === "/api/admin/orders" && method === "GET") {
-      const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY created_at DESC LIMIT 500").all();
-      return json({ orders: results });
+      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+      const limit = Math.max(1, parseInt(url.searchParams.get("limit") || "10", 10));
+      const offset = (page - 1) * limit;
+      const status = url.searchParams.get("status");
+
+      let query = "SELECT * FROM orders";
+      let countQuery = "SELECT COUNT(*) as total FROM orders";
+      const params = [];
+      const countParams = [];
+
+      if (status && status !== 'all') {
+        query += " WHERE status = ?";
+        countQuery += " WHERE status = ?";
+        params.push(status);
+        countParams.push(status);
+      }
+
+      query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+      params.push(limit, offset);
+
+      let total = 0;
+      try {
+        const totalRow = await (countParams.length > 0 
+          ? env.DB.prepare(countQuery).bind(...countParams).first()
+          : env.DB.prepare(countQuery).first());
+        total = totalRow?.total || 0;
+      } catch (err) {
+        console.warn("Could not count orders:", err);
+      }
+
+      const { results } = await env.DB.prepare(query).bind(...params).all();
+      return json({ orders: results || [], total, page, limit });
     }
 
     // TICKETS
@@ -331,7 +461,21 @@ export async function handleAdminRoutes(request, env) {
     // MEETINGS
     if (path === "/api/admin/meetings" && method === "GET") {
       const { results } = await env.DB.prepare("SELECT * FROM meetings ORDER BY created_at DESC").all();
-      return json({ meetings: results });
+      return json({ meetings: results || [] });
+    }
+
+    const meetingPatchMatch = path.match(/^\/api\/admin\/meetings\/([^/]+)$/);
+    if (meetingPatchMatch && method === "PATCH") {
+      const meetingId = meetingPatchMatch[1];
+      const body = await readJsonBody(request);
+      if (!body.status) throw new HttpError("status is required", 400);
+
+      await env.DB.prepare("UPDATE meetings SET status = ? WHERE id = ?")
+        .bind(body.status, meetingId)
+        .run();
+        
+      await logAdminAction(env, adminEmail, "UPDATE_MEETING_STATUS", "meetings", meetingId, { status: body.status });
+      return json({ success: true });
     }
 
     // Fallback for missing admin route

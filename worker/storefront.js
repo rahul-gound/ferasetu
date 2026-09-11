@@ -93,7 +93,7 @@ export function classifyHostname(hostname) {
         return { type: "platform_reserved", host, subdomain, domain: base };
       }
 
-      return { type: "merchant", host, slug: subdomain, domain: base };
+      return { type: "merchant", host, slug: subdomain, subdomain, domain: base };
     }
   }
 
@@ -324,14 +324,15 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
 
   if (env?.DB) {
     try {
+      const fullHost = `${slug}.${hostClassification.domain || "ferasetu.com"}`;
       const user = await env.DB.prepare(
-        `SELECT u.id, u.business_name, u.name, u.subdomain, u.is_blocked, u.plan,
+        `SELECT u.id, u.business_name, u.name, u.subdomain, u.hostname, u.is_blocked, u.plan,
                 w.is_published
          FROM users u
          LEFT JOIN websites w ON w.user_id = u.id
-         WHERE u.subdomain = ?`
+         WHERE u.subdomain = ? OR u.hostname = ?`
       )
-        .bind(slug)
+        .bind(slug, fullHost)
         .first();
 
       if (user) {

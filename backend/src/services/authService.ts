@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../models/database';
+import { findNextAvailableStorefront, generateCanonicalStorefront } from '../utils/canonicalHostname';
 
 export function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -26,6 +27,10 @@ export interface User {
   plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'business' | 'pro' | 'starter';
   preferred_language: string;
   subdomain?: string;
+  hostname?: string;
+  city?: string;
+  district?: string;
+  state?: string;
   custom_domain?: string;
   plan_expires_at?: string;
   ai_credits_balance?: number;
@@ -49,6 +54,9 @@ export async function registerUser(data: {
   businessName?: string;
   preferredLanguage?: string;
   market?: string;
+  city?: string;
+  district?: string;
+  state?: string;
 }): Promise<{ user: User; token: string }> {
   const db = getDatabase();
 
@@ -60,13 +68,22 @@ export async function registerUser(data: {
 
   const userId = uuidv4();
   const passwordHash = await bcrypt.hash(data.password, 10);
-  let subdomain = generateSubdomain(data.businessName || data.name);
-  
-  // Ensure subdomain uniqueness
-  const existingSubdomain = db.prepare('SELECT id FROM users WHERE subdomain = ?').get(subdomain);
-  if (existingSubdomain) {
-    subdomain = `${subdomain}-${Math.random().toString(36).substring(2, 6)}`;
-  }
+
+  // Generate canonical, collision-safe storefront URL and hostname
+  const storefront = await findNextAvailableStorefront(
+    {
+      shopName: data.businessName || data.name,
+      city: data.city,
+      district: data.district,
+      state: data.state,
+    },
+    (subdomain: string) => {
+      const existing = db.prepare('SELECT id FROM users WHERE subdomain = ? OR hostname = ?').get(subdomain, `${subdomain}.ferasetu.com`);
+      return !!existing;
+    }
+  );
+  const subdomain = storefront.subdomain;
+  const hostname = storefront.hostname;
 
   // Determine market & trial dates
   const market = data.market || (data.phone?.startsWith('+1') ? 'US' : 'IN');
@@ -83,10 +100,11 @@ export async function registerUser(data: {
     db.prepare(`
       INSERT INTO users (
         id, email, password_hash, name, phone, business_name, preferred_language, subdomain,
+        hostname, city, district, state,
         plan, plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_reset_at,
         market, trial_started_at, trial_ends_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'beta', ?, 20, 20, datetime('now', '+30 days'), ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'beta', ?, 20, 20, datetime('now', '+30 days'), ?, ?, ?)
     `).run(
       userId,
       data.email,
@@ -96,6 +114,10 @@ export async function registerUser(data: {
       data.businessName || null,
       data.preferredLanguage || 'en',
       subdomain,
+      hostname,
+      data.city || null,
+      data.district || null,
+      data.state || null,
       expiresAtStr,
       market,
       trialStartedAt,
@@ -125,11 +147,11 @@ export async function loginUser(emailOrUsername: string, password: string): Prom
 
   console.log(`🔐 Attempting login for: ${emailOrUsername}`);
 
-  // Search by email OR name OR subdomain
+  // Search by email OR name OR subdomain OR hostname
   const user = db.prepare(`
     SELECT * FROM users 
-    WHERE email = ? OR name = ? OR subdomain = ?
-  `).get(emailOrUsername, emailOrUsername, emailOrUsername) as (User & { password_hash?: string | null }) | undefined;
+    WHERE email = ? OR name = ? OR subdomain = ? OR hostname = ?
+  `).get(emailOrUsername, emailOrUsername, emailOrUsername, emailOrUsername) as (User & { password_hash?: string | null }) | undefined;
 
   if (!user) {
     console.warn(`❌ User not found: ${emailOrUsername}`);
@@ -174,13 +196,18 @@ export function verifyToken(token: string): Record<string, unknown> | null {
 export function getUserById(userId: string): User | null {
   const db = getDatabase();
   const user = db.prepare(`
-    SELECT id, email, name, phone, business_name, plan, preferred_language, subdomain, custom_domain,
+    SELECT id, email, name, phone, business_name, plan, preferred_language, subdomain, hostname, city, district, state, custom_domain,
            plan_expires_at, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at,
            storage_used_bytes, storage_limit_bytes, market, trial_started_at, trial_ends_at, cancel_at_period_end, created_at
     FROM users WHERE id = ?
   `).get(userId) as (User & Record<string, any>) | undefined;
 
   if (!user) return null;
+
+  // Ensure hostname is populated for backward compatibility with existing shops
+  if (!user.hostname && user.subdomain) {
+    user.hostname = `${user.subdomain}.ferasetu.com`;
+  }
 
   // Auto-backfill missing trial timestamps deterministically based on user.created_at
   if (!user.trial_ends_at && user.created_at) {
@@ -196,7 +223,6 @@ export function getUserById(userId: string): User | null {
     user.trial_started_at = trialStartedAt;
     user.trial_ends_at = trialEndsAt;
   }
-
   if (!user.market) {
     user.market = user.phone?.startsWith('+1') ? 'US' : 'IN';
   }
@@ -207,15 +233,4 @@ export function getUserById(userId: string): User | null {
 export async function updateUserPlan(userId: string, plan: 'trial' | 'beta' | 'basic' | 'standard' | 'pro'): Promise<void> {
   const db = getDatabase();
   db.prepare('UPDATE users SET plan = ?, updated_at = datetime(\'now\') WHERE id = ?').run(plan, userId);
-}
-
-function generateSubdomain(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\(/g, '-')  // Replace ( with -
-    .replace(/\)/g, '')   // Remove )
-    .replace(/[^a-z0-9]/g, '-') // Replace other non-alphanumeric with -
-    .replace(/-+/g, '-')  // Remove double dashes
-    .replace(/^-|-$/g, '') // Trim dashes from ends
-    .substring(0, 60);
 }
