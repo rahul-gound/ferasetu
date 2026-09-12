@@ -3,6 +3,21 @@ import { useAuth as useWorkOSAuth } from '@workos-inc/authkit-react';
 import api from '../services/api';
 import { setUnauthorizedHandler, setWorkOSTokenGetter } from '../services/authBridge';
 
+export interface Organization {
+  id: string;
+  name: string;
+  workos_organization_id?: string;
+  market: 'IN' | 'US' | 'EU' | 'OTHER';
+  plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'business' | 'pro' | 'starter';
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  store_slug: string;
+  store_url?: string;
+  role: 'owner' | 'admin' | 'staff';
+  created_at: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -25,12 +40,16 @@ interface User {
   ai_credits_reset_at?: string;
   storage_used_bytes?: number;
   storage_limit_bytes?: number;
+  organization?: Organization | null;
+  has_organization?: boolean;
 }
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
 interface AuthContextType {
   user: User | null;
+  organization: Organization | null;
+  hasOrganization: boolean;
   authStatus: AuthStatus;
   isLoading: boolean;
   profileError: string | null;
@@ -43,6 +62,7 @@ interface AuthContextType {
   createAccountAfterOTP: (data: any) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  setOrganizationContext: (org: Organization) => void;
   getAccessToken: () => Promise<string | null>;
 }
 
@@ -174,8 +194,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           setProfile({
             ...currentProfile,
+            organization: data.organization || null,
+            has_organization: data.has_organization ?? (Boolean(data.organization) || false),
             is_verified: workosUser.emailVerified ?? true,
           });
+          if (data.organization) {
+            setOrganization(data.organization);
+          }
           setProfileError(null);
         }
       } catch (err) {
@@ -297,11 +322,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut();
   }, [signOut]);
 
+  const [organization, setOrganization] = useState<Organization | null>(null);
+
+  const setOrganizationContext = useCallback((org: Organization) => {
+    setOrganization(org);
+    setProfile(curr => curr ? { ...curr, organization: org, has_organization: true } : null);
+  }, []);
+
   const sendOTP = useCallback(async () => {}, []);
   const sendVerificationEmail = useCallback(async () => {}, []);
   const verifyOTP = useCallback(async () => true, []);
   const createAccountAfterOTP = useCallback(async () => {}, []);
   const getToken = useCallback(async () => getAccessToken(), [getAccessToken]);
+
+  const hasOrganization = Boolean(organization || profile?.has_organization || profile?.organization);
 
   const authStatus: AuthStatus = useMemo(() => {
     if (isWorkOSLoading || isProfileLoading) return 'loading';
@@ -312,6 +346,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo<AuthContextType>(() => ({
     user: profile,
+    organization: organization || profile?.organization || null,
+    hasOrganization,
     authStatus,
     isLoading: isWorkOSLoading || isProfileLoading,
     profileError,
@@ -324,9 +360,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     createAccountAfterOTP,
     logout,
     updateUser,
+    setOrganizationContext,
     getAccessToken: getToken
   }), [
     profile,
+    organization,
+    hasOrganization,
     authStatus,
     isWorkOSLoading,
     isProfileLoading,
@@ -340,6 +379,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     createAccountAfterOTP,
     logout,
     updateUser,
+    setOrganizationContext,
     getToken
   ]);
 

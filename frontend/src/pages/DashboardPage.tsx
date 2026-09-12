@@ -519,7 +519,9 @@ export default function DashboardPage() {
         shopCreated={true}
         hasProducts={products.length > 0}
         hasOrders={orders.length > 0}
-        storePublished={!!user?.subdomain}
+        storePublished={!!(user?.subdomain || user?.organization?.store_slug)}
+        storeSlug={user?.organization?.store_slug || user?.subdomain}
+        storeUrl={user?.organization?.store_url || (user?.subdomain ? `https://${user.subdomain}.ferasetu.com` : undefined)}
       />
 
       {/* Top 4 Stat Cards */}

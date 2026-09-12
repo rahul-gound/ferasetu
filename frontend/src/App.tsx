@@ -58,6 +58,9 @@ const FeraSetuAIPage = lazy(() => import('./pages/FeraSetuAIPage'));
 // VerifyEmailPage — lazy load
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 
+// Onboarding Wizard Page — multi-tenant merchant organization setup
+const OnboardingWizardPage = lazy(() => import('./pages/OnboardingWizardPage'));
+
 // 404 Not Found Page — lazy load
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -96,7 +99,7 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, hasOrganization, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -112,6 +115,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isVerifyPage = location.pathname === '/verify-email';
   if (!user.is_verified && !isVerifyPage) {
     return <Navigate to="/verify-email" replace />;
+  }
+
+  const isOnboardingPage = location.pathname === '/onboarding';
+  if (!hasOrganization && !isOnboardingPage && !isVerifyPage) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
@@ -168,6 +176,9 @@ function AppRoutes() {
           <Route path="/support" element={<SupportPage />} />
           <Route path="/get-started" element={<GetStartedPage />} />
         </Route>
+
+        {/* Dedicated Onboarding Wizard Route (Stand-alone clean view) */}
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingWizardPage /></ProtectedRoute>} />
 
         {/* Public Root Routes */}
         <Route path="/" element={<LandingPage />} />

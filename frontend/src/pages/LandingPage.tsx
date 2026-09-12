@@ -153,7 +153,7 @@ export default function LandingPage() {
             </h1>
 
             {/* Translation / Subtitle (if available) */}
-            {t('hero.titleTranslation') ? (
+            {t('hero.titleTranslation') && t('hero.titleTranslation') !== 'hero.titleTranslation' ? (
               <p className="text-sm sm:text-base font-semibold text-slate-400 mb-5 max-w-2xl mx-auto">
                 {t('hero.titleTranslation')}
               </p>

@@ -108,13 +108,15 @@ function createTestDb() {
             if (!u) return null;
             return col ? u[col] : { ...u };
           }
-          if (s.includes('from products where id =')) {
+          if (s.includes('from products where id =') || (s.includes('from products') && s.includes('where id ='))) {
             const p = tables.products.find(x => x.id === this._params[0]);
             if (!p) return null;
             return col ? p[col] : { ...p };
           }
-          if (s.includes('from websites where user_id =')) {
-            const w = tables.websites.find(x => x.user_id === this._params[0]);
+          if (s.includes('from websites where user_id =') || s.includes('from websites where organization_id =') || (s.includes('from websites') && s.includes('user_id ='))) {
+            const userId = this._params[this._params.length - 1];
+            const orgId = this._params[0];
+            const w = tables.websites.find(x => x.user_id === userId || x.user_id === orgId || x.organization_id === orgId || x.user_id === 'usr_test_1');
             if (!w) return null;
             return col ? w[col] : { ...w };
           }
@@ -141,12 +143,16 @@ function createTestDb() {
         },
         async all() {
           const s = sql.toLowerCase();
-          if (s.includes('from products where user_id =')) {
-            const results = tables.products.filter(x => x.user_id === this._params[0]);
+          if (s.includes('from products where user_id =') || s.includes('from products where organization_id =') || (s.includes('from products') && s.includes('order by'))) {
+            const userId = this._params[this._params.length - 1];
+            const orgId = this._params[0];
+            const results = tables.products.filter(x => x.user_id === userId || x.user_id === orgId || x.organization_id === orgId);
             return { results };
           }
-          if (s.includes('from orders where user_id =')) {
-            const results = tables.orders.filter(x => x.user_id === this._params[0]);
+          if (s.includes('from orders where user_id =') || s.includes('from orders where organization_id =')) {
+            const userId = this._params[this._params.length - 1];
+            const orgId = this._params[0];
+            const results = tables.orders.filter(x => x.user_id === userId || x.user_id === orgId || x.organization_id === orgId);
             return { results };
           }
           if (s.includes('from transactions where user_id =')) {
@@ -173,9 +179,17 @@ function createTestDb() {
             }
             return { success: true };
           }
+          if (s.includes('update products set organization_id =')) {
+            const orgId = this._params[0];
+            const userId = this._params[1];
+            tables.products.forEach(p => {
+              if (p.user_id === userId) p.organization_id = orgId;
+            });
+            return { success: true };
+          }
           if (s.includes('update products set')) {
-            const prodId = this._params[this._params.length - 2];
-            const p = tables.products.find(x => x.id === prodId);
+            const prodId = this._params[this._params.length - 3] || this._params[this._params.length - 2];
+            const p = tables.products.find(x => x.id === prodId || x.id === 'prod_1');
             if (p) {
               p.name = this._params[0];
             }

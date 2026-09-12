@@ -40,7 +40,16 @@ import {
 import {
   generateCanonicalStorefront,
   findNextAvailableStorefront,
+  INDIA_STATE_CODES,
 } from "./canonicalHostname.js";
+import {
+  createWorkOSOrganization,
+  createWorkOSMembership,
+  createWorkOSInvitation,
+  listWorkOSMemberships,
+  isLiveWorkOS,
+} from "./workos.js";
+
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -184,7 +193,11 @@ async function getAuthenticatedUser(request, env) {
     return {
       $id: payload.sub,
       email: typeof payload.email === 'string' ? payload.email : "",
-      name: typeof payload.name === 'string' ? payload.name : ""
+      name: typeof payload.name === 'string' ? payload.name : "",
+      org_id: typeof payload.org_id === 'string' ? payload.org_id : (typeof payload.organization_id === 'string' ? payload.organization_id : null),
+      role: typeof payload.role === 'string' ? payload.role : null,
+      roles: Array.isArray(payload.roles) ? payload.roles : [],
+      permissions: Array.isArray(payload.permissions) ? payload.permissions : []
     };
   } catch (err) {
     if (err instanceof HttpError) throw err;
@@ -218,35 +231,515 @@ class HttpError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Route handlers
+// Route handlers & Multi-Tenant Organization Context
 // ---------------------------------------------------------------------------
-async function getProfile(request, env) {
+const ROLE_RANKS = {
+  staff: 1,
+  admin: 2,
+  owner: 3,
+};
+
+function resolveAuthoritativeMarket({ state, city, request }) {
+  const ipCountry = (request?.headers?.get("cf-ipcountry") || "").toUpperCase().trim();
+  const cleanState = typeof state === 'string' ? state.trim().toLowerCase() : '';
+
+  if (cleanState in INDIA_STATE_CODES || Object.values(INDIA_STATE_CODES).includes(cleanState) || ipCountry === 'IN') {
+    return 'IN';
+  }
+
+  const usStates = new Set([
+    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id", "il", "ia", "ks", "ky", "la", "me", "md", "ma", "mi", "mn", "ms", "mo", "mt", "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh", "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv", "wi", "wy",
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine", "maryland", "massachusetts", "michigan", "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada", "new hampshire", "new jersey", "new mexico", "new york", "north carolina", "north dakota", "ohio", "oklahoma", "oregon", "pennsylvania", "rhode island", "south carolina", "south dakota", "tennessee", "texas", "utah", "vermont", "virginia", "washington", "west virginia", "wisconsin", "wyoming"
+  ]);
+
+  if (ipCountry === 'US' || (usStates.has(cleanState) && cleanState !== 'in')) {
+    return 'US';
+  }
+
+  if (['FR', 'DE', 'ES', 'IT', 'NL', 'BE', 'AT', 'SE', 'DK', 'FI', 'IE', 'PL', 'PT'].includes(ipCountry)) {
+    return 'EU';
+  }
+
+  return 'IN';
+}
+
+async function requireOrgContext(request, env, minRole = 'staff') {
+  await ensureTables(env.DB);
   const me = await getAuthenticatedUser(request, env);
-  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
-    .bind(me.$id)
-    .first();
+
+  let orgRow = null;
+  let memberRow = null;
+
+  // 1. If token explicitly specifies org_id (WorkOS organization ID)
+  if (me.org_id) {
+    orgRow = await env.DB.prepare(
+      "SELECT * FROM organizations WHERE workos_organization_id = ?"
+    ).bind(me.org_id).first();
+
+    if (orgRow) {
+      memberRow = await env.DB.prepare(
+        "SELECT * FROM organization_members WHERE organization_id = ? AND user_id = ?"
+      ).bind(orgRow.id, me.$id).first();
+
+      if (!memberRow && me.role) {
+        const memId = `om_${crypto.randomUUID()}`;
+        const now = new Date().toISOString();
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(memId, orgRow.id, me.$id, me.role, now, now).run();
+        memberRow = { id: memId, organization_id: orgRow.id, user_id: me.$id, role: me.role };
+      }
+    }
+  }
+
+  // 2. Check X-Organization-Id header if provided by client
+  const headerOrgId = request.headers.get("X-Organization-Id");
+  if (!orgRow && headerOrgId) {
+    const candidate = await env.DB.prepare(
+      "SELECT * FROM organizations WHERE id = ? OR workos_organization_id = ?"
+    ).bind(headerOrgId, headerOrgId).first();
+
+    if (candidate) {
+      const mem = await env.DB.prepare(
+        "SELECT * FROM organization_members WHERE organization_id = ? AND user_id = ?"
+      ).bind(candidate.id, me.$id).first();
+      if (mem) {
+        orgRow = candidate;
+        memberRow = mem;
+      }
+    }
+  }
+
+  // 3. Fall back to user's first/active membership in organization_members
+  if (!orgRow) {
+    const memWithOrg = await env.DB.prepare(`
+      SELECT o.*, om.role as member_role, om.id as member_id
+      FROM organization_members om
+      JOIN organizations o ON om.organization_id = o.id
+      WHERE om.user_id = ?
+      ORDER BY CASE om.role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, om.created_at ASC
+      LIMIT 1
+    `).bind(me.$id).first();
+
+    if (memWithOrg) {
+      orgRow = memWithOrg;
+      memberRow = { id: memWithOrg.member_id, organization_id: memWithOrg.id, user_id: me.$id, role: memWithOrg.member_role };
+    }
+  }
+
+  // 4. Backward compatibility: auto-provision legacy user if they exist in users
+  if (!orgRow) {
+    const legacyUser = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+    if (legacyUser) {
+      const orgId = `org_${legacyUser.id}`;
+      const workosOrgId = `org_workos_${legacyUser.id}`;
+      const storeSlug = legacyUser.subdomain || legacyUser.id;
+      const now = new Date().toISOString();
+      const orgName = legacyUser.business_name || legacyUser.name || 'Store';
+      const market = legacyUser.market || 'IN';
+      const plan = legacyUser.plan || 'free';
+
+      try {
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO organizations (id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(orgId, orgName, workosOrgId, market, plan, null, legacyUser.city || null, legacyUser.state || null, storeSlug, now, now).run();
+
+        const memId = `om_${legacyUser.id}`;
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
+          VALUES (?, ?, ?, 'owner', ?, ?)
+        `).bind(memId, orgId, legacyUser.id, now, now).run();
+
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+        `).bind(orgId, orgId, orgName, storeSlug, legacyUser.hostname || `${storeSlug}.ferasetu.com`, now, now).run();
+
+        try {
+          await env.DB.prepare("UPDATE products SET organization_id = ? WHERE user_id = ? AND organization_id IS NULL").bind(orgId, legacyUser.id).run();
+          await env.DB.prepare("UPDATE orders SET organization_id = ? WHERE user_id = ? AND organization_id IS NULL").bind(orgId, legacyUser.id).run();
+          await env.DB.prepare("UPDATE websites SET organization_id = ? WHERE user_id = ? AND organization_id IS NULL").bind(orgId, legacyUser.id).run();
+        } catch {}
+
+        orgRow = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(orgId).first();
+        if (!orgRow) {
+          orgRow = {
+            id: orgId,
+            name: orgName,
+            workos_organization_id: workosOrgId,
+            market,
+            plan,
+            address: null,
+            city: legacyUser.city || null,
+            state: legacyUser.state || null,
+            store_slug: storeSlug,
+            created_at: now,
+            updated_at: now,
+          };
+        }
+        memberRow = { id: memId, organization_id: orgId, user_id: legacyUser.id, role: 'owner' };
+      } catch (backfillErr) {
+        console.warn("Legacy org backfill error:", backfillErr);
+      }
+    }
+  }
+
+  if (!orgRow || !memberRow) {
+    throw new HttpError("No organization context found. Please complete onboarding.", 404, { code: "NO_ORGANIZATION" });
+  }
+
+  const userRank = ROLE_RANKS[memberRow.role] || 0;
+  const requiredRank = ROLE_RANKS[minRole] || 1;
+  if (userRank < requiredRank) {
+    throw new HttpError(`Forbidden: Requires '${minRole}' role or higher`, 403);
+  }
+
+  return {
+    user: me,
+    organization: orgRow,
+    member: memberRow,
+    role: memberRow.role,
+    organizationId: orgRow.id,
+  };
+}
+
+async function createOrganizationHandler(request, env) {
+  await ensureTables(env.DB);
+  const me = await getAuthenticatedUser(request, env);
+  const body = await readJsonBody(request);
+
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!name || name.length < 2) {
+    throw new HttpError("Shop/business name is required (minimum 2 characters)", 422);
+  }
+
+  const address = typeof body.address === 'string' ? body.address.trim() : '';
+  const city = typeof body.city === 'string' ? body.city.trim() : '';
+  const state = typeof body.state === 'string' ? body.state.trim() : '';
+
+  if (!city || !state) {
+    throw new HttpError("City and State are required", 422);
+  }
+
+  // Authoritative market resolution: not trusted from client
+  const market = resolveAuthoritativeMarket({ state, city, request });
+  const plan = market === 'IN' ? 'free' : 'trial';
+
+  // Check if user already owns an organization
+  const existingOrg = await env.DB.prepare(`
+    SELECT o.* FROM organizations o
+    JOIN organization_members om ON om.organization_id = o.id
+    WHERE om.user_id = ? AND om.role = 'owner'
+    LIMIT 1
+  `).bind(me.$id).first();
+
+  if (existingOrg) {
+    return json({
+      message: "User already has an organization",
+      organization: {
+        ...existingOrg,
+        role: 'owner',
+      },
+      store_slug: existingOrg.store_slug,
+      store_url: `https://${existingOrg.store_slug}.ferasetu.com`,
+    }, 200, {}, request);
+  }
+
+  // Generate unique storefront slug safely from business name
+  const storefront = await findNextAvailableStorefront(
+    {
+      shopName: name,
+      city,
+      district: body.district || city,
+      state,
+    },
+    async (candidateSub) => {
+      const takenOrg = await env.DB.prepare("SELECT id FROM organizations WHERE store_slug = ?")
+        .bind(candidateSub)
+        .first();
+      if (takenOrg) return true;
+      const takenUser = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ?")
+        .bind(candidateSub, `${candidateSub}.ferasetu.com`)
+        .first();
+      return !!takenUser;
+    }
+  );
+
+  const storeSlug = storefront.subdomain;
+  const hostname = storefront.hostname || `${storeSlug}.ferasetu.com`;
+  const orgId = `org_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+
+  // B. Create corresponding WorkOS Organization
+  const workosOrg = await createWorkOSOrganization({
+    name,
+    externalId: orgId,
+    env,
+  });
+  const workosOrgId = workosOrg.id;
+
+  // C. Create WorkOS organization membership for user as owner
+  await createWorkOSMembership({
+    organizationId: workosOrgId,
+    userId: me.$id,
+    roleSlug: "owner",
+    env,
+  });
+
+  // A. Create FeraSetu organization in D1
+  await env.DB.prepare(`
+    INSERT INTO organizations (
+      id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    orgId, name, workosOrgId, market, plan, address, city, state, storeSlug, now, now
+  ).run();
+
+  // D. Create FeraSetu organization_members record with role = owner
+  const memberId = `om_${crypto.randomUUID()}`;
+  await env.DB.prepare(`
+    INSERT INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
+    VALUES (?, ?, ?, 'owner', ?, ?)
+  `).bind(memberId, orgId, me.$id, now, now).run();
+
+  // E. Create/reserve merchant shop/store record using the same FeraSetu organization ID
+  await env.DB.prepare(`
+    INSERT INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+  `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
+
+  // Also reserve website record for the storefront
+  await env.DB.prepare(`
+    INSERT OR REPLACE INTO websites (id, user_id, organization_id, name, template, config, sections, is_published, theme, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'default', ?, '[]', 1, ?, ?, ?)
+  `).bind(
+    orgId,
+    me.$id,
+    orgId,
+    name,
+    JSON.stringify({ shopName: name, city, state, phone: body.phone || '' }),
+    JSON.stringify({ preset: 'clean-grocer' }),
+    now,
+    now
+  ).run();
+
+  // Ensure user profile in D1
+  await env.DB.prepare(`
+    INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, state, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      business_name = excluded.business_name,
+      subdomain = excluded.subdomain,
+      hostname = excluded.hostname,
+      city = excluded.city,
+      state = excluded.state,
+      updated_at = excluded.updated_at
+  `).bind(
+    me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, state, now, now
+  ).run();
+
+  // Process optional staff invitations
+  const invitationResults = [];
+  if (Array.isArray(body.invitations) && body.invitations.length > 0) {
+    for (const inv of body.invitations) {
+      const email = typeof inv?.email === 'string' ? inv.email.trim().toLowerCase() : '';
+      const role = inv?.role === 'admin' ? 'admin' : 'staff';
+      if (email && email.includes('@')) {
+        try {
+          const res = await createWorkOSInvitation({
+            email,
+            organizationId: workosOrgId,
+            roleSlug: role,
+            env,
+          });
+          invitationResults.push({ email, role, status: 'sent', id: res.id });
+        } catch (invErr) {
+          console.error("Failed to send invitation to", email, invErr);
+          invitationResults.push({ email, role, status: 'failed', error: invErr.message });
+        }
+      }
+    }
+  }
+
+  const createdOrg = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(orgId).first();
+
+  return json({
+    success: true,
+    organization: {
+      ...createdOrg,
+      role: 'owner',
+    },
+    store_slug: storeSlug,
+    store_url: `https://${hostname}`,
+    invitations: invitationResults,
+  }, 201, {}, request);
+}
+
+async function getCurrentOrganizationHandler(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  return json({
+    organization: {
+      ...ctx.organization,
+      role: ctx.role,
+      store_url: `https://${ctx.organization.store_slug}.ferasetu.com`,
+    }
+  }, 200, {}, request);
+}
+
+async function getOrganizationMembersHandler(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const { results } = await env.DB.prepare(`
+    SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at,
+           COALESCE(u.name, 'Team Member') as name,
+           COALESCE(u.email, '') as email
+    FROM organization_members om
+    LEFT JOIN users u ON om.user_id = u.id
+    WHERE om.organization_id = ?
+    ORDER BY CASE om.role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, om.created_at ASC
+  `).bind(ctx.organizationId).all();
+
+  return json({ members: results || [] }, 200, {}, request);
+}
+
+async function inviteOrganizationMemberHandler(request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const body = await readJsonBody(request);
+
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  if (!email || !email.includes('@')) {
+    throw new HttpError("Valid email is required", 422);
+  }
+
+  const role = body.role === 'admin' ? 'admin' : 'staff';
+
+  const res = await createWorkOSInvitation({
+    email,
+    organizationId: ctx.organization.workos_organization_id,
+    roleSlug: role,
+    env,
+  });
+
+  return json({
+    success: true,
+    email,
+    role,
+    invitation: res,
+    message: `Invitation sent to ${email} as ${role}`
+  }, 201, {}, request);
+}
+
+async function listCustomers(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const { results } = await env.DB.prepare(
+    "SELECT id, organization_id, name, phone, address, created_at, updated_at FROM customers WHERE organization_id = ? ORDER BY created_at DESC"
+  ).bind(ctx.organizationId).all();
+
+  // Privacy Protection: customer email is completely omitted from returned merchant response
+  return json({ customers: results || [] }, 200, {}, request);
+}
+
+async function getProfile(request, env) {
+  await ensureTables(env.DB);
+  const me = await getAuthenticatedUser(request, env);
+
+  // 1. Check if user already has an organization membership
+  let member = await env.DB.prepare(`
+    SELECT om.*, o.name as org_name, o.workos_organization_id, o.market as org_market,
+           o.plan as org_plan, o.store_slug, o.address, o.city, o.state, o.created_at as org_created_at
+    FROM organization_members om
+    JOIN organizations o ON om.organization_id = o.id
+    WHERE om.user_id = ?
+    ORDER BY CASE om.role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, om.created_at ASC
+    LIMIT 1
+  `).bind(me.$id).first();
+
+  // 2. If no membership in D1, check if user was invited or signed in to a WorkOS organization
+  if (!member && (me.org_id || isLiveWorkOS(env))) {
+    let targetOrg = null;
+    if (me.org_id) {
+      targetOrg = await env.DB.prepare("SELECT * FROM organizations WHERE workos_organization_id = ?").bind(me.org_id).first();
+    }
+    if (!targetOrg && isLiveWorkOS(env)) {
+      const memberships = await listWorkOSMemberships({ userId: me.$id, env });
+      for (const m of memberships) {
+        const found = await env.DB.prepare("SELECT * FROM organizations WHERE workos_organization_id = ?").bind(m.organization_id).first();
+        if (found) {
+          targetOrg = found;
+          me.role = m.role?.slug || 'staff';
+          break;
+        }
+      }
+    }
+
+    if (targetOrg) {
+      const role = me.role || 'staff';
+      const memId = `om_${crypto.randomUUID()}`;
+      const now = new Date().toISOString();
+      await env.DB.prepare(`
+        INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(memId, targetOrg.id, me.$id, role, now, now).run();
+
+      member = {
+        organization_id: targetOrg.id,
+        user_id: me.$id,
+        role,
+        org_name: targetOrg.name,
+        workos_organization_id: targetOrg.workos_organization_id,
+        org_market: targetOrg.market,
+        org_plan: targetOrg.plan,
+        store_slug: targetOrg.store_slug,
+        address: targetOrg.address,
+        city: targetOrg.city,
+        state: targetOrg.state,
+      };
+    }
+  }
+
+  let user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+
+  const organization = member ? {
+    id: member.organization_id,
+    name: member.org_name,
+    workos_organization_id: member.workos_organization_id,
+    market: member.org_market,
+    plan: member.org_plan,
+    store_slug: member.store_slug,
+    store_url: `https://${member.store_slug}.ferasetu.com`,
+    address: member.address,
+    city: member.city,
+    state: member.state,
+    role: member.role,
+  } : null;
 
   if (!user) {
-    // Return a shell profile if they exist in WorkOS but not yet in D1.
     return json({
       user: {
         id: me.$id,
         email: me.email,
         name: me.name,
-        plan: "beta",
-        market: "IN",
+        plan: organization?.plan || "free",
+        market: organization?.market || "IN",
         preferred_language: "en",
         ai_credits_balance: 20,
       },
-      needs_init: true
+      organization,
+      has_organization: Boolean(organization),
+      needs_init: !organization,
     });
   }
 
-  // Safe fallback for market if missing in legacy records
-  const market = user.market || (user.phone?.startsWith('+1') ? 'US' : 'IN');
+  const market = organization?.market || user.market || (user.phone?.startsWith('+1') ? 'US' : 'IN');
 
-  return json({ user: { ...user, market } });
+  return json({
+    user: { ...user, market, plan: organization?.plan || user.plan },
+    organization,
+    has_organization: Boolean(organization),
+  });
 }
+
 
 async function updateProfile(request, env) {
   const me = await getAuthenticatedUser(request, env);
@@ -430,15 +923,15 @@ async function updateProfile(request, env) {
 }
 
 async function listProducts(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const { results } = await env.DB.prepare(
-    "SELECT * FROM products WHERE user_id = ? ORDER BY created_at DESC"
-  ).bind(me.$id).all();
+    "SELECT * FROM products WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
+  ).bind(ctx.organizationId, ctx.user.$id).all();
   return json({ products: results ?? [] });
 }
 
 async function createProduct(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -456,23 +949,20 @@ async function createProduct(request, env) {
   // SERVER-SIDE PLAN LIMIT ENFORCEMENT
   // Never trust the frontend for this check.
   // -----------------------------------------------------------------------
-  const userRow = await env.DB.prepare("SELECT plan FROM users WHERE id = ?")
-    .bind(me.$id)
-    .first();
-  const userPlan = userRow?.plan ?? "free";
-  const productLimit = getPlanProductLimit(userPlan);
+  const orgPlan = ctx.organization.plan ?? "free";
+  const productLimit = getPlanProductLimit(orgPlan);
 
   if (productLimit !== Infinity) {
     const countRow = await env.DB.prepare(
-      "SELECT COUNT(*) as cnt FROM products WHERE user_id = ?"
-    ).bind(me.$id).first();
+      "SELECT COUNT(*) as cnt FROM products WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+    ).bind(ctx.organizationId, ctx.user.$id).first();
     const currentCount = countRow?.cnt ?? 0;
 
     if (currentCount >= productLimit) {
       throw new HttpError(
-        `Product limit reached. Your ${userPlan} plan supports up to ${productLimit} products. Upgrade to add more.`,
+        `Product limit reached. Your ${orgPlan} plan supports up to ${productLimit} products. Upgrade to add more.`,
         403,
-        { limit: productLimit, current: currentCount, plan: userPlan, code: "PRODUCT_LIMIT_REACHED" }
+        { limit: productLimit, current: currentCount, plan: orgPlan, code: "PRODUCT_LIMIT_REACHED" }
       );
     }
   }
@@ -480,7 +970,8 @@ async function createProduct(request, env) {
 
   const product = {
     id: crypto.randomUUID(),
-    user_id: me.$id,
+    user_id: ctx.user.$id,
+    organization_id: ctx.organizationId,
     name,
     price,
     stock,
@@ -489,10 +980,10 @@ async function createProduct(request, env) {
   };
 
   await env.DB.prepare(
-    `INSERT INTO products (id, user_id, name, price, stock, description, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (id, user_id, organization_id, name, price, stock, description, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(product.id, product.user_id, product.name, product.price, product.stock, product.description, product.created_at)
+    .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.stock, product.description, product.created_at)
     .run();
 
   return json({ product }, 201);
@@ -500,20 +991,24 @@ async function createProduct(request, env) {
 
 
 async function listOrders(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const { results } = await env.DB.prepare(
-    "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC"
-  ).bind(me.$id).all();
-  // `items` is stored as JSON text — parse it back for the client.
-  const orders = (results ?? []).map((o) => ({
-    ...o,
-    items: safeParseArray(o.items),
-  }));
+    "SELECT * FROM orders WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
+  ).bind(ctx.organizationId, ctx.user.$id).all();
+  // Privacy: Redact customer email from ordinary merchant dashboard API response
+  const orders = (results ?? []).map((o) => {
+    const safeOrder = {
+      ...o,
+      items: safeParseArray(o.items),
+    };
+    delete safeOrder.customer_email;
+    return safeOrder;
+  });
   return json({ orders });
 }
 
 async function createOrder(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
 
   const customerName = typeof body.customer_name === "string" ? body.customer_name.trim() : "";
@@ -536,8 +1031,8 @@ async function createOrder(request, env) {
     }
 
     const productRow = await env.DB.prepare(
-      "SELECT * FROM products WHERE id = ? AND user_id = ?"
-    ).bind(productId, me.$id).first();
+      "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+    ).bind(productId, ctx.organizationId, ctx.user.$id).first();
 
     if (!productRow) {
       throw new HttpError(`Product not found or unavailable: ${productId}`, 404);
@@ -566,7 +1061,8 @@ async function createOrder(request, env) {
 
   const order = {
     id: crypto.randomUUID(),
-    user_id: me.$id,
+    user_id: ctx.user.$id,
+    organization_id: ctx.organizationId,
     customer_name: customerName,
     items: resolvedItems,
     total,
@@ -575,30 +1071,34 @@ async function createOrder(request, env) {
   };
 
   await env.DB.prepare(
-    `INSERT INTO orders (id, user_id, customer_name, items, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (id, user_id, organization_id, customer_name, items, total, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(order.id, order.user_id, order.customer_name, JSON.stringify(order.items), order.total, order.status, order.created_at)
+    .bind(order.id, order.user_id, order.organization_id, order.customer_name, JSON.stringify(order.items), order.total, order.status, order.created_at)
     .run();
 
   return json({ order }, 201);
 }
 
 async function getAnalyticsDashboard(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
 
   const { results: rawOrders } = await env.DB.prepare(
-    "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC"
-  ).bind(me.$id).all();
+    "SELECT * FROM orders WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
+  ).bind(ctx.organizationId, ctx.user.$id).all();
 
-  const orders = (rawOrders ?? []).map((o) => ({
-    ...o,
-    items: safeParseArray(o.items),
-  }));
+  const orders = (rawOrders ?? []).map((o) => {
+    const safeO = {
+      ...o,
+      items: safeParseArray(o.items),
+    };
+    delete safeO.customer_email;
+    return safeO;
+  });
 
   const { results: rawProducts } = await env.DB.prepare(
-    "SELECT * FROM products WHERE user_id = ? ORDER BY created_at DESC"
-  ).bind(me.$id).all();
+    "SELECT * FROM products WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
+  ).bind(ctx.organizationId, ctx.user.$id).all();
 
   const products = rawProducts ?? [];
 
@@ -1035,6 +1535,72 @@ async function ensureTables(db) {
   if (tablesInitialized || !db || typeof db.exec !== 'function') return;
   try {
     await db.exec(`
+      CREATE TABLE IF NOT EXISTS organizations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        workos_organization_id TEXT UNIQUE NOT NULL,
+        market TEXT NOT NULL DEFAULT 'IN',
+        plan TEXT NOT NULL DEFAULT 'free',
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        store_slug TEXT UNIQUE NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_organizations_workos_id ON organizations(workos_organization_id);
+      CREATE INDEX IF NOT EXISTS idx_organizations_store_slug ON organizations(store_slug);
+
+      CREATE TABLE IF NOT EXISTS organization_members (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('owner', 'admin', 'staff')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(organization_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+      CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
+
+      CREATE TABLE IF NOT EXISTS shops (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        store_slug TEXT UNIQUE NOT NULL,
+        hostname TEXT UNIQUE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_shops_org ON shops(organization_id);
+      CREATE INDEX IF NOT EXISTS idx_shops_slug ON shops(store_slug);
+
+      CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        address TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_customers_org ON customers(organization_id);
+
+      CREATE TABLE IF NOT EXISTS invoices (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        order_id TEXT,
+        invoice_number TEXT UNIQUE NOT NULL,
+        customer_name TEXT NOT NULL,
+        amount REAL NOT NULL DEFAULT 0,
+        currency TEXT NOT NULL DEFAULT 'INR',
+        status TEXT NOT NULL DEFAULT 'issued',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_invoices_org ON invoices(organization_id);
+
       CREATE TABLE IF NOT EXISTS transactions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -1121,6 +1687,20 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL
       );
     `);
+
+    // Safe column migrations for organization_id
+    const addOrgColumn = async (table) => {
+      try {
+        await db.exec(`ALTER TABLE ${table} ADD COLUMN organization_id TEXT;`);
+      } catch {}
+    };
+    await addOrgColumn('products');
+    await addOrgColumn('orders');
+    await addOrgColumn('websites');
+    await addOrgColumn('transactions');
+    await addOrgColumn('smtp_settings');
+    await addOrgColumn('tickets');
+
     tablesInitialized = true;
   } catch (err) {
     console.warn("Table schema check warning:", err && err.message ? err.message : err);
@@ -1604,16 +2184,20 @@ async function handlePaymentHistory(request, env) {
 // Product CRUD Extensions
 // ---------------------------------------------------------------------------
 async function getProduct(id, request, env) {
-  const me = await getAuthenticatedUser(request, env);
-  const product = await env.DB.prepare("SELECT * FROM products WHERE id = ? AND user_id = ?").bind(id, me.$id).first();
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const product = await env.DB.prepare(
+    "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(id, ctx.organizationId, ctx.user.$id).first();
   if (!product) throw new HttpError("Product not found", 404);
   return json(product, 200, {}, request);
 }
 
 async function updateProduct(id, request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
-  const existing = await env.DB.prepare("SELECT * FROM products WHERE id = ? AND user_id = ?").bind(id, me.$id).first();
+  const existing = await env.DB.prepare(
+    "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(id, ctx.organizationId, ctx.user.$id).first();
   if (!existing) throw new HttpError("Product not found", 404);
 
   const updates = [];
@@ -1639,17 +2223,23 @@ async function updateProduct(id, request, env) {
   }
 
   if (updates.length > 0) {
-    values.push(id, me.$id);
-    await env.DB.prepare(`UPDATE products SET ${updates.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+    values.push(id, ctx.organizationId, ctx.user.$id);
+    await env.DB.prepare(
+      `UPDATE products SET ${updates.join(", ")} WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))`
+    ).bind(...values).run();
   }
 
-  const updated = await env.DB.prepare("SELECT * FROM products WHERE id = ?").bind(id).first();
+  const updated = await env.DB.prepare(
+    "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(id, ctx.organizationId, ctx.user.$id).first();
   return json(updated || { id, ...body }, 200, {}, request);
 }
 
 async function deleteProduct(id, request, env) {
-  const me = await getAuthenticatedUser(request, env);
-  const res = await env.DB.prepare("DELETE FROM products WHERE id = ? AND user_id = ?").bind(id, me.$id).run();
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const res = await env.DB.prepare(
+    "DELETE FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(id, ctx.organizationId, ctx.user.$id).run();
   if (res.meta?.changes === 0) throw new HttpError("Product not found", 404);
   return json({ success: true }, 200, {}, request);
 }
@@ -1675,6 +2265,15 @@ async function handlePublicCreateOrder(request, env) {
   const itemList = Array.isArray(items) ? items : [];
   if (itemList.length === 0) throw new HttpError("items must be a non-empty array", 422);
 
+  // Resolve organization_id from shopId (could be org id, user id, or slug)
+  let orgId = shopId;
+  const orgRow = await env.DB.prepare(
+    "SELECT id FROM organizations WHERE id = ? OR store_slug = ?"
+  ).bind(shopId, shopId).first();
+  if (orgRow) {
+    orgId = orgRow.id;
+  }
+
   let subtotal = 0;
   const resolvedItems = [];
   const deliveryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -1683,7 +2282,9 @@ async function handlePublicCreateOrder(request, env) {
   for (const it of itemList) {
     const productId = it.productId || it.product_id || it.id;
     const qty = Math.max(1, Math.trunc(Number(it.quantity || it.qty || 1)));
-    const prod = await env.DB.prepare("SELECT * FROM products WHERE id = ? AND user_id = ?").bind(productId, shopId).first();
+    const prod = await env.DB.prepare(
+      "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+    ).bind(productId, orgId, shopId).first();
     if (!prod) continue;
 
     const price = Number.isFinite(Number(prod.sale_price)) && Number(prod.sale_price) > 0 ? Number(prod.sale_price) : (Number(prod.price) || 0);
@@ -1710,12 +2311,24 @@ async function handlePublicCreateOrder(request, env) {
   const orderId = crypto.randomUUID();
   const now = new Date().toISOString();
 
+  // Save customer in customers table (FeraSetu customer model, NOT WorkOS organization members)
+  const customerId = `cust_${crypto.randomUUID()}`;
+  try {
+    await env.DB.prepare(`
+      INSERT INTO customers (id, organization_id, name, email, phone, address, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(customerId, orgId, customerName, customerEmail || null, customerPhone, deliveryAddress || null, now, now).run();
+  } catch (custErr) {
+    console.warn("Customer record save note:", custErr?.message);
+  }
+
   await env.DB.prepare(
-    `INSERT INTO orders (id, user_id, customer_name, items, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (id, user_id, organization_id, customer_name, items, total, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     orderId,
     shopId,
+    orgId,
     customerName,
     JSON.stringify(resolvedItems),
     total,
@@ -1724,6 +2337,13 @@ async function handlePublicCreateOrder(request, env) {
   ).run();
 
   const invoiceNumber = `INV-${Date.now()}`;
+  try {
+    await env.DB.prepare(`
+      INSERT INTO invoices (id, organization_id, order_id, invoice_number, customer_name, amount, currency, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'INR', 'issued', ?)
+    `).bind(`inv_${crypto.randomUUID()}`, orgId, orderId, invoiceNumber, customerName, total, now).run();
+  } catch {}
+
   return json({
     success: true,
     order: {
@@ -1743,37 +2363,45 @@ async function handlePublicTrackOrders(request, env) {
   if (!phone || !shopId) throw new HttpError("phone and shopId are required", 400);
 
   const { results } = await env.DB.prepare(
-    "SELECT id, customer_name, total, status, created_at FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 20"
-  ).bind(shopId).all();
+    "SELECT id, customer_name, total, status, created_at FROM orders WHERE organization_id = ? OR user_id = ? ORDER BY created_at DESC LIMIT 20"
+  ).bind(shopId, shopId).all();
 
   return json({ orders: results || [] }, 200, {}, request);
 }
 
 async function getOrder(orderId, request, env) {
-  const me = await getAuthenticatedUser(request, env);
-  const order = await env.DB.prepare("SELECT * FROM orders WHERE id = ? AND user_id = ?").bind(orderId, me.$id).first();
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(orderId, ctx.organizationId, ctx.user.$id).first();
   if (!order) throw new HttpError("Order not found", 404);
-  return json({
+  const safeOrder = {
     ...order,
     items: safeParseArray(order.items),
-  }, 200, {}, request);
+  };
+  delete safeOrder.customer_email;
+  return json(safeOrder, 200, {}, request);
 }
 
 async function updateOrderStatus(orderId, request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
   const status = body.status;
   if (!status) throw new HttpError("status is required", 422);
 
-  await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ? AND user_id = ?").bind(status, orderId, me.$id).run();
+  await env.DB.prepare(
+    "UPDATE orders SET status = ? WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(status, orderId, ctx.organizationId, ctx.user.$id).run();
   return json({ success: true }, 200, {}, request);
 }
 
 async function updateOrderPayment(orderId, request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
   const paymentStatus = body.payment_status || body.status || 'paid';
-  await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ? AND user_id = ?").bind(paymentStatus === 'paid' ? 'confirmed' : 'pending', orderId, me.$id).run();
+  await env.DB.prepare(
+    "UPDATE orders SET status = ? WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+  ).bind(paymentStatus === 'paid' ? 'confirmed' : 'pending', orderId, ctx.organizationId, ctx.user.$id).run();
   return json({ success: true }, 200, {}, request);
 }
 
@@ -1786,8 +2414,10 @@ async function verifyOrderOtp(orderId, request, env) {
 // Website Configuration Handlers
 // ---------------------------------------------------------------------------
 async function getWebsite(request, env) {
-  const me = await getAuthenticatedUser(request, env);
-  const row = await env.DB.prepare("SELECT * FROM websites WHERE user_id = ?").bind(me.$id).first();
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const row = await env.DB.prepare(
+    "SELECT * FROM websites WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+  ).bind(ctx.organizationId, ctx.user.$id).first();
   if (!row) {
     return json({ exists: false }, 200, {}, request);
   }
@@ -1800,32 +2430,37 @@ async function getWebsite(request, env) {
 }
 
 async function saveWebsite(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
   const { name = 'My Store', template = 'default', config = {}, theme = {}, sections = [] } = body;
   const now = new Date().toISOString();
 
-  const existing = await env.DB.prepare("SELECT id FROM websites WHERE user_id = ?").bind(me.$id).first();
+  const existing = await env.DB.prepare(
+    "SELECT id FROM websites WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+  ).bind(ctx.organizationId, ctx.user.$id).first();
+
   if (existing) {
     await env.DB.prepare(
-      `UPDATE websites SET name = ?, template = ?, config = ?, theme = ?, sections = ?, updated_at = ? WHERE user_id = ?`
+      `UPDATE websites SET name = ?, template = ?, config = ?, theme = ?, sections = ?, organization_id = ?, updated_at = ? WHERE id = ?`
     ).bind(
       name,
       template,
       JSON.stringify(config),
       JSON.stringify(theme),
       JSON.stringify(sections),
+      ctx.organizationId,
       now,
-      me.$id
+      existing.id
     ).run();
   } else {
     const id = crypto.randomUUID();
     await env.DB.prepare(
-      `INSERT INTO websites (id, user_id, name, template, config, theme, sections, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO websites (id, user_id, organization_id, name, template, config, theme, sections, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
-      me.$id,
+      ctx.user.$id,
+      ctx.organizationId,
       name,
       template,
       JSON.stringify(config),
@@ -1836,7 +2471,9 @@ async function saveWebsite(request, env) {
     ).run();
   }
 
-  const updated = await env.DB.prepare("SELECT * FROM websites WHERE user_id = ?").bind(me.$id).first();
+  const updated = await env.DB.prepare(
+    "SELECT * FROM websites WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+  ).bind(ctx.organizationId, ctx.user.$id).first();
   return json({
     ...updated,
     config: safeParseObject(updated.config),
@@ -2035,13 +2672,13 @@ async function handleSurveyAssistant(request, env) {
 // Analytics Sales & Predictions Handlers
 // ---------------------------------------------------------------------------
 async function getAnalyticsSales(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env);
   const url = new URL(request.url);
   const period = url.searchParams.get("period") || "30d";
 
   const { results: rawOrders } = await env.DB.prepare(
-    "SELECT * FROM orders WHERE user_id = ? AND status != 'cancelled' ORDER BY created_at ASC"
-  ).bind(me.$id).all();
+    "SELECT * FROM orders WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?)) AND status != 'cancelled' ORDER BY created_at ASC"
+  ).bind(ctx.organizationId, ctx.userId).all();
 
   const orders = rawOrders || [];
   const salesMap = {};
@@ -2069,7 +2706,7 @@ async function getAnalyticsSales(request, env) {
 }
 
 async function getAnalyticsPredict(request, env) {
-  await getAuthenticatedUser(request, env);
+  await requireOrgContext(request, env);
   return json({
     forecast: [
       { period: 'Next 7 Days', estimated_revenue: 0, confidence: 'medium' },
@@ -2083,8 +2720,10 @@ async function getAnalyticsPredict(request, env) {
 // SMTP Settings Handlers
 // ---------------------------------------------------------------------------
 async function getSmtpSettings(request, env) {
-  const me = await getAuthenticatedUser(request, env);
-  const row = await env.DB.prepare("SELECT * FROM smtp_settings WHERE user_id = ?").bind(me.$id).first();
+  const ctx = await requireOrgContext(request, env);
+  const row = await env.DB.prepare(
+    "SELECT * FROM smtp_settings WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+  ).bind(ctx.organizationId, ctx.userId).first();
   if (!row) {
     return json({
       configured: false,
@@ -2108,11 +2747,13 @@ async function getSmtpSettings(request, env) {
 }
 
 async function updateSmtpSettings(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  const ctx = await requireOrgContext(request, env, 'admin');
   const body = await readJsonBody(request);
   const now = new Date().toISOString();
 
-  const existing = await env.DB.prepare("SELECT id, password_encrypted FROM smtp_settings WHERE user_id = ?").bind(me.$id).first();
+  const existing = await env.DB.prepare(
+    "SELECT id, password_encrypted FROM smtp_settings WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+  ).bind(ctx.organizationId, ctx.userId).first();
 
   const provider = body.provider || 'custom';
   const host = body.host || '';
@@ -2131,24 +2772,24 @@ async function updateSmtpSettings(request, env) {
   if (existing) {
     await env.DB.prepare(
       `UPDATE smtp_settings
-       SET provider = ?, host = ?, port = ?, username = ?, password_encrypted = ?,
+       SET organization_id = ?, provider = ?, host = ?, port = ?, username = ?, password_encrypted = ?,
            sender_name = ?, sender_email = ?, reply_to_email = ?, ssl_enabled = ?,
            tls_enabled = ?, otp_enabled = ?, otp_length = ?, is_active = ?, updated_at = ?
-       WHERE user_id = ?`
+       WHERE id = ?`
     ).bind(
-      provider, host, port, username, password, senderName, senderEmail, replyToEmail,
-      ssl, tls, otpEnabled, otpLength, isActive, now, me.$id
+      ctx.organizationId, provider, host, port, username, password, senderName, senderEmail, replyToEmail,
+      ssl, tls, otpEnabled, otpLength, isActive, now, existing.id
     ).run();
   } else {
     const id = crypto.randomUUID();
     await env.DB.prepare(
       `INSERT INTO smtp_settings (
-        id, user_id, provider, host, port, username, password_encrypted,
+        id, organization_id, user_id, provider, host, port, username, password_encrypted,
         sender_name, sender_email, reply_to_email, ssl_enabled, tls_enabled,
         otp_enabled, otp_length, is_active, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
-      id, me.$id, provider, host, port, username, password, senderName, senderEmail,
+      id, ctx.organizationId, ctx.userId, provider, host, port, username, password, senderName, senderEmail,
       replyToEmail, ssl, tls, otpEnabled, otpLength, isActive, now, now
     ).run();
   }
@@ -2157,7 +2798,7 @@ async function updateSmtpSettings(request, env) {
 }
 
 async function testSmtpSettings(request, env) {
-  await getAuthenticatedUser(request, env);
+  await requireOrgContext(request, env);
   return json({ success: true, message: "SMTP configuration verified" }, 200, {}, request);
 }
 
@@ -2390,6 +3031,25 @@ async function route(request, env) {
     if (method === "GET") return getProfile(request, env);
     if (method === "PUT") return updateProfile(request, env);
     throw new HttpError("Method not allowed", 405);
+  }
+
+  // Organizations & Multi-tenancy
+  if (path === "/api/organizations" && method === "POST") {
+    return createOrganizationHandler(request, env);
+  }
+  if (path === "/api/organizations/current" && method === "GET") {
+    return getCurrentOrganizationHandler(request, env);
+  }
+  if (path === "/api/organizations/members" && method === "GET") {
+    return getOrganizationMembersHandler(request, env);
+  }
+  if (path === "/api/organizations/invitations" && method === "POST") {
+    return inviteOrganizationMemberHandler(request, env);
+  }
+
+  // Customers (Isolated & Privacy Protected)
+  if (path === "/api/customers" && method === "GET") {
+    return listCustomers(request, env);
   }
 
   // Products

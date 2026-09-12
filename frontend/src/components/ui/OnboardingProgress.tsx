@@ -17,6 +17,8 @@ interface OnboardingProgressProps {
   hasProducts: boolean;
   hasOrders: boolean;
   storePublished?: boolean;
+  storeSlug?: string;
+  storeUrl?: string;
   /** Called when the user explicitly dismisses the widget (stores in localStorage) */
   onDismiss?: () => void;
 }
@@ -37,61 +39,55 @@ function dismiss() {
   } catch {}
 }
 
-/**
- * OnboardingProgress — shows a compact "Your shop is X% ready" checklist
- * on the dashboard until all steps are complete.
- *
- * Principles:
- * - Only shows actionable steps the user hasn't completed
- * - Dismissible once at least 3 steps are done
- * - Uses real data — never fake completion
- * - Does NOT spam or block the user
- */
 export default function OnboardingProgress({
   shopCreated,
   hasProducts,
   hasOrders,
   storePublished = false,
+  storeSlug,
+  storeUrl,
   onDismiss,
 }: OnboardingProgressProps) {
+  const displayUrl = storeUrl || (storeSlug ? `https://${storeSlug}.ferasetu.com` : 'Store link reserved');
+
   const steps: OnboardingStep[] = [
     {
       id: 'shop_created',
-      label: 'Shop created',
-      description: 'Your FeraSetu account is set up.',
+      label: 'Store created',
+      description: 'Your business organization and store profile are set up.',
       done: shopCreated,
     },
     {
-      id: 'first_product',
-      label: 'First product added',
-      description: 'Add a product your customers can see.',
-      done: hasProducts,
-      href: '/products',
-      actionLabel: 'Add product',
+      id: 'link_reserved',
+      label: 'Store link reserved',
+      description: displayUrl,
+      done: true, // Reserved at organization creation
+      href: storeUrl,
+      actionLabel: 'Preview',
     },
     {
-      id: 'store_published',
-      label: 'Store published',
-      description: 'Build and publish your online storefront.',
-      done: storePublished,
-      href: '/website-builder',
-      actionLabel: 'Build store',
+      id: 'first_product',
+      label: 'Add your first product',
+      description: 'Add your first item so customers can browse and purchase.',
+      done: hasProducts,
+      href: '/products',
+      actionLabel: 'Add Product',
     },
     {
       id: 'store_shared',
-      label: 'Store link ready to share',
-      description: 'Your store link is ready to share on WhatsApp or social media.',
-      done: storePublished,
+      label: 'Share your store link',
+      description: 'Share your link with customers on WhatsApp or social media.',
+      done: storePublished || hasOrders,
       href: '/dashboard',
-      actionLabel: 'Get store link',
+      actionLabel: 'Share Link',
     },
     {
-      id: 'first_order',
-      label: 'First order received',
-      description: 'When your first customer places an order, you\'re live!',
+      id: 'complete_setup',
+      label: 'Complete remaining setup',
+      description: 'Set up payments, customize themes, or invite more staff members.',
       done: hasOrders,
-      href: '/orders',
-      actionLabel: 'View orders',
+      href: '/website-builder',
+      actionLabel: 'Customize',
     },
   ];
 

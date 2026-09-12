@@ -200,7 +200,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [suggestedLanguage, setLanguage, dismissSuggestion]);
 
   const translate = useCallback((key: TranslationKey, vars?: Record<string, string | number>) => {
-    let text = dictionary[key] || fallbackDictionary[key] || key;
+    let text = dictionary[key] ?? fallbackDictionary[key] ?? key;
 
     if (vars) {
       for (const [variable, value] of Object.entries(vars)) {
