@@ -547,14 +547,66 @@ async function createOrganizationHandler(request, env) {
     }
   }
 
-  // A. Create FeraSetu organization in D1 (with resilient column handling)
+  // A. Ensure core tables exist directly via db.prepare().run() before inserting
   try {
-    if (typeof env.DB?.prepare === 'function') {
-      try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN district TEXT").run(); } catch {}
-      try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN country TEXT").run(); } catch {}
-    }
-  } catch {}
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS organizations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        workos_organization_id TEXT UNIQUE NOT NULL,
+        market TEXT NOT NULL DEFAULT 'IN',
+        plan TEXT NOT NULL DEFAULT 'free',
+        address TEXT,
+        city TEXT,
+        district TEXT,
+        state TEXT,
+        country TEXT,
+        store_slug TEXT UNIQUE NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+  } catch (orgTableErr) {
+    console.error("Direct organizations table creation error:", orgTableErr);
+  }
 
+  try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN district TEXT").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN country TEXT").run(); } catch {}
+
+  try {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS organization_members (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('owner', 'admin', 'staff', 'member')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(organization_id, user_id)
+      )
+    `).run();
+  } catch (memTableErr) {
+    console.error("Direct organization_members table creation error:", memTableErr);
+  }
+
+  try {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS shops (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        store_slug TEXT UNIQUE NOT NULL,
+        hostname TEXT UNIQUE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+  } catch (shopTableErr) {
+    console.error("Direct shops table creation error:", shopTableErr);
+  }
+
+  // Insert organization with self-healing table creation on error
   try {
     await env.DB.prepare(`
       INSERT INTO organizations (
@@ -565,17 +617,48 @@ async function createOrganizationHandler(request, env) {
     ).run();
   } catch (orgInsertErr) {
     console.warn("Retrying organization insert with fallback schema:", orgInsertErr);
+    // If the table somehow still does not exist, recreate it immediately
+    try {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS organizations (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          workos_organization_id TEXT UNIQUE NOT NULL,
+          market TEXT NOT NULL DEFAULT 'IN',
+          plan TEXT NOT NULL DEFAULT 'free',
+          address TEXT,
+          city TEXT,
+          district TEXT,
+          state TEXT,
+          country TEXT,
+          store_slug TEXT UNIQUE NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `).run();
+    } catch {}
+
     try {
       await env.DB.prepare(`
         INSERT INTO organizations (
-          id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
-        orgId, name, workosOrgId, market, plan, address, city, state, storeSlug, now, now
+        orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, now, now
       ).run();
     } catch (orgInsertErr2) {
-      console.error("Fatal organization insert error:", orgInsertErr2);
-      throw new HttpError(`Failed to save organization: ${orgInsertErr2.message || 'Database error'}`, 500);
+      try {
+        await env.DB.prepare(`
+          INSERT INTO organizations (
+            id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          orgId, name, workosOrgId, market, plan, address, city, state, storeSlug, now, now
+        ).run();
+      } catch (orgInsertErr3) {
+        console.error("Fatal organization insert error:", orgInsertErr3);
+        throw new HttpError(`Failed to save organization: ${orgInsertErr3.message || 'Database error'}`, 500);
+      }
     }
   }
 
@@ -603,6 +686,21 @@ async function createOrganizationHandler(request, env) {
   // Also reserve website record for the storefront
   try {
     await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS websites (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        organization_id TEXT,
+        name TEXT NOT NULL,
+        template TEXT NOT NULL DEFAULT 'default',
+        config TEXT,
+        sections TEXT,
+        is_published INTEGER NOT NULL DEFAULT 0,
+        theme TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+    await env.DB.prepare(`
       INSERT OR REPLACE INTO websites (id, user_id, organization_id, name, template, config, sections, is_published, theme, created_at, updated_at)
       VALUES (?, ?, ?, ?, 'default', ?, '[]', 1, ?, ?, ?)
     `).bind(
@@ -621,6 +719,37 @@ async function createOrganizationHandler(request, env) {
 
   // Ensure user profile in D1
   try {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        phone TEXT,
+        business_name TEXT,
+        plan TEXT NOT NULL DEFAULT 'free',
+        market TEXT DEFAULT 'IN',
+        subdomain TEXT UNIQUE,
+        hostname TEXT UNIQUE,
+        address TEXT,
+        city TEXT,
+        district TEXT,
+        state TEXT,
+        country TEXT,
+        preferred_language TEXT NOT NULL DEFAULT 'en',
+        custom_domain TEXT UNIQUE,
+        plan_expires_at TEXT,
+        ai_credits_balance INTEGER NOT NULL DEFAULT 20,
+        ai_credits_monthly_limit INTEGER NOT NULL DEFAULT 20,
+        ai_credits_used_month INTEGER NOT NULL DEFAULT 0,
+        ai_credits_reset_at TEXT,
+        storage_used_bytes INTEGER NOT NULL DEFAULT 0,
+        storage_limit_bytes INTEGER NOT NULL DEFAULT 52428800,
+        founding_member INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+
     if (typeof env.DB?.prepare === 'function') {
       try { await env.DB.prepare("ALTER TABLE users ADD COLUMN district TEXT").run(); } catch {}
       try { await env.DB.prepare("ALTER TABLE users ADD COLUMN country TEXT").run(); } catch {}
@@ -1722,23 +1851,33 @@ async function ensureTables(db) {
   if (tablesInitialized || !db || (typeof db.exec !== 'function' && typeof db.prepare !== 'function')) return;
   try {
     const safeExec = async (sql) => {
-      try {
-        if (typeof db.exec === 'function') {
-          await db.exec(sql);
-        } else if (typeof db.prepare === 'function') {
-          await db.prepare(sql).run();
+      const cleanSql = typeof sql === 'string' ? sql.trim().replace(/;\s*$/, "") : '';
+      if (!cleanSql) return;
+      if (typeof db.prepare === 'function') {
+        try {
+          await db.prepare(cleanSql).run();
+          return;
+        } catch (prepErr) {
+          console.warn("[ensureTables] prepare.run notice:", prepErr?.message || prepErr);
         }
-      } catch (e) {
-        // Individual table/index creation warnings should not abort other tables
+      }
+      if (typeof db.exec === 'function') {
+        try {
+          await db.exec(cleanSql);
+          return;
+        } catch (execErr) {
+          console.warn("[ensureTables] exec notice:", execErr?.message || execErr);
+        }
       }
     };
 
     const safeAddColumn = async (table, colDef) => {
+      const cleanCol = typeof colDef === 'string' ? colDef.trim().replace(/;\s*$/, "") : '';
       try {
         if (typeof db.prepare === 'function') {
-          await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${colDef}`).run();
+          await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${cleanCol}`).run();
         } else if (typeof db.exec === 'function') {
-          await db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef};`);
+          await db.exec(`ALTER TABLE ${table} ADD COLUMN ${cleanCol};`);
         }
       } catch (e) {
         // Column already exists or table does not exist
@@ -2029,11 +2168,18 @@ async function ensureTables(db) {
     await safeAddColumn('websites', 'organization_id TEXT');
     await safeAddColumn('transactions', 'organization_id TEXT');
     await safeAddColumn('smtp_settings', 'organization_id TEXT');
-    await safeAddColumn('tickets', 'organization_id TEXT');
-
-    tablesInitialized = true;
+    // Verify that organizations table actually exists in D1
+    try {
+      if (typeof db.prepare === 'function') {
+        await db.prepare("SELECT id FROM organizations LIMIT 1").first();
+      }
+      tablesInitialized = true;
+    } catch {
+      tablesInitialized = false;
+    }
   } catch (err) {
     console.warn("Table schema check warning:", err && err.message ? err.message : err);
+    tablesInitialized = false;
   }
 }
 
