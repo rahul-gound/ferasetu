@@ -16,6 +16,49 @@ const INDIAN_STATES = [
   'Dadra and Nagar Haveli and Daman and Diu'
 ];
 
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+  'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+  'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+  'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+  'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+  'Wisconsin', 'Wyoming', 'District of Columbia'
+];
+
+const EU_COUNTRIES = [
+  { code: 'AT', name: 'Austria' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'BG', name: 'Bulgaria' },
+  { code: 'HR', name: 'Croatia' },
+  { code: 'CY', name: 'Cyprus' },
+  { code: 'CZ', name: 'Czech Republic' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'EE', name: 'Estonia' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'GR', name: 'Greece' },
+  { code: 'HU', name: 'Hungary' },
+  { code: 'IE', name: 'Ireland' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'LV', name: 'Latvia' },
+  { code: 'LT', name: 'Lithuania' },
+  { code: 'LU', name: 'Luxembourg' },
+  { code: 'MT', name: 'Malta' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'RO', name: 'Romania' },
+  { code: 'SK', name: 'Slovakia' },
+  { code: 'SI', name: 'Slovenia' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'SE', name: 'Sweden' },
+];
+
+type Region = 'IN' | 'US' | 'EU' | 'OTHER';
+
 interface InvitationItem {
   email: string;
   role: 'admin' | 'staff';
@@ -39,11 +82,22 @@ export default function OnboardingWizardPage() {
     } catch {}
     return user?.business_name || '';
   });
+
+  const [region, setRegion] = useState<Region>(() => {
+    if (user?.market === 'US') return 'US';
+    if (user?.market === 'EU') return 'EU';
+    return 'IN';
+  });
+  const [country, setCountry] = useState(() => {
+    if (user?.market === 'US') return 'United States';
+    if (user?.market === 'EU') return 'Germany';
+    return 'India';
+  });
   const [address, setAddress] = useState('');
+  const [district, setDistrict] = useState('');
   const [city, setCity] = useState('');
-  const [state, setState] = useState('Maharashtra');
+  const [state, setState] = useState(() => user?.market === 'US' ? 'California' : 'Maharashtra');
   const [customState, setCustomState] = useState('');
-  const [isInternational, setIsInternational] = useState(false);
 
   // Team Invitations (Step 3)
   const [invitations, setInvitations] = useState<InvitationItem[]>([
@@ -57,7 +111,22 @@ export default function OnboardingWizardPage() {
     store_url: string;
   } | null>(null);
 
-  const effectiveState = isInternational ? customState : state;
+  const effectiveState = (region === 'IN' || region === 'US') ? state : customState;
+
+  const handleSelectRegion = (newRegion: Region) => {
+    setRegion(newRegion);
+    if (newRegion === 'IN') {
+      setCountry('India');
+      if (!INDIAN_STATES.includes(state)) setState('Maharashtra');
+    } else if (newRegion === 'US') {
+      setCountry('United States');
+      if (!US_STATES.includes(state)) setState('California');
+    } else if (newRegion === 'EU') {
+      if (!country || country === 'India' || country === 'United States') {
+        setCountry('Germany');
+      }
+    }
+  };
 
   const handleAddInviteRow = () => {
     setInvitations(prev => [...prev, { email: '', role: 'staff' }]);
@@ -87,11 +156,19 @@ export default function OnboardingWizardPage() {
   const handleNextFromStep2 = (e: React.FormEvent) => {
     e.preventDefault();
     if (!city.trim()) {
-      toast.error('Please enter your city');
+      toast.error('Please enter your city / town');
+      return;
+    }
+    if (!district.trim()) {
+      toast.error(region === 'US' ? 'Please enter your county / district' : 'Please enter your district (e.g. Palghar)');
       return;
     }
     if (!effectiveState.trim()) {
-      toast.error('Please specify your state/province');
+      toast.error('Please specify your state / province');
+      return;
+    }
+    if ((region === 'EU' || region === 'OTHER') && !country.trim()) {
+      toast.error('Please specify your country');
       return;
     }
     setStep(3);
@@ -113,7 +190,10 @@ export default function OnboardingWizardPage() {
         name: shopName.trim(),
         address: address.trim(),
         city: city.trim(),
+        district: district.trim(),
         state: effectiveState.trim(),
+        country: country.trim(),
+        market: region,
         invitations: validInvites
       };
 
@@ -220,7 +300,7 @@ export default function OnboardingWizardPage() {
               </form>
             )}
 
-            {/* STEP 2: Address, City, State */}
+            {/* STEP 2: Address, District, City, State, Country */}
             {step === 2 && (
               <form onSubmit={handleNextFromStep2} className="space-y-6">
                 <div>
@@ -231,80 +311,364 @@ export default function OnboardingWizardPage() {
                     Where is your business located?
                   </h2>
                   <p className="text-sm text-slate-500 mt-1 font-medium">
-                    Your location authorizes tax rules, currency formatting, and regional selling plans automatically.
+                    Your location authorizes regional selling plans, currency formatting, and tax rules automatically.
                   </p>
+                </div>
+
+                {/* Region Selector Pills */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    Region / Market
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectRegion('IN')}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        region === 'IN'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🇮🇳</span>
+                      <span>India</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectRegion('US')}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        region === 'US'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🇺🇸</span>
+                      <span>America (US)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectRegion('EU')}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        region === 'EU'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🇪🇺</span>
+                      <span>Europe (EU)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectRegion('OTHER')}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        region === 'OTHER'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🌐</span>
+                      <span>Other</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                      Business Address (Street, Building)
+                      Business Address (Street, Building, Unit)
                     </label>
                     <input
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="e.g. Shop 4, Main Bazaar, Station Road"
+                      placeholder={
+                        region === 'IN'
+                          ? "e.g. Shop 4, Main Bazaar, Station Road"
+                          : region === 'US'
+                          ? "e.g. 123 Main Street, Suite 400"
+                          : "e.g. Hauptstraße 12 / Rue de la Paix"
+                      }
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                        City <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="e.g. Pune"
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                      />
-                    </div>
+                  {/* INDIA LOCATION FIELDS */}
+                  {region === 'IN' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            State / Union Territory <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            value={state}
+                            onChange={(e) => setState(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
+                          >
+                            {INDIAN_STATES.map((st) => (
+                              <option key={st} value={st}>{st}</option>
+                            ))}
+                          </select>
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                        State / Province <span className="text-rose-500">*</span>
-                      </label>
-                      {!isInternational ? (
-                        <select
-                          value={state}
-                          onChange={(e) => setState(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
-                        >
-                          {INDIAN_STATES.map((st) => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          required
-                          value={customState}
-                          onChange={(e) => setCustomState(e.target.value)}
-                          placeholder="e.g. California / Ontario"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                        />
-                      )}
-                    </div>
-                  </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            District <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={district}
+                            onChange={(e) => setDistrict(e.target.value)}
+                            placeholder="e.g. Palghar, Thane, Pune, Nagpur"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
 
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsInternational(!isInternational)}
-                      className="text-xs font-bold text-blue-600 hover:text-blue-700 underline"
-                    >
-                      {isInternational ? 'Switch back to Indian States dropdown' : 'Store located outside India? Click here'}
-                    </button>
-                  </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            City / Town <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="e.g. Boisar, Palghar, Mumbai, Pune"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            disabled
+                            value="India"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-sm font-medium cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* US / AMERICA LOCATION FIELDS */}
+                  {region === 'US' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            State <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            value={state}
+                            onChange={(e) => setState(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
+                          >
+                            {US_STATES.map((st) => (
+                              <option key={st} value={st}>{st}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            County / District <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={district}
+                            onChange={(e) => setDistrict(e.target.value)}
+                            placeholder="e.g. Los Angeles County, Cook County, Harris County"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            City <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="e.g. Los Angeles, Chicago, Houston, Austin"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            disabled
+                            value="United States"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-sm font-medium cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* EU / EUROPE LOCATION FIELDS */}
+                  {region === 'EU' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            Country (EU Member State) <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            value={country}
+                            onChange={(e) => setCountry(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
+                          >
+                            {EU_COUNTRIES.map((c) => (
+                              <option key={c.code} value={c.name}>{c.name} ({c.code})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            State / Province / Region <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={customState}
+                            onChange={(e) => setCustomState(e.target.value)}
+                            placeholder="e.g. Bavaria, Île-de-France, Catalonia, Lombardy"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            District / Department / County <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={district}
+                            onChange={(e) => setDistrict(e.target.value)}
+                            placeholder="e.g. Upper Bavaria, Seine-et-Marne, Barcelona District"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            City <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="e.g. Munich, Paris, Barcelona, Amsterdam"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* OTHER / INTERNATIONAL LOCATION FIELDS */}
+                  {region === 'OTHER' && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            Country <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={country}
+                            onChange={(e) => setCountry(e.target.value)}
+                            placeholder="e.g. Canada, Australia, Japan"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            State / Province <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={customState}
+                            onChange={(e) => setCustomState(e.target.value)}
+                            placeholder="e.g. Ontario, New South Wales"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            District / Region <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={district}
+                            onChange={(e) => setDistrict(e.target.value)}
+                            placeholder="e.g. York Region, Greater London"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            City <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="e.g. Toronto, Sydney, London"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">
                     <ShieldCheck size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-600 font-medium">
-                      Market resolution is managed authoritatively: <span className="font-bold text-slate-800">{isInternational ? 'Global / US (14-day trial)' : 'India (₹0 Free Plan selling enabled)'}</span>.
+                      {region === 'IN' && (
+                        <>Market: <span className="font-bold text-slate-800">India (₹0 Free Plan permanent selling enabled with GST compliance)</span>.</>
+                      )}
+                      {region === 'US' && (
+                        <>Market: <span className="font-bold text-slate-800">America / United States (Full store access with 14-day free trial in $ USD)</span>.</>
+                      )}
+                      {region === 'EU' && (
+                        <>Market: <span className="font-bold text-slate-800">Europe (Full store access with 14-day free trial in € EUR for {country || 'EU'})</span>.</>
+                      )}
+                      {region === 'OTHER' && (
+                        <>Market: <span className="font-bold text-slate-800">International (14-day free trial via Stripe Checkout)</span>.</>
+                      )}
                     </p>
                   </div>
                 </div>

@@ -180,10 +180,10 @@ function createTestDb() {
         async run() {
           const s = sql.toLowerCase();
           if (s.includes('insert or ignore into organizations') || s.includes('insert into organizations')) {
-            const [id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at] = this._params;
+            const [id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at] = this._params;
             const existing = tables.organizations.find(x => x.id === id);
             if (!existing) {
-              tables.organizations.push({ id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at });
+              tables.organizations.push({ id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at });
             }
             return { success: true };
           }
@@ -585,6 +585,65 @@ await test('15. Backward compatibility: Existing auth routes, health checks, and
   assert.equal(templatesRes.status, 200);
 });
 
+// 16. Onboarding with District (Palghar) and Country (India)
+await test('16. Onboarding records District (e.g. Palghar) and Country correctly', async () => {
+  const token = await createToken('usr_palghar_merchant', 'palghar_store@example.com', 'Palghar Merchant');
+  const req = new Request('https://ferasetu.com/api/organizations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      name: 'Boisar Daily Mart',
+      address: 'Shop 3, Station Road',
+      district: 'Palghar',
+      city: 'Boisar',
+      state: 'Maharashtra',
+      country: 'India',
+      market: 'IN',
+      invitations: []
+    })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 201);
+  const palgharOrg = await res.json();
+  assert.equal(palgharOrg.organization.district, 'Palghar');
+  assert.equal(palgharOrg.organization.city, 'Boisar');
+  assert.equal(palgharOrg.organization.state, 'Maharashtra');
+  assert.equal(palgharOrg.organization.country, 'India');
+  assert.equal(palgharOrg.organization.market, 'IN');
+});
+
+// 17. Onboarding with EU country (Germany) and District
+await test('17. Onboarding with EU country and District resolves to EU market and trial plan', async () => {
+  const token = await createToken('usr_eu_merchant', 'munich_store@example.com', 'Munich Merchant');
+  const req = new Request('https://ferasetu.com/api/organizations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      name: 'Munich Fresh Market',
+      address: 'Hauptstrasse 42',
+      district: 'Upper Bavaria',
+      city: 'Munich',
+      state: 'Bavaria',
+      country: 'Germany',
+      market: 'EU',
+      invitations: []
+    })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 201);
+  const euOrg = await res.json();
+  assert.equal(euOrg.organization.market, 'EU');
+  assert.equal(euOrg.organization.plan, 'trial');
+  assert.equal(euOrg.organization.district, 'Upper Bavaria');
+  assert.equal(euOrg.organization.country, 'Germany');
+});
+
 console.log('────────────────────────────────────────────────────────────');
 console.log(`Results: ${passed} passed, ${failed} failed`);
 
@@ -595,5 +654,5 @@ if (failed > 0) {
   }
   process.exit(1);
 } else {
-  console.log('\n🌟 All 15 WorkOS Multi-Tenant Organization requirements verified successfully!\n');
+  console.log('\n🌟 All 17 WorkOS Multi-Tenant Organization requirements verified successfully!\n');
 }

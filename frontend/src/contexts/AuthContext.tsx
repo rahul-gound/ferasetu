@@ -226,12 +226,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               : (workosUser.email || 'Shopkeeper'),
             is_verified: workosUser.emailVerified ?? true,
             plan: 'free',
+            market: 'IN',
             preferred_language: localStorage.getItem('fera_language') || 'en',
             ai_credits_balance: 20,
             ai_credits_monthly_limit: 20,
             ai_credits_used_month: 0,
             storage_used_bytes: 0,
             storage_limit_bytes: 52428800,
+            has_organization: false,
+            organization: null,
           });
         }
       } finally {

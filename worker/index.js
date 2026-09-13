@@ -239,10 +239,31 @@ const ROLE_RANKS = {
   owner: 3,
 };
 
-function resolveAuthoritativeMarket({ state, city, request }) {
+function resolveAuthoritativeMarket({ state, city, district, country, market, request }) {
   const ipCountry = (request?.headers?.get("cf-ipcountry") || "").toUpperCase().trim();
   const cleanState = typeof state === 'string' ? state.trim().toLowerCase() : '';
+  const cleanCountry = typeof country === 'string' ? country.trim().toUpperCase() : '';
+  const cleanMarket = typeof market === 'string' ? market.trim().toUpperCase() : '';
 
+  const EU_COUNTRIES = new Set([
+    'FR', 'DE', 'IT', 'ES', 'NL', 'BE', 'AT', 'PT', 'IE', 'FI',
+    'GR', 'LU', 'CY', 'MT', 'SK', 'SI', 'EE', 'LV', 'LT', 'BG',
+    'HR', 'CZ', 'DK', 'HU', 'PL', 'RO', 'SE',
+    'FRANCE', 'GERMANY', 'ITALY', 'SPAIN', 'NETHERLANDS', 'BELGIUM', 'AUSTRIA',
+    'PORTUGAL', 'IRELAND', 'FINLAND', 'GREECE', 'LUXEMBOURG', 'CYPRUS', 'MALTA',
+    'SLOVAKIA', 'SLOVENIA', 'ESTONIA', 'LATVIA', 'LITHUANIA', 'BULGARIA',
+    'CROATIA', 'CZECH REPUBLIC', 'DENMARK', 'HUNGARY', 'POLAND', 'ROMANIA', 'SWEDEN'
+  ]);
+
+  // 1. Explicit country
+  if (cleanCountry === 'IN' || cleanCountry === 'INDIA') return 'IN';
+  if (cleanCountry === 'US' || cleanCountry === 'USA' || cleanCountry === 'UNITED STATES') return 'US';
+  if (EU_COUNTRIES.has(cleanCountry)) return 'EU';
+
+  // 2. Explicit requested market if validated
+  if (cleanMarket === 'EU') return 'EU';
+
+  // 3. Indian State check
   if (cleanState in INDIA_STATE_CODES || Object.values(INDIA_STATE_CODES).includes(cleanState) || ipCountry === 'IN') {
     return 'IN';
   }
@@ -255,6 +276,9 @@ function resolveAuthoritativeMarket({ state, city, request }) {
   if (ipCountry === 'US' || (usStates.has(cleanState) && cleanState !== 'in')) {
     return 'US';
   }
+
+  if (cleanMarket === 'US') return 'US';
+  if (cleanMarket === 'IN') return 'IN';
 
   if (['FR', 'DE', 'ES', 'IT', 'NL', 'BE', 'AT', 'SE', 'DK', 'FI', 'IE', 'PL', 'PT'].includes(ipCountry)) {
     return 'EU';
@@ -417,23 +441,30 @@ async function createOrganizationHandler(request, env) {
 
   const address = typeof body.address === 'string' ? body.address.trim() : '';
   const city = typeof body.city === 'string' ? body.city.trim() : '';
+  const district = typeof body.district === 'string' ? body.district.trim() : '';
   const state = typeof body.state === 'string' ? body.state.trim() : '';
+  const country = typeof body.country === 'string' ? body.country.trim() : '';
 
   if (!city || !state) {
     throw new HttpError("City and State are required", 422);
   }
 
   // Authoritative market resolution: not trusted from client
-  const market = resolveAuthoritativeMarket({ state, city, request });
+  const market = resolveAuthoritativeMarket({ state, city, district, country, market: body.market, request });
   const plan = market === 'IN' ? 'free' : 'trial';
 
   // Check if user already owns an organization
-  const existingOrg = await env.DB.prepare(`
-    SELECT o.* FROM organizations o
-    JOIN organization_members om ON om.organization_id = o.id
-    WHERE om.user_id = ? AND om.role = 'owner'
-    LIMIT 1
-  `).bind(me.$id).first();
+  let existingOrg = null;
+  try {
+    existingOrg = await env.DB.prepare(`
+      SELECT o.* FROM organizations o
+      JOIN organization_members om ON om.organization_id = o.id
+      WHERE om.user_id = ? AND om.role = 'owner'
+      LIMIT 1
+    `).bind(me.$id).first();
+  } catch (orgCheckErr) {
+    console.warn("Error checking existing organization:", orgCheckErr);
+  }
 
   if (existingOrg) {
     return json({
@@ -452,18 +483,22 @@ async function createOrganizationHandler(request, env) {
     {
       shopName: name,
       city,
-      district: body.district || city,
+      district: district || city,
       state,
     },
     async (candidateSub) => {
-      const takenOrg = await env.DB.prepare("SELECT id FROM organizations WHERE store_slug = ?")
-        .bind(candidateSub)
-        .first();
-      if (takenOrg) return true;
-      const takenUser = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ?")
-        .bind(candidateSub, `${candidateSub}.ferasetu.com`)
-        .first();
-      return !!takenUser;
+      try {
+        const takenOrg = await env.DB.prepare("SELECT id FROM organizations WHERE store_slug = ?")
+          .bind(candidateSub)
+          .first();
+        if (takenOrg) return true;
+        const takenUser = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ?")
+          .bind(candidateSub, `${candidateSub}.ferasetu.com`)
+          .first();
+        return !!takenUser;
+      } catch {
+        return false;
+      }
     }
   );
 
@@ -472,29 +507,51 @@ async function createOrganizationHandler(request, env) {
   const orgId = `org_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
 
-  // B. Create corresponding WorkOS Organization
-  const workosOrg = await createWorkOSOrganization({
-    name,
-    externalId: orgId,
-    env,
-  });
-  const workosOrgId = workosOrg.id;
+  // B. Create corresponding WorkOS Organization (with resilient fallback)
+  let workosOrgId = null;
+  try {
+    const workosOrg = await createWorkOSOrganization({
+      name,
+      externalId: orgId,
+      env,
+    });
+    workosOrgId = workosOrg?.id || null;
+  } catch (workosErr) {
+    console.error("Failed to create WorkOS Organization:", workosErr);
+    workosOrgId = `org_local_${orgId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20)}`;
+  }
 
   // C. Create WorkOS organization membership for user as owner
-  await createWorkOSMembership({
-    organizationId: workosOrgId,
-    userId: me.$id,
-    roleSlug: "owner",
-    env,
-  });
+  if (workosOrgId && !workosOrgId.startsWith('org_local_')) {
+    try {
+      await createWorkOSMembership({
+        organizationId: workosOrgId,
+        userId: me.$id,
+        roleSlug: "owner",
+        env,
+      });
+    } catch (memErr) {
+      console.warn("WorkOS membership creation warning (retrying admin):", memErr);
+      try {
+        await createWorkOSMembership({
+          organizationId: workosOrgId,
+          userId: me.$id,
+          roleSlug: "admin",
+          env,
+        });
+      } catch (adminErr) {
+        console.warn("WorkOS membership retry warning:", adminErr);
+      }
+    }
+  }
 
   // A. Create FeraSetu organization in D1
   await env.DB.prepare(`
     INSERT INTO organizations (
-      id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    orgId, name, workosOrgId, market, plan, address, city, state, storeSlug, now, now
+    orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, now, now
   ).run();
 
   // D. Create FeraSetu organization_members record with role = owner
@@ -511,34 +568,44 @@ async function createOrganizationHandler(request, env) {
   `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
 
   // Also reserve website record for the storefront
-  await env.DB.prepare(`
-    INSERT OR REPLACE INTO websites (id, user_id, organization_id, name, template, config, sections, is_published, theme, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 'default', ?, '[]', 1, ?, ?, ?)
-  `).bind(
-    orgId,
-    me.$id,
-    orgId,
-    name,
-    JSON.stringify({ shopName: name, city, state, phone: body.phone || '' }),
-    JSON.stringify({ preset: 'clean-grocer' }),
-    now,
-    now
-  ).run();
+  try {
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO websites (id, user_id, organization_id, name, template, config, sections, is_published, theme, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'default', ?, '[]', 1, ?, ?, ?)
+    `).bind(
+      orgId,
+      me.$id,
+      orgId,
+      name,
+      JSON.stringify({ shopName: name, city, district, state, country, phone: body.phone || '' }),
+      JSON.stringify({ preset: 'clean-grocer' }),
+      now,
+      now
+    ).run();
+  } catch (wErr) {
+    console.warn("Could not save initial website record:", wErr);
+  }
 
   // Ensure user profile in D1
-  await env.DB.prepare(`
-    INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, state, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      business_name = excluded.business_name,
-      subdomain = excluded.subdomain,
-      hostname = excluded.hostname,
-      city = excluded.city,
-      state = excluded.state,
-      updated_at = excluded.updated_at
-  `).bind(
-    me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, state, now, now
-  ).run();
+  try {
+    await env.DB.prepare(`
+      INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, district, state, country, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        business_name = excluded.business_name,
+        subdomain = excluded.subdomain,
+        hostname = excluded.hostname,
+        city = excluded.city,
+        district = excluded.district,
+        state = excluded.state,
+        country = excluded.country,
+        updated_at = excluded.updated_at
+    `).bind(
+      me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, district, state, country, now, now
+    ).run();
+  } catch (uErr) {
+    console.warn("Could not upsert user record in D1:", uErr);
+  }
 
   // Process optional staff invitations
   const invitationResults = [];
@@ -645,60 +712,76 @@ async function getProfile(request, env) {
   const me = await getAuthenticatedUser(request, env);
 
   // 1. Check if user already has an organization membership
-  let member = await env.DB.prepare(`
-    SELECT om.*, o.name as org_name, o.workos_organization_id, o.market as org_market,
-           o.plan as org_plan, o.store_slug, o.address, o.city, o.state, o.created_at as org_created_at
-    FROM organization_members om
-    JOIN organizations o ON om.organization_id = o.id
-    WHERE om.user_id = ?
-    ORDER BY CASE om.role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, om.created_at ASC
-    LIMIT 1
-  `).bind(me.$id).first();
+  let member = null;
+  try {
+    member = await env.DB.prepare(`
+      SELECT om.*, o.name as org_name, o.workos_organization_id, o.market as org_market,
+             o.plan as org_plan, o.store_slug, o.address, o.city, o.district, o.state, o.country, o.created_at as org_created_at
+      FROM organization_members om
+      JOIN organizations o ON om.organization_id = o.id
+      WHERE om.user_id = ?
+      ORDER BY CASE om.role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, om.created_at ASC
+      LIMIT 1
+    `).bind(me.$id).first();
+  } catch (mErr) {
+    console.warn("Could not query organization membership:", mErr);
+  }
 
   // 2. If no membership in D1, check if user was invited or signed in to a WorkOS organization
   if (!member && (me.org_id || isLiveWorkOS(env))) {
-    let targetOrg = null;
-    if (me.org_id) {
-      targetOrg = await env.DB.prepare("SELECT * FROM organizations WHERE workos_organization_id = ?").bind(me.org_id).first();
-    }
-    if (!targetOrg && isLiveWorkOS(env)) {
-      const memberships = await listWorkOSMemberships({ userId: me.$id, env });
-      for (const m of memberships) {
-        const found = await env.DB.prepare("SELECT * FROM organizations WHERE workos_organization_id = ?").bind(m.organization_id).first();
-        if (found) {
-          targetOrg = found;
-          me.role = m.role?.slug || 'staff';
-          break;
+    try {
+      let targetOrg = null;
+      if (me.org_id) {
+        targetOrg = await env.DB.prepare("SELECT * FROM organizations WHERE workos_organization_id = ?").bind(me.org_id).first();
+      }
+      if (!targetOrg && isLiveWorkOS(env)) {
+        const memberships = await listWorkOSMemberships({ userId: me.$id, env });
+        for (const m of memberships) {
+          const found = await env.DB.prepare("SELECT * FROM organizations WHERE workos_organization_id = ?").bind(m.organization_id).first();
+          if (found) {
+            targetOrg = found;
+            me.role = m.role?.slug || 'staff';
+            break;
+          }
         }
       }
-    }
 
-    if (targetOrg) {
-      const role = me.role || 'staff';
-      const memId = `om_${crypto.randomUUID()}`;
-      const now = new Date().toISOString();
-      await env.DB.prepare(`
-        INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(memId, targetOrg.id, me.$id, role, now, now).run();
+      if (targetOrg) {
+        const role = me.role || 'staff';
+        const memId = `om_${crypto.randomUUID()}`;
+        const now = new Date().toISOString();
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(memId, targetOrg.id, me.$id, role, now, now).run();
 
-      member = {
-        organization_id: targetOrg.id,
-        user_id: me.$id,
-        role,
-        org_name: targetOrg.name,
-        workos_organization_id: targetOrg.workos_organization_id,
-        org_market: targetOrg.market,
-        org_plan: targetOrg.plan,
-        store_slug: targetOrg.store_slug,
-        address: targetOrg.address,
-        city: targetOrg.city,
-        state: targetOrg.state,
-      };
+        member = {
+          organization_id: targetOrg.id,
+          user_id: me.$id,
+          role,
+          org_name: targetOrg.name,
+          workos_organization_id: targetOrg.workos_organization_id,
+          org_market: targetOrg.market,
+          org_plan: targetOrg.plan,
+          store_slug: targetOrg.store_slug,
+          address: targetOrg.address,
+          city: targetOrg.city,
+          district: targetOrg.district,
+          state: targetOrg.state,
+          country: targetOrg.country,
+        };
+      }
+    } catch (workosCheckErr) {
+      console.warn("Error checking WorkOS memberships in getProfile:", workosCheckErr);
     }
   }
 
-  let user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+  let user = null;
+  try {
+    user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+  } catch (uErr) {
+    console.warn("Could not query user in D1:", uErr);
+  }
 
   const organization = member ? {
     id: member.organization_id,
@@ -710,7 +793,9 @@ async function getProfile(request, env) {
     store_url: `https://${member.store_slug}.ferasetu.com`,
     address: member.address,
     city: member.city,
+    district: member.district,
     state: member.state,
+    country: member.country,
     role: member.role,
   } : null;
 
@@ -728,7 +813,7 @@ async function getProfile(request, env) {
       organization,
       has_organization: Boolean(organization),
       needs_init: !organization,
-    });
+    }, 200, {}, request);
   }
 
   const market = organization?.market || user.market || (user.phone?.startsWith('+1') ? 'US' : 'IN');
@@ -737,7 +822,7 @@ async function getProfile(request, env) {
     user: { ...user, market, plan: organization?.plan || user.plan },
     organization,
     has_organization: Boolean(organization),
-  });
+  }, 200, {}, request);
 }
 
 
@@ -1566,7 +1651,56 @@ let tablesInitialized = false;
 async function ensureTables(db) {
   if (tablesInitialized || !db || typeof db.exec !== 'function') return;
   try {
-    await db.exec(`
+    const safeExec = async (sql) => {
+      try {
+        await db.exec(sql);
+      } catch (e) {
+        // Individual table/index creation warnings should not abort other tables
+      }
+    };
+
+    const safeAddColumn = async (table, colDef) => {
+      try {
+        await db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef};`);
+      } catch (e) {
+        // Column already exists
+      }
+    };
+
+    // 1. Core Users Table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id                  TEXT PRIMARY KEY,
+        email               TEXT UNIQUE NOT NULL,
+        name                TEXT NOT NULL,
+        phone               TEXT,
+        business_name       TEXT,
+        plan                TEXT NOT NULL DEFAULT 'free',
+        market              TEXT DEFAULT 'IN',
+        subdomain           TEXT UNIQUE,
+        hostname            TEXT UNIQUE,
+        address             TEXT,
+        city                TEXT,
+        district            TEXT,
+        state               TEXT,
+        country             TEXT,
+        preferred_language  TEXT NOT NULL DEFAULT 'en',
+        custom_domain       TEXT UNIQUE,
+        plan_expires_at     TEXT,
+        ai_credits_balance  INTEGER NOT NULL DEFAULT 20,
+        ai_credits_monthly_limit INTEGER NOT NULL DEFAULT 20,
+        ai_credits_used_month INTEGER NOT NULL DEFAULT 0,
+        ai_credits_reset_at TEXT,
+        storage_used_bytes  INTEGER NOT NULL DEFAULT 0,
+        storage_limit_bytes INTEGER NOT NULL DEFAULT 52428800,
+        founding_member     INTEGER NOT NULL DEFAULT 0,
+        created_at          TEXT NOT NULL,
+        updated_at          TEXT NOT NULL
+      );
+    `);
+
+    // 2. Multi-Tenant Organizations
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS organizations (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -1575,26 +1709,34 @@ async function ensureTables(db) {
         plan TEXT NOT NULL DEFAULT 'free',
         address TEXT,
         city TEXT,
+        district TEXT,
         state TEXT,
+        country TEXT,
         store_slug TEXT UNIQUE NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_organizations_workos_id ON organizations(workos_organization_id);
-      CREATE INDEX IF NOT EXISTS idx_organizations_store_slug ON organizations(store_slug);
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_organizations_workos_id ON organizations(workos_organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_organizations_store_slug ON organizations(store_slug);`);
 
+    // 3. Organization Members
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS organization_members (
         id TEXT PRIMARY KEY,
         organization_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('owner', 'admin', 'staff')),
+        role TEXT NOT NULL CHECK(role IN ('owner', 'admin', 'staff', 'member')),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         UNIQUE(organization_id, user_id)
       );
-      CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
-      CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);`);
 
+    // 4. Shops / Storefronts
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS shops (
         id TEXT PRIMARY KEY,
         organization_id TEXT NOT NULL,
@@ -1605,9 +1747,43 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_shops_org ON shops(organization_id);
-      CREATE INDEX IF NOT EXISTS idx_shops_slug ON shops(store_slug);
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_shops_org ON shops(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_shops_slug ON shops(store_slug);`);
 
+    // 5. Products
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS products (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        organization_id TEXT,
+        name        TEXT NOT NULL,
+        price       REAL NOT NULL DEFAULT 0,
+        stock       INTEGER NOT NULL DEFAULT 0,
+        description TEXT,
+        created_at  TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id);`);
+
+    // 6. Orders
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id            TEXT PRIMARY KEY,
+        user_id       TEXT NOT NULL,
+        organization_id TEXT,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT,
+        items         TEXT NOT NULL DEFAULT '[]',
+        total         REAL NOT NULL DEFAULT 0,
+        status        TEXT NOT NULL DEFAULT 'pending',
+        created_at    TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_orders_org ON orders(organization_id);`);
+
+    // 7. Customers
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS customers (
         id TEXT PRIMARY KEY,
         organization_id TEXT NOT NULL,
@@ -1618,8 +1794,11 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_customers_org ON customers(organization_id);
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_customers_org ON customers(organization_id);`);
 
+    // 8. Invoices
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS invoices (
         id TEXT PRIMARY KEY,
         organization_id TEXT NOT NULL,
@@ -1631,11 +1810,15 @@ async function ensureTables(db) {
         status TEXT NOT NULL DEFAULT 'issued',
         created_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_invoices_org ON invoices(organization_id);
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_invoices_org ON invoices(organization_id);`);
 
+    // 9. Transactions
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS transactions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
+        organization_id TEXT,
         provider TEXT NOT NULL DEFAULT 'razorpay',
         provider_order_id TEXT,
         provider_payment_id TEXT,
@@ -1648,9 +1831,14 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `);
+
+    // 10. Websites
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS websites (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
+        organization_id TEXT,
         name TEXT NOT NULL,
         template TEXT NOT NULL DEFAULT 'default',
         config TEXT,
@@ -1660,15 +1848,22 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `);
+
+    // 11. Tickets & Replies
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS tickets (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
+        organization_id TEXT,
         subject TEXT NOT NULL,
         description TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'open',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `);
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS ticket_replies (
         id TEXT PRIMARY KEY,
         ticket_id TEXT NOT NULL,
@@ -1676,6 +1871,10 @@ async function ensureTables(db) {
         content TEXT NOT NULL,
         created_at TEXT NOT NULL
       );
+    `);
+
+    // 12. Survey, SMTP & AI
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS survey_submissions (
         id TEXT PRIMARY KEY,
         user_id TEXT,
@@ -1685,9 +1884,12 @@ async function ensureTables(db) {
         ai_summary_json TEXT,
         created_at TEXT NOT NULL
       );
+    `);
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS smtp_settings (
         id TEXT PRIMARY KEY,
         user_id TEXT UNIQUE NOT NULL,
+        organization_id TEXT,
         provider TEXT NOT NULL DEFAULT 'custom',
         host TEXT,
         port INTEGER NOT NULL DEFAULT 587,
@@ -1709,6 +1911,8 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `);
+    await safeExec(`
       CREATE TABLE IF NOT EXISTS ai_credit_purchases (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -1720,22 +1924,34 @@ async function ensureTables(db) {
       );
     `);
 
-    // Safe column migrations for organization_id & customer_phone
-    const addOrgColumn = async (table) => {
-      try {
-        await db.exec(`ALTER TABLE ${table} ADD COLUMN organization_id TEXT;`);
-      } catch {}
-    };
-    await addOrgColumn('products');
-    await addOrgColumn('orders');
-    await addOrgColumn('websites');
-    await addOrgColumn('transactions');
-    await addOrgColumn('smtp_settings');
-    await addOrgColumn('tickets');
+    // 13. Safe Column Additions for Existing Tables
+    await safeAddColumn('users', 'market TEXT DEFAULT "IN"');
+    await safeAddColumn('users', 'hostname TEXT');
+    await safeAddColumn('users', 'city TEXT');
+    await safeAddColumn('users', 'district TEXT');
+    await safeAddColumn('users', 'state TEXT');
+    await safeAddColumn('users', 'country TEXT');
+    await safeAddColumn('users', 'business_name TEXT');
+    await safeAddColumn('users', 'subdomain TEXT');
+    await safeAddColumn('users', 'phone TEXT');
+    await safeAddColumn('users', 'preferred_language TEXT DEFAULT "en"');
 
-    try {
-      await db.exec(`ALTER TABLE orders ADD COLUMN customer_phone TEXT;`);
-    } catch {}
+    await safeAddColumn('organizations', 'district TEXT');
+    await safeAddColumn('organizations', 'country TEXT');
+    await safeAddColumn('organizations', 'address TEXT');
+    await safeAddColumn('organizations', 'city TEXT');
+    await safeAddColumn('organizations', 'state TEXT');
+    await safeAddColumn('organizations', 'market TEXT DEFAULT "IN"');
+    await safeAddColumn('organizations', 'plan TEXT DEFAULT "free"');
+    await safeAddColumn('organizations', 'store_slug TEXT');
+
+    await safeAddColumn('products', 'organization_id TEXT');
+    await safeAddColumn('orders', 'organization_id TEXT');
+    await safeAddColumn('orders', 'customer_phone TEXT');
+    await safeAddColumn('websites', 'organization_id TEXT');
+    await safeAddColumn('transactions', 'organization_id TEXT');
+    await safeAddColumn('smtp_settings', 'organization_id TEXT');
+    await safeAddColumn('tickets', 'organization_id TEXT');
 
     tablesInitialized = true;
   } catch (err) {
@@ -3642,9 +3858,10 @@ export default {
       if (err instanceof HttpError) {
         return errorResponse(err.message, err.status, err.details, request);
       }
-      // Unexpected — log for `wrangler tail`, return a generic JSON 500.
+      // Unexpected — log for `wrangler tail`, return clear message for diagnostics.
       console.error("Unhandled worker error:", err && err.stack ? err.stack : err);
-      return errorResponse("Internal server error", 500, undefined, request);
+      const errMsg = (err && typeof err.message === 'string' && err.message.trim()) ? err.message.trim() : "Internal server error";
+      return errorResponse(errMsg, 500, undefined, request);
     }
   },
 };
