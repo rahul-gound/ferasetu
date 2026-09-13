@@ -769,9 +769,7 @@ async function updateProfile(request, env) {
   }
 
   if (!existing) {
-    const market = (body.market && ['IN', 'US', 'EU'].includes(body.market.toUpperCase()))
-      ? body.market.toUpperCase()
-      : (body.phone?.startsWith('+1') ? 'US' : 'IN');
+    const market = resolveAuthoritativeMarket({ state: body.state, city: body.city, request });
 
     let subdomain = body.subdomain || null;
     let hostname = body.hostname || null;
@@ -887,7 +885,7 @@ async function updateProfile(request, env) {
   const targetId = existing.id || me.$id;
   const updates = [];
   const values = [];
-  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain", "hostname", "city", "district", "state", "market"];
+  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain", "hostname", "city", "district", "state"];
   if (body.email && typeof body.email === 'string' && body.email.trim()) {
     allowed.push("email");
   }
@@ -1059,11 +1057,16 @@ async function createOrder(request, env) {
   const total = Math.round(calculatedTotal * 100) / 100;
   const status = typeof body.status === "string" && body.status.trim() ? body.status.trim() : "pending";
 
+  const customerPhone = typeof body.customer_phone === "string" && body.customer_phone.trim()
+    ? body.customer_phone.trim()
+    : (typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : null);
+
   const order = {
     id: crypto.randomUUID(),
     user_id: ctx.user.$id,
     organization_id: ctx.organizationId,
     customer_name: customerName,
+    customer_phone: customerPhone,
     items: resolvedItems,
     total,
     status,
@@ -1071,10 +1074,10 @@ async function createOrder(request, env) {
   };
 
   await env.DB.prepare(
-    `INSERT INTO orders (id, user_id, organization_id, customer_name, items, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(order.id, order.user_id, order.organization_id, order.customer_name, JSON.stringify(order.items), order.total, order.status, order.created_at)
+    .bind(order.id, order.user_id, order.organization_id, order.customer_name, order.customer_phone, JSON.stringify(order.items), order.total, order.status, order.created_at)
     .run();
 
   return json({ order }, 201);
@@ -1243,7 +1246,7 @@ async function updateMeeting(request, env) {
 
 
 // ---------------------------------------------------------------------------
-// v1 AI Chat — Fera AI orchestrator endpoint
+// v1 AI Chat — FeraSetu AI orchestrator endpoint
 // POST /api/v1/ai/chat
 // ---------------------------------------------------------------------------
 
@@ -1332,7 +1335,7 @@ function classifyIntent(message, language) {
 }
 
 /**
- * Build the system prompt for Fera AI.
+ * Build the system prompt for FeraSetu AI.
  * @param {string} language - BCP-47 language code
  * @param {string[]} skills - active skill names
  */
@@ -1344,7 +1347,7 @@ function buildFeraSystemPrompt(language, skills) {
   };
   const langName = langMap[language] || 'English';
 
-  return `You are Fera AI, a warm and practical business assistant for Indian shopkeepers on FeraSetu.
+  return `You are FeraSetu AI, a warm and practical business assistant for Indian shopkeepers on FeraSetu.
 
 ACTIVE CAPABILITIES: ${skills.join(', ')}
 
@@ -1410,7 +1413,7 @@ async function callSarvamAI({ messages, model, isComplex, sarvamApiKey, requestI
 
 /**
  * Main handler for POST /api/v1/ai/chat and POST /api/ai/chat
- * The primary Fera AI endpoint. Verifies auth, loads shop context,
+ * The primary FeraSetu AI endpoint. Verifies auth, loads shop context,
  * atomically reserves credits in D1, executes through Fera Router,
  * and returns a structured response.
  */
@@ -1432,23 +1435,33 @@ async function handleV1AIChat(request, env) {
     ? body.conversationHistory.slice(-10) // last 5 exchanges max
     : [];
 
-  // Atomic credit reservation in D1 BEFORE calling AI to prevent concurrent overspending
-  const now = new Date().toISOString();
-  const reserveResult = await env.DB.prepare(
-    'UPDATE users SET ai_credits_balance = ai_credits_balance - 1, ai_credits_used_month = ai_credits_used_month + 1, updated_at = ? WHERE id = ? AND ai_credits_balance > 0'
-  ).bind(now, me.$id).run();
-
-  const reserved = (reserveResult?.meta?.changes ?? reserveResult?.changes ?? 0) > 0;
-  if (!reserved) {
-    // Check if user is out of credits or doesn't exist
-    const checkUser = await env.DB.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').bind(me.$id).first();
-    if (!checkUser || (checkUser.ai_credits_balance ?? 0) <= 0) {
-      throw new HttpError('AI credits exhausted. Please upgrade your plan to continue.', 402);
-    }
-  }
-
   // Load shop context from D1
   const shopCtx = await loadShopContextFromD1(me.$id, env.DB);
+
+  // Bug 4 FIX: Check European merchant status.
+  // European market AI returns a scheduled message; do NOT deduct AI credit,
+  // and do NOT block with 402 even if credit balance is 0.
+  const isEUMarket = shopCtx.user?.market === 'EU' ||
+    (shopCtx.user?.phone && ['+33', '+49', '+34', '+39', '+31', '+32', '+44', '+43', '+351'].some(p => shopCtx.user.phone.startsWith(p)));
+
+  let reserved = false;
+  const now = new Date().toISOString();
+
+  if (!isEUMarket) {
+    // Atomic credit reservation in D1 BEFORE calling AI to prevent concurrent overspending
+    const reserveResult = await env.DB.prepare(
+      'UPDATE users SET ai_credits_balance = ai_credits_balance - 1, ai_credits_used_month = ai_credits_used_month + 1, updated_at = ? WHERE id = ? AND ai_credits_balance > 0'
+    ).bind(now, me.$id).run();
+
+    reserved = (reserveResult?.meta?.changes ?? reserveResult?.changes ?? 0) > 0;
+    if (!reserved) {
+      // Check if user is out of credits or doesn't exist
+      const checkUser = await env.DB.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').bind(me.$id).first();
+      if (!checkUser || (checkUser.ai_credits_balance ?? 0) <= 0) {
+        throw new HttpError('AI credits exhausted. Please upgrade your plan to continue.', 402);
+      }
+    }
+  }
 
   // Build structured shop data context lines (in English, never translated)
   const { products, orders } = shopCtx;
@@ -1475,6 +1488,23 @@ async function handleV1AIChat(request, env) {
       env,
     });
 
+    // Bug 4 FIX: If AI strategy is reserved/scheduled (e.g. EU market) or unconfigured,
+    // do not deduct AI credit — refund the reserved credit before responding.
+    const isScheduledOrUnconfigured =
+      routerResponse.status === 'not_configured' ||
+      routerResponse.routing?.status === 'not_configured' ||
+      routerResponse.routing?.market === 'EU';
+
+    if (isScheduledOrUnconfigured && reserved) {
+      try {
+        await env.DB.prepare(
+          'UPDATE users SET ai_credits_balance = ai_credits_balance + 1, ai_credits_used_month = MAX(0, ai_credits_used_month - 1), updated_at = ? WHERE id = ?'
+        ).bind(new Date().toISOString(), me.$id).run();
+      } catch (refundErr) {
+        console.error('[credits] Failed to refund reserved credit for EU/unconfigured response:', refundErr);
+      }
+    }
+
     // Query remaining credit balance
     const updatedUser = await env.DB.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').bind(me.$id).first();
     const currentBalance = updatedUser?.ai_credits_balance ?? 0;
@@ -1495,13 +1525,15 @@ async function handleV1AIChat(request, env) {
       translationBackFailed: routerResponse.translationBackFailed || false,
     });
   } catch (aiErr) {
-    // Refund reserved credit if fatal failure occurred before model completion
-    try {
-      await env.DB.prepare(
-        'UPDATE users SET ai_credits_balance = ai_credits_balance + 1, ai_credits_used_month = MAX(0, ai_credits_used_month - 1), updated_at = ? WHERE id = ?'
-      ).bind(new Date().toISOString(), me.$id).run();
-    } catch (refundErr) {
-      console.error('[credits] Failed to refund reserved credit:', refundErr);
+    // Refund reserved credit if fatal failure occurred after credit reservation
+    if (reserved) {
+      try {
+        await env.DB.prepare(
+          'UPDATE users SET ai_credits_balance = ai_credits_balance + 1, ai_credits_used_month = MAX(0, ai_credits_used_month - 1), updated_at = ? WHERE id = ?'
+        ).bind(new Date().toISOString(), me.$id).run();
+      } catch (refundErr) {
+        console.error('[credits] Failed to refund reserved credit:', refundErr);
+      }
     }
     throw aiErr;
   }
@@ -1688,7 +1720,7 @@ async function ensureTables(db) {
       );
     `);
 
-    // Safe column migrations for organization_id
+    // Safe column migrations for organization_id & customer_phone
     const addOrgColumn = async (table) => {
       try {
         await db.exec(`ALTER TABLE ${table} ADD COLUMN organization_id TEXT;`);
@@ -1700,6 +1732,10 @@ async function ensureTables(db) {
     await addOrgColumn('transactions');
     await addOrgColumn('smtp_settings');
     await addOrgColumn('tickets');
+
+    try {
+      await db.exec(`ALTER TABLE orders ADD COLUMN customer_phone TEXT;`);
+    } catch {}
 
     tablesInitialized = true;
   } catch (err) {
@@ -1782,9 +1818,10 @@ async function handlePaymentInitialize(request, env) {
   }
   const billingCycle = body.billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
-  // Determine user market
+  // Determine user market (Bug 3 FIX: user.market from DB is authoritative over client body.market)
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
-  const userMarket = (body.market || user?.market || (user?.phone?.startsWith('+1') ? 'US' : 'IN')).toUpperCase();
+  const authoritativeMarket = user?.market || (user?.phone?.startsWith('+1') ? 'US' : null) || resolveAuthoritativeMarket({ state: user?.state, city: user?.city, request }) || 'IN';
+  const userMarket = String(authoritativeMarket).toUpperCase();
   const market = ['IN', 'US', 'EU'].includes(userMarket) ? userMarket : 'IN';
   const marketConfig = MARKET_PRICING[market];
 
@@ -1849,11 +1886,75 @@ async function handlePaymentInitialize(request, env) {
     throw new HttpError(`Invalid amount for selected plan. Expected ${expectedAmount}, received ${body.amount}`, 400);
   }
 
-  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_ID.includes('your_key_id')) {
+  const hasCashfree = env.CASHFREE_APP_ID && env.CASHFREE_SECRET_KEY && !env.CASHFREE_APP_ID.includes('your_app_id');
+  const hasRazorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && !env.RAZORPAY_KEY_ID.includes('your_key_id');
+
+  if (!hasCashfree && !hasRazorpay) {
     throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503);
   }
 
   const transactionId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  // Cashfree Order Flow (Preferred for India)
+  if (hasCashfree) {
+    const isProd = env.CASHFREE_ENV === 'production';
+    const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+
+    const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
+      method: 'POST',
+      headers: {
+        'x-client-id': env.CASHFREE_APP_ID,
+        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        order_id: transactionId,
+        order_amount: expectedAmount,
+        order_currency: marketConfig.currency,
+        customer_details: {
+          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+          customer_email: user?.email || 'merchant@ferasetu.com',
+          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+        },
+        order_meta: {
+          return_url: `https://ferasetu.com/upgrade?order_id=${transactionId}`,
+        },
+        order_note: `FeraSetu ${targetPlan} plan subscription`,
+      }),
+    });
+
+    if (!cfOrderRes.ok) {
+      const errText = await cfOrderRes.text();
+      console.error('Cashfree order creation failed:', cfOrderRes.status, errText);
+      throw new HttpError('Failed to initiate payment with Cashfree gateway', 502);
+    }
+
+    const cfOrder = await cfOrderRes.json();
+
+    await env.DB.prepare(
+      `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+       VALUES (?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
+    ).bind(
+      transactionId, me.$id, cfOrder.order_id || transactionId, expectedAmount, marketConfig.currency, targetPlan, billingCycle,
+      JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }), now, now
+    ).run();
+
+    return json({
+      success: true,
+      requiresPayment: true,
+      gateway: 'cashfree',
+      id: transactionId,
+      plan: targetPlan,
+      amount: expectedAmount,
+      currency: marketConfig.currency,
+      paymentSessionId: cfOrder.payment_session_id,
+      cashfreeOrderId: cfOrder.order_id || transactionId,
+      message: `Cashfree order created for plan: ${targetPlan}`
+    }, 201, {}, request);
+  }
+
   const basicAuth = btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
 
   const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
@@ -1882,7 +1983,6 @@ async function handlePaymentInitialize(request, env) {
   }
 
   const rzpOrder = await rzpRes.json();
-  const now = new Date().toISOString();
 
   await env.DB.prepare(
     `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
@@ -1895,6 +1995,7 @@ async function handlePaymentInitialize(request, env) {
   return json({
     success: true,
     requiresPayment: true,
+    gateway: 'razorpay',
     id: transactionId,
     plan: targetPlan,
     amount: expectedAmount,
@@ -1909,7 +2010,7 @@ async function handlePaymentVerify(request, env) {
   const me = await getAuthenticatedUser(request, env);
   const body = await readJsonBody(request);
 
-  if (!body.razorpay_order_id && !body.transaction_id) {
+  if (!body.razorpay_order_id && !body.cashfree_order_id && !body.order_id && !body.stripe_session_id && !body.stripeSessionId && !body.transaction_id) {
     const user = await env.DB.prepare("SELECT plan FROM users WHERE id = ?").bind(me.$id).first();
     return json({
       success: true,
@@ -1918,41 +2019,124 @@ async function handlePaymentVerify(request, env) {
     }, 200, {}, request);
   }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transaction_id } = body;
-  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !transaction_id) {
-    throw new HttpError("Missing required Razorpay verification fields", 400);
-  }
-
-  if (!env.RAZORPAY_KEY_SECRET) {
-    throw new HttpError("Payment gateway configuration missing on server", 503);
-  }
-
-  // HMAC-SHA256 signature verification using Web Crypto API
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(env.RAZORPAY_KEY_SECRET);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const dataToSign = encoder.encode(`${razorpay_order_id}|${razorpay_payment_id}`);
-  const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, dataToSign);
-  const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  if (expectedSignature !== razorpay_signature) {
-    throw new HttpError("Invalid payment signature", 400);
-  }
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    transaction_id,
+    cashfree_order_id,
+    order_id,
+    stripe_session_id,
+    stripeSessionId,
+    provider
+  } = body;
 
   const tx = await env.DB.prepare(
-    "SELECT * FROM transactions WHERE id = ? AND user_id = ?"
-  ).bind(transaction_id, me.$id).first();
+    "SELECT * FROM transactions WHERE (id = ? OR provider_order_id = ? OR provider_order_id = ? OR provider_order_id = ?) AND user_id = ?"
+  ).bind(
+    transaction_id || '',
+    razorpay_order_id || '',
+    cashfree_order_id || order_id || '',
+    stripe_session_id || stripeSessionId || '',
+    me.$id
+  ).first();
 
   if (!tx || tx.status !== 'pending') {
     throw new HttpError("Invalid or already processed transaction", 400);
+  }
+
+  const effectiveProvider = provider || tx.provider || (
+    tx.provider_order_id?.startsWith('cf_') || cashfree_order_id || (order_id && !razorpay_order_id)
+      ? 'cashfree'
+      : tx.provider_order_id?.startsWith('cs_sess_') || stripe_session_id || stripeSessionId
+      ? 'stripe'
+      : 'razorpay'
+  );
+
+  let verifiedPaymentId = null;
+
+  if (effectiveProvider === 'cashfree' || Boolean(cashfree_order_id)) {
+    const orderIdentifier = cashfree_order_id || order_id || tx.provider_order_id;
+    if (String(orderIdentifier).startsWith('cf_dev_') || String(orderIdentifier).startsWith('order_dev_') || String(orderIdentifier).startsWith('session_dev_') || String(orderIdentifier).startsWith('cf_test_')) {
+      throw new HttpError("Unverified or dummy session identifier cannot activate paid plan.", 400);
+    }
+    if (!env.CASHFREE_APP_ID || !env.CASHFREE_SECRET_KEY) {
+      throw new HttpError("Payment gateway configuration missing on server", 503);
+    }
+    const isProd = env.CASHFREE_ENV === 'production';
+    const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+
+    const cfRes = await fetch(`${cfBaseUrl}/orders/${encodeURIComponent(orderIdentifier)}`, {
+      method: 'GET',
+      headers: {
+        'x-client-id': env.CASHFREE_APP_ID,
+        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01',
+      }
+    });
+
+    if (!cfRes.ok) {
+      throw new HttpError("Failed to verify Cashfree order with payment gateway", 400);
+    }
+
+    const cfData = await cfRes.json();
+    if (cfData.order_status !== 'PAID') {
+      throw new HttpError("Cashfree order has not been completed or paid", 400);
+    }
+    if (Math.abs(Number(cfData.order_amount) - tx.amount) > 0.01) {
+      throw new HttpError("Payment amount mismatch between gateway and transaction record", 400);
+    }
+    verifiedPaymentId = cfData.cf_order_id || orderIdentifier;
+  } else if (effectiveProvider === 'stripe' || Boolean(stripe_session_id || stripeSessionId)) {
+    // Bug 1 FIX: prevent dummy session IDs from activating paid plans
+    const sessionId = stripe_session_id || stripeSessionId || tx.provider_order_id;
+    if (String(sessionId).startsWith('cs_dev_') || String(sessionId).startsWith('cs_test_') || String(sessionId).startsWith('dummy_')) {
+      throw new HttpError("Unverified dummy Stripe session identifier cannot activate paid plan.", 400);
+    }
+    if (!env.STRIPE_SECRET_KEY) {
+      throw new HttpError("Payment gateway configuration missing on server", 503);
+    }
+    const stripeRes = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    });
+    if (!stripeRes.ok) {
+      throw new HttpError("Failed to verify Stripe checkout session with gateway", 400);
+    }
+    const sessionData = await stripeRes.json();
+    if (sessionData.payment_status !== 'paid') {
+      throw new HttpError("Stripe checkout session has not been paid", 400);
+    }
+    verifiedPaymentId = sessionData.payment_intent || sessionId;
+  } else {
+    // Razorpay
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw new HttpError("Missing required Razorpay verification fields", 400);
+    }
+
+    if (!env.RAZORPAY_KEY_SECRET) {
+      throw new HttpError("Payment gateway configuration missing on server", 503);
+    }
+
+    // HMAC-SHA256 signature verification using Web Crypto API
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(env.RAZORPAY_KEY_SECRET);
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const dataToSign = encoder.encode(`${razorpay_order_id}|${razorpay_payment_id}`);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, dataToSign);
+    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (expectedSignature !== razorpay_signature) {
+      throw new HttpError("Invalid payment signature", 400);
+    }
+    verifiedPaymentId = razorpay_payment_id;
   }
 
   const now = new Date().toISOString();
@@ -1965,11 +2149,13 @@ async function handlePaymentVerify(request, env) {
      SET status = 'completed', provider_payment_id = ?, metadata = ?, updated_at = ?
      WHERE id = ?`
   ).bind(
-    razorpay_payment_id,
+    verifiedPaymentId || razorpay_payment_id || null,
     JSON.stringify({
-      provider: 'razorpay',
-      razorpay_order_id,
-      razorpay_payment_id,
+      provider: effectiveProvider,
+      razorpay_order_id: razorpay_order_id || null,
+      razorpay_payment_id: razorpay_payment_id || null,
+      cashfree_order_id: cashfree_order_id || order_id || null,
+      stripe_session_id: stripe_session_id || stripeSessionId || null,
       verified_at: now
     }),
     now,
@@ -1993,6 +2179,134 @@ async function handlePaymentVerify(request, env) {
     plan: tx.plan,
     message: `Plan activated: ${tx.plan}`
   }, 200, {}, request);
+}
+
+/**
+ * Cashfree payment webhook verification and plan escalation
+ */
+async function handlePaymentWebhook(request, env) {
+  const signature = request.headers.get("x-webhook-signature");
+  const timestamp = request.headers.get("x-webhook-timestamp");
+  const rawBody = await request.text();
+
+  if (!env.CASHFREE_SECRET_KEY) {
+    throw new HttpError("Payment gateway configuration missing on server", 503);
+  }
+
+  if (!signature || !timestamp) {
+    throw new HttpError("Missing required webhook signature headers", 401);
+  }
+
+  // Replay protection: verify timestamp within 15 minutes
+  const ts = parseInt(timestamp, 10);
+  const parsedMs = ts > 1e11 ? ts : ts * 1000;
+  if (!isNaN(parsedMs) && Math.abs(Date.now() - parsedMs) > 15 * 60 * 1000) {
+    throw new HttpError("Webhook timestamp expired or clock skew too large", 401);
+  }
+
+  // Verify HMAC-SHA256 signature using Web Crypto API
+  try {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(env.CASHFREE_SECRET_KEY);
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const dataToSign = encoder.encode(`${timestamp}${rawBody}`);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, dataToSign);
+    const expectedBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+
+    let valid = false;
+    try {
+      const sigBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+      const expBytes = new Uint8Array(signatureBuffer);
+      if (sigBytes.length === expBytes.length) {
+        let diff = 0;
+        for (let i = 0; i < sigBytes.length; i++) {
+          diff |= sigBytes[i] ^ expBytes[i];
+        }
+        valid = diff === 0;
+      }
+    } catch {
+      valid = false;
+    }
+
+    if (!valid && expectedBase64 !== signature) {
+      throw new HttpError("Invalid webhook signature", 401);
+    }
+  } catch (sigErr) {
+    if (sigErr instanceof HttpError) throw sigErr;
+    throw new HttpError("Webhook signature verification failed", 401);
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    throw new HttpError("Invalid webhook JSON payload", 400);
+  }
+
+  const orderData = payload?.data?.order;
+  const paymentData = payload?.data?.payment;
+  const orderId = orderData?.order_id || payload?.orderId;
+  const paymentStatus = paymentData?.payment_status || payload?.order_status;
+  const amount = Number(paymentData?.payment_amount || orderData?.order_amount || payload?.orderAmount || 0);
+
+  if (!orderId) {
+    throw new HttpError("Missing order_id in webhook payload", 400);
+  }
+
+  if (paymentStatus === 'SUCCESS' || paymentStatus === 'PAID') {
+    const tx = await env.DB.prepare(
+      "SELECT * FROM transactions WHERE (provider_order_id = ? OR id = ?) AND status = 'pending'"
+    ).bind(orderId, orderId).first();
+
+    if (tx) {
+      if (amount > 0 && Math.abs(amount - tx.amount) > 0.01) {
+        console.error('[webhook] Payment amount mismatch:', amount, tx.amount);
+        throw new HttpError("Payment amount mismatch", 400);
+      }
+
+      const now = new Date().toISOString();
+      const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
+      const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+      const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
+
+      await env.DB.prepare(
+        `UPDATE transactions
+         SET status = 'completed', provider_payment_id = ?, metadata = ?, updated_at = ?
+         WHERE id = ?`
+      ).bind(
+        paymentData?.cf_payment_id ? String(paymentData.cf_payment_id) : null,
+        JSON.stringify({
+          provider: 'cashfree',
+          cashfree_order_id: orderId,
+          cf_payment_id: paymentData?.cf_payment_id || null,
+          webhook_verified: true,
+          verified_at: now
+        }),
+        now,
+        tx.id
+      ).run();
+
+      await env.DB.prepare(
+        `UPDATE users
+         SET plan = ?,
+             plan_expires_at = ?,
+             ai_credits_balance = ai_credits_balance + ?,
+             ai_credits_monthly_limit = ?,
+             ai_credits_used_month = 0,
+             ai_credits_reset_at = datetime('now', '+30 days'),
+             updated_at = ?
+         WHERE id = ?`
+      ).bind(tx.plan, planExpiresAt, credits, credits, now, tx.user_id).run();
+    }
+  }
+
+  return json({ success: true, message: "Webhook processed successfully" }, 200, {}, request);
 }
 
 async function handlePaymentAiCredits(request, env) {
@@ -2323,13 +2637,14 @@ async function handlePublicCreateOrder(request, env) {
   }
 
   await env.DB.prepare(
-    `INSERT INTO orders (id, user_id, organization_id, customer_name, items, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     orderId,
     shopId,
     orgId,
     customerName,
+    customerPhone.trim(),
     JSON.stringify(resolvedItems),
     total,
     paymentMethod === 'online' ? 'confirmed' : 'pending',
@@ -2362,9 +2677,28 @@ async function handlePublicTrackOrders(request, env) {
   const shopId = url.searchParams.get("shopId");
   if (!phone || !shopId) throw new HttpError("phone and shopId are required", 400);
 
+  const cleanPhone = phone.trim();
+  const digitsOnly = cleanPhone.replace(/\D/g, '');
+  if (digitsOnly.length < 7) {
+    throw new HttpError("A valid customer phone number with at least 7 digits is required for tracking", 400);
+  }
+
+  // Bug 2 FIX: Ensure tracking queries require both user_id/organization_id and customer_phone,
+  // preventing order leak across arbitrary numbers or public callers.
+  const tenDigitSuffix = digitsOnly.length >= 10 ? `%${digitsOnly.slice(-10)}` : cleanPhone;
   const { results } = await env.DB.prepare(
-    "SELECT id, customer_name, total, status, created_at FROM orders WHERE organization_id = ? OR user_id = ? ORDER BY created_at DESC LIMIT 20"
-  ).bind(shopId, shopId).all();
+    `SELECT id, customer_name, customer_phone, total, status, created_at
+     FROM orders
+     WHERE (organization_id = ? OR user_id = ?)
+       AND (customer_phone = ? OR customer_phone = ? OR (customer_phone LIKE ? AND length(?) >= 10))`
+  ).bind(
+    shopId,
+    shopId,
+    cleanPhone,
+    digitsOnly,
+    tenDigitSuffix,
+    digitsOnly
+  ).all();
 
   return json({ orders: results || [] }, 200, {}, request);
 }
@@ -2942,6 +3276,7 @@ async function route(request, env) {
         "PUT  /api/users/me",
         "POST /api/payment/initialize",
         "POST /api/payment/verify",
+        "POST /api/payment/webhook",
         "GET  /api/payment/ai-credits",
         "POST /api/payment/ai-credits/purchase",
         "POST /api/payment/cancel-subscription",
@@ -3009,6 +3344,9 @@ async function route(request, env) {
   }
   if (path === "/api/payment/verify" && method === "POST") {
     return handlePaymentVerify(request, env);
+  }
+  if (path === "/api/payment/webhook" && method === "POST") {
+    return handlePaymentWebhook(request, env);
   }
   if (path === "/api/payment/ai-credits" && method === "GET") {
     return handlePaymentAiCredits(request, env);

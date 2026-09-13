@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag, BarChart3, Bot, ArrowRight, Check,
-  Package, Zap, Globe, Sparkles
+  Package, Zap, Globe, Sparkles, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -285,6 +285,20 @@ export default function PricingPage() {
               {config.taxNote}
             </p>
           )}
+
+          {/* Trust & Strict No-Refund Policy Strip */}
+          <div className="mt-8 pt-6 border-t border-slate-200/60 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500 font-medium text-center">
+            <span className="inline-flex items-center gap-1.5 text-slate-700 font-semibold">
+              <ShieldCheck size={14} className="text-emerald-600" />
+              Secure 256-bit checkout via {isIndia ? 'Cashfree' : 'Stripe'}
+            </span>
+            <span>•</span>
+            <span>0% sales commission</span>
+            <span>•</span>
+            <span>Cancel anytime to stop future renewals</span>
+            <span>•</span>
+            <span className="text-amber-800 font-semibold">Strictly non-refundable — no prorated refunds or money-back guarantee</span>
+          </div>
         </section>
 
         {/* ================================================================

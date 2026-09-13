@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Language Detection, Normalization & State Management
+// FeraSetu AI — Language Detection, Normalization & State Management
 // Conservative confidence scoring: distinguishes pure English from Romanized Indic.
 // Intent-preserving normalizer: strips noise without dropping meaning.
 // =============================================================================

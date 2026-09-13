@@ -917,6 +917,8 @@ export default function WebsiteBuilderPage() {
                 shopId={user?.id || 'builder-preview'}
                 shopName={shopName || 'Store'}
                 shopPhone={shopPhone}
+                currency={user?.market === 'US' ? 'USD' : user?.market === 'EU' ? 'EUR' : 'INR'}
+                currencySymbol={user?.market === 'US' ? '$' : user?.market === 'EU' ? '€' : '₹'}
                 products={activeProducts}
                 theme={selectedThemeId}
                 overrides={overrides}

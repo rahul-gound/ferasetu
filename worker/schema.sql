@@ -15,10 +15,11 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS orders (
-  id            TEXT PRIMARY KEY,
-  customer_name TEXT NOT NULL,
-  items         TEXT NOT NULL DEFAULT '[]',
-  total         REAL NOT NULL DEFAULT 0,
-  status        TEXT NOT NULL DEFAULT 'pending',
-  created_at    TEXT NOT NULL
+  id             TEXT PRIMARY KEY,
+  customer_name  TEXT NOT NULL,
+  customer_phone TEXT,
+  items          TEXT NOT NULL DEFAULT '[]',
+  total          REAL NOT NULL DEFAULT 0,
+  status         TEXT NOT NULL DEFAULT 'pending',
+  created_at     TEXT NOT NULL
 );

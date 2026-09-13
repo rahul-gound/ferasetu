@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — AI Provider Router
+// FeraSetu AI — AI Provider Router
 // Selects the right provider per task. Business logic never calls a provider
 // directly — it always goes through this router.
 // =============================================================================

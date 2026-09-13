@@ -19,7 +19,7 @@ export interface MarketPricingConfig {
   permanentFreePlan: boolean;
   trialDays: number;
   taxNote: string;
-  gateway: 'razorpay' | 'stripe';
+  gateway: 'cashfree' | 'razorpay' | 'stripe';
   plans: {
     free?: PlanPricingTier;
     starter?: PlanPricingTier;
@@ -38,7 +38,7 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     permanentFreePlan: true,
     trialDays: 0,
     taxNote: 'Inclusive of GST where applicable',
-    gateway: 'razorpay',
+    gateway: 'cashfree',
     plans: {
       free: { monthly: 0, yearly: 0, yearlyPerMonth: 0 },
       business: { monthly: 399, yearly: 3990, yearlyPerMonth: 332 },
@@ -213,7 +213,7 @@ export interface PlanDetails {
   proPrice: string;
   proPeriod: string;
   trialDays: number;
-  gateway: 'razorpay' | 'stripe';
+  gateway: 'cashfree' | 'razorpay' | 'stripe';
   taxNote: string;
 }
 
@@ -230,7 +230,7 @@ export function getRegionalPricing(countryCode?: string | null): PlanDetails {
       proPrice: '499',
       proPeriod: '/month',
       trialDays: 0,
-      gateway: 'razorpay',
+      gateway: 'cashfree',
       taxNote: cfg.taxNote,
     };
   }

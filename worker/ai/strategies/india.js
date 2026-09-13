@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — India Market Strategy
+// FeraSetu AI — India Market Strategy
 // Implements Sarvam Translate + GLM-5.3 Flash on Modal.
 // CRITICAL OPTIMIZATION: Skips Sarvam completely if input is English.
 // =============================================================================
@@ -98,7 +98,7 @@ export class IndiaStrategy extends BaseMarketStrategy {
     // Keep structured shop context intact in English
     const historyBlock = (conversationHistory || [])
       .slice(-6)
-      .map(m => `${m.role === 'user' ? 'SHOPKEEPER' : 'FERA AI'}: ${m.content}`)
+      .map(m => `${m.role === 'user' ? 'SHOPKEEPER' : 'FERASETU AI'}: ${m.content}`)
       .join('\n');
 
     const promptContext = [

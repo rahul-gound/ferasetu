@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — USA Market Strategy
+// FeraSetu AI — USA Market Strategy
 // Implements direct GLM-5.3 Flash on Modal.
 // ZERO SARVAM CALLS. English is primary. Non-English queries are safely guarded.
 // =============================================================================
@@ -72,7 +72,7 @@ export class USAStrategy extends BaseMarketStrategy {
     // rather than falsely sending through an Indian translation pipeline.
     const historyBlock = (conversationHistory || [])
       .slice(-6)
-      .map(m => `${m.role === 'user' ? 'MERCHANT' : 'FERA AI'}: ${m.content}`)
+      .map(m => `${m.role === 'user' ? 'MERCHANT' : 'FERASETU AI'}: ${m.content}`)
       .join('\n');
 
     const promptContext = [

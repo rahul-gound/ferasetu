@@ -37,7 +37,11 @@ export default function PricingFAQ({ className = '' }: PricingFAQProps) {
       },
       {
         question: 'Can I cancel my subscription anytime?',
-        answer: 'Yes. There are zero contracts or lock-in penalties. You can cancel directly from your account settings at any time. When you cancel, future renewal is stopped, and your paid access continues until the end of your current billing period.',
+        answer: 'Yes. There are zero contracts or lock-in penalties. You can cancel directly from your account settings at any time to stop future renewals. Note that all subscription purchases are strictly non-refundable (no partial refunds or prorated credits), but your paid access remains active until your current prepaid billing cycle concludes.',
+      },
+      {
+        question: 'What is your refund policy?',
+        answer: 'All subscriptions, plan fees, and AI credit purchases are strictly non-refundable once billed. We do not provide money-back guarantees, cash refunds, or prorated credits for unused days or features. You can cancel anytime to prevent future renewal charges.',
       },
       {
         question: 'Can I use a custom domain?',

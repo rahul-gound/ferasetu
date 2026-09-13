@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Usage & Cost Tracking Metadata Generator
+// FeraSetu AI — Usage & Cost Tracking Metadata Generator
 // Calculates token usage, translation character metrics, and estimated USD cost.
 // STRICT PRIVACY: Never logs raw user prompts or customer PII.
 // =============================================================================

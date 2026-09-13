@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — CEO Orchestrator
+// FeraSetu AI — CEO Orchestrator
 // The single entry point. Understands intent, selects minimum required skills,
 // coordinates them, and returns one unified response to the shopkeeper.
 // =============================================================================
@@ -107,7 +107,7 @@ export async function runOrchestrator(req: OrchestratorRequest): Promise<Orchest
   const contextBlock = buildContextBlock(req.shopContext);
   const historyBlock = req.conversationHistory
     .slice(-6) // last 3 exchanges
-    .map(m => `${m.role === 'user' ? 'SHOPKEEPER' : 'FERA AI'}: ${m.content}`)
+    .map(m => `${m.role === 'user' ? 'SHOPKEEPER' : 'FERASETU AI'}: ${m.content}`)
     .join('\n');
 
   const systemPrompt = buildOrchestratorSystemPrompt(req.shopContext.language);
@@ -149,7 +149,7 @@ export async function runOrchestrator(req: OrchestratorRequest): Promise<Orchest
 
 function buildOrchestratorSystemPrompt(language: string): string {
   const langName = getLanguageName(language);
-  return `You are Fera AI, a business assistant for Indian shopkeepers on FeraSetu.
+  return `You are FeraSetu AI, a business assistant for Indian shopkeepers on FeraSetu.
 
 Your personality:
 - Warm, practical, and direct — like a trusted business advisor

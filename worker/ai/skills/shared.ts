@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Shared Skill Types and Helpers
+// FeraSetu AI — Shared Skill Types and Helpers
 // =============================================================================
 
 import type { RouterRequest, AIResponse } from '../router.js';

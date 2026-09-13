@@ -27,6 +27,8 @@ interface StorefrontProviderProps {
   shopName: string;
   shopPhone?: string;
   shopLogo?: string;
+  currency?: string;
+  currencySymbol?: string;
   products: ShopProduct[];
   initialProductId?: string | null;
 }
@@ -37,9 +39,14 @@ export function StorefrontProvider({
   shopName,
   shopPhone = '',
   shopLogo,
+  currency = 'INR',
+  currencySymbol,
   products,
   initialProductId,
 }: StorefrontProviderProps) {
+  const activeCurrency = currency || 'INR';
+  const activeSymbol = currencySymbol || (activeCurrency === 'USD' ? '$' : activeCurrency === 'EUR' ? '€' : '₹');
+  const numberLocale = activeCurrency === 'INR' ? 'en-IN' : activeCurrency === 'EUR' ? 'de-DE' : 'en-US';
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -218,10 +225,10 @@ export function StorefrontProvider({
         return;
       }
       const price = product.sale_price ?? product.price;
-      const text = `Namaste ${shopName}!\n\nI am interested in:\n📦 *${product.name}*\n💰 Price: ₹${price.toLocaleString('en-IN')}\n\nIs this item currently available for delivery?`;
+      const text = `Namaste ${shopName}!\n\nI am interested in:\n📦 *${product.name}*\n💰 Price: ${activeSymbol}${price.toLocaleString(numberLocale)}\n\nIs this item currently available for delivery?`;
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
     },
-    [shopName, shopPhone]
+    [shopName, shopPhone, activeSymbol, numberLocale]
   );
 
   const openWhatsAppCartOrder = useCallback(
@@ -236,19 +243,19 @@ export function StorefrontProvider({
 
       const lines = cart.map((item, idx) => {
         const price = item.sale_price ?? item.price;
-        return `${idx + 1}. *${item.name}* (x${item.quantity}) — ₹${(price * item.quantity).toLocaleString('en-IN')}`;
+        return `${idx + 1}. *${item.name}* (x${item.quantity}) — ${activeSymbol}${(price * item.quantity).toLocaleString(numberLocale)}`;
       });
 
       const message =
         `Namaste ${shopName}!\n\nI would like to place an order:\n\n` +
         lines.join('\n') +
-        `\n\n💵 *Total: ₹${cartSubtotal.toLocaleString('en-IN')}*` +
+        `\n\n💵 *Total: ${activeSymbol}${cartSubtotal.toLocaleString(numberLocale)}*` +
         (notes ? `\n📝 Note: ${notes}` : '') +
         `\n\nPlease confirm availability and payment details. Thank you!`;
 
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     },
-    [cart, cartSubtotal, shopName, shopPhone]
+    [cart, cartSubtotal, shopName, shopPhone, activeSymbol, numberLocale]
   );
 
   const contextValue: StorefrontContextValue = {
@@ -256,6 +263,8 @@ export function StorefrontProvider({
     shopName,
     shopPhone,
     shopLogo,
+    currency: activeCurrency,
+    currencySymbol: activeSymbol,
     products,
     categories,
     cart,

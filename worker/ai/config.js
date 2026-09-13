@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Centralized Model Provider Configuration
+// FeraSetu AI — Centralized Model Provider Configuration
 // Source of truth for endpoints, models, timeouts, retries, and defaults.
 // Never hardcode API keys. Secrets must come from environment variables.
 // =============================================================================

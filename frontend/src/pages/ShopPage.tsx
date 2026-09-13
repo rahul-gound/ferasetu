@@ -195,17 +195,26 @@ export default function ShopPage() {
           structuredData={seoData.structuredData}
         />
       )}
-      <TemplateRenderer
-        sections={data!.website.sections}
-        products={data!.products}
-        shopName={data!.shop.name}
-        shopId={data!.shop.id}
-        shopPhone={(data!.shop as any).phone || (data!.website.config as any)?.phone}
-        shopLogo={(data!.shop as any).logo_url || (data!.website.config as any)?.logo}
-        theme={(data!.website as any).theme || data!.website.template}
-        overrides={(data!.website as any).config?.overrides}
-        initialProductId={initialProductId}
-      />
+      {(() => {
+        const shopMarket = (data!.shop as any)?.market || 'IN';
+        const storeCurrency = (data!.shop as any)?.currency || (data!.website.config as any)?.currency || (shopMarket === 'US' ? 'USD' : shopMarket === 'EU' ? 'EUR' : 'INR');
+        const storeCurrencySymbol = (data!.shop as any)?.currency_symbol || (data!.website.config as any)?.currency_symbol || (storeCurrency === 'USD' ? '$' : storeCurrency === 'EUR' ? '€' : '₹');
+        return (
+          <TemplateRenderer
+            sections={data!.website.sections}
+            products={data!.products}
+            shopName={data!.shop.name}
+            shopId={data!.shop.id}
+            shopPhone={(data!.shop as any).phone || (data!.website.config as any)?.phone}
+            shopLogo={(data!.shop as any).logo_url || (data!.website.config as any)?.logo}
+            currency={storeCurrency}
+            currencySymbol={storeCurrencySymbol}
+            theme={(data!.website as any).theme || data!.website.template}
+            overrides={(data!.website as any).config?.overrides}
+            initialProductId={initialProductId}
+          />
+        );
+      })()}
     </>
   );
 }

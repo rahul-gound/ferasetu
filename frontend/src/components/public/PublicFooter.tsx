@@ -1,5 +1,5 @@
 /**
- * PublicFooter — Improved with positioning tagline, Fera AI link,
+ * PublicFooter — Improved with positioning tagline, FeraSetu AI link,
  * support info, and dynamic copyright year.
  */
 import { Link } from 'react-router-dom';

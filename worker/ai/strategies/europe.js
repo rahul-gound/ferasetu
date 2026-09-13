@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Europe Market Strategy (Architecture Reserved)
+// FeraSetu AI — Europe Market Strategy (Architecture Reserved)
 // Reserved extension point for European expansion.
 // Explicitly returns structured 'not_configured' without fake translation.
 // =============================================================================
@@ -40,7 +40,7 @@ export class EuropeStrategy extends BaseMarketStrategy {
     const routeDecision = this.resolveRouteDecision({ plan, inputLanguage, task });
 
     return {
-      content: "Fera AI services for the European market are currently scheduled for release in an upcoming update. We apologize for the inconvenience.",
+      content: "FeraSetu AI services for the European market are currently scheduled for release in an upcoming update. We apologize for the inconvenience.",
       routingDecision: routeDecision,
       reasoning: {
         model: 'none',
@@ -59,7 +59,7 @@ export class EuropeStrategy extends BaseMarketStrategy {
         translationBackFailed: false,
       },
       status: 'not_configured',
-      error: 'European AI market strategy is reserved and not yet active in this region.',
+      error: 'European FeraSetu AI market strategy is reserved and not yet active in this region.',
     };
   }
 }

@@ -242,7 +242,13 @@ const TERMS_SECTIONS: LegalSection[] = [
       },
       {
         kind: 'paragraph',
-        text: `Refunds are handled according to the applicable plan, order, promotional terms, support decision, and applicable law. FeraSetu does not state a universal no-refund policy.`
+        text: `Strict No-Refund Policy: All subscription fees, plan charges, add-on storage, and AI credit purchases are final and strictly non-refundable once billed. FeraSetu does not provide cash refunds, partial refunds, or prorated credits for any unused subscription periods, plan downgrades, account terminations, or early cancellations. You may cancel your subscription at any time through your account settings to prevent future automatic renewals. Upon cancellation, your existing access will continue until the conclusion of your current prepaid billing cycle. FeraSetu does not offer a money-back guarantee under any circumstances.`
+      },
+      {
+        kind: 'note',
+        tone: 'amber',
+        title: `Strict No-Refund Policy`,
+        text: `All subscription fees and credit pack purchases are final and non-refundable. You may cancel anytime to stop future renewals, but no refunds or prorated credits are issued for active or past billing periods.`
       }
     ]
   },
@@ -252,7 +258,7 @@ const TERMS_SECTIONS: LegalSection[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: `FeraSetu may use Third-Party Services for subscription billing and related payment processing. Where applicable, these may include payment processors such as Razorpay or Stripe and payment rails such as UPI. Payment processing is subject to the processor's terms, privacy policy, limits, risk controls, and applicable law.`
+        text: `FeraSetu may use Third-Party Services for subscription billing and related payment processing. Where applicable, these may include payment processors such as Cashfree, Razorpay, or Stripe and payment rails such as UPI. Payment processing is subject to the processor's terms, privacy policy, limits, risk controls, and applicable law.`
       },
       {
         kind: 'paragraph',
@@ -420,7 +426,7 @@ const TERMS_SECTIONS: LegalSection[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: `TO THE MAXIMUM EXTENT PERMITTED UNDER APPLICABLE LAW, THE SERVICES, PLATFORM, DOCUMENTATION, AND ALL OUTPUTS (INCLUDING FERA AI) ARE PROVIDED ON AN "AS-IS" AND "AS-AVAILABLE" BASIS, WITH ALL FAULTS AND DEFECTS.`
+        text: `TO THE MAXIMUM EXTENT PERMITTED UNDER APPLICABLE LAW, THE SERVICES, PLATFORM, DOCUMENTATION, AND ALL OUTPUTS (INCLUDING FERASETU AI) ARE PROVIDED ON AN "AS-IS" AND "AS-AVAILABLE" BASIS, WITH ALL FAULTS AND DEFECTS.`
       },
       {
         kind: 'paragraph',

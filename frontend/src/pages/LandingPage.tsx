@@ -7,7 +7,7 @@
  * 3. INTEREST — Problem recognition (3 real shopkeeper problems)
  * 4. INTEREST — How FeraSetu works (3-step mechanism)
  * 5. DESIRE — Features as outcomes (Feature → Does → Matters)
- * 6. DESIRE — Fera AI differentiator (real AI examples)
+ * 6. DESIRE — FeraSetu AI differentiator (real AI examples)
  * 7. TRUST — Proof section (replaces fake testimonial)
  * 8. DESIRE/ACTION — Pricing preview
  * 9. ACTION — FAQ (real objections, factual answers)
@@ -149,19 +149,15 @@ export default function LandingPage() {
 
             {/* Main Headline */}
             <h1 className="hero-card-enter hero-card-delay-1 text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-4">
-              {t('hero.title') || 'Launch your online store. Grow your orders, manage your business — all in one place.'}
+              Your own online store. Your customers.{' '}
+              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                0% commission.
+              </span>
             </h1>
-
-            {/* Translation / Subtitle (if available) */}
-            {t('hero.titleTranslation') && t('hero.titleTranslation') !== 'hero.titleTranslation' ? (
-              <p className="text-sm sm:text-base font-semibold text-slate-400 mb-5 max-w-2xl mx-auto">
-                {t('hero.titleTranslation')}
-              </p>
-            ) : null}
 
             {/* Differentiator line */}
             <p className="hero-card-enter hero-card-delay-2 text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-              {t('hero.subtitle') || 'No technical knowledge needed. Your own store link, streamlined orders, and proactive AI assistance for inventory and sales.'}
+              Stop losing 15%–30% of your margins to marketplaces. Launch your independent online store with your custom link, instant direct UPI payments, and FeraSetu AI built-in.
             </p>
 
             {/* Hero CTAs */}
@@ -431,6 +427,98 @@ export default function LandingPage() {
         </section>
 
         {/* ================================================================
+          COMMISSION SAVINGS COMPARISON (Evidence-Based Positioning)
+        ================================================================ */}
+        <section className="py-20 md:py-24 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200/60" aria-label="Commission savings comparison">
+          <div className="max-w-[1100px] mx-auto px-6">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-4">
+                <Percent size={14} className="text-emerald-600" />
+                Commission Comparison
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">
+                Keep 100% of what your customers spend.
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed">
+                On ₹1,00,000 in monthly orders, marketplace aggregators take ₹15,000 to ₹30,000 every single month. See where your revenue actually goes:
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 items-stretch">
+              {/* Card 1: Marketplace platforms */}
+              <div className="bg-white rounded-2xl border-2 border-red-100 p-8 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-red-100 text-red-700 text-xs font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
+                  Typical Marketplace
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 mb-2">Marketplace Aggregators</h3>
+                  <p className="text-xs text-slate-500 mb-6">Zomato, Swiggy, Amazon, Blinkit, and large aggregator apps</p>
+
+                  <ul className="space-y-4 text-sm text-slate-700 mb-6">
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <span><strong>15%–30% commission cut</strong> taken from every single order you fulfill</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <span><strong>They own the customer</strong> — phone numbers & emails are masked from you</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <span><strong>Competitors advertised</strong> on your own store listing page</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <span><strong>7 to 14 days payout hold</strong> before funds reach your bank</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="p-4 rounded-xl bg-red-50/80 border border-red-200/70 text-center">
+                  <div className="text-xs text-red-600 font-bold uppercase tracking-wider">Lost Revenue on ₹1,00,000 sales</div>
+                  <div className="text-2xl font-black text-red-700 mt-0.5">− ₹15,000 to ₹30,000 / mo</div>
+                </div>
+              </div>
+
+              {/* Card 2: FeraSetu */}
+              <div className="bg-white rounded-2xl border-2 border-emerald-500 p-8 shadow-xl shadow-emerald-500/10 flex flex-col justify-between relative overflow-hidden ring-4 ring-emerald-50">
+                <div className="absolute top-0 right-0 bg-emerald-600 text-white text-xs font-extrabold px-4 py-1 rounded-bl-xl uppercase tracking-wider shadow-sm">
+                  100% Yours
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 mb-2">Your FeraSetu Store</h3>
+                  <p className="text-xs text-slate-500 mb-6">Your independent branded web shop on your custom link</p>
+
+                  <ul className="space-y-4 text-sm text-slate-700 mb-6">
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <span><strong>0% commission</strong> — keep 100% of every rupee or dollar you make</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <span><strong>You own 100% of your customer list</strong> for direct WhatsApp re-orders</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <span><strong>Zero ads or competitors</strong> — a distraction-free catalog built for conversions</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <span><strong>Instant direct payments</strong> to your UPI / bank account immediately</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                  <div className="text-xs text-emerald-700 font-bold uppercase tracking-wider">Commission Paid to FeraSetu</div>
+                  <div className="text-2xl font-black text-emerald-800 mt-0.5">₹0 / month (0%)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================================
           SECTION 5 — FEATURES AS OUTCOMES (DESIRE)
           Feature → What it does → Why it matters
         ================================================================ */}
@@ -583,6 +671,20 @@ export default function LandingPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Trust and Policy notice */}
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500 font-medium text-center mb-6">
+              <span className="inline-flex items-center gap-1.5 text-slate-700 font-semibold">
+                <ShieldCheck size={14} className="text-emerald-600" />
+                Secure 256-bit checkout via {market === 'IN' ? 'Cashfree' : 'Stripe'}
+              </span>
+              <span>•</span>
+              <span>0% sales commission</span>
+              <span>•</span>
+              <span>Cancel anytime to stop future renewals</span>
+              <span>•</span>
+              <span className="text-amber-800 font-semibold">Strictly non-refundable — no prorated refunds or money-back guarantee</span>
             </div>
 
             <div className="text-center">

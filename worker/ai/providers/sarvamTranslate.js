@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Sarvam Translate Provider Client
+// FeraSetu AI — Sarvam Translate Provider Client
 // Handles bi-directional translation between Indian languages and English.
 // Enforces explicit input/output language registry checks, bounded retries,
 // failsafe input error handling, and structured degradation on output failure.

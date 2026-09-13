@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Sarvam Provider Adapter
+// FeraSetu AI — Sarvam Provider Adapter
 // Implements the internal AIProvider contract for Sarvam AI models.
 // Never import this directly in business logic; go through the router.
 // =============================================================================
@@ -156,7 +156,7 @@ export function selectSarvamModel(taskType: 'simple' | 'complex'): SarvamModel {
 export function buildFallbackResponse(requestId: string, latencyMs: number): AIResponse {
   return {
     content:
-      'Namaste! I am Fera AI. I am having a little trouble right now — please try again in a moment. 🙏',
+      'Namaste! I am FeraSetu AI. I am having a little trouble right now — please try again in a moment. 🙏',
     provider: 'sarvam',
     model: 'sarvam-m-fallback',
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },

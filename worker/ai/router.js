@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Master Intelligent Fera Router
+// FeraSetu AI — Master Intelligent Fera Router
 // The single central intelligent gateway between FeraSetu users and AI models.
 // Market-Aware, Plan-Aware, Language-Aware, Cost-Optimized, and Observable.
 // =============================================================================
@@ -94,7 +94,7 @@ export class FeraRouter {
     const currencySymbol = market === 'US' ? '$' : '₹';
     const regionContext = market === 'US' ? 'US small business and retail' : 'Indian local retail and shopkeepers';
 
-    return `You are Fera AI, a warm, practical, and highly capable business advisor on FeraSetu.
+    return `You are FeraSetu AI, a warm, practical, and highly capable business advisor on FeraSetu.
 Your primary audience is ${regionContext}.
 
 ACTIVE SKILLS: ${skills.join(', ')}
@@ -115,7 +115,7 @@ GROUNDING RULES:
   }
 
   /**
-   * Master execution entrance for Fera AI requests.
+   * Master execution entrance for FeraSetu AI requests.
    *
    * @param {object} params
    * @param {object} params.user - Verified D1 user record

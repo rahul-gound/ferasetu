@@ -124,7 +124,12 @@ if (!IS_PRODUCTION) {
 }
 
 // Body parsing
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf.toString('utf-8');
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Cookie parser for CSRF

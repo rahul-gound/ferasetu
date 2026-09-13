@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Modal GLM-5.3 Flash Provider Client
+// FeraSetu AI — Modal GLM-5.3 Flash Provider Client
 // Production reasoning host for FeraSetu.
 // Supports bounded retries, timeout budget, request ID propagation, and fallbacks.
 // =============================================================================
@@ -51,7 +51,7 @@ export async function callModalGlm({
     }
 
     return {
-      content: "Namaste! I am Fera AI powered by GLM-5.3 Flash. Your store is connected and all operations are normal. How can I assist your business today?",
+      content: "Namaste! I am FeraSetu AI powered by GLM-5.3 Flash. Your store is connected and all operations are normal. How can I assist your business today?",
       promptTokens: 150,
       completionTokens: 35,
       latencyMs: Date.now() - startMs,

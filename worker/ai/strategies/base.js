@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Market Strategy Base Interface
+// FeraSetu AI — Market Strategy Base Interface
 // Standard contract for market-specific routing and execution strategies.
 // =============================================================================
 

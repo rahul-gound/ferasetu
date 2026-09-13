@@ -26,6 +26,8 @@ export interface StorefrontContextValue {
   shopName: string;
   shopPhone: string;
   shopLogo?: string;
+  currency: string;
+  currencySymbol: string;
   products: ShopProduct[];
   categories: string[];
 

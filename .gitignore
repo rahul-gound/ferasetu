@@ -37,7 +37,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
-
 # Cloudflare Workers / Wrangler
 .wrangler/
 .dev.vars
@@ -45,3 +44,4 @@ wrangler.local.toml
 
 # Experimental/Temporary
 testing-waste/
+ferasetu-smtp/

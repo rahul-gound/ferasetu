@@ -1,6 +1,6 @@
 // =============================================================================
-// Fera AI — FeraAIPage
-// The premium, mobile-first Fera AI assistant interface.
+// FeraSetu AI — FeraAIPage
+// The premium, mobile-first FeraSetu AI assistant interface.
 // One assistant. Many capabilities. Zero confusion.
 // =============================================================================
 
@@ -126,7 +126,7 @@ const CATEGORIES: Category[] = [
 const WELCOME_MESSAGE: Message = {
   id: 'fera-welcome',
   role: 'assistant',
-  content: '**Namaste! 🙏 I\'m Fera AI, your personal business assistant.**\n\nI help Indian shopkeepers like you:\n- **Sell more** with smart recommendations\n- **Save time** by automating repetitive work\n- **Understand** your business data simply\n- **Create** content in your language\n\nTap a category below or ask me anything!',
+  content: '**Namaste! 🙏 I\'m FeraSetu AI, your personal business assistant.**\n\nI help Indian shopkeepers like you:\n- **Sell more** with smart recommendations\n- **Save time** by automating repetitive work\n- **Understand** your business data simply\n- **Create** content in your language\n\nTap a category below or ask me anything!',
   timestamp: new Date(),
   model: 'sarvam-m',
 };
@@ -209,7 +209,7 @@ function ChatBubble({ message }: { message: Message }) {
               textTransform: 'uppercase',
             }}
           >
-            Fera AI
+            FeraSetu AI
           </span>
         )}
         <div
@@ -457,7 +457,7 @@ export default function FeraAIPage() {
       } else if (status === 401) {
         toast.error('Session expired. Please log in again.');
       } else {
-        toast.error('Could not get a response from Fera AI. Please try again.');
+        toast.error('Could not get a response from FeraSetu AI. Please try again.');
       }
     },
   });
@@ -601,7 +601,7 @@ export default function FeraAIPage() {
               margin: 0,
               lineHeight: 1,
             }}>
-              Fera AI
+              FeraSetu AI
             </h1>
             <div style={{
               fontSize: 10,
@@ -811,7 +811,7 @@ export default function FeraAIPage() {
               fontWeight: 600,
             }}
           >
-            <Sparkles size={11} /> Show what Fera AI can do
+            <Sparkles size={11} /> Show what FeraSetu AI can do
           </button>
         )}
 

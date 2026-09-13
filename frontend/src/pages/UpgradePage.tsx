@@ -2,7 +2,7 @@
  * UpgradePage — In-app upgrade flow with Market Awareness,
  * 14-day trial management, and trust-first cancellation.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Check, ArrowRight, Loader2, ShieldCheck, Zap, Sparkles, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -22,7 +22,20 @@ import type { PlanDefinition } from '../config/plans';
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+    Cashfree?: any;
   }
+}
+
+function loadCashfreeScript(): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') { resolve(false); return; }
+    if (window.Cashfree) { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -51,6 +64,43 @@ export default function UpgradePage() {
   const nextPlan = getNextPlan(user?.plan);
   const marketPlans = getMarketPlans(market);
 
+  // Handle return from Cashfree checkout via ?order_id=
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    if (!orderId || !user) return;
+
+    let isMounted = true;
+    const verifyCashfree = async () => {
+      setUpgrading('verifying');
+      const toastId = toast.loading('Verifying your payment with Cashfree...');
+      try {
+        const verifyRes = await api.post('/payment/verify', {
+          cashfree_order_id: orderId,
+          order_id: orderId,
+          transaction_id: orderId,
+        });
+
+        if (verifyRes.data.success) {
+          toast.success(verifyRes.data.message || 'Payment verified and plan activated!', { id: toastId });
+          if (updateUser) await updateUser({ plan: verifyRes.data.plan });
+          // Clean URL parameter
+          window.history.replaceState({}, '', window.location.pathname);
+          navigate('/dashboard');
+        } else {
+          toast.error(verifyRes.data.error || 'Payment verification failed.', { id: toastId });
+        }
+      } catch (err: any) {
+        toast.error(err?.response?.data?.error || 'Failed to verify payment with Cashfree.', { id: toastId });
+      } finally {
+        if (isMounted) setUpgrading(null);
+      }
+    };
+
+    verifyCashfree();
+    return () => { isMounted = false; };
+  }, [user, updateUser, navigate]);
+
   const handleSelectPlan = async (plan: PlanDefinition) => {
     if (!user) { navigate('/login'); return; }
     if (normalizePlanId(user.plan) === plan.id) return;
@@ -77,6 +127,25 @@ export default function UpgradePage() {
         return;
       }
 
+      // Paid plans via Cashfree Checkout (India market)
+      if (res.data.gateway === 'cashfree' && res.data.paymentSessionId) {
+        const cashfreeLoaded = await loadCashfreeScript();
+        if (cashfreeLoaded && window.Cashfree) {
+          const cashfree = window.Cashfree({
+            mode: res.data.cashfreeEnv === 'production' ? 'production' : 'sandbox',
+          });
+          cashfree.checkout({
+            paymentSessionId: res.data.paymentSessionId,
+            redirectTarget: '_self',
+          });
+          return;
+        } else {
+          toast.error('Could not load Cashfree checkout window. Please check your connection and try again.');
+          setUpgrading(null);
+          return;
+        }
+      }
+
       // Paid plans via Stripe Checkout (US & Europe markets)
       if (res.data.gateway === 'stripe' || res.data.stripeUrl) {
         if (res.data.stripeUrl) {
@@ -87,7 +156,7 @@ export default function UpgradePage() {
         return;
       }
 
-      // Paid plans go through Razorpay Checkout.
+      // Fallback: Paid plans via Razorpay Checkout.
       const razorpayLoaded = await loadRazorpayScript();
       if (!razorpayLoaded || !window.Razorpay) {
         toast.error('Could not load the payment window. Please check your connection and try again.');
@@ -385,9 +454,23 @@ export default function UpgradePage() {
             ))}
           </div>
 
+          {/* Trust & Strict No-Refund Policy Strip */}
+          <div className="mt-8 pt-6 border-t border-slate-200/60 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500 font-medium text-center">
+            <span className="inline-flex items-center gap-1.5 text-slate-700 font-semibold">
+              <ShieldCheck size={14} className="text-emerald-600" />
+              Secure 256-bit payment via {market === 'IN' ? 'Cashfree' : 'Stripe'}
+            </span>
+            <span>•</span>
+            <span>0% sales commission</span>
+            <span>•</span>
+            <span>Cancel anytime to stop future renewals</span>
+            <span>•</span>
+            <span className="text-amber-800 font-semibold">Strictly non-refundable — no partial refunds, prorated credits, or money-back guarantee</span>
+          </div>
+
           {/* Cancellation management for active paid users */}
           {subscription.isPaidActive && !subscription.isCancelled && (
-            <div className="mt-12 text-center">
+            <div className="mt-8 text-center">
               <button
                 type="button"
                 onClick={() => setShowCancelModal(true)}
@@ -405,7 +488,7 @@ export default function UpgradePage() {
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100">
               <h3 className="text-lg font-black text-slate-900">Cancel Future Renewal?</h3>
               <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Cancellation means stopping future automatic renewals. You will retain full access to all features on your plan until the end of your billing period ({subscription.planExpiresAt ? subscription.planExpiresAt.toLocaleDateString() : 'current period'}). Your data and products will never be deleted.
+                Cancellation stops future automatic renewals. In accordance with our Terms of Service, all subscription charges are strictly non-refundable and no partial or prorated refunds are issued. You retain full access to all features on your plan until the end of your prepaid billing period ({subscription.planExpiresAt ? subscription.planExpiresAt.toLocaleDateString() : 'current period'}). Your data and products are safely preserved.
               </p>
               <div className="mt-6 flex justify-end gap-3">
                 <button

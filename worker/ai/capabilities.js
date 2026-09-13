@@ -1,5 +1,5 @@
 // =============================================================================
-// Fera AI — Model & Translation Capability Registry
+// FeraSetu AI — Model & Translation Capability Registry
 // Explicitly documents reasoning languages, input/output translation directions,
 // token costs, and tool calling capabilities.
 // =============================================================================

@@ -1,10 +1,10 @@
 /**
- * AIExamplePrompts — Shows 3 real Fera AI use cases with example prompt/response pairs.
+ * AIExamplePrompts — Shows 3 real FeraSetu AI use cases with example prompt/response pairs.
  *
  * Purple Cow moment: The AI section must feel distinctly FeraSetu — not a generic ChatGPT clone.
  * Shows only capabilities that actually exist in the product.
  *
- * Used on the landing page and as a primer in the Fera AI page for first-time users.
+ * Used on the landing page and as a primer in the FeraSetu AI page for first-time users.
  */
 import { Sparkles, ArrowRight, TrendingUp, Package, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';

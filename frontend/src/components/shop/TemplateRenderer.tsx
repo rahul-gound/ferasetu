@@ -32,6 +32,8 @@ export interface TemplateRendererProps {
   shopId: string;
   shopPhone?: string;
   shopLogo?: string;
+  currency?: string;
+  currencySymbol?: string;
   theme?: string | Record<string, unknown>;
   overrides?: MerchantThemeOverrides | Record<string, unknown>;
   isPreview?: boolean;
@@ -45,6 +47,8 @@ export default function TemplateRenderer({
   shopId,
   shopPhone = '',
   shopLogo,
+  currency,
+  currencySymbol,
   theme,
   overrides,
   isPreview = false,
@@ -83,6 +87,8 @@ export default function TemplateRenderer({
       shopName={shopName}
       shopPhone={shopPhone}
       shopLogo={shopLogo}
+      currency={currency}
+      currencySymbol={currencySymbol}
       products={products}
       initialProductId={initialProductId}
     >

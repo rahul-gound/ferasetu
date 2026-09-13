@@ -15,10 +15,11 @@ export function sanitizeText(input: unknown): string {
  * Format currency in Indian numbering format (e.g. ₹1,29,999) or standard currency.
  */
 export function formatPrice(amount: number | null | undefined, currency: string = 'INR'): string {
-  if (amount == null || isNaN(amount)) return '₹0';
-  const prefix = currency === 'INR' ? '₹' : '$';
+  const prefix = currency === 'INR' ? '₹' : currency === 'EUR' ? '€' : '$';
+  if (amount == null || isNaN(amount)) return `${prefix}0`;
+  const locale = currency === 'INR' ? 'en-IN' : currency === 'EUR' ? 'de-DE' : 'en-US';
   try {
-    return prefix + amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    return prefix + amount.toLocaleString(locale, { maximumFractionDigits: 0 });
   } catch {
     return prefix + amount;
   }

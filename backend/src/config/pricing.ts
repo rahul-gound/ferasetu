@@ -32,7 +32,7 @@ export interface RegionalConfig {
   name: string;
   currency: 'INR' | 'USD' | 'EUR';
   symbol: string;
-  gateway: 'razorpay' | 'stripe';
+  gateway: 'cashfree' | 'razorpay' | 'stripe';
   permanentFreePlan: boolean;
   trialDays: number;
   plans: Record<string, PlanDetails>;
@@ -44,7 +44,7 @@ export const REGIONAL_CONFIGS: Record<PricingRegion, RegionalConfig> = {
     name: 'India',
     currency: 'INR',
     symbol: '₹',
-    gateway: 'razorpay',
+    gateway: 'cashfree',
     permanentFreePlan: true,
     trialDays: 14,
     plans: {
