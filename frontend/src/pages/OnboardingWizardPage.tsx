@@ -213,7 +213,10 @@ export default function OnboardingWizardPage() {
       toast.success('Your store and organization have been created!');
     } catch (err: any) {
       console.error('Failed to create organization:', err);
-      const msg = err.response?.data?.error || err.message || 'Failed to complete onboarding';
+      const serverErr = typeof err.response?.data === 'object'
+        ? (err.response.data?.error || err.response.data?.message)
+        : (typeof err.response?.data === 'string' && err.response.data.trim() ? err.response.data : null);
+      const msg = serverErr || err.message || 'Failed to complete onboarding';
       toast.error(msg);
     } finally {
       setSubmitting(false);

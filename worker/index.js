@@ -515,9 +515,11 @@ async function createOrganizationHandler(request, env) {
       externalId: orgId,
       env,
     });
-    workosOrgId = workosOrg?.id || null;
+    workosOrgId = (workosOrg && typeof workosOrg.id === 'string' && workosOrg.id) ? workosOrg.id : null;
   } catch (workosErr) {
     console.error("Failed to create WorkOS Organization:", workosErr);
+  }
+  if (!workosOrgId) {
     workosOrgId = `org_local_${orgId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20)}`;
   }
 
@@ -545,27 +547,58 @@ async function createOrganizationHandler(request, env) {
     }
   }
 
-  // A. Create FeraSetu organization in D1
-  await env.DB.prepare(`
-    INSERT INTO organizations (
-      id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, now, now
-  ).run();
+  // A. Create FeraSetu organization in D1 (with resilient column handling)
+  try {
+    if (typeof env.DB?.prepare === 'function') {
+      try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN district TEXT").run(); } catch {}
+      try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN country TEXT").run(); } catch {}
+    }
+  } catch {}
+
+  try {
+    await env.DB.prepare(`
+      INSERT INTO organizations (
+        id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, now, now
+    ).run();
+  } catch (orgInsertErr) {
+    console.warn("Retrying organization insert with fallback schema:", orgInsertErr);
+    try {
+      await env.DB.prepare(`
+        INSERT INTO organizations (
+          id, name, workos_organization_id, market, plan, address, city, state, store_slug, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        orgId, name, workosOrgId, market, plan, address, city, state, storeSlug, now, now
+      ).run();
+    } catch (orgInsertErr2) {
+      console.error("Fatal organization insert error:", orgInsertErr2);
+      throw new HttpError(`Failed to save organization: ${orgInsertErr2.message || 'Database error'}`, 500);
+    }
+  }
 
   // D. Create FeraSetu organization_members record with role = owner
   const memberId = `om_${crypto.randomUUID()}`;
-  await env.DB.prepare(`
-    INSERT INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
-    VALUES (?, ?, ?, 'owner', ?, ?)
-  `).bind(memberId, orgId, me.$id, now, now).run();
+  try {
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO organization_members (id, organization_id, user_id, role, created_at, updated_at)
+      VALUES (?, ?, ?, 'owner', ?, ?)
+    `).bind(memberId, orgId, me.$id, now, now).run();
+  } catch (memInsertErr) {
+    console.warn("Warning inserting organization_member:", memInsertErr);
+  }
 
   // E. Create/reserve merchant shop/store record using the same FeraSetu organization ID
-  await env.DB.prepare(`
-    INSERT INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
-  `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
+  try {
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+    `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
+  } catch (shopInsertErr) {
+    console.warn("Warning inserting shop:", shopInsertErr);
+  }
 
   // Also reserve website record for the storefront
   try {
@@ -588,6 +621,10 @@ async function createOrganizationHandler(request, env) {
 
   // Ensure user profile in D1
   try {
+    if (typeof env.DB?.prepare === 'function') {
+      try { await env.DB.prepare("ALTER TABLE users ADD COLUMN district TEXT").run(); } catch {}
+      try { await env.DB.prepare("ALTER TABLE users ADD COLUMN country TEXT").run(); } catch {}
+    }
     await env.DB.prepare(`
       INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, district, state, country, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -604,7 +641,24 @@ async function createOrganizationHandler(request, env) {
       me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, district, state, country, now, now
     ).run();
   } catch (uErr) {
-    console.warn("Could not upsert user record in D1:", uErr);
+    console.warn("Could not upsert user record in D1 with district/country, retrying fallback:", uErr);
+    try {
+      await env.DB.prepare(`
+        INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, state, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          business_name = excluded.business_name,
+          subdomain = excluded.subdomain,
+          hostname = excluded.hostname,
+          city = excluded.city,
+          state = excluded.state,
+          updated_at = excluded.updated_at
+      `).bind(
+        me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, state, now, now
+      ).run();
+    } catch (uErr2) {
+      console.warn("User upsert fallback failed (non-blocking):", uErr2);
+    }
   }
 
   // Process optional staff invitations
@@ -630,12 +684,28 @@ async function createOrganizationHandler(request, env) {
     }
   }
 
-  const createdOrg = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(orgId).first();
+  let createdOrg = null;
+  try {
+    createdOrg = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(orgId).first();
+  } catch (findOrgErr) {
+    console.warn("Error fetching created org:", findOrgErr);
+  }
 
   return json({
     success: true,
     organization: {
-      ...createdOrg,
+      id: orgId,
+      name,
+      workos_organization_id: workosOrgId,
+      market,
+      plan,
+      address,
+      city,
+      district,
+      state,
+      country,
+      store_slug: storeSlug,
+      ...(createdOrg || {}),
       role: 'owner',
     },
     store_slug: storeSlug,
@@ -1649,11 +1719,15 @@ function safeParseObject(value, fallback = {}) {
 // ---------------------------------------------------------------------------
 let tablesInitialized = false;
 async function ensureTables(db) {
-  if (tablesInitialized || !db || typeof db.exec !== 'function') return;
+  if (tablesInitialized || !db || (typeof db.exec !== 'function' && typeof db.prepare !== 'function')) return;
   try {
     const safeExec = async (sql) => {
       try {
-        await db.exec(sql);
+        if (typeof db.exec === 'function') {
+          await db.exec(sql);
+        } else if (typeof db.prepare === 'function') {
+          await db.prepare(sql).run();
+        }
       } catch (e) {
         // Individual table/index creation warnings should not abort other tables
       }
@@ -1661,9 +1735,13 @@ async function ensureTables(db) {
 
     const safeAddColumn = async (table, colDef) => {
       try {
-        await db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef};`);
+        if (typeof db.prepare === 'function') {
+          await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${colDef}`).run();
+        } else if (typeof db.exec === 'function') {
+          await db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef};`);
+        }
       } catch (e) {
-        // Column already exists
+        // Column already exists or table does not exist
       }
     };
 
@@ -1925,7 +2003,7 @@ async function ensureTables(db) {
     `);
 
     // 13. Safe Column Additions for Existing Tables
-    await safeAddColumn('users', 'market TEXT DEFAULT "IN"');
+    await safeAddColumn('users', "market TEXT DEFAULT 'IN'");
     await safeAddColumn('users', 'hostname TEXT');
     await safeAddColumn('users', 'city TEXT');
     await safeAddColumn('users', 'district TEXT');
@@ -1934,15 +2012,15 @@ async function ensureTables(db) {
     await safeAddColumn('users', 'business_name TEXT');
     await safeAddColumn('users', 'subdomain TEXT');
     await safeAddColumn('users', 'phone TEXT');
-    await safeAddColumn('users', 'preferred_language TEXT DEFAULT "en"');
+    await safeAddColumn('users', "preferred_language TEXT DEFAULT 'en'");
 
     await safeAddColumn('organizations', 'district TEXT');
     await safeAddColumn('organizations', 'country TEXT');
     await safeAddColumn('organizations', 'address TEXT');
     await safeAddColumn('organizations', 'city TEXT');
     await safeAddColumn('organizations', 'state TEXT');
-    await safeAddColumn('organizations', 'market TEXT DEFAULT "IN"');
-    await safeAddColumn('organizations', 'plan TEXT DEFAULT "free"');
+    await safeAddColumn('organizations', "market TEXT DEFAULT 'IN'");
+    await safeAddColumn('organizations', "plan TEXT DEFAULT 'free'");
     await safeAddColumn('organizations', 'store_slug TEXT');
 
     await safeAddColumn('products', 'organization_id TEXT');

@@ -179,7 +179,7 @@ function createTestDb() {
         },
         async run() {
           const s = sql.toLowerCase();
-          if (s.includes('insert or ignore into organizations') || s.includes('insert into organizations')) {
+          if (s.includes('organizations') && s.includes('insert')) {
             const [id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at] = this._params;
             const existing = tables.organizations.find(x => x.id === id);
             if (!existing) {
@@ -187,7 +187,7 @@ function createTestDb() {
             }
             return { success: true };
           }
-          if (s.includes('insert or ignore into organization_members') || s.includes('insert into organization_members')) {
+          if (s.includes('organization_members') && s.includes('insert')) {
             let id, organization_id, user_id, role, created_at, updated_at;
             if (s.includes("'owner'")) {
               [id, organization_id, user_id, created_at, updated_at] = this._params;
@@ -201,7 +201,7 @@ function createTestDb() {
             }
             return { success: true };
           }
-          if (s.includes('insert or ignore into shops') || s.includes('insert into shops')) {
+          if (s.includes('shops') && s.includes('insert')) {
             const [id, organization_id, name, store_slug, hostname, status, created_at, updated_at] = this._params;
             const existing = tables.shops.find(x => x.id === id);
             if (!existing) {

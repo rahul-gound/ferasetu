@@ -18,16 +18,19 @@ jobs:
           # These must be in your "Secrets" section
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'worker'
           
           # This tells wrangler which secrets to upload to the Worker
           secrets: |
             SARVAM_API_KEY
             WORKOS_CLIENT_ID
+            WORKOS_API_KEY
         env:
           # Mapping the secrets
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
           # Must exactly match VITE_WORKOS_CLIENT_ID used by the frontend build.
           WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
+          WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           
           # Mapping the variables (from the Variables section)
           # Make sure these names match exactly what you typed in GitHub
