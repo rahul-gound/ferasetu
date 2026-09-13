@@ -29,7 +29,16 @@ export default function OnboardingWizardPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
-  const [shopName, setShopName] = useState(user?.business_name || '');
+  const [shopName, setShopName] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramShop = urlParams.get('shopName');
+      if (paramShop) return paramShop;
+      const claimed = localStorage.getItem('ferasetu_claimed_shop_name');
+      if (claimed) return claimed;
+    } catch {}
+    return user?.business_name || '';
+  });
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('Maharashtra');

@@ -21,32 +21,37 @@ export const LANDING_FAQS: FAQItem[] = [
   {
     question: 'How does a customer place an order?',
     answer:
-      'Customers open your store link, browse your products, add items to a cart, and complete the order via WhatsApp. They can also pay directly via UPI (Google Pay, PhonePe, Paytm, BHIM). The order appears in your dashboard immediately.',
+      'Customers open your store link, browse your products, add items to a cart, and complete the order via WhatsApp. They can also pay directly via UPI (Google Pay, PhonePe, Paytm, BHIM) or cards. The order appears in your dashboard immediately.',
   },
   {
     question: 'Is there any commission on my sales?',
     answer:
-      'None. We charge a flat monthly fee — Free (₹0), Business (₹399/month), or Pro (₹999/month). When a customer pays ₹1,000, you keep ₹1,000. No percentage cut, ever.',
+      'None. We charge a flat monthly fee. When a customer pays ₹1,000 or $100, you keep 100% of it. Zero percentage cut, ever.',
   },
   {
     question: 'What is FeraSetu AI and how does it help my shop?',
     answer:
-      'FeraSetu AI is an AI assistant that knows your actual shop data — your products, inventory, and orders. You can ask it things like "which products are running low?", "write a Diwali promo message", or "what should I restock this week?" It gives shop-specific answers, not generic advice.',
+      'FeraSetu AI is an AI assistant that knows your actual shop data — your products, inventory, and orders. You can use it to clean product photos to white studio backgrounds, write festive WhatsApp broadcasts, and monitor low stock before you run out.',
   },
   {
     question: 'Can I try FeraSetu before paying?',
     answer:
-      'Yes. The Free plan is completely free forever with up to 25 products. You can run a real store, take orders, and use FeraSetu AI before deciding whether to upgrade. No credit card required to start.',
+      'Yes. In India, our Free plan is completely free forever for up to 25 products with no credit card required. In US and Europe, we provide a 14-day free trial with full business features and zero transaction fees.',
   },
   {
-    question: 'What happens after I sign up?',
+    question: 'What is your cancellation and refund policy?',
     answer:
-      'After creating your account, you add your first product, your store link (yourshop.ferasetu.com) becomes live, and you can start sharing it. Most shopkeepers have their first product listed within 10 minutes.',
+      'Subscriptions are strictly non-refundable. You can cancel your subscription at any time with 1 click from your billing settings to prevent future renewals. We do not offer prorated refunds or money-back guarantees. Instead, we eliminate risk before you pay through our permanent Free plan in India and our 14-day zero-risk trial in US/EU so you can test everything before paying.',
   },
   {
-    question: 'Can I connect my own domain name?',
+    question: 'Does FeraSetu hold or delay my customer payments?',
     answer:
-      'Yes — custom domain connection is available on the Business plan (₹399/month). On the Free plan, your store runs on yourshop.ferasetu.com.',
+      'Never. All customer payments flow directly into your own bank account via UPI, Cashfree, or Stripe. FeraSetu never holds, escrows, or delays your payouts.',
+  },
+  {
+    question: 'Can I export my data if I decide to leave?',
+    answer:
+      'Yes. You have 100% data ownership. You can export your complete product catalog, images, customer phone numbers, and order histories to CSV with 1 click at any time.',
   },
 ];
 

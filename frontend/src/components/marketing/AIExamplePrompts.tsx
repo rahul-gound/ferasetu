@@ -14,36 +14,43 @@ import AIWorkflowStrip from './AIWorkflowStrip';
 
 export const AI_EXAMPLES = [
   {
-    category: 'Inventory',
-    icon: <Package size={16} />,
-    prompt: 'Which products are running low on stock?',
+    category: 'Catalog & Photos',
+    icon: <Sparkles size={16} />,
+    tag: '1-Click Photo Studio',
+    title: 'Studio Photo Cleaner',
+    prompt: 'Clean up this product picture and make the background pure studio white.',
     response:
-      'Your top 3 low-stock items: Fortune Mustard Oil (2 left), Surf Excel 1kg (1 left), Parle-G 800g (out of stock). Recommend restocking before the weekend — these sold 40+ units last week.',
+      'Isolated product foreground, removed kitchen shadows, centered product on pure white #FFFFFF with soft ground contact shadow. Catalog image optimized and saved to your store.',
     color: 'text-blue-600',
     bg: 'bg-blue-50',
     border: 'border-blue-100',
+    timeSaved: '₹500 / photoshoot',
   },
   {
-    category: 'Sales',
-    icon: <TrendingUp size={16} />,
-    prompt: 'Why did my sales drop this week?',
-    response:
-      'This week\'s revenue is ₹12,400 vs ₹18,200 last week — a 31% drop. Main cause: 4 out-of-stock products reduced available catalog. Restocking those items should recover the lost order volume.',
-    color: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-100',
-  },
-  {
-    category: 'Content',
+    category: 'Marketing',
     icon: <MessageSquare size={16} />,
-    prompt: 'Write a Diwali offer message for my customers',
+    tag: 'WhatsApp Broadcast',
+    title: 'Festive Promo Generator',
+    prompt: 'Write a high-converting festive offer broadcast for our top customers.',
     response:
-      'Happy Diwali from Sharma Kirana! 🪔 This Diwali, order your pooja thali items, sweets, and dry fruits directly from our store: sharmakirana.ferasetu.com — Free delivery for orders above ₹500. Order by Nov 10! — Ramesh, Sharma Kirana',
+      '🪔 Exclusive Festive Offer from Sharma Kirana! Get 15% off premium sweets, dry fruits, and festive hampers. Order directly on our store: sharmakirana.ferasetu.com/diwali — Free instant delivery above ₹499. Valid till Sunday!',
     color: 'text-purple-600',
     bg: 'bg-purple-50',
     border: 'border-purple-100',
-    tag: 'Content',
-    timeSaved: '10 mins',
+    timeSaved: '15 mins drafting',
+  },
+  {
+    category: 'Inventory',
+    icon: <Package size={16} />,
+    tag: 'Watchdog & Forecast',
+    title: 'Proactive Restock Alert',
+    prompt: 'Which products are at risk of stocking out before this weekend?',
+    response:
+      '⚠️ Alert: Fortune Mustard Oil (2 units left, sold 18 last weekend) and Tata Salt (4 units left). Reorder at least 25 units from your distributor today to prevent stockouts.',
+    color: 'text-amber-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-100',
+    timeSaved: 'Zero stockout loss',
   },
 ];
 

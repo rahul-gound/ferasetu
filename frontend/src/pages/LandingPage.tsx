@@ -22,7 +22,8 @@
  * - No fake urgency
  * - No invented claims
  */
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   CheckCircle2,
@@ -51,6 +52,7 @@ import AIExamplePrompts from '../components/marketing/AIExamplePrompts';
 import TransformationFlow from '../components/marketing/TransformationFlow';
 import ValueCurveSection from '../components/marketing/ValueCurveSection';
 import HeroProductVisual from '../components/marketing/HeroProductVisual';
+import CommissionCalculator from '../components/marketing/CommissionCalculator';
 import MarketingReveal from '../components/marketing/MarketingReveal';
 import LanguageScroller from '../components/marketing/LanguageScroller';
 import SEO from '../components/SEO';
@@ -105,7 +107,30 @@ export default function LandingPage() {
   const { getLocalizedLink, translate: t } = useLanguage();
   const { user, register } = useAuth();
   const { market, config } = useMarket();
+  const navigate = useNavigate();
   const previewPlans = getMarketPlans(market);
+
+  const [claimShopName, setClaimShopName] = useState('');
+
+  const slugifiedClaim = claimShopName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || (market === 'IN' ? 'sharmakirana' : 'apexroasters');
+
+  const handleClaimSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (claimShopName.trim()) {
+      try {
+        localStorage.setItem('ferasetu_claimed_shop_name', claimShopName.trim());
+      } catch {}
+    }
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      register();
+    }
+  };
 
   return (
     <>
@@ -160,42 +185,59 @@ export default function LandingPage() {
               Stop losing 15%–30% of your margins to marketplaces. Launch your independent online store with your custom link, instant direct UPI payments, and FeraSetu AI built-in.
             </p>
 
-            {/* Hero CTAs */}
-            <div className="hero-card-enter hero-card-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            {/* Interactive Hero Storefront Reservation Sandbox */}
+            <form onSubmit={handleClaimSubmit} className="hero-card-enter hero-card-delay-3 max-w-xl mx-auto mb-6">
+              <div className="flex flex-col sm:flex-row items-center gap-2 p-2 bg-white rounded-2xl sm:rounded-full border-2 border-blue-200 shadow-xl shadow-blue-600/10 focus-within:border-blue-600 focus-within:ring-4 focus-within:ring-blue-100 transition-all">
+                <div className="flex items-center gap-2 px-4 py-2 w-full sm:w-auto flex-1 min-w-0">
+                  <Store size={20} className="text-blue-600 shrink-0" />
+                  <input
+                    type="text"
+                    value={claimShopName}
+                    onChange={(e) => setClaimShopName(e.target.value)}
+                    placeholder={market === 'IN' ? 'Enter shop name (e.g. Sharma Kirana)' : 'Enter business name (e.g. Apex Roasters)'}
+                    className="w-full bg-transparent text-sm sm:text-base font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
+                    aria-label="Claim your store name"
+                  />
+                  <span className="text-xs font-mono font-bold text-slate-400 shrink-0 hidden sm:inline">
+                    .ferasetu.com
+                  </span>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-7 py-3.5 rounded-xl sm:rounded-full bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-md shadow-blue-600/20"
+                >
+                  <span>{market === 'IN' ? (t('hero.cta') || 'Claim Free Store (₹0)') : 'Claim 14-Day Free Trial'}</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+
+              {/* Reactive Live URL Slug Indicator */}
+              <div className="text-xs text-slate-500 font-medium mt-2.5 flex items-center justify-center gap-1.5 font-mono">
+                <span>Live store link preview:</span>
+                <strong className="text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
+                  {slugifiedClaim}.ferasetu.com
+                </strong>
+              </div>
+            </form>
+
+            {/* Secondary actions & trust proof */}
+            <div className="hero-card-enter hero-card-delay-3 flex items-center justify-center gap-4 mb-8">
               {user ? (
-                <>
-                  <Link
-                    to="/dashboard"
-                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer ring-4 ring-blue-100"
-                  >
-                    <LayoutDashboard size={20} />
-                    <span>Go to Dashboard</span>
-                    <ArrowRight size={18} />
-                  </Link>
-                  <a
-                    href="#how-it-works"
-                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
-                  >
-                    See how it works
-                  </a>
-                </>
+                <Link
+                  to="/dashboard"
+                  className="px-6 py-2.5 rounded-full bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <LayoutDashboard size={16} />
+                  <span>Go to Dashboard</span>
+                </Link>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => register()}
-                    className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-lg bg-blue-600 text-white shadow-xl shadow-blue-600/25 hover:bg-blue-700 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>{market === 'IN' ? (t('hero.cta') || 'Start Free (₹0)') : 'Start 14-Day Free Trial'}</span>
-                    <ArrowRight size={18} />
-                  </button>
-                  <a
-                    href="#how-it-works"
-                    className="w-full sm:w-auto px-8 py-4 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-lg hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm flex items-center justify-center gap-2"
-                  >
-                    See how it works
-                  </a>
-                </>
+                <a
+                  href="#how-it-works"
+                  className="px-6 py-2.5 rounded-full bg-white border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <span>See how it works</span>
+                  <ArrowRight size={14} />
+                </a>
               )}
             </div>
 
@@ -248,7 +290,12 @@ export default function LandingPage() {
           </div>
 
           <div className='hero-card-enter hero-card-delay-3 mx-auto mt-14 max-w-[1100px] px-6'>
-            <HeroProductVisual />
+            <HeroProductVisual
+              shopName={claimShopName}
+              storeSlug={slugifiedClaim}
+              market={market}
+              currencySymbol={config.symbol}
+            />
           </div>
         </section>
 
@@ -427,96 +474,11 @@ export default function LandingPage() {
         </section>
 
         {/* ================================================================
-          COMMISSION SAVINGS COMPARISON (Evidence-Based Positioning)
+          COMMISSION SAVINGS COMPARISON (Interactive Loss Calculator)
         ================================================================ */}
-        <section className="py-20 md:py-24 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200/60" aria-label="Commission savings comparison">
-          <div className="max-w-[1100px] mx-auto px-6">
-            <div className="text-center max-w-2xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-4">
-                <Percent size={14} className="text-emerald-600" />
-                Commission Comparison
-              </div>
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">
-                Keep 100% of what your customers spend.
-              </h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                On ₹1,00,000 in monthly orders, marketplace aggregators take ₹15,000 to ₹30,000 every single month. See where your revenue actually goes:
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 items-stretch">
-              {/* Card 1: Marketplace platforms */}
-              <div className="bg-white rounded-2xl border-2 border-red-100 p-8 shadow-sm flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-red-100 text-red-700 text-xs font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">
-                  Typical Marketplace
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 mb-2">Marketplace Aggregators</h3>
-                  <p className="text-xs text-slate-500 mb-6">Zomato, Swiggy, Amazon, Blinkit, and large aggregator apps</p>
-
-                  <ul className="space-y-4 text-sm text-slate-700 mb-6">
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
-                      <span><strong>15%–30% commission cut</strong> taken from every single order you fulfill</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
-                      <span><strong>They own the customer</strong> — phone numbers & emails are masked from you</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
-                      <span><strong>Competitors advertised</strong> on your own store listing page</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
-                      <span><strong>7 to 14 days payout hold</strong> before funds reach your bank</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl bg-red-50/80 border border-red-200/70 text-center">
-                  <div className="text-xs text-red-600 font-bold uppercase tracking-wider">Lost Revenue on ₹1,00,000 sales</div>
-                  <div className="text-2xl font-black text-red-700 mt-0.5">− ₹15,000 to ₹30,000 / mo</div>
-                </div>
-              </div>
-
-              {/* Card 2: FeraSetu */}
-              <div className="bg-white rounded-2xl border-2 border-emerald-500 p-8 shadow-xl shadow-emerald-500/10 flex flex-col justify-between relative overflow-hidden ring-4 ring-emerald-50">
-                <div className="absolute top-0 right-0 bg-emerald-600 text-white text-xs font-extrabold px-4 py-1 rounded-bl-xl uppercase tracking-wider shadow-sm">
-                  100% Yours
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 mb-2">Your FeraSetu Store</h3>
-                  <p className="text-xs text-slate-500 mb-6">Your independent branded web shop on your custom link</p>
-
-                  <ul className="space-y-4 text-sm text-slate-700 mb-6">
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
-                      <span><strong>0% commission</strong> — keep 100% of every rupee or dollar you make</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
-                      <span><strong>You own 100% of your customer list</strong> for direct WhatsApp re-orders</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
-                      <span><strong>Zero ads or competitors</strong> — a distraction-free catalog built for conversions</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
-                      <span><strong>Instant direct payments</strong> to your UPI / bank account immediately</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
-                  <div className="text-xs text-emerald-700 font-bold uppercase tracking-wider">Commission Paid to FeraSetu</div>
-                  <div className="text-2xl font-black text-emerald-800 mt-0.5">₹0 / month (0%)</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <MarketingReveal>
+          <CommissionCalculator />
+        </MarketingReveal>
 
         {/* ================================================================
           SECTION 5 — FEATURES AS OUTCOMES (DESIRE)

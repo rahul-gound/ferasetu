@@ -477,7 +477,7 @@ export default function PricingPage() {
               </button>
             </div>
             <p style={{ color: '#475569', fontSize: 13, margin: '20px 0 0', fontWeight: 600 }}>
-              {isIndia ? '₹0 to start • No credit card required • Cancel anytime' : '14 days free • No surprise charges • Cancel anytime'}
+              {isIndia ? '₹0 to start • No credit card required • Strictly non-refundable • Cancel anytime to stop renewals' : '14 days free • 0% transaction fees • Strictly non-refundable • Cancel anytime to stop renewals'}
             </p>
           </div>
         </section>
