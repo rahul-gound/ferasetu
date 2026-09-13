@@ -49,6 +49,15 @@ import {
   listWorkOSMemberships,
   isLiveWorkOS,
 } from "./workos.js";
+import { assignTenantToShard, getShardForShop } from "./sharding/router.js";
+import { getTenantDatabase, getTenantMediaStore } from "./sharding/runtime.js";
+import { provisionNewShard } from "./sharding/provisioner.js";
+import {
+  handleUploadIntent,
+  handleCompleteUpload,
+  handleDeleteMedia,
+  handleGetMediaUsage,
+} from "./media/mediaService.js";
 
 
 // ---------------------------------------------------------------------------
@@ -115,6 +124,7 @@ function json(data, status = 200, extraHeaders = {}, request = null) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "private, no-cache, no-store, must-revalidate",
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -681,6 +691,13 @@ async function createOrganizationHandler(request, env) {
     `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
   } catch (shopInsertErr) {
     console.warn("Warning inserting shop:", shopInsertErr);
+  }
+
+  // Assign shop to market shard server-authoritatively
+  try {
+    await assignTenantToShard(orgId, market, env, { plan });
+  } catch (shardErr) {
+    console.warn("Notice assigning shop to shard:", shardErr?.message || shardErr);
   }
 
   // Also reserve website record for the storefront
@@ -2168,6 +2185,75 @@ async function ensureTables(db) {
     await safeAddColumn('websites', 'organization_id TEXT');
     await safeAddColumn('transactions', 'organization_id TEXT');
     await safeAddColumn('smtp_settings', 'organization_id TEXT');
+
+    // 14. Sharding & Media Storage
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS shards (
+        id TEXT PRIMARY KEY,
+        shard_key TEXT UNIQUE NOT NULL,
+        market TEXT NOT NULL CHECK(market IN ('IN', 'US', 'EU')),
+        d1_database_id TEXT NOT NULL,
+        d1_database_name TEXT NOT NULL,
+        r2_bucket_name TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('provisioning', 'active', 'warning', 'draining', 'full', 'failed', 'retired')),
+        shop_count INTEGER NOT NULL DEFAULT 0,
+        d1_used_bytes INTEGER NOT NULL DEFAULT 0,
+        d1_size_checked_at TEXT,
+        r2_used_bytes INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_shards_market_status ON shards(market, status);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_shards_key ON shards(shard_key);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS shard_locks (
+        market TEXT PRIMARY KEY,
+        locked_by TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS shop_storage (
+        shop_id TEXT PRIMARY KEY,
+        quota_bytes INTEGER NOT NULL,
+        used_bytes INTEGER NOT NULL DEFAULT 0,
+        reserved_bytes INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS media_files (
+        id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
+        r2_key TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        content_type TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_media_files_shop ON media_files(shop_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_media_files_key ON media_files(r2_key);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS upload_reservations (
+        id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
+        r2_key TEXT NOT NULL,
+        reserved_bytes INTEGER NOT NULL,
+        expires_at TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'expired', 'cancelled'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_upload_res_shop ON upload_reservations(shop_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_upload_res_status ON upload_reservations(status);`);
+
+    await safeAddColumn('shops', 'shard_id TEXT');
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_shops_shard ON shops(shard_id);`);
     // Verify that organizations table actually exists in D1
     try {
       if (typeof db.prepare === 'function') {
@@ -3830,6 +3916,29 @@ async function route(request, env) {
     return listCustomers(request, env);
   }
 
+  // Media Storage & Plan-Based Quotas
+  if (path === "/api/media/upload-intent" && method === "POST") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await handleUploadIntent(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+  if (path === "/api/media/complete" && method === "POST") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await handleCompleteUpload(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+  if (path.startsWith("/api/media/") && method === "DELETE") {
+    const mediaId = path.slice("/api/media/".length);
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await handleDeleteMedia(mediaId, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+  if (path === "/api/media/usage" && method === "GET") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await handleGetMediaUsage(env, orgContext);
+    return json(result, 200, {}, request);
+  }
+
   // Products
   if (path === "/api/products") {
     if (method === "GET") return listProducts(request, env);
@@ -4088,4 +4197,12 @@ export default {
       return errorResponse(errMsg, 500, undefined, request);
     }
   },
+};
+
+export {
+  assignTenantToShard,
+  getShardForShop,
+  getTenantDatabase,
+  getTenantMediaStore,
+  provisionNewShard,
 };

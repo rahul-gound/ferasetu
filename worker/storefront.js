@@ -207,6 +207,15 @@ export async function proxyPagesAsset(request, env) {
     responseHeaders.set("X-Frame-Options", "SAMEORIGIN");
     responseHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
+    // Static fingerprinted assets get long-lived immutable caching; HTML gets revalidation
+    if (url.pathname.startsWith("/assets/")) {
+      responseHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (isStaticAsset(url.pathname)) {
+      responseHeaders.set("Cache-Control", "public, max-age=86400");
+    } else {
+      responseHeaders.set("Cache-Control", "public, max-age=0, must-revalidate");
+    }
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

@@ -1,10 +1,10 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import {
-  BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area
-} from 'recharts';
+
+const RevenueAreaChart = lazy(() => import('../components/analytics/AnalyticsCharts').then(m => ({ default: m.RevenueAreaChart })));
+const OrdersBarChart = lazy(() => import('../components/analytics/AnalyticsCharts').then(m => ({ default: m.OrdersBarChart })));
+const CategoryPieChart = lazy(() => import('../components/analytics/AnalyticsCharts').then(m => ({ default: m.CategoryPieChart })));
 import { 
   TrendingUp, Lock, Sparkles, ArrowUpRight, ArrowDownRight, 
   ShoppingBag, DollarSign, Package, CheckCircle
@@ -191,43 +191,11 @@ export default function AnalyticsPage() {
                 />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                 <AreaChart data={revenueData}>
-                   <defs>
-                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0052FF" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#0052FF" stopOpacity={0}/>
-                      </linearGradient>
-                   </defs>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                   <XAxis 
-                     dataKey="date" 
-                     axisLine={false} tickLine={false} 
-                     tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} 
-                     dy={10} 
-                   />
-                   <YAxis 
-                     axisLine={false} tickLine={false} 
-                     tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} 
-                     tickFormatter={v => `₹${v >= 1000 ? (v/1000).toFixed(1)+'k' : v}`}
-                   />
-                   <Tooltip 
-                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', fontWeight: 700 }}
-                     formatter={(v: any) => [`₹${v.toLocaleString()}`, 'Revenue']}
-                   />
-                   <Area 
-                     isAnimationActive={false}
-                     type="monotone" 
-                     dataKey="revenue" 
-                     stroke="#0052FF" 
-                     strokeWidth={3} 
-                     fillOpacity={1} 
-                     fill="url(#colorRev)" 
-                   />
-                 </AreaChart>
-             </ResponsiveContainer>
-           )}
-        </div>
+              <Suspense fallback={<Shimmer h="300px" />}>
+                <RevenueAreaChart data={revenueData} />
+              </Suspense>
+            )}
+         </div>
       </div>
 
       {/* Charts Row 2: Orders Bar & Category Pie */}
@@ -250,18 +218,9 @@ export default function AnalyticsPage() {
                     />
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={revenueData}>
-                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 11}} dy={10} />
-                       <YAxis axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 11}} />
-                       <Tooltip 
-                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
-                         cursor={{fill: '#F8FAFC'}}
-                       />
-                       <Bar isAnimationActive={false} dataKey="orders" fill="#0052FF" radius={[4, 4, 0, 0]} barSize={30} />
-                    </BarChart>
-                 </ResponsiveContainer>
+                  <Suspense fallback={<Shimmer h="250px" />}>
+                    <OrdersBarChart data={revenueData} />
+                  </Suspense>
                )}
             </div>
          </div>
@@ -284,28 +243,9 @@ export default function AnalyticsPage() {
                     />
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                       <Pie
-                         isAnimationActive={false}
-                          data={categoryData}
-                         cx="50%" cy="45%"
-                         innerRadius={60}
-                         outerRadius={90}
-                         paddingAngle={5}
-                         dataKey="revenue"
-                       >
-                          {categoryData.map((_entry, index) => (
-                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                         ))}
-                       </Pie>
-                       <Tooltip 
-                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
-                         formatter={(v: any) => [`₹${v.toLocaleString()}`, 'Revenue']}
-                       />
-                       <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 600 }} />
-                    </PieChart>
-                 </ResponsiveContainer>
+                  <Suspense fallback={<Shimmer h="250px" />}>
+                    <CategoryPieChart data={categoryData} colors={PIE_COLORS} />
+                  </Suspense>
                )}
             </div>
          </div>

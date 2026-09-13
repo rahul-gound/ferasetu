@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Area, AreaChart,
-  PieChart, Pie, Cell,
-} from 'recharts';
+
+const SalesOverviewChart = lazy(() => import('../components/dashboard/DashboardCharts').then(m => ({ default: m.SalesOverviewChart })));
+const OrderStatusPieChart = lazy(() => import('../components/dashboard/DashboardCharts').then(m => ({ default: m.OrderStatusPieChart })));
 import { 
   TrendingUp, ShoppingCart, ShoppingBag, Package, Coins,
   ArrowRight, Download, 
@@ -717,62 +715,9 @@ export default function DashboardPage() {
           </div>
           
           <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={last7DaysData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0052FF" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#0052FF" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94A3B8' }} dy={6} />
-                <YAxis
-                  yAxisId="left"
-                  domain={[0, maxChartRevenue]}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#94A3B8' }}
-                  tickFormatter={(val) => val >= 1000 ? `${config.symbol}${Math.round(val / 1000)}K` : `${config.symbol}${val}`}
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  domain={[0, maxChartOrders]}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#94A3B8' }}
-                />
-                <Tooltip 
-                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                  formatter={(value: any, name: any) => [
-                    name === 'revenue' ? `${config.symbol}${Number(value).toLocaleString()}` : value,
-                    name === 'revenue' ? 'Revenue' : 'Orders'
-                  ]}
-                />
-                <Area
-                  isAnimationActive={false}
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#0052FF"
-                  strokeWidth={2.5}
-                  dot={{ r: 3.5, fill: '#0052FF', strokeWidth: 0 }}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                />
-                <Area
-                  isAnimationActive={false}
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="orders"
-                  stroke="#93C5FD"
-                  strokeWidth={2.5}
-                  dot={{ r: 3.5, fill: '#93C5FD', strokeWidth: 0 }}
-                  fill="none"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse flex items-center justify-center text-xs font-semibold text-slate-400">Loading chart...</div>}>
+              <SalesOverviewChart data={last7DaysData} maxRevenue={maxChartRevenue} maxOrders={maxChartOrders} symbol={config.symbol} />
+            </Suspense>
           </div>
         </div>
 
@@ -831,24 +776,9 @@ export default function DashboardPage() {
           <h2 className="text-base font-bold text-slate-900 mb-1">Order Status</h2>
           
           <div className="h-40 relative flex items-center justify-center my-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  isAnimationActive={false}
-                  data={donutData}
-                  innerRadius={50}
-                  outerRadius={68}
-                  paddingAngle={totalOrders > 0 ? 3 : 0}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {donutData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse flex items-center justify-center text-xs font-semibold text-slate-400">Loading status...</div>}>
+              <OrderStatusPieChart donutData={donutData} totalOrders={totalOrders} />
+            </Suspense>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-2xl font-black text-slate-900">{totalOrders}</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Total Orders</span>

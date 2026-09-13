@@ -1,5 +1,7 @@
 import { verifyPassword, signAdminJwt, requireAdminAuth } from "../utils/auth.js";
 import { logAdminAction } from "../utils/audit.js";
+import { provisionNewShard } from "../sharding/provisioner.js";
+import { SHARD_STATUS, VALID_MARKETS } from "../sharding/config.js";
 
 // Rate limiting in-memory store for local/isolate brute force protection
 const loginAttempts = new Map();
@@ -476,6 +478,53 @@ export async function handleAdminRoutes(request, env) {
         
       await logAdminAction(env, adminEmail, "UPDATE_MEETING_STATUS", "meetings", meetingId, { status: body.status });
       return json({ success: true });
+    }
+
+    // SHARDS & HORIZONTAL PARTITIONING
+    if (path === "/api/admin/shards" && method === "GET") {
+      const { results } = await env.DB.prepare(`
+        SELECT id, shard_key, market, d1_database_id, d1_database_name, r2_bucket_name,
+               status, shop_count, d1_used_bytes, d1_size_checked_at, r2_used_bytes,
+               created_at, updated_at
+        FROM shards
+        ORDER BY market ASC, shard_key ASC
+      `).all();
+      return json({ shards: results || [] });
+    }
+
+    if (path === "/api/admin/shards/provision" && method === "POST") {
+      const body = await readJsonBody(request);
+      const market = (body.market || "IN").toUpperCase().trim();
+      if (!VALID_MARKETS.includes(market)) {
+        throw new HttpError(`Invalid market: ${market}. Must be one of: ${VALID_MARKETS.join(", ")}`, 400);
+      }
+
+      const newShard = await provisionNewShard(market, env);
+      await logAdminAction(env, adminEmail, "PROVISION_SHARD", "shards", newShard.id, {
+        shard_key: newShard.shard_key,
+        market: newShard.market,
+      });
+      return json({ success: true, shard: newShard }, 201);
+    }
+
+    const shardPatchMatch = path.match(/^\/api\/admin\/shards\/([^/]+)\/status$/);
+    if (shardPatchMatch && method === "PATCH") {
+      const shardId = shardPatchMatch[1];
+      const body = await readJsonBody(request);
+      if (!body.status) throw new HttpError("status is required", 400);
+
+      const validStatuses = Object.values(SHARD_STATUS);
+      if (!validStatuses.includes(body.status)) {
+        throw new HttpError(`Invalid status '${body.status}'. Valid statuses: ${validStatuses.join(", ")}`, 400);
+      }
+
+      const nowIso = new Date().toISOString();
+      await env.DB.prepare("UPDATE shards SET status = ?, updated_at = ? WHERE id = ?")
+        .bind(body.status, nowIso, shardId)
+        .run();
+
+      await logAdminAction(env, adminEmail, "UPDATE_SHARD_STATUS", "shards", shardId, { status: body.status });
+      return json({ success: true, shard_id: shardId, status: body.status });
     }
 
     // Fallback for missing admin route
