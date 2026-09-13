@@ -135,6 +135,54 @@ const CATEGORIES: Category[] = [
   },
 ];
 
+interface StoreClerkAction {
+  id: string;
+  title: string;
+  tag: string;
+  icon: ReactNode;
+  borderClass: string;
+  bgClass: string;
+  description: string;
+  actionText: string;
+  prompt: string;
+}
+
+const STORE_CLERK_ACTIONS: StoreClerkAction[] = [
+  {
+    id: 'inventory_watchdog',
+    title: 'Inventory Watchdog',
+    tag: 'Stock Safety Clerk',
+    icon: <AlertTriangle size={18} className="text-amber-400" />,
+    borderClass: 'border-amber-500/40 hover:border-amber-400',
+    bgClass: 'from-amber-950/40 via-slate-900/60 to-slate-900/90',
+    description: 'Scans catalog for out-of-stock items, alerts on low stock (< 5 units), and recommends reorder counts.',
+    actionText: 'Run Watchdog Audit',
+    prompt: 'Act as my Inventory Watchdog. Audit my current catalog stock, detect items running low on stock or out of stock, and calculate recommended restock quantities so I don\'t lose sales.',
+  },
+  {
+    id: 'whatsapp_promo',
+    title: 'Festive WhatsApp Promo Writer',
+    tag: 'Viral Sales Clerk',
+    icon: <Sparkles size={18} className="text-emerald-400" />,
+    borderClass: 'border-emerald-500/40 hover:border-emerald-400',
+    bgClass: 'from-emerald-950/40 via-slate-900/60 to-slate-900/90',
+    description: 'Drafts high-converting festive and seasonal discount broadcasts with emojis, urgency, and live store link.',
+    actionText: 'Draft WhatsApp Broadcast',
+    prompt: 'Act as my Festive WhatsApp Promo Writer. Draft 2 high-converting promotional broadcasts for my local customers with festival discounts, emojis, and urgency that I can copy-paste into WhatsApp customer groups today.',
+  },
+  {
+    id: 'description_generator',
+    title: 'Studio Photo Cleaner & Description Generator',
+    tag: 'Catalog Studio Clerk',
+    icon: <FileText size={18} className="text-blue-400" />,
+    borderClass: 'border-blue-500/40 hover:border-blue-400',
+    bgClass: 'from-blue-950/40 via-slate-900/60 to-slate-900/90',
+    description: 'Generates polished, persuasive product titles, bullet points, and multilingual descriptions in Hindi & English.',
+    actionText: 'Generate Catalog Copy',
+    prompt: 'Act as my Catalog Studio Clerk. Help me write clear, honest, and high-converting product descriptions with key benefits and specifications in simple English and Hindi for my store items.',
+  },
+];
+
 const WELCOME_MESSAGE: Message = {
   id: 'ferasetu-welcome',
   role: 'assistant',
@@ -926,6 +974,56 @@ export default function FeraSetuAIPage() {
 
           {/* Thinking / Processing state */}
           {isLoading && <ThinkingIndicator />}
+
+          {/* 3 Concrete Store Clerk Action Cards — De-jargonized AI into Real Store Tasks */}
+          {messages.length <= 2 && (
+            <div className="mt-4 mb-6">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-[#FF6B35]" />
+                  1-Click Store Clerk Assistants
+                </span>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Tangible retail actions &bull; No complex prompts
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {STORE_CLERK_ACTIONS.map(clerk => (
+                  <div
+                    key={clerk.id}
+                    className={`p-4 rounded-2xl bg-gradient-to-br ${clerk.bgClass} border ${clerk.borderClass} shadow-md flex flex-col justify-between transition-all group`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
+                          {clerk.tag}
+                        </span>
+                        <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                          {clerk.icon}
+                        </div>
+                      </div>
+                      <h4 className="text-sm font-extrabold text-white mb-1.5 leading-snug">
+                        {clerk.title}
+                      </h4>
+                      <p className="text-xs text-slate-400 font-medium leading-relaxed mb-4">
+                        {clerk.description}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => !isLoading && sendMessage(clerk.prompt)}
+                      disabled={isLoading}
+                      className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <span>{clerk.actionText}</span>
+                      <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 6 Category Prompts Drawer (displayed initially or expandable) */}
           {showCategories && messages.length <= 2 && (

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock } from 'lucide-react';
+import {
+  ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
+  Download, Share2, Copy, Check, ExternalLink, Sparkles
+} from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -339,6 +342,85 @@ export default function OrdersPage() {
     }
   };
 
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const storeUrl = getStorefrontUrl(user);
+
+  const handleExportOrdersCsv = () => {
+    if (orders.length === 0) {
+      toast.error('No orders to export.');
+      return;
+    }
+    setExportingCsv(true);
+    try {
+      const headers = [
+        'Order ID',
+        'Date',
+        'Customer Name',
+        'Phone',
+        'Address',
+        'Delivery Type',
+        'Items Count',
+        'Items Details',
+        'Total Amount (INR)',
+        'Order Status',
+        'Payment Status',
+        'Notes'
+      ];
+      const rows = orders.map(o => {
+        const itemSummary = (o.items || [])
+          .map((it: any) => `${it.product_name || it.name || 'Item'} (x${it.quantity})`)
+          .join('; ');
+        return [
+          `"${o.id}"`,
+          `"${new Date(o.created_at).toLocaleString('en-IN')}"`,
+          `"${(o.customer_name || '').replace(/"/g, '""')}"`,
+          `"${(o.customer_phone || '').replace(/"/g, '""')}"`,
+          `"${(o.customer_address || '').replace(/"/g, '""')}"`,
+          o.delivery_type || 'delivery',
+          o.items_count || (o.items?.length || 0),
+          `"${itemSummary.replace(/"/g, '""')}"`,
+          o.total ?? 0,
+          o.status || 'pending',
+          o.payment_status || 'unpaid',
+          `"${(o.notes || '').replace(/"/g, '""')}"`
+        ];
+      });
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `FeraSetu_Orders_Export_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Orders & customer contacts exported! You have 100% data sovereignty.');
+    } catch {
+      toast.error('Failed to export orders.');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const handleCopyStoreLink = async () => {
+    try {
+      await navigator.clipboard.writeText(storeUrl);
+      setCopiedLink(true);
+      toast.success('Store link copied!');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      toast.error('Failed to copy store link.');
+    }
+  };
+
+  const handleShareWhatsAppStatus = () => {
+    const text = encodeURIComponent(
+      `🛍️ We are now accepting online orders directly! Tap our catalog link to order in seconds with direct delivery & easy UPI/Cash payment:\n👉 ${storeUrl}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
   const filtered = activeTab === 'all'
     ? orders
     : orders.filter(o => o.status === activeTab);
@@ -351,11 +433,25 @@ export default function OrdersPage() {
       `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>{translate('orders')}</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          {orders.length} total orders
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{translate('orders')}</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {orders.length} total orders recorded • 100% direct merchant settlement
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleExportOrdersCsv}
+            disabled={exportingCsv || orders.length === 0}
+            className="btn btn-secondary inline-flex items-center gap-2 text-xs font-bold cursor-pointer"
+            title="Download CSV of all customer orders and contact numbers (Data Sovereignty Guarantee)"
+          >
+            <Download size={15} />
+            <span>{exportingCsv ? 'Exporting...' : 'Export Orders (CSV)'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Status tabs */}
@@ -391,17 +487,60 @@ export default function OrdersPage() {
         ) : filtered.length === 0 ? (
           <div style={{ padding: '32px 16px' }}>
             {orders.length === 0 ? (
-              <ActionableEmptyState
-                icon={<ShoppingCart size={28} />}
-                title="Your store is ready for its first order"
-                description="Share your store link with customers on WhatsApp so they can browse your catalog and send orders."
-                actionLabel="Share Store on WhatsApp"
-                onAction={() => {
-                  const url = getStorefrontUrl(user);
-                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent('Check out our catalog and order easily: ' + url)}`, '_blank');
-                }}
-                expectedOutcome="Customer orders appear here in real-time with automatic invoicing."
-              />
+              <div className="py-8 px-4 max-w-2xl mx-auto text-center">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <ShoppingCart size={32} />
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/70 text-emerald-800 text-xs font-black uppercase tracking-wider mb-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Order Book Ready
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
+                  Your order book is ready. Share your store link on WhatsApp Status or customer groups to receive your first order!
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-lg mx-auto mb-6">
+                  Small retailers get their first 5 customer orders within 24 hours by sharing their live catalog link directly to WhatsApp Status and local groups.
+                </p>
+
+                {/* 3 Step Guidance */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left mb-6">
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <div className="text-xs font-black text-[#0052FF] mb-1">1. Share Catalog</div>
+                    <div className="text-xs font-bold text-slate-800">Post Link to WhatsApp</div>
+                    <p className="text-[11px] text-slate-500 mt-1 m-0">Broadcast to your customer groups and WhatsApp Status.</p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <div className="text-xs font-black text-[#0052FF] mb-1">2. Direct Order</div>
+                    <div className="text-xs font-bold text-slate-800">Zero-Friction Checkout</div>
+                    <p className="text-[11px] text-slate-500 mt-1 m-0">Customers browse items and submit orders in 1 tap.</p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <div className="text-xs font-black text-[#0052FF] mb-1">3. Direct Money</div>
+                    <div className="text-xs font-bold text-slate-800">100% Non-Custodial</div>
+                    <p className="text-[11px] text-slate-500 mt-1 m-0">Collect via your own UPI or Cash. Zero commission taken.</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleShareWhatsAppStatus}
+                    className="w-full sm:w-auto px-6 py-3 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs sm:text-sm font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Share2 size={16} />
+                    <span>Share on WhatsApp Status</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyStoreLink}
+                    className="w-full sm:w-auto px-5 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {copiedLink ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                    <span>{copiedLink ? 'Link Copied!' : 'Copy Store Link'}</span>
+                  </button>
+                </div>
+              </div>
             ) : (
               <ActionableEmptyState
                 icon={<ShoppingCart size={28} />}

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import {
   Plus, Search, Edit2, Trash2, X, Upload, Package,
   AlertTriangle, ChevronDown, ToggleLeft, ToggleRight,
+  Download, Sparkles, Check, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -70,6 +71,8 @@ export default function ProductsPage() {
   }, [searchParams]);
   const [category, setCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showGrowthModal, setShowGrowthModal] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -89,6 +92,43 @@ export default function ProductsPage() {
       return res.data.products || res.data;
     },
   });
+
+  const handleExportCsv = () => {
+    if (products.length === 0) {
+      toast.error('No products in catalog to export.');
+      return;
+    }
+    setExportingCsv(true);
+    try {
+      const headers = ['ID', 'Product Name', 'Category', 'Price', 'Sale Price', 'Cost Price', 'Stock Quantity', 'Status', 'Image URL', 'Created At'];
+      const rows = products.map(p => [
+        `"${p.id}"`,
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        `"${(p.category || '').replace(/"/g, '""')}"`,
+        p.price ?? '',
+        p.sale_price ?? '',
+        p.cost_price ?? '',
+        p.stock_quantity ?? 0,
+        p.is_active ? 'Active' : 'Inactive',
+        `"${(p.image_url || '').replace(/"/g, '""')}"`,
+        `"${p.created_at || ''}"`
+      ]);
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `FeraSetu_Products_Catalog_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Catalog exported! You have 100% data sovereignty over your products.');
+    } catch {
+      toast.error('Failed to export catalog.');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
 
   // Mark setup-checklist flag when the user adds at least one product.
   useEffect(() => {
@@ -124,10 +164,7 @@ export default function ProductsPage() {
 
   const openAdd = () => {
     if (atLimit) {
-      toast.error(
-        `Product limit reached (${products.length}/${productLimit === Infinity ? '∞' : productLimit}). Upgrade your plan to add more.`,
-        { duration: 4000 }
-      );
+      setShowGrowthModal(true);
       return;
     }
     setEditProduct(null);
@@ -245,20 +282,55 @@ export default function ProductsPage() {
             {productLimit !== Infinity && ` · ${Math.max(0, productLimit - products.length)} of ${productLimit} remaining on your plan`}
           </p>
         </div>
-        <button onClick={openAdd} className="btn btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2">
-          <Plus size={18} /> {translate('addProduct')}
-        </button>
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exportingCsv || products.length === 0}
+            className="btn btn-secondary flex-1 sm:flex-none inline-flex items-center justify-center gap-2 cursor-pointer"
+            title="Download full catalog CSV (Data Sovereignty Guarantee)"
+          >
+            <Download size={16} />
+            <span>{exportingCsv ? 'Exporting...' : 'Export CSV'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={openAdd}
+            className="btn btn-primary flex-1 sm:flex-none inline-flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus size={18} /> {translate('addProduct')}
+          </button>
+        </div>
       </div>
 
-      {/* Plan limit prompt — uses real limit from plans.ts */}
+      {/* Celebratory Milestone Banner on reaching product limit (Gain-Framed) */}
       {atLimit && (
-        <div style={{ marginBottom: 20 }}>
-          <UpgradePrompt
-            variant="banner"
-            reason="You've reached your product limit."
-            benefit={`Your plan supports up to ${productLimit === Infinity ? 'unlimited' : productLimit} products. Upgrade to add more.`}
-            currentPlan={user?.plan}
-          />
+        <div className="mb-6 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border-2 border-emerald-500/40 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-sm">
+              🎉
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 m-0">
+                  Congratulations on listing {productLimit} products!
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider">
+                  Milestone
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium m-0 mt-1">
+                Your shop is expanding rapidly. Your existing {productLimit} products remain <strong>completely free forever</strong>. Upgrade to Business whenever you are ready to list up to 500 products and connect your custom domain.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowGrowthModal(true)}
+            className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition-all cursor-pointer"
+          >
+            View Growth Options
+          </button>
         </div>
       )}
       {nearLimit && !atLimit && (
@@ -584,6 +656,82 @@ export default function ProductsPage() {
               >
                 {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Celebratory Growth Limit Modal (Gain-Framed Milestone) */}
+      {showGrowthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-100 animate-scale-in">
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-500/20 mb-3">
+                🎉
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black uppercase tracking-wider mb-2">
+                <Sparkles size={12} /> Milestone Achieved
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Congratulations on listing {productLimit} products!
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5 max-w-md mx-auto">
+                Your store catalog is expanding fast. You have reached the maximum listing limit for the Free tier.
+              </p>
+            </div>
+
+            {/* Reassurance Card (Loss Aversion Elimination) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+                <span>Zero Extortion Guarantee</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed m-0">
+                Your existing {productLimit} products will <strong>remain active, searchable, and 100% free forever</strong>. We will never hide your products, freeze customer orders, or hold your catalog hostage.
+              </p>
+            </div>
+
+            {/* Growth Benefits */}
+            <div className="space-y-2.5 mb-6">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0">
+                What you unlock on the Business Plan:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <Check size={14} className="text-emerald-600 shrink-0" />
+                  <span>Up to 500 products</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <Check size={14} className="text-emerald-600 shrink-0" />
+                  <span>Custom domain connection</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <Check size={14} className="text-emerald-600 shrink-0" />
+                  <span>FeraSetu AI Studio Cleaner</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <Check size={14} className="text-emerald-600 shrink-0" />
+                  <span>0% commission cuts</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowGrowthModal(false)}
+                className="btn btn-secondary flex-1 text-xs py-2.5 cursor-pointer"
+              >
+                Keep My {productLimit} Free Products
+              </button>
+              <Link
+                to="/upgrade"
+                className="btn btn-primary flex-1 text-xs py-2.5 inline-flex items-center justify-center gap-1.5 shadow-md"
+              >
+                <span>Upgrade to Business</span>
+                <ArrowRight size={13} />
+              </Link>
             </div>
           </div>
         </div>

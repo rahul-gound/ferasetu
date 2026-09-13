@@ -468,6 +468,33 @@ export default function UpgradePage() {
             <span className="text-amber-800 font-semibold">Strictly non-refundable — no partial refunds, prorated credits, or money-back guarantee</span>
           </div>
 
+          {/* Non-Custodial Direct Settlement & Data Sovereignty Guarantee */}
+          <div className="mt-6 max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-extrabold text-slate-900 m-0">We Never Touch Your Money</h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed m-0">
+                  Customer payments go directly to your Cashfree, UPI, or Stripe account. Zero platform escrow, zero payout holds, zero intermediary cuts.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 flex items-center justify-center shrink-0">
+                <Check size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-extrabold text-slate-900 m-0">100% Data Sovereignty</h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed m-0">
+                  You own all your product catalogs, order history, and customer phone contacts. Export everything to CSV anytime with 1 click from your dashboard.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Cancellation management for active paid users */}
           {subscription.isPaidActive && !subscription.isCancelled && (
             <div className="mt-8 text-center">

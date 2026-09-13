@@ -10,7 +10,8 @@ import {
   TrendingUp, ShoppingCart, ShoppingBag, Package, Coins,
   ArrowRight, Download, 
   Users, Target, Sparkles, ShieldCheck, Calendar,
-  ChevronDown, CreditCard, Share2, Plus, AlertCircle
+  ChevronDown, CreditCard, Share2, Plus, AlertCircle,
+  Copy, ExternalLink, Store, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -96,7 +97,9 @@ export default function DashboardPage() {
   const { translate } = useLanguage();
   const { config, subscription } = useMarket();
   const [downloading, setDownloading] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const greeting = useMemo(() => getGreeting(), []);
+  const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
 
   // Fetch real analytics from backend
   const { data: dashboardData, isLoading: isDashboardLoading } = useQuery<DashboardData>({
@@ -382,9 +385,21 @@ export default function DashboardPage() {
     }
   };
 
+  const handleCopyStoreLink = async () => {
+    try {
+      await navigator.clipboard.writeText(storeUrl);
+      setCopiedLink(true);
+      toast.success('Live store link copied to clipboard!');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      toast.error('Failed to copy store link.');
+    }
+  };
+
   const handleShareStoreWhatsApp = () => {
-    const storeUrl = getStorefrontUrl(user);
-    const text = encodeURIComponent(`Check out our online store catalog and place orders directly: ${storeUrl}`);
+    const text = encodeURIComponent(
+      `🛍️ Visit our official online store! Browse our catalog and order directly with zero middleman markups:\n👉 ${storeUrl}`
+    );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
@@ -510,6 +525,55 @@ export default function DashboardPage() {
           >
             <Download size={14} className="text-slate-500" />
             <span>{downloading ? 'Downloading...' : 'Download Report'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Live Storefront Link Banner — Instant Gratification & 1-Click Distribution */}
+      <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-400/20 flex items-center justify-center text-blue-400 shrink-0">
+            <Store size={20} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Live Storefront Link
+              </span>
+              <span className="text-[11px] text-slate-400">• 0% Commission Anti-Extractive Store</span>
+            </div>
+            <p className="text-sm sm:text-base font-black text-slate-100 truncate mt-0.5 font-mono">
+              {storeUrl}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleCopyStoreLink}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            {copiedLink ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+            <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+          </button>
+          <a
+            href={storeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5"
+          >
+            <ExternalLink size={13} />
+            <span>Preview Store</span>
+          </a>
+          <button
+            type="button"
+            onClick={handleShareStoreWhatsApp}
+            className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-black shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Share2 size={13} />
+            <span>Share on WhatsApp</span>
           </button>
         </div>
       </div>

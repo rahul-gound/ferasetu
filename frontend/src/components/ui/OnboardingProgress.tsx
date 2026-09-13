@@ -1,7 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, Sparkles, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import api from '../../services/api';
 
 interface OnboardingStep {
   id: string;
@@ -23,7 +21,7 @@ interface OnboardingProgressProps {
   onDismiss?: () => void;
 }
 
-const DISMISS_KEY = 'fera_onboarding_dismissed_v1';
+const DISMISS_KEY = 'fera_onboarding_dismissed_v2';
 
 function isDismissed() {
   try {
@@ -53,41 +51,41 @@ export default function OnboardingProgress({
   const steps: OnboardingStep[] = [
     {
       id: 'shop_created',
-      label: 'Store created',
-      description: 'Your business organization and store profile are set up.',
+      label: 'Store created & organization verified',
+      description: 'Your business account and secure database tenant are ready.',
       done: shopCreated,
     },
     {
       id: 'link_reserved',
-      label: 'Store link reserved',
+      label: 'Live store URL reserved',
       description: displayUrl,
-      done: true, // Reserved at organization creation
+      done: true, // Endowed progress: instantly reserved
       href: storeUrl,
       actionLabel: 'Preview',
     },
     {
       id: 'first_product',
       label: 'Add your first product',
-      description: 'Add your first item so customers can browse and purchase.',
+      description: 'Upload 1 product with price and photo to activate your live storefront.',
       done: hasProducts,
       href: '/products',
       actionLabel: 'Add Product',
     },
     {
       id: 'store_shared',
-      label: 'Share your store link',
-      description: 'Share your link with customers on WhatsApp or social media.',
+      label: 'Share WhatsApp store link',
+      description: 'Send your store catalog to customers or post on WhatsApp Status.',
       done: storePublished || hasOrders,
       href: '/dashboard',
       actionLabel: 'Share Link',
     },
     {
-      id: 'complete_setup',
-      label: 'Complete remaining setup',
-      description: 'Set up payments, customize themes, or invite more staff members.',
+      id: 'first_order',
+      label: 'Receive first order & direct payment',
+      description: 'Customers order via WhatsApp/web and pay 100% directly to your UPI/cash.',
       done: hasOrders,
-      href: '/website-builder',
-      actionLabel: 'Customize',
+      href: '/orders',
+      actionLabel: 'View Orders',
     },
   ];
 
@@ -95,8 +93,9 @@ export default function OnboardingProgress({
   const totalCount = steps.length;
   const pct = Math.round((completedCount / totalCount) * 100);
   const allDone = completedCount === totalCount;
+  const nextUndoneIndex = steps.findIndex(s => !s.done);
 
-  // Don't render if dismissed or everything is complete
+  // Don't render if dismissed and products are already added, or if everything is complete
   if (isDismissed() && completedCount >= 3) return null;
   if (allDone) return null;
 
@@ -109,117 +108,121 @@ export default function OnboardingProgress({
     <div
       role="region"
       aria-label="Shop setup progress"
-      style={{
-        borderRadius: 20,
-        border: '1px solid rgba(255,107,53,0.2)',
-        background: 'linear-gradient(135deg, rgba(255,107,53,0.04) 0%, rgba(255,255,255,0) 100%)',
-        overflow: 'hidden',
-        marginBottom: 24,
-      }}
+      className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden mb-6"
     >
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 20px', borderBottom: '1px solid rgba(255,107,53,0.1)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontWeight: 800, fontSize: 14, color: '#0f172a', margin: 0 }}>
-              Your shop is {pct}% ready
-            </p>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0', fontWeight: 500 }}>
-              {completedCount} of {totalCount} steps done
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:px-6 sm:py-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] shrink-0">
+            <Sparkles size={16} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-sm text-slate-900 m-0">
+                Setup Checklist &mdash; {pct}% Complete
+              </h3>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
+                Endowed: 2 Steps Done ✓
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium m-0 mt-0.5">
+              {completedCount} of {totalCount} setup milestones finished. Complete the next step to start receiving orders.
             </p>
           </div>
         </div>
-        {/* Progress bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 80, height: 6, borderRadius: 999,
-            background: 'rgba(255,107,53,0.15)',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              height: '100%', borderRadius: 999,
-              background: 'linear-gradient(90deg, #FF6B35, #f97316)',
-              width: `${pct}%`,
-              transition: 'width 0.6s ease',
-            }} />
+
+        {/* Progress Bar & Dismiss */}
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <div className="w-28 sm:w-36 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+            <div
+              className="h-full bg-gradient-to-r from-[#0052FF] to-blue-500 rounded-full transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
           </div>
           {completedCount >= 3 && (
             <button
               onClick={handleDismiss}
               aria-label="Dismiss setup checklist"
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: '#94a3b8', fontSize: 18, lineHeight: 1, padding: '2px 4px',
-              }}
+              className="text-slate-400 hover:text-slate-600 text-sm font-bold px-1.5 py-0.5 rounded transition-colors"
             >
-              ×
+              Dismiss
             </button>
           )}
         </div>
       </div>
 
-      {/* Steps */}
-      <div style={{ padding: '8px 0' }}>
-        {steps.map((step, i) => (
-          <div
-            key={step.id}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '10px 20px',
-              opacity: step.done ? 0.65 : 1,
-              borderBottom: i < steps.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-            }}
-          >
-            {/* Status icon */}
-            <div style={{
-              width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: step.done ? '#10b981' : 'rgba(255,107,53,0.1)',
-              border: step.done ? 'none' : '2px solid rgba(255,107,53,0.3)',
-              transition: 'all 0.3s ease',
-            }}>
-              {step.done
-                ? <Check size={13} color="#fff" strokeWidth={3} />
-                : <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B35', display: 'block' }} />
-              }
-            </div>
+      {/* Steps List */}
+      <div className="divide-y divide-slate-100">
+        {steps.map((step, i) => {
+          const isNext = i === nextUndoneIndex;
+          return (
+            <div
+              key={step.id}
+              className={`flex items-center justify-between gap-4 p-3.5 sm:px-6 sm:py-3.5 transition-colors ${
+                isNext ? 'bg-blue-50/40' : step.done ? 'bg-white opacity-85' : 'bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                {/* Status Indicator */}
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                    step.done
+                      ? 'bg-emerald-500 text-white'
+                      : isNext
+                      ? 'bg-blue-600 text-white shadow-sm ring-4 ring-blue-100 animate-pulse'
+                      : 'border-2 border-slate-300 bg-white text-transparent'
+                  }`}
+                >
+                  {step.done ? (
+                    <Check size={13} strokeWidth={3} />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-white block" />
+                  )}
+                </div>
 
-            {/* Label */}
-            <div style={{ flex: 1 }}>
-              <p style={{
-                margin: 0, fontSize: 13, fontWeight: step.done ? 600 : 700,
-                color: step.done ? '#64748b' : '#0f172a',
-                textDecoration: step.done ? 'line-through' : 'none',
-              }}>
-                {step.label}
-              </p>
-              {!step.done && (
-                <p style={{ margin: '1px 0 0', fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>
-                  {step.description}
-                </p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p
+                      className={`text-xs sm:text-sm m-0 font-bold ${
+                        step.done
+                          ? 'text-slate-500 line-through'
+                          : isNext
+                          ? 'text-slate-900'
+                          : 'text-slate-700'
+                      }`}
+                    >
+                      {step.label}
+                    </p>
+                    {isNext && (
+                      <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-wider">
+                        Next Action
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium m-0 truncate mt-0.5">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              {!step.done && step.href && (
+                <Link
+                  to={step.href}
+                  id={`onboarding-step-${step.id}`}
+                  className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isNext
+                      ? 'bg-[#0052FF] hover:bg-blue-700 text-white shadow-sm'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  <span>{step.actionLabel}</span>
+                  <ArrowRight size={12} />
+                </Link>
               )}
             </div>
-
-            {/* Action */}
-            {!step.done && step.href && (
-              <Link
-                to={step.href}
-                id={`onboarding-step-${step.id}`}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: 12, fontWeight: 700, color: '#FF6B35',
-                  textDecoration: 'none', whiteSpace: 'nowrap',
-                }}
-              >
-                {step.actionLabel}
-                <ChevronRight size={12} />
-              </Link>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

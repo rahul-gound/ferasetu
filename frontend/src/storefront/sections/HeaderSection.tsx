@@ -7,6 +7,9 @@ import {
   MapPin,
   Phone,
   Package,
+  ShieldCheck,
+  MessageCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import type { HeaderVariant } from '../theme/themeTypes';
 import { useStorefront } from '../runtime/StorefrontProvider';
@@ -15,6 +18,49 @@ import { sanitizeText } from '../utilities/formatting';
 interface HeaderSectionProps {
   config?: Record<string, unknown>;
   variant?: HeaderVariant | string;
+}
+
+function VerifiedStoreTrustPill({ shopPhone }: { shopPhone?: string }) {
+  const cleanPhone = shopPhone ? shopPhone.replace(/\D/g, '') : '';
+  return (
+    <div className="bg-slate-900 text-white text-[11px] font-semibold py-1.5 px-3 border-b border-slate-800 tracking-tight">
+      <div className="max-w-[var(--theme-max-width)] mx-auto flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/30">
+            <ShieldCheck size={12} className="text-emerald-400" />
+            Verified Local Business
+          </span>
+          <span className="text-slate-400 hidden sm:inline">•</span>
+          <span className="text-slate-300 text-[10.5px] hidden sm:inline flex items-center gap-1">
+            <MapPin size={11} className="text-slate-400" />
+            Direct Local Fulfillment
+          </span>
+          <span className="text-slate-400 hidden md:inline">•</span>
+          <span className="text-slate-300 text-[10.5px] hidden md:inline">
+            Orders fulfilled directly by store owner
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 text-slate-300">
+          <span className="inline-flex items-center gap-1 text-[10.5px]">
+            <CheckCircle2 size={11} className="text-emerald-400" />
+            100% Direct Payment
+          </span>
+          {cleanPhone && (
+            <a
+              href={`https://wa.me/${cleanPhone}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-[10.5px] font-bold transition-colors"
+            >
+              <MessageCircle size={11} />
+              Direct WhatsApp
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function HeaderSection({
@@ -64,6 +110,7 @@ export default function HeaderSection({
           isScrolled ? 'py-3 shadow-sm' : 'py-5'
         }`}
       >
+        <VerifiedStoreTrustPill shopPhone={shopPhone} />
         <div className="max-w-[var(--theme-max-width)] mx-auto px-4 sm:px-8 flex items-center justify-between">
           {/* Left: Nav links (Desktop) */}
           <nav className="hidden md:flex items-center gap-8 text-[13px] tracking-widest uppercase font-medium text-[#121212]/80">
@@ -208,6 +255,7 @@ export default function HeaderSection({
   if (variant === 'minimal') {
     return (
       <header className="sticky top-0 z-50 bg-white border-b border-[var(--theme-color-border)]">
+        <VerifiedStoreTrustPill shopPhone={shopPhone} />
         <div className="max-w-[var(--theme-max-width)] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <a href="#" className="font-mono text-sm font-bold tracking-tight uppercase">
@@ -262,6 +310,7 @@ export default function HeaderSection({
           isScrolled ? 'py-2.5 shadow-sm' : 'py-3.5'
         }`}
       >
+        <VerifiedStoreTrustPill shopPhone={shopPhone} />
         <div className="max-w-[var(--theme-max-width)] mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
           <a href="#" className="text-xl sm:text-2xl font-black tracking-tight text-gray-950">
             {shopLogo ? (
@@ -338,6 +387,7 @@ export default function HeaderSection({
   if (variant === 'artisan') {
     return (
       <header className="sticky top-0 z-50 bg-[#FBF8F3]/95 backdrop-blur-sm border-b border-[#E7DFD5]">
+        <VerifiedStoreTrustPill shopPhone={shopPhone} />
         <div className="max-w-[var(--theme-max-width)] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
@@ -388,6 +438,7 @@ export default function HeaderSection({
   // ─────────────────────────────────────────────────────────────
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-xs">
+      <VerifiedStoreTrustPill shopPhone={shopPhone} />
       <div className="max-w-[var(--theme-max-width)] mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
         {/* Left Brand */}
         <div className="flex items-center gap-2">
