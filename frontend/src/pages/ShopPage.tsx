@@ -11,6 +11,8 @@ const DEFAULT_IMAGE = `${BASE_URL}/og-default.png`;
 
 export default function ShopPage() {
   const params = useParams<{ shopName: string }>();
+  const [searchParams] = useSearchParams();
+  const initialProductId = searchParams.get('product');
   
   // Logic to determine shop name:
   // 1. From URL params (e.g., /shop/my-kirana)
@@ -179,9 +181,6 @@ export default function ShopPage() {
       </div>
     );
   }
-
-  const [searchParams] = useSearchParams();
-  const initialProductId = searchParams.get('product');
 
   return (
     <>
