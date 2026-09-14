@@ -14,7 +14,7 @@ export interface SalesOverviewChartProps {
 
 export function SalesOverviewChart({ data, maxRevenue, maxOrders, symbol }: SalesOverviewChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
       <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
         <defs>
           <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -80,7 +80,7 @@ export interface OrderStatusPieChartProps {
 
 export function OrderStatusPieChart({ donutData }: OrderStatusPieChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
       <PieChart>
         <Pie
           isAnimationActive={false}

@@ -455,6 +455,7 @@ export async function requireOrgContext(request, env, minRole = 'staff') {
 
   return {
     user: me,
+    userId: me.$id,
     organization: orgRow,
     member: memberRow,
     role: memberRow.role,
@@ -2475,6 +2476,7 @@ async function ensureTables(db) {
     await safeAddColumn('transactions', 'created_at TEXT');
     await safeAddColumn('transactions', 'updated_at TEXT');
 
+    await safeAddColumn('smtp_settings', 'user_id TEXT');
     await safeAddColumn('smtp_settings', 'organization_id TEXT');
     await safeAddColumn('tickets', 'organization_id TEXT');
 
@@ -2775,7 +2777,12 @@ async function handlePaymentInitialize(request, env) {
     if (!cfOrderRes.ok) {
       const errText = await cfOrderRes.text();
       console.error('Cashfree order creation failed:', cfOrderRes.status, errText);
-      throw new HttpError('Failed to initiate payment with Cashfree gateway', 502);
+      let detail = 'Payment gateway error';
+      try {
+        const parsed = JSON.parse(errText);
+        detail = parsed.message || detail;
+      } catch {}
+      throw new HttpError(`Cashfree payment error: ${detail}`, 502);
     }
 
     const cfOrder = await cfOrderRes.json();
@@ -3309,7 +3316,12 @@ async function handlePaymentAiCreditsPurchase(request, env) {
     if (!cfOrderRes.ok) {
       const errText = await cfOrderRes.text();
       console.error('Cashfree credit order creation failed:', cfOrderRes.status, errText);
-      throw new HttpError('Failed to initiate credit payment with Cashfree gateway', 502);
+      let detail = 'Payment gateway error';
+      try {
+        const parsed = JSON.parse(errText);
+        detail = parsed.message || detail;
+      } catch {}
+      throw new HttpError(`Cashfree payment error: ${detail}`, 502);
     }
 
     const cfOrder = await cfOrderRes.json();
@@ -4122,9 +4134,29 @@ async function getAnalyticsSales(request, env) {
   const url = new URL(request.url);
   const period = url.searchParams.get("period") || "30d";
 
-  const { results: rawOrders } = await env.DB.prepare(
-    "SELECT * FROM orders WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?)) AND status != 'cancelled' ORDER BY created_at ASC"
-  ).bind(ctx.organizationId, ctx.userId).all();
+  const userId = ctx.userId || ctx.user?.$id;
+  let rawOrders = [];
+  try {
+    const res = await env.DB.prepare(
+      "SELECT * FROM orders WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?)) AND status != 'cancelled' ORDER BY created_at ASC"
+    ).bind(ctx.organizationId, userId).all();
+    rawOrders = res.results ?? [];
+  } catch (err) {
+    console.warn("Analytics sales query notice, attempting fallback:", err?.message || err);
+    try {
+      const res = await env.DB.prepare(
+        "SELECT * FROM orders WHERE organization_id = ? AND status != 'cancelled' ORDER BY created_at ASC"
+      ).bind(ctx.organizationId).all();
+      rawOrders = res.results ?? [];
+    } catch {
+      try {
+        const res = await env.DB.prepare("SELECT * FROM orders WHERE status != 'cancelled' ORDER BY created_at ASC").all();
+        rawOrders = res.results ?? [];
+      } catch {
+        rawOrders = [];
+      }
+    }
+  }
 
   const orders = rawOrders || [];
   const salesMap = {};
@@ -4167,9 +4199,27 @@ async function getAnalyticsPredict(request, env) {
 // ---------------------------------------------------------------------------
 async function getSmtpSettings(request, env) {
   const ctx = await requireOrgContext(request, env);
-  const row = await env.DB.prepare(
-    "SELECT * FROM smtp_settings WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
-  ).bind(ctx.organizationId, ctx.userId).first();
+  const userId = ctx.userId || ctx.user?.$id;
+  let row = null;
+  try {
+    row = await env.DB.prepare(
+      "SELECT * FROM smtp_settings WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+    ).bind(ctx.organizationId, userId).first();
+  } catch (err) {
+    console.warn("getSmtpSettings query notice, trying fallback:", err?.message || err);
+    try {
+      row = await env.DB.prepare(
+        "SELECT * FROM smtp_settings WHERE organization_id = ?"
+      ).bind(ctx.organizationId).first();
+    } catch {
+      try {
+        row = await env.DB.prepare("SELECT * FROM smtp_settings WHERE user_id = ?").bind(userId).first();
+      } catch {
+        row = null;
+      }
+    }
+  }
+
   if (!row) {
     return json({
       configured: false,
@@ -4196,10 +4246,20 @@ async function updateSmtpSettings(request, env) {
   const ctx = await requireOrgContext(request, env, 'admin');
   const body = await readJsonBody(request);
   const now = new Date().toISOString();
+  const userId = ctx.userId || ctx.user?.$id;
 
-  const existing = await env.DB.prepare(
-    "SELECT id, password_encrypted FROM smtp_settings WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
-  ).bind(ctx.organizationId, ctx.userId).first();
+  let existing = null;
+  try {
+    existing = await env.DB.prepare(
+      "SELECT id, password_encrypted FROM smtp_settings WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)"
+    ).bind(ctx.organizationId, userId).first();
+  } catch {
+    try {
+      existing = await env.DB.prepare("SELECT id, password_encrypted FROM smtp_settings WHERE organization_id = ?").bind(ctx.organizationId).first();
+    } catch {
+      existing = null;
+    }
+  }
 
   const provider = body.provider || 'custom';
   const host = body.host || '';
@@ -4216,28 +4276,56 @@ async function updateSmtpSettings(request, env) {
   const isActive = body.is_active ? 1 : 0;
 
   if (existing) {
-    await env.DB.prepare(
-      `UPDATE smtp_settings
-       SET organization_id = ?, provider = ?, host = ?, port = ?, username = ?, password_encrypted = ?,
-           sender_name = ?, sender_email = ?, reply_to_email = ?, ssl_enabled = ?,
-           tls_enabled = ?, otp_enabled = ?, otp_length = ?, is_active = ?, updated_at = ?
-       WHERE id = ?`
-    ).bind(
-      ctx.organizationId, provider, host, port, username, password, senderName, senderEmail, replyToEmail,
-      ssl, tls, otpEnabled, otpLength, isActive, now, existing.id
-    ).run();
+    try {
+      await env.DB.prepare(
+        `UPDATE smtp_settings
+         SET organization_id = ?, provider = ?, host = ?, port = ?, username = ?, password_encrypted = ?,
+             sender_name = ?, sender_email = ?, reply_to_email = ?, ssl_enabled = ?,
+             tls_enabled = ?, otp_enabled = ?, otp_length = ?, is_active = ?, updated_at = ?
+         WHERE id = ?`
+      ).bind(
+        ctx.organizationId, provider, host, port, username, password, senderName, senderEmail, replyToEmail,
+        ssl, tls, otpEnabled, otpLength, isActive, now, existing.id
+      ).run();
+    } catch (updErr) {
+      console.warn("SMTP update fallback:", updErr);
+      await env.DB.prepare(
+        `UPDATE smtp_settings
+         SET provider = ?, host = ?, port = ?, username = ?, password_encrypted = ?,
+             sender_name = ?, sender_email = ?, reply_to_email = ?, ssl_enabled = ?,
+             tls_enabled = ?, otp_enabled = ?, otp_length = ?, is_active = ?, updated_at = ?
+         WHERE id = ?`
+      ).bind(
+        provider, host, port, username, password, senderName, senderEmail, replyToEmail,
+        ssl, tls, otpEnabled, otpLength, isActive, now, existing.id
+      ).run();
+    }
   } else {
     const id = crypto.randomUUID();
-    await env.DB.prepare(
-      `INSERT INTO smtp_settings (
-        id, organization_id, user_id, provider, host, port, username, password_encrypted,
-        sender_name, sender_email, reply_to_email, ssl_enabled, tls_enabled,
-        otp_enabled, otp_length, is_active, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      id, ctx.organizationId, ctx.userId, provider, host, port, username, password, senderName, senderEmail,
-      replyToEmail, ssl, tls, otpEnabled, otpLength, isActive, now, now
-    ).run();
+    try {
+      await env.DB.prepare(
+        `INSERT INTO smtp_settings (
+          id, organization_id, user_id, provider, host, port, username, password_encrypted,
+          sender_name, sender_email, reply_to_email, ssl_enabled, tls_enabled,
+          otp_enabled, otp_length, is_active, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        id, ctx.organizationId, userId, provider, host, port, username, password, senderName, senderEmail,
+        replyToEmail, ssl, tls, otpEnabled, otpLength, isActive, now, now
+      ).run();
+    } catch (insErr) {
+      console.warn("SMTP insert fallback:", insErr);
+      await env.DB.prepare(
+        `INSERT INTO smtp_settings (
+          id, user_id, provider, host, port, username, password_encrypted,
+          sender_name, sender_email, reply_to_email, ssl_enabled, tls_enabled,
+          otp_enabled, otp_length, is_active, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        id, userId, provider, host, port, username, password, senderName, senderEmail,
+        replyToEmail, ssl, tls, otpEnabled, otpLength, isActive, now, now
+      ).run();
+    }
   }
 
   return json({ success: true, message: "SMTP settings saved successfully" }, 200, {}, request);

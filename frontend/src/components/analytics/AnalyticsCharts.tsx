@@ -10,7 +10,7 @@ export interface RevenueChartProps {
 
 export function RevenueAreaChart({ data }: RevenueChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
       <AreaChart data={data}>
         <defs>
           <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -54,7 +54,7 @@ export interface OrdersBarChartProps {
 
 export function OrdersBarChart({ data }: OrdersBarChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 11}} dy={10} />
@@ -76,7 +76,7 @@ export interface CategoryPieChartProps {
 
 export function CategoryPieChart({ data, colors }: CategoryPieChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
       <PieChart>
         <Pie
           isAnimationActive={false}

@@ -296,7 +296,7 @@ export default function AdminDashboard() {
               <StatCard icon={<Clock />} label="Uptime" value="99.9%" color="#6366F1" />
             </div>
             <div style={{ background: '#fff', padding: '32px', borderRadius: '24px', height: '400px', minWidth: 0 }}>
-               <ResponsiveContainer width="100%" height={336}>
+                <ResponsiveContainer width="100%" height={336} minWidth={0} minHeight={336}>
                   <AreaChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" />

@@ -714,7 +714,7 @@ export default function DashboardPage() {
             </div>
           </div>
           
-          <div className="h-60 w-full">
+          <div className="h-60 w-full min-w-0">
             <Suspense fallback={<div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse flex items-center justify-center text-xs font-semibold text-slate-400">Loading chart...</div>}>
               <SalesOverviewChart data={last7DaysData} maxRevenue={maxChartRevenue} maxOrders={maxChartOrders} symbol={config.symbol} />
             </Suspense>
@@ -775,7 +775,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-3 bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[340px]">
           <h2 className="text-base font-bold text-slate-900 mb-1">Order Status</h2>
           
-          <div className="h-40 relative flex items-center justify-center my-auto">
+          <div className="h-40 w-full min-w-0 relative flex items-center justify-center my-auto">
             <Suspense fallback={<div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse flex items-center justify-center text-xs font-semibold text-slate-400">Loading status...</div>}>
               <OrderStatusPieChart donutData={donutData} totalOrders={totalOrders} />
             </Suspense>
