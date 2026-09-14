@@ -186,9 +186,9 @@ export default function ShopPage() {
     <>
       {seoData && (
         <SEO
-          title={`${data!.shop.name} — Online Store on FeraSetu`}
+          title={`${data!.shop.name}`}
           description={seoData.description}
-          image={seoData.ogImage}
+          image={(data as any)?.brand?.social_image || (data as any)?.brand?.logo_url || (data!.shop as any).logo_url || seoData.ogImage}
           url={seoData.shopUrl}
           type="business.business"
           structuredData={seoData.structuredData}
@@ -198,6 +198,7 @@ export default function ShopPage() {
         const shopMarket = (data!.shop as any)?.market || 'IN';
         const storeCurrency = (data!.shop as any)?.currency || (data!.website.config as any)?.currency || (shopMarket === 'US' ? 'USD' : shopMarket === 'EU' ? 'EUR' : 'INR');
         const storeCurrencySymbol = (data!.shop as any)?.currency_symbol || (data!.website.config as any)?.currency_symbol || (storeCurrency === 'USD' ? '$' : storeCurrency === 'EUR' ? '€' : '₹');
+        const merchantLogo = (data!.shop as any).logo_url || (data as any)?.brand?.logo_url || (data!.website.config as any)?.logo || null;
         return (
           <TemplateRenderer
             sections={data!.website.sections}
@@ -205,7 +206,7 @@ export default function ShopPage() {
             shopName={data!.shop.name}
             shopId={data!.shop.id}
             shopPhone={(data!.shop as any).phone || (data!.website.config as any)?.phone}
-            shopLogo={(data!.shop as any).logo_url || (data!.website.config as any)?.logo}
+            shopLogo={merchantLogo}
             currency={storeCurrency}
             currencySymbol={storeCurrencySymbol}
             theme={(data!.website as any).theme || data!.website.template}

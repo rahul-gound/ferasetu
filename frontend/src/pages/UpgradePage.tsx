@@ -284,7 +284,7 @@ export default function UpgradePage() {
         {/* Subscription Status Banners */}
         <div style={{ maxWidth: 1100, margin: '0 auto 24px', padding: '0 24px' }}>
           {/* Active 14-day trial banner (> 3 days remaining) */}
-          {subscription.isTrialing && !subscription.isEndingSoon && (
+          {market !== 'IN' && subscription.isTrialing && !subscription.isEndingSoon && (
             <div className="rounded-2xl bg-blue-600 border border-blue-700 p-5 text-white shadow-lg">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
@@ -304,7 +304,7 @@ export default function UpgradePage() {
           )}
 
           {/* Trial Ending Soon banner (<= 3 days remaining) */}
-          {subscription.isTrialing && subscription.isEndingSoon && (
+          {market !== 'IN' && subscription.isTrialing && subscription.isEndingSoon && (
             <div className="rounded-2xl bg-orange-50 border-2 border-orange-500 p-5 text-slate-900 shadow-sm">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -326,7 +326,7 @@ export default function UpgradePage() {
           )}
 
           {/* Expired trial alert */}
-          {subscription.isTrialExpired && (
+          {market !== 'IN' && subscription.isTrialExpired && (
             <div className="rounded-2xl bg-white border-2 border-orange-500 p-5 text-slate-900 shadow-sm">
               <div className="flex items-start gap-3">
                 <AlertCircle size={24} className="text-orange-600 shrink-0 mt-0.5" />

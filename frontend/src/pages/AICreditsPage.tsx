@@ -105,12 +105,9 @@ export default function AICreditsPage() {
         }
       }
 
-      // If fulfilled directly (e.g. dev or test mode)
-      if (res.data.ai_credits_balance !== undefined) {
-        updateUser({ ai_credits_balance: res.data.ai_credits_balance } as any);
+      if (!res.data.requiresPayment) {
+        toast.error('Unable to initialize checkout. Please contact support.');
       }
-      toast.success('AI credits added successfully!');
-      fetchCredits();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to buy credits');
     } finally {

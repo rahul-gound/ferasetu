@@ -81,26 +81,16 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     let trialEndsAt: Date | null = null;
     let trialStartedAt: Date | null = null;
 
+    // Server-authoritative trial state: only from user/entitlements, never synthetic localStorage
     if (user?.trial_ends_at) {
       trialEndsAt = new Date(user.trial_ends_at);
       if (user?.trial_started_at) {
         trialStartedAt = new Date(user.trial_started_at);
       }
-    } else if (user?.trial_started_at) {
-      trialStartedAt = new Date(user.trial_started_at);
-      trialEndsAt = new Date(trialStartedAt.getTime() + 14 * 24 * 60 * 60 * 1000);
-    } else if (user && !isPaid) {
-      // Deterministic fallback pinned to user ID in localStorage so it never shifts on refresh
-      const storageKey = `fera_trial_started_${user.id}`;
-      let storedStart = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
-      if (!storedStart) {
-        storedStart = new Date().toISOString();
-        try {
-          localStorage.setItem(storageKey, storedStart);
-        } catch {}
-      }
-      trialStartedAt = new Date(storedStart);
-      trialEndsAt = new Date(trialStartedAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+    } else if ((user as any)?.entitlements?.trial?.endsAt) {
+      trialEndsAt = new Date((user as any).entitlements.trial.endsAt);
+    } else if (user?.plan_expires_at && (user.plan === 'trial' || user.plan === 'beta')) {
+      trialEndsAt = new Date(user.plan_expires_at);
     }
 
     const now = new Date();
@@ -114,16 +104,16 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     if (userMarket === 'IN') {
       return {
         isIndianFree: !isPaid,
-        isTrialing,
-        trialDaysRemaining,
-        isTrialExpired,
-        isEndingSoon,
+        isTrialing: false,
+        trialDaysRemaining: 0,
+        isTrialExpired: false,
+        isEndingSoon: false,
         isPaidActive: isPaid,
         isCancelled,
         cancelAtPeriodEnd: isCancelled,
         planExpiresAt,
-        trialEndsAt,
-        trialStartedAt,
+        trialEndsAt: null,
+        trialStartedAt: null,
       };
     }
 

@@ -96,14 +96,16 @@ function Shimmer() {
   );
 }
 
-function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
+function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp, merchantName, merchantLogo }: {
   order: Order;
   onClose: () => void;
   onPaymentUpdate: (id: string, status: string) => void;
   onVerifyOtp: (id: string, otp: string) => void;
+  merchantName?: string;
+  merchantLogo?: string | null;
 }) {
   const [otpValue, setOtpValue] = useState('');
-  const invoiceNum = `INV-${order.id.slice(-8).toUpperCase()}`;
+  const invoiceNum = order.invoice_number || `INV-${order.id.slice(-8).toUpperCase()}`;
   const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
@@ -176,9 +178,12 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>From</div>
-              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>FeraSetu Shop Partner</div>
+              {merchantLogo && (
+                <img src={merchantLogo} alt={merchantName || 'Store'} className="h-8 w-auto object-contain mb-2" />
+              )}
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>{merchantName || 'Store'}</div>
               <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
-                 Merchant ID: {order.id.slice(0,8)}
+                 Store Order: #{order.id.slice(0, 8).toUpperCase()}
               </div>
             </div>
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
@@ -224,11 +229,11 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp }: {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
               <span>Subtotal</span>
-              <span>₹{order.total.toLocaleString('en-IN')}</span>
+              <span>₹{(order.subtotal || Math.max(0, order.total - (order.delivery_fee ?? (order.delivery_type === 'delivery' ? 30 : 0)))).toLocaleString('en-IN')}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
               <span>Delivery Fee</span>
-              <span>{order.delivery_type === 'pickup' ? 'Free' : '₹30'}</span>
+              <span>{order.delivery_type === 'pickup' ? 'Free' : `₹${order.delivery_fee ?? 30}`}</span>
             </div>
             <div style={{
               display: 'flex', justifyContent: 'space-between', paddingTop: '12px',
@@ -881,6 +886,8 @@ export default function OrdersPage() {
           onClose={() => setInvoiceOrder(null)}
           onPaymentUpdate={handlePaymentUpdate}
           onVerifyOtp={handleVerifyOtp}
+          merchantName={user?.business_name || user?.name || 'Store'}
+          merchantLogo={(user as any)?.logo_url || null}
         />
       )}
     </div>

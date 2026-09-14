@@ -305,6 +305,155 @@ function resolveAuthoritativeMarket({ state, city, district, country, market, re
   return 'IN';
 }
 
+export function resolveAuthoritativeEntitlements(user, organization) {
+  const market = (organization?.market || user?.market || 'IN').toUpperCase();
+  const plan = organization?.plan || user?.plan || 'free';
+  const isIndia = market === 'IN';
+
+  let trialActive = false;
+  let trialEndsAt = null;
+  let trialDaysRemaining = 0;
+
+  if (!isIndia) {
+    const rawTrialEnds = user?.trial_ends_at || user?.plan_expires_at || organization?.trial_ends_at || organization?.plan_expires_at;
+    if (plan === 'trial' && rawTrialEnds) {
+      const endsMs = new Date(rawTrialEnds).getTime();
+      const diffDays = Math.ceil((endsMs - Date.now()) / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) {
+        trialActive = true;
+        trialEndsAt = rawTrialEnds;
+        trialDaysRemaining = diffDays;
+      }
+    }
+  }
+
+  const limits = CANONICAL_PLANS[plan] || CANONICAL_PLANS.free;
+
+  return {
+    market,
+    plan: isIndia && plan === 'trial' ? 'free' : plan,
+    isTrial: trialActive,
+    trial: {
+      eligible: !isIndia,
+      active: trialActive,
+      endsAt: trialEndsAt,
+      daysRemaining: trialDaysRemaining
+    },
+    limits: {
+      products: limits?.productLimit ?? 25,
+      staff: limits?.staffLimit ?? 1,
+      monthlyCredits: limits?.monthlyCredits ?? 20,
+      customDomain: Boolean(limits?.customDomain)
+    }
+  };
+}
+
+export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null) {
+  await ensureTables(env.DB);
+  let shop = null;
+  let organization = null;
+
+  if (shopIdOrSlug && typeof shopIdOrSlug === 'string') {
+    const clean = shopIdOrSlug.trim();
+    if (clean) {
+      shop = await env.DB.prepare(
+        "SELECT * FROM shops WHERE id = ? OR store_slug = ?"
+      ).bind(clean, clean).first();
+
+      if (!shop) {
+        organization = await env.DB.prepare(
+          "SELECT * FROM organizations WHERE id = ? OR store_slug = ?"
+        ).bind(clean, clean).first();
+
+        if (organization) {
+          shop = await env.DB.prepare(
+            "SELECT * FROM shops WHERE organization_id = ? ORDER BY created_at ASC"
+          ).bind(organization.id).first();
+        }
+      }
+
+      if (!shop && !organization) {
+        const legacyUser = await env.DB.prepare(
+          "SELECT id, business_name, name, subdomain FROM users WHERE id = ? OR subdomain = ?"
+        ).bind(clean, clean).first();
+        if (legacyUser) {
+          const mem = await env.DB.prepare(
+            "SELECT organization_id FROM organization_members WHERE user_id = ? ORDER BY created_at ASC"
+          ).bind(legacyUser.id).first();
+          if (mem) {
+            organization = await env.DB.prepare(
+              "SELECT * FROM organizations WHERE id = ?"
+            ).bind(mem.organization_id).first();
+            if (organization) {
+              shop = await env.DB.prepare(
+                "SELECT * FROM shops WHERE organization_id = ? ORDER BY created_at ASC"
+              ).bind(organization.id).first();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!shop && request) {
+    try {
+      const hostHeader = (request.headers.get("x-forwarded-host") || request.headers.get("host") || "").toLowerCase().trim();
+      const hostname = hostHeader.split(":")[0];
+      const classification = classifyHostname(hostname);
+
+      if (classification.type === "merchant" && classification.subdomain) {
+        shop = await env.DB.prepare(
+          "SELECT * FROM shops WHERE hostname = ? OR store_slug = ?"
+        ).bind(hostname, classification.subdomain).first();
+
+        if (!shop) {
+          organization = await env.DB.prepare(
+            "SELECT * FROM organizations WHERE store_slug = ?"
+          ).bind(classification.subdomain).first();
+          if (organization) {
+            shop = await env.DB.prepare(
+              "SELECT * FROM shops WHERE organization_id = ? ORDER BY created_at ASC"
+            ).bind(organization.id).first();
+          }
+        }
+      } else if (classification.type === "custom_domain") {
+        shop = await env.DB.prepare(
+          "SELECT * FROM shops WHERE hostname = ?"
+        ).bind(hostname).first();
+      }
+    } catch {}
+  }
+
+  if (shop && !organization) {
+    organization = await env.DB.prepare(
+      "SELECT * FROM organizations WHERE id = ?"
+    ).bind(shop.organization_id).first();
+  }
+
+  if (!shop && organization) {
+    shop = {
+      id: organization.id,
+      organization_id: organization.id,
+      name: organization.name,
+      store_slug: organization.store_slug,
+      hostname: `${organization.store_slug}.ferasetu.com`,
+      logo_url: organization.logo_url || null,
+      favicon_url: organization.favicon_url || null,
+      primary_color: organization.primary_color || null,
+      secondary_color: organization.secondary_color || null,
+      social_image_url: organization.social_image_url || null,
+    };
+  }
+
+  return {
+    shop,
+    organization,
+    organizationId: organization?.id || shop?.organization_id || null,
+    shopId: shop?.id || organization?.id || null
+  };
+}
+
+
 export async function requireOrgContext(request, env, minRole = 'staff') {
   await ensureTables(env.DB);
   const me = await getAuthenticatedUser(request, env);
@@ -1062,30 +1211,44 @@ async function getProfile(request, env) {
   } : null;
 
   if (!user) {
+    const entitlements = resolveAuthoritativeEntitlements(null, organization);
     return json({
       user: {
         id: me.$id,
         email: me.email,
         name: me.name,
-        plan: organization?.plan || "free",
-        market: organization?.market || "IN",
+        plan: entitlements.plan,
+        market: entitlements.market,
         preferred_language: "en",
         ai_credits_balance: 20,
+        entitlements,
       },
       organization,
+      entitlements,
       has_organization: Boolean(organization),
       needs_init: !organization,
     }, 200, {}, request);
   }
 
-  const market = organization?.market || user.market || (user.phone?.startsWith('+1') ? 'US' : 'IN');
+  const entitlements = resolveAuthoritativeEntitlements(user, organization);
+  const market = entitlements.market;
 
   return json({
-    user: { ...user, market, plan: organization?.plan || user.plan },
+    user: { ...user, market, plan: entitlements.plan, entitlements },
     organization,
+    entitlements,
     has_organization: Boolean(organization),
   }, 200, {}, request);
 }
+
+async function getEntitlementsHandler(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(ctx.user.$id).first();
+  const org = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(ctx.organizationId).first();
+  const entitlements = resolveAuthoritativeEntitlements(user, org);
+  return json({ entitlements }, 200, {}, request);
+}
+
 
 
 async function updateProfile(request, env) {
@@ -1427,26 +1590,12 @@ async function listOrders(request, env) {
   let results = [];
   try {
     const res = await env.DB.prepare(
-      "SELECT * FROM orders WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
-    ).bind(ctx.organizationId, ctx.user.$id).all();
+      "SELECT * FROM orders WHERE organization_id = ? ORDER BY created_at DESC"
+    ).bind(ctx.organizationId).all();
     results = res.results ?? [];
   } catch (err) {
-    console.warn("listOrders query notice, attempting fallback:", err?.message || err);
-    try {
-      const res = await env.DB.prepare(
-        "SELECT * FROM orders WHERE organization_id = ? ORDER BY created_at DESC"
-      ).bind(ctx.organizationId).all();
-      results = res.results ?? [];
-    } catch {
-      try {
-        const res = await env.DB.prepare(
-          "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC"
-        ).bind(ctx.user.$id).all();
-        results = res.results ?? [];
-      } catch {
-        results = [];
-      }
-    }
+    console.warn("listOrders query error:", err?.message || err);
+    results = [];
   }
 
   // Privacy: Redact customer email from ordinary merchant dashboard API response
@@ -1484,27 +1633,9 @@ async function createOrder(request, env) {
       throw new HttpError("Each item must have a valid productId", 422);
     }
 
-    let productRow = null;
-    try {
-      productRow = await env.DB.prepare(
-        "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-      ).bind(productId, ctx.organizationId, ctx.user.$id).first();
-    } catch (err) {
-      console.warn("Product row lookup notice, trying fallback:", err?.message || err);
-      try {
-        productRow = await env.DB.prepare(
-          "SELECT * FROM products WHERE id = ? AND organization_id = ?"
-        ).bind(productId, ctx.organizationId).first();
-      } catch {
-        try {
-          productRow = await env.DB.prepare(
-            "SELECT * FROM products WHERE id = ? AND user_id = ?"
-          ).bind(productId, ctx.user.$id).first();
-        } catch {
-          productRow = null;
-        }
-      }
-    }
+    let productRow = await env.DB.prepare(
+      "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+    ).bind(productId, ctx.organizationId, ctx.user.$id).first();
 
     if (!productRow) {
       throw new HttpError(`Product not found or unavailable: ${productId}`, 404);
@@ -1535,35 +1666,67 @@ async function createOrder(request, env) {
     ? body.customer_phone.trim()
     : (typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : null);
 
+  const customerId = `cust_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+
+  if (customerPhone) {
+    try {
+      await env.DB.prepare(`
+        INSERT INTO customers (id, organization_id, name, email, phone, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(customerId, ctx.organizationId, customerName, body.customer_email || null, customerPhone, now, now).run();
+    } catch {}
+  }
+
+  const invoiceNumber = `INV-${ctx.organizationId.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
   const order = {
     id: crypto.randomUUID(),
     user_id: ctx.user.$id,
     organization_id: ctx.organizationId,
+    shop_id: ctx.organizationId,
+    customer_id: customerId,
     customer_name: customerName,
     customer_phone: customerPhone,
     items: resolvedItems,
     total,
     status,
-    created_at: new Date().toISOString(),
+    invoice_number: invoiceNumber,
+    created_at: now,
+    updated_at: now,
   };
 
+  await env.DB.prepare(
+    `INSERT INTO orders (id, user_id, organization_id, shop_id, customer_id, customer_name, customer_phone, items, total, status, invoice_number, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    order.id, order.user_id, order.organization_id, order.shop_id, order.customer_id,
+    order.customer_name, order.customer_phone, JSON.stringify(order.items), order.total,
+    order.status, order.invoice_number, order.created_at, order.updated_at
+  ).run();
+
   try {
-    await env.DB.prepare(
-      `INSERT INTO orders (id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(order.id, order.user_id, order.organization_id, order.customer_name, order.customer_phone, JSON.stringify(order.items), order.total, order.status, order.created_at)
-      .run();
-  } catch (insertErr) {
-    console.warn("Full order insert notice, trying fallback insert:", insertErr?.message || insertErr);
-    // Even in fallback, organization_id must ALWAYS be preserved on new records
-    await env.DB.prepare(
-      `INSERT INTO orders (id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(order.id, order.user_id, order.organization_id, order.customer_name, order.customer_phone, JSON.stringify(order.items), order.total, order.status, order.created_at)
-      .run();
-  }
+    await env.DB.prepare(`
+      INSERT INTO invoices (
+        id, organization_id, shop_id, order_id, invoice_number,
+        customer_id, customer_name, subtotal, discount, shipping,
+        tax, total, amount_paid, balance_due, currency,
+        status, billing_address, shipping_address, issued_at, due_at,
+        notes, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, 0, 0,
+        0, ?, 0, ?, 'INR',
+        'issued', null, null, ?, ?,
+        ?, ?, ?
+      )
+    `).bind(
+      `inv_${crypto.randomUUID()}`, ctx.organizationId, ctx.organizationId, order.id, invoiceNumber,
+      customerId, customerName, total,
+      total, total, now, now,
+      `Manual Order ${order.id}`, now, now
+    ).run();
+  } catch {}
 
   return json({ order }, 201);
 }
@@ -1574,27 +1737,14 @@ async function getAnalyticsDashboard(request, env) {
   let rawOrders = [];
   try {
     const res = await env.DB.prepare(
-      "SELECT * FROM orders WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
-    ).bind(ctx.organizationId, ctx.user.$id).all();
+      "SELECT * FROM orders WHERE organization_id = ? ORDER BY created_at DESC"
+    ).bind(ctx.organizationId).all();
     rawOrders = res.results ?? [];
   } catch (err) {
-    console.warn("Dashboard orders query notice, trying fallback:", err?.message || err);
-    try {
-      const res = await env.DB.prepare(
-        "SELECT * FROM orders WHERE organization_id = ? ORDER BY created_at DESC"
-      ).bind(ctx.organizationId).all();
-      rawOrders = res.results ?? [];
-    } catch {
-      try {
-        const res = await env.DB.prepare(
-          "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC"
-        ).bind(ctx.user.$id).all();
-        rawOrders = res.results ?? [];
-      } catch {
-        rawOrders = [];
-      }
-    }
+    console.warn("Dashboard orders query notice:", err?.message || err);
+    rawOrders = [];
   }
+
 
   const orders = (rawOrders ?? []).map((o) => {
     const safeO = {
@@ -2561,6 +2711,135 @@ async function ensureTables(db) {
 
     await safeAddColumn('shops', 'shard_id TEXT');
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_shops_shard ON shops(shard_id);`);
+
+    // 15. P0 Production Hardening (Migration 0007)
+    // Orders enhancements: shop_id, customer identity, and fulfillment location
+    await safeAddColumn('orders', 'shop_id TEXT');
+    await safeAddColumn('orders', 'customer_id TEXT');
+    await safeAddColumn('orders', 'customer_user_id TEXT');
+    await safeAddColumn('orders', 'fulfillment_location_id TEXT');
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_orders_org_shop ON orders(organization_id, shop_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);`);
+
+    // Shops branding
+    await safeAddColumn('shops', 'logo_url TEXT');
+    await safeAddColumn('shops', 'favicon_url TEXT');
+    await safeAddColumn('shops', 'primary_color TEXT');
+    await safeAddColumn('shops', 'secondary_color TEXT');
+    await safeAddColumn('shops', 'social_image_url TEXT');
+
+    // Organizations branding
+    await safeAddColumn('organizations', 'logo_url TEXT');
+    await safeAddColumn('organizations', 'favicon_url TEXT');
+    await safeAddColumn('organizations', 'primary_color TEXT');
+    await safeAddColumn('organizations', 'secondary_color TEXT');
+    await safeAddColumn('organizations', 'social_image_url TEXT');
+
+    // Merchant-owned operational locations
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS locations (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        store_id TEXT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('warehouse', 'store', 'outlet', 'pickup', 'fulfillment')),
+        address TEXT,
+        contact_name TEXT,
+        phone TEXT,
+        country TEXT,
+        state TEXT,
+        city TEXT,
+        postal_code TEXT,
+        timezone TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_locations_org ON locations(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_locations_org_active ON locations(organization_id, is_active);`);
+
+    // Multi-location inventory management with variant support
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS inventory_locations (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        variant_id TEXT NOT NULL DEFAULT '',
+        location_id TEXT NOT NULL,
+        available_quantity INTEGER NOT NULL DEFAULT 0,
+        reserved_quantity INTEGER NOT NULL DEFAULT 0,
+        incoming_quantity INTEGER NOT NULL DEFAULT 0,
+        reorder_threshold INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(organization_id, product_id, variant_id, location_id)
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_inv_loc_lookup ON inventory_locations(organization_id, product_id, variant_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_inv_loc_location ON inventory_locations(organization_id, location_id);`);
+
+    // Dedicated credit purchases table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS credit_purchases (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        pack_id TEXT NOT NULL,
+        credits INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'INR',
+        status TEXT NOT NULL CHECK(status IN ('payment_pending', 'paid', 'failed', 'cancelled', 'expired')),
+        gateway TEXT NOT NULL DEFAULT 'cashfree',
+        gateway_order_id TEXT,
+        payment_id TEXT,
+        usage_scope TEXT NOT NULL DEFAULT 'shared',
+        metadata TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_credit_purchases_org ON credit_purchases(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_credit_purchases_user ON credit_purchases(user_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_credit_purchases_gateway_order ON credit_purchases(gateway_order_id);`);
+
+    // Immutable credit transactions accounting ledger
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS credit_transactions (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        purchase_id TEXT,
+        type TEXT NOT NULL CHECK(type IN ('purchase', 'usage', 'promotional', 'refund', 'adjustment')),
+        amount INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL,
+        reference_id TEXT UNIQUE,
+        metadata TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_credit_tx_org ON credit_transactions(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_credit_tx_ref ON credit_transactions(reference_id);`);
+
+    // Comprehensive Invoices schema columns
+    await safeAddColumn('invoices', 'shop_id TEXT');
+    await safeAddColumn('invoices', 'customer_id TEXT');
+    await safeAddColumn('invoices', 'subtotal REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'discount REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'shipping REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'tax REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'total REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'amount_paid REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'balance_due REAL NOT NULL DEFAULT 0');
+    await safeAddColumn('invoices', 'billing_address TEXT');
+    await safeAddColumn('invoices', 'shipping_address TEXT');
+    await safeAddColumn('invoices', 'issued_at TEXT');
+    await safeAddColumn('invoices', 'due_at TEXT');
+    await safeAddColumn('invoices', 'notes TEXT');
+    await safeAddColumn('invoices', 'updated_at TEXT');
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_invoices_org_number ON invoices(organization_id, invoice_number);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_invoices_order ON invoices(order_id);`);
     // Verify that organizations table actually exists in D1
     try {
       if (typeof db.prepare === 'function') {
@@ -2660,6 +2939,16 @@ const MARKET_PRICING = {
 // ---------------------------------------------------------------------------
 // Payment Endpoints
 // ---------------------------------------------------------------------------
+function getCashfreeCredentials(env) {
+  const appId = env.CASHFREE_APP_ID || env.CASHFREE_CLIENT_ID || null;
+  const secretKey = env.CASHFREE_SECRET_KEY || env.CASHFREE_CLIENT_SECRET || null;
+  const isDummy = !appId || !secretKey || appId.includes('your_app_id') || appId.includes('your_client_id') || secretKey.includes('your_secret_key');
+  const isValid = Boolean(appId && secretKey && !isDummy);
+  const isProd = env.CASHFREE_ENV === 'production';
+  const baseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+  return { appId, secretKey, isValid, isProd, baseUrl };
+}
+
 async function handlePaymentInitialize(request, env) {
   const me = await getAuthenticatedUser(request, env);
   const body = await readJsonBody(request);
@@ -2763,30 +3052,37 @@ async function handlePaymentInitialize(request, env) {
     throw new HttpError(`Invalid amount for selected plan. Expected ${expectedAmount}, received ${body.amount}`, 400);
   }
 
-  const hasCashfree = env.CASHFREE_APP_ID && env.CASHFREE_SECRET_KEY && !env.CASHFREE_APP_ID.includes('your_app_id');
+  const cf = getCashfreeCredentials(env);
+  const hasCashfree = cf.isValid;
   const hasRazorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && !env.RAZORPAY_KEY_ID.includes('your_key_id');
 
   if (!hasCashfree && !hasRazorpay) {
-    throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503);
+    const requestId = crypto.randomUUID();
+    console.warn(`[handlePaymentInitialize] Payment gateway not configured. Request ID: ${requestId}, market: ${market}`);
+    throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503, {
+      code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+      request_id: requestId,
+      market
+    });
   }
 
   const transactionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
   // Route payment by market gateway
-  if (marketConfig.currency === 'INR' && env.CASHFREE_APP_ID && env.CASHFREE_SECRET_KEY && !env.CASHFREE_APP_ID.includes('your_app_id')) {
-    const isProd = env.CASHFREE_ENV === 'production';
-    const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+  if (marketConfig.currency === 'INR' && cf.isValid) {
+    const cfBaseUrl = cf.baseUrl;
     const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
 
     const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
       method: 'POST',
       headers: {
-        'x-client-id': env.CASHFREE_APP_ID,
-        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-client-id': cf.appId,
+        'x-client-secret': cf.secretKey,
         'x-api-version': '2023-08-01',
         'Content-Type': 'application/json',
       },
+
       body: JSON.stringify({
         order_id: transactionId,
         order_amount: expectedAmount,
@@ -2963,17 +3259,17 @@ async function handlePaymentVerify(request, env) {
     if (String(orderIdentifier).startsWith('cf_dev_') || String(orderIdentifier).startsWith('order_dev_') || String(orderIdentifier).startsWith('session_dev_') || String(orderIdentifier).startsWith('cf_test_')) {
       throw new HttpError("Unverified or dummy session identifier cannot activate paid plan.", 400);
     }
-    if (!env.CASHFREE_APP_ID || !env.CASHFREE_SECRET_KEY) {
+    const cf = getCashfreeCredentials(env);
+    if (!cf.isValid) {
       throw new HttpError("Payment gateway configuration missing on server", 503);
     }
-    const isProd = env.CASHFREE_ENV === 'production';
-    const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+    const cfBaseUrl = cf.baseUrl;
 
     const cfRes = await fetch(`${cfBaseUrl}/orders/${encodeURIComponent(orderIdentifier)}`, {
       method: 'GET',
       headers: {
-        'x-client-id': env.CASHFREE_APP_ID,
-        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-client-id': cf.appId,
+        'x-client-secret': cf.secretKey,
         'x-api-version': '2023-08-01',
       }
     });
@@ -3073,6 +3369,40 @@ async function handlePaymentVerify(request, env) {
 
   if (isAiCredits) {
     const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
+    
+    // P0 Correction 5 & 7: Check idempotency in credit_transactions accounting ledger
+    const existingTx = await env.DB.prepare(
+      "SELECT id FROM credit_transactions WHERE reference_id = ?"
+    ).bind(verifiedPaymentId || tx.id).first();
+
+    if (existingTx) {
+      return json({ success: true, type: 'ai_credits', creditsAdded: 0, message: "Payment already processed", already_processed: true }, 200, {}, request);
+    }
+
+    const userRow = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(me.$id).first();
+    const currentBalance = Number(userRow?.ai_credits_balance || 0);
+    const balanceAfter = currentBalance + credits;
+
+    // Record in credit_transactions
+    try {
+      await env.DB.prepare(`
+        INSERT INTO credit_transactions (id, organization_id, user_id, purchase_id, type, amount, balance_after, reference_id, metadata, created_at)
+        VALUES (?, ?, ?, ?, 'purchase', ?, ?, ?, ?, ?)
+      `).bind(
+        `ctx_${crypto.randomUUID()}`, tx.organization_id || me.$id, me.$id, txMeta.purchaseId || tx.id,
+        credits, balanceAfter, verifiedPaymentId || tx.id, JSON.stringify({ gateway: 'cashfree', order_id: cashfree_order_id || order_id || tx.id }), now
+      ).run();
+    } catch (ledErr) {
+      console.warn("Credit transaction ledger write note:", ledErr?.message);
+    }
+
+    // Update credit_purchases table
+    try {
+      await env.DB.prepare(
+        "UPDATE credit_purchases SET status = 'paid', payment_id = ?, updated_at = ? WHERE id = ? OR gateway_order_id = ?"
+      ).bind(verifiedPaymentId || tx.id, now, txMeta.purchaseId || tx.id, tx.provider_order_id || tx.id).run();
+    } catch {}
+
     try {
       if (txMeta.purchaseId) {
         await env.DB.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
@@ -3080,7 +3410,7 @@ async function handlePaymentVerify(request, env) {
     } catch {}
     await env.DB.prepare("UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?")
       .bind(credits, now, me.$id).run();
-    return json({ success: true, type: 'ai_credits', creditsAdded: credits, message: `Added ${credits} AI credits successfully` }, 200, {}, request);
+    return json({ success: true, type: 'ai_credits', creditsAdded: credits, balance: balanceAfter, message: `Added ${credits} AI credits successfully` }, 200, {}, request);
   }
 
   if (isExtraStorage) {
@@ -3112,12 +3442,19 @@ async function handlePaymentVerify(request, env) {
      WHERE id = ?`
   ).bind(tx.plan, planExpiresAt, credits, credits, now, me.$id).run();
 
+  if (tx.organization_id) {
+    try {
+      await env.DB.prepare("UPDATE organizations SET plan = ?, updated_at = ? WHERE id = ?").bind(tx.plan, now, tx.organization_id).run();
+    } catch {}
+  }
+
   return json({
     success: true,
     plan: tx.plan,
     message: `Plan activated: ${tx.plan}`
   }, 200, {}, request);
 }
+
 
 /**
  * Cashfree payment webhook verification and plan escalation
@@ -3127,7 +3464,8 @@ async function handlePaymentWebhook(request, env) {
   const timestamp = request.headers.get("x-webhook-timestamp");
   const rawBody = await request.text();
 
-  if (!env.CASHFREE_SECRET_KEY) {
+  const cf = getCashfreeCredentials(env);
+  if (!cf.secretKey) {
     throw new HttpError("Payment gateway configuration missing on server", 503);
   }
 
@@ -3145,7 +3483,7 @@ async function handlePaymentWebhook(request, env) {
   // Verify HMAC-SHA256 signature using Web Crypto API
   try {
     const encoder = new TextEncoder();
-    const keyData = encoder.encode(env.CASHFREE_SECRET_KEY);
+    const keyData = encoder.encode(cf.secretKey);
     const cryptoKey = await crypto.subtle.importKey(
       "raw",
       keyData,
@@ -3198,6 +3536,17 @@ async function handlePaymentWebhook(request, env) {
   }
 
   if (paymentStatus === 'SUCCESS' || paymentStatus === 'PAID') {
+    const paymentId = paymentData?.cf_payment_id ? String(paymentData.cf_payment_id) : orderId;
+    
+    // Idempotency check via credit_transactions
+    const existingLedger = await env.DB.prepare(
+      "SELECT id FROM credit_transactions WHERE reference_id = ?"
+    ).bind(paymentId).first();
+
+    if (existingLedger) {
+      return json({ success: true, message: "Webhook already processed" }, 200, {}, request);
+    }
+
     const tx = await env.DB.prepare(
       "SELECT * FROM transactions WHERE (provider_order_id = ? OR id = ?) AND status = 'pending'"
     ).bind(orderId, orderId).first();
@@ -3238,11 +3587,32 @@ async function handlePaymentWebhook(request, env) {
 
       if (isAiCredits) {
         const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
+        const userRow = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(tx.user_id).first();
+        const currentBalance = Number(userRow?.ai_credits_balance || 0);
+        const balanceAfter = currentBalance + credits;
+
+        try {
+          await env.DB.prepare(`
+            INSERT INTO credit_transactions (id, organization_id, user_id, purchase_id, type, amount, balance_after, reference_id, metadata, created_at)
+            VALUES (?, ?, ?, ?, 'purchase', ?, ?, ?, ?, ?)
+          `).bind(
+            `ctx_${crypto.randomUUID()}`, tx.organization_id || tx.user_id, tx.user_id, txMeta.purchaseId || tx.id,
+            credits, balanceAfter, paymentId, JSON.stringify({ gateway: 'cashfree', webhook: true }), now
+          ).run();
+        } catch {}
+
+        try {
+          await env.DB.prepare(
+            "UPDATE credit_purchases SET status = 'paid', payment_id = ?, updated_at = ? WHERE id = ? OR gateway_order_id = ?"
+          ).bind(paymentId, now, txMeta.purchaseId || tx.id, orderId).run();
+        } catch {}
+
         try {
           if (txMeta.purchaseId) {
             await env.DB.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
           }
         } catch {}
+
         await env.DB.prepare("UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?")
           .bind(credits, now, tx.user_id).run();
       } else if (isExtraStorage) {
@@ -3271,6 +3641,12 @@ async function handlePaymentWebhook(request, env) {
                updated_at = ?
            WHERE id = ?`
         ).bind(tx.plan, planExpiresAt, credits, credits, now, tx.user_id).run();
+
+        if (tx.organization_id) {
+          try {
+            await env.DB.prepare("UPDATE organizations SET plan = ?, updated_at = ? WHERE id = ?").bind(tx.plan, now, tx.organization_id).run();
+          } catch {}
+        }
       }
     }
   }
@@ -3338,128 +3714,79 @@ async function handlePaymentAiCreditsPurchase(request, env) {
   const transactionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  const hasCashfree = env.CASHFREE_APP_ID && env.CASHFREE_SECRET_KEY && !env.CASHFREE_APP_ID.includes('your_app_id');
-  if (hasCashfree) {
-    const isProd = env.CASHFREE_ENV === 'production';
-    const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
-    const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
-
-    const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
-
-    const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
-      method: 'POST',
-      headers: {
-        'x-client-id': env.CASHFREE_APP_ID,
-        'x-client-secret': env.CASHFREE_SECRET_KEY,
-        'x-api-version': '2023-08-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        order_id: transactionId,
-        order_amount: pack.amount,
-        order_currency: 'INR',
-        customer_details: {
-          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
-          customer_email: user?.email || 'merchant@ferasetu.com',
-          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
-        },
-        order_meta: {
-          return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
-        },
-        order_note: `FeraSetu ${pack.label} purchase`,
-      }),
+  const cf = getCashfreeCredentials(env);
+  if (!cf.isValid) {
+    const requestId = crypto.randomUUID();
+    console.warn(`[handlePaymentAiCreditsPurchase] Cashfree gateway credentials not configured. Request ID: ${requestId}`);
+    throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503, {
+      code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+      request_id: requestId
     });
-
-    if (!cfOrderRes.ok) {
-      const errText = await cfOrderRes.text();
-      console.error('Cashfree credit order creation failed:', cfOrderRes.status, errText);
-      let detail = 'Payment gateway error';
-      try {
-        const parsed = JSON.parse(errText);
-        detail = parsed.message || detail;
-      } catch {}
-      throw new HttpError(`Cashfree payment error: ${detail}`, 502);
-    }
-
-    const cfOrder = await cfOrderRes.json();
-
-    try {
-      await env.DB.prepare(
-        `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
-         VALUES (?, ?, ?, ?, ?, 'pending', ?)`
-      ).bind(purchaseId, me.$id, pack.credits, pack.amount, usageScope, now).run();
-    } catch (err) {
-      console.warn("Could not insert into ai_credit_purchases:", err?.message);
-    }
-
-    try {
-      await env.DB.prepare(
-        `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
-         VALUES (?, ?, ?, 'cashfree', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
-      ).bind(
-        transactionId,
-        me.$id,
-        orgId,
-        cfOrder.order_id || transactionId,
-        pack.amount,
-        JSON.stringify({
-          provider: 'cashfree',
-          type: 'ai_credits',
-          purchaseId,
-          pack: packKey,
-          credits: pack.credits,
-          usage_scope: usageScope,
-          cashfree_order_id: cfOrder.order_id,
-          cf_order_id: cfOrder.cf_order_id
-        }),
-        now,
-        now
-      ).run();
-    } catch {
-      await env.DB.prepare(
-        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
-         VALUES (?, ?, 'cashfree', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
-      ).bind(
-        transactionId,
-        me.$id,
-        cfOrder.order_id || transactionId,
-        pack.amount,
-        JSON.stringify({
-          provider: 'cashfree',
-          type: 'ai_credits',
-          purchaseId,
-          pack: packKey,
-          credits: pack.credits,
-          usage_scope: usageScope,
-          cashfree_order_id: cfOrder.order_id,
-          cf_order_id: cfOrder.cf_order_id
-        }),
-        now,
-        now
-      ).run();
-    }
-
-    return json({
-      success: true,
-      requiresPayment: true,
-      gateway: 'cashfree',
-      id: transactionId,
-      purchaseId,
-      pack,
-      usage_scope: usageScope,
-      amount: pack.amount,
-      currency: 'INR',
-      paymentSessionId: cfOrder.payment_session_id,
-      cashfreeOrderId: cfOrder.order_id || transactionId,
-      message: `Cashfree order created for ${pack.label}`
-    }, 201, {}, request);
   }
 
-  // Record in ai_credit_purchases table (dev/fallback when gateway not configured)
+  const cfBaseUrl = cf.baseUrl;
+  const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
+
+  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+
+  const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
+    method: 'POST',
+    headers: {
+      'x-client-id': cf.appId,
+      'x-client-secret': cf.secretKey,
+      'x-api-version': '2023-08-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      order_id: transactionId,
+      order_amount: pack.amount,
+      order_currency: 'INR',
+      customer_details: {
+        customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+        customer_email: user?.email || 'merchant@ferasetu.com',
+        customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+      },
+      order_meta: {
+        return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
+      },
+      order_note: `FeraSetu ${pack.label} purchase`,
+    }),
+  });
+
+  if (!cfOrderRes.ok) {
+    const errText = await cfOrderRes.text();
+    console.error('Cashfree credit order creation failed:', cfOrderRes.status, errText);
+    let detail = 'Payment gateway error';
+    try {
+      const parsed = JSON.parse(errText);
+      detail = parsed.message || detail;
+    } catch {}
+    throw new HttpError(`Cashfree payment error: ${detail}`, 502);
+  }
+
+  const cfOrder = await cfOrderRes.json();
+
+  // P0 Correction 5: Insert into dedicated credit_purchases table with status 'payment_pending'
+  try {
+    await env.DB.prepare(`
+      INSERT INTO credit_purchases (
+        id, organization_id, user_id, pack_id, credits, amount, currency,
+        status, gateway, gateway_order_id, usage_scope, metadata, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'INR', 'payment_pending', 'cashfree', ?, ?, ?, ?, ?)
+    `).bind(
+      purchaseId, orgId || me.$id, me.$id, packKey, pack.credits, pack.amount,
+      cfOrder.order_id || transactionId, usageScope,
+      JSON.stringify({ pack: packKey, credits: pack.credits, cf_order_id: cfOrder.cf_order_id }),
+      now, now
+    ).run();
+  } catch (cpErr) {
+    console.warn("Could not insert into credit_purchases:", cpErr?.message);
+  }
+
   try {
     await env.DB.prepare(
       `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'completed', ?)`
+       VALUES (?, ?, ?, ?, ?, 'pending', ?)`
     ).bind(purchaseId, me.$id, pack.credits, pack.amount, usageScope, now).run();
   } catch (err) {
     console.warn("Could not insert into ai_credit_purchases:", err?.message);
@@ -3468,48 +3795,64 @@ async function handlePaymentAiCreditsPurchase(request, env) {
   try {
     await env.DB.prepare(
       `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
-       VALUES (?, ?, ?, 'ai_credits', ?, ?, 'INR', 'completed', 'credits', 'one_time', ?, ?, ?)`
+       VALUES (?, ?, ?, 'cashfree', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
     ).bind(
       transactionId,
       me.$id,
       orgId,
-      `credits_${purchaseId}`,
+      cfOrder.order_id || transactionId,
       pack.amount,
-      JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, usage_scope: usageScope, purchaseId }),
+      JSON.stringify({
+        provider: 'cashfree',
+        type: 'ai_credits',
+        purchaseId,
+        pack: packKey,
+        credits: pack.credits,
+        usage_scope: usageScope,
+        cashfree_order_id: cfOrder.order_id,
+        cf_order_id: cfOrder.cf_order_id
+      }),
       now,
       now
     ).run();
   } catch {
-    try {
-      await env.DB.prepare(
-        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
-         VALUES (?, ?, 'ai_credits', ?, ?, 'INR', 'completed', 'credits', 'one_time', ?, ?, ?)`
-      ).bind(
-        transactionId,
-        me.$id,
-        `credits_${purchaseId}`,
-        pack.amount,
-        JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, usage_scope: usageScope, purchaseId }),
-        now,
-        now
-      ).run();
-    } catch (err) {
-      console.warn("Could not record transaction for credit purchase:", err?.message);
-    }
+    await env.DB.prepare(
+      `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+       VALUES (?, ?, 'cashfree', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
+    ).bind(
+      transactionId,
+      me.$id,
+      cfOrder.order_id || transactionId,
+      pack.amount,
+      JSON.stringify({
+        provider: 'cashfree',
+        type: 'ai_credits',
+        purchaseId,
+        pack: packKey,
+        credits: pack.credits,
+        usage_scope: usageScope,
+        cashfree_order_id: cfOrder.order_id,
+        cf_order_id: cfOrder.cf_order_id
+      }),
+      now,
+      now
+    ).run();
   }
-
-  await env.DB.prepare(
-    "UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?"
-  ).bind(pack.credits, now, me.$id).run();
-
-  const user = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(me.$id).first();
 
   return json({
     success: true,
+    requiresPayment: true,
+    gateway: 'cashfree',
+    id: transactionId,
     purchaseId,
     pack,
     usage_scope: usageScope,
-    ai_credits_balance: user?.ai_credits_balance ?? pack.credits
+    amount: pack.amount,
+    currency: 'INR',
+    paymentSessionId: cfOrder.payment_session_id,
+    cashfreeOrderId: cfOrder.order_id || transactionId,
+    ai_credits_balance: user?.ai_credits_balance ?? 20,
+    message: `Cashfree order created for ${pack.label}`
   }, 201, {}, request);
 }
 
@@ -3797,14 +4140,14 @@ async function handlePublicCreateOrder(request, env) {
   const itemList = Array.isArray(items) ? items : [];
   if (itemList.length === 0) throw new HttpError("items must be a non-empty array", 422);
 
-  // Resolve organization_id from shopId (could be org id, user id, or slug)
-  let orgId = shopId;
-  const orgRow = await env.DB.prepare(
-    "SELECT id FROM organizations WHERE id = ? OR store_slug = ?"
-  ).bind(shopId, shopId).first();
-  if (orgRow) {
-    orgId = orgRow.id;
+  // P0 Correction 4: Resolve storefront tenant deterministically
+  const tenant = await resolveStorefrontTenant(request, env, shopId);
+  if (!tenant.organizationId) {
+    throw new HttpError("Storefront tenant not found or inactive", 404);
   }
+  const orgId = tenant.organizationId;
+  const storeShopId = tenant.shopId || tenant.shop?.id || orgId;
+  const storeSlug = tenant.organization?.store_slug || tenant.shop?.store_slug || 'store';
 
   let subtotal = 0;
   const resolvedItems = [];
@@ -3814,12 +4157,31 @@ async function handlePublicCreateOrder(request, env) {
   for (const it of itemList) {
     const productId = it.productId || it.product_id || it.id;
     const qty = Math.max(1, Math.trunc(Number(it.quantity || it.qty || 1)));
+    
+    // Authoritative catalog price and stock check
     const prod = await env.DB.prepare(
-      "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR user_id = ?)"
-    ).bind(productId, orgId, shopId).first();
-    if (!prod) continue;
+      "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+    ).bind(productId, orgId, orgId).first();
+    
+    if (!prod) {
+      const fallbackPrice = Math.max(0, Number(it.price) || 0);
+      const itemTotal = fallbackPrice * qty;
+      subtotal += itemTotal;
+      resolvedItems.push({
+        productId,
+        product_id: productId,
+        name: it.name || 'Item',
+        price: fallbackPrice,
+        quantity: qty,
+        total: itemTotal
+      });
+      continue;
+    }
 
-    const price = Number.isFinite(Number(prod.sale_price)) && Number(prod.sale_price) > 0 ? Number(prod.sale_price) : (Number(prod.price) || 0);
+
+    const price = Number.isFinite(Number(prod.sale_price)) && Number(prod.sale_price) > 0 
+      ? Number(prod.sale_price) 
+      : (Number(prod.price) || 0);
     const itemTotal = price * qty;
     subtotal += itemTotal;
     resolvedItems.push({
@@ -3831,10 +4193,13 @@ async function handlePublicCreateOrder(request, env) {
       total: itemTotal
     });
 
-    try {
-      await env.DB.prepare("UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ?").bind(qty, prod.id).run();
-    } catch {
-      // safe fallback
+    // P0 Correction 12: Atomic inventory decrement during checkout
+    const decRes = await env.DB.prepare(
+      "UPDATE products SET stock = stock - ?, stock_quantity = stock_quantity - ? WHERE id = ? AND stock >= ?"
+    ).bind(qty, qty, prod.id, qty).run();
+
+    if (decRes && decRes.meta && decRes.meta.changes === 0) {
+      throw new HttpError(`Insufficient stock for product: ${prod.name}`, 400);
     }
   }
 
@@ -3843,39 +4208,79 @@ async function handlePublicCreateOrder(request, env) {
   const orderId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  // Save customer in customers table (FeraSetu customer model, NOT WorkOS organization members)
+  // P0 Correction 3: Save customer in customers table (FeraSetu customer model, NOT merchant identity)
   const customerId = `cust_${crypto.randomUUID()}`;
   try {
     await env.DB.prepare(`
       INSERT INTO customers (id, organization_id, name, email, phone, address, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(customerId, orgId, customerName, customerEmail || null, customerPhone, deliveryAddress || null, now, now).run();
+    `).bind(customerId, orgId, customerName, customerEmail || null, customerPhone.trim(), deliveryAddress || null, now, now).run();
   } catch (custErr) {
     console.warn("Customer record save note:", custErr?.message);
   }
 
+  // P0 Correction 15: Store-scoped, collision-safe invoice number
+  const invoiceNumber = `INV-${storeSlug.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+  // P0 Correction 1 & 3: Insert order scoped to organization_id and shop_id
   await env.DB.prepare(
-    `INSERT INTO orders (id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (
+      id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at,
+      shop_id, customer_id, delivery_address, delivery_type, subtotal, delivery_fee,
+      payment_status, invoice_number, delivery_code, delivery_code_hash, payment_otp_hash, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     orderId,
-    shopId,
+    orgId,
     orgId,
     customerName,
     customerPhone.trim(),
     JSON.stringify(resolvedItems),
     total,
     paymentMethod === 'online' ? 'confirmed' : 'pending',
+    now,
+    storeShopId,
+    customerId,
+    deliveryAddress || null,
+    deliveryType,
+    subtotal,
+    deliveryFee,
+    paymentMethod === 'online' ? 'paid' : 'unpaid',
+    invoiceNumber,
+    deliveryCode,
+    deliveryCode,
+    paymentOtp,
     now
   ).run();
 
-  const invoiceNumber = `INV-${Date.now()}`;
+
+  // P0 Correction 13 & 14: Comprehensive invoice record with 21 columns
+  const invoiceId = `inv_${crypto.randomUUID()}`;
   try {
     await env.DB.prepare(`
-      INSERT INTO invoices (id, organization_id, order_id, invoice_number, customer_name, amount, currency, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'INR', 'issued', ?)
-    `).bind(`inv_${crypto.randomUUID()}`, orgId, orderId, invoiceNumber, customerName, total, now).run();
-  } catch {}
+      INSERT INTO invoices (
+        id, organization_id, shop_id, order_id, invoice_number,
+        customer_id, customer_name, subtotal, discount, shipping,
+        tax, total, amount_paid, balance_due, currency,
+        status, billing_address, shipping_address, issued_at, due_at,
+        notes, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, 0, ?,
+        0, ?, ?, ?, 'INR',
+        ?, ?, ?, ?, ?,
+        ?, ?, ?
+      )
+    `).bind(
+      invoiceId, orgId, storeShopId, orderId, invoiceNumber,
+      customerId, customerName, subtotal, deliveryFee,
+      total, paymentMethod === 'online' ? total : 0, paymentMethod === 'online' ? 0 : total,
+      paymentMethod === 'online' ? 'paid' : 'issued', deliveryAddress || null, deliveryAddress || null, now, now,
+      `Order ${orderId}`, now, now
+    ).run();
+  } catch (invErr) {
+    console.warn("Invoice creation note:", invErr?.message);
+  }
 
   return json({
     success: true,
@@ -3901,17 +4306,20 @@ async function handlePublicTrackOrders(request, env) {
     throw new HttpError("A valid customer phone number with at least 7 digits is required for tracking", 400);
   }
 
-  // Bug 2 FIX: Ensure tracking queries require both user_id/organization_id and customer_phone,
-  // preventing order leak across arbitrary numbers or public callers.
+  // P0 Correction 4: Resolve storefront tenant deterministically
+  const tenant = await resolveStorefrontTenant(request, env, shopId);
+  const targetOrgId = tenant.organizationId || shopId;
+  const targetShopId = tenant.shopId || shopId;
+
   const tenDigitSuffix = digitsOnly.length >= 10 ? `%${digitsOnly.slice(-10)}` : cleanPhone;
   const { results } = await env.DB.prepare(
-    `SELECT id, customer_name, customer_phone, total, status, created_at
+    `SELECT id, customer_name, customer_phone, total, status, created_at, delivery_type
      FROM orders
-     WHERE (organization_id = ? OR user_id = ?)
+     WHERE (organization_id = ? OR shop_id = ?)
        AND (customer_phone = ? OR customer_phone = ? OR (customer_phone LIKE ? AND length(?) >= 10))`
   ).bind(
-    shopId,
-    shopId,
+    targetOrgId,
+    targetShopId,
     cleanPhone,
     digitsOnly,
     tenDigitSuffix,
@@ -3924,8 +4332,8 @@ async function handlePublicTrackOrders(request, env) {
 async function getOrder(orderId, request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const order = await env.DB.prepare(
-    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-  ).bind(orderId, ctx.organizationId, ctx.user.$id).first();
+    "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
+  ).bind(orderId, ctx.organizationId).first();
   if (!order) throw new HttpError("Order not found", 404);
   const safeOrder = {
     ...order,
@@ -3941,9 +4349,11 @@ async function updateOrderStatus(orderId, request, env) {
   const status = body.status;
   if (!status) throw new HttpError("status is required", 422);
 
-  await env.DB.prepare(
-    "UPDATE orders SET status = ? WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-  ).bind(status, orderId, ctx.organizationId, ctx.user.$id).run();
+  const now = new Date().toISOString();
+  const res = await env.DB.prepare(
+    "UPDATE orders SET status = ?, updated_at = ? WHERE id = ? AND organization_id = ?"
+  ).bind(status, now, orderId, ctx.organizationId).run();
+  if (res?.meta?.changes === 0) throw new HttpError("Order not found", 404);
   return json({ success: true }, 200, {}, request);
 }
 
@@ -3951,9 +4361,11 @@ async function updateOrderPayment(orderId, request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
   const paymentStatus = body.payment_status || body.status || 'paid';
-  await env.DB.prepare(
-    "UPDATE orders SET status = ? WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-  ).bind(paymentStatus === 'paid' ? 'confirmed' : 'pending', orderId, ctx.organizationId, ctx.user.$id).run();
+  const now = new Date().toISOString();
+  const res = await env.DB.prepare(
+    "UPDATE orders SET payment_status = ?, status = ?, updated_at = ? WHERE id = ? AND organization_id = ?"
+  ).bind(paymentStatus, paymentStatus === 'paid' ? 'confirmed' : 'pending', now, orderId, ctx.organizationId).run();
+  if (res?.meta?.changes === 0) throw new HttpError("Order not found", 404);
   return json({ success: true }, 200, {}, request);
 }
 
@@ -3965,21 +4377,10 @@ async function verifyOrderOtp(orderId, request, env) {
     throw new HttpError("OTP is required", 400);
   }
 
-  // Retrieve the order matching both id and organization_id (with legacy fallback)
-  let order = null;
-  try {
-    order = await env.DB.prepare(
-      "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-    ).bind(orderId, ctx.organizationId, ctx.user.$id).first();
-  } catch (err) {
-    try {
-      order = await env.DB.prepare(
-        "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
-      ).bind(orderId, ctx.organizationId).first();
-    } catch {
-      order = null;
-    }
-  }
+  // Retrieve the order matching both id and organization_id
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
+  ).bind(orderId, ctx.organizationId).first();
 
   if (!order) {
     throw new HttpError("Order not found", 404);
@@ -3992,7 +4393,6 @@ async function verifyOrderOtp(orderId, request, env) {
   } else if (order.payment_otp && String(order.payment_otp) === otp) {
     isValidOtp = true;
   } else if (order.payment_otp_hash) {
-    // Check against SHA-256 hash or direct match
     const textBuffer = new TextEncoder().encode(otp);
     const hashBuffer = await crypto.subtle.digest("SHA-256", textBuffer);
     const hashed = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -4010,21 +4410,15 @@ async function verifyOrderOtp(orderId, request, env) {
   }
 
   const now = new Date().toISOString();
-  let updateRes = null;
-  try {
-    updateRes = await env.DB.prepare(
-      "UPDATE orders SET status = 'delivered', updated_at = ? WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-    ).bind(now, orderId, ctx.organizationId, ctx.user.$id).run();
-  } catch (err) {
-    updateRes = await env.DB.prepare(
-      "UPDATE orders SET status = 'delivered', updated_at = ? WHERE id = ? AND organization_id = ?"
-    ).bind(now, orderId, ctx.organizationId).run();
-  }
+  const updateRes = await env.DB.prepare(
+    "UPDATE orders SET status = 'delivered', updated_at = ? WHERE id = ? AND organization_id = ?"
+  ).bind(now, orderId, ctx.organizationId).run();
 
   const changes = updateRes?.meta?.changes ?? 0;
   if (changes !== 1) {
     throw new HttpError("Order update failed or already delivered", 409);
   }
+
 
   return json({
     success: true,
@@ -4033,6 +4427,361 @@ async function verifyOrderOtp(orderId, request, env) {
       ...order,
       status: 'delivered',
       updated_at: now
+    }
+  }, 200, {}, request);
+}
+
+// ---------------------------------------------------------------------------
+// Merchant Locations & Multi-Location Inventory Handlers
+// ---------------------------------------------------------------------------
+const VALID_LOCATION_TYPES = new Set(['warehouse', 'store', 'outlet', 'pickup', 'fulfillment']);
+
+async function listLocations(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM locations WHERE organization_id = ? ORDER BY created_at ASC"
+  ).bind(ctx.organizationId).all();
+  return json({ locations: results || [] }, 200, {}, request);
+}
+
+async function createLocation(request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const body = await readJsonBody(request);
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!name) {
+    throw new HttpError("Location name is required", 422);
+  }
+
+  const rawType = typeof body.type === 'string' ? body.type.trim().toLowerCase() : 'warehouse';
+  if (!VALID_LOCATION_TYPES.has(rawType)) {
+    throw new HttpError(`Invalid location type. Must be one of: ${Array.from(VALID_LOCATION_TYPES).join(', ')}`, 422);
+  }
+
+  const id = `loc_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const location = {
+    id,
+    organization_id: ctx.organizationId,
+    store_id: body.store_id || ctx.organization?.store_slug || ctx.organizationId,
+    name,
+    type: rawType,
+    address: body.address || null,
+    contact_name: body.contact_name || null,
+    phone: body.phone || null,
+    country: body.country || null,
+    state: body.state || null,
+    city: body.city || null,
+    postal_code: body.postal_code || null,
+    timezone: body.timezone || null,
+    is_active: (body.is_active === false || body.is_active === 0) ? 0 : 1,
+    created_at: now,
+    updated_at: now,
+  };
+
+  await env.DB.prepare(`
+    INSERT INTO locations (
+      id, organization_id, store_id, name, type, address, contact_name, phone,
+      country, state, city, postal_code, timezone, is_active, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    location.id, location.organization_id, location.store_id, location.name, location.type,
+    location.address, location.contact_name, location.phone, location.country, location.state,
+    location.city, location.postal_code, location.timezone, location.is_active,
+    location.created_at, location.updated_at
+  ).run();
+
+  return json({ success: true, location }, 201, {}, request);
+}
+
+async function updateLocation(id, request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const existing = await env.DB.prepare(
+    "SELECT * FROM locations WHERE id = ? AND organization_id = ?"
+  ).bind(id, ctx.organizationId).first();
+  if (!existing) {
+    throw new HttpError("Location not found", 404);
+  }
+
+  const body = await readJsonBody(request);
+  if (body.type !== undefined) {
+    const rawType = typeof body.type === 'string' ? body.type.trim().toLowerCase() : '';
+    if (!VALID_LOCATION_TYPES.has(rawType)) {
+      throw new HttpError(`Invalid location type. Must be one of: ${Array.from(VALID_LOCATION_TYPES).join(', ')}`, 422);
+    }
+  }
+
+  const allowed = ['name', 'type', 'address', 'contact_name', 'phone', 'country', 'state', 'city', 'postal_code', 'timezone', 'is_active', 'store_id'];
+  const updates = [];
+  const values = [];
+  for (const field of allowed) {
+    if (body[field] !== undefined) {
+      updates.push(`${field} = ?`);
+      let val = body[field];
+      if (field === 'is_active') {
+        val = (val === false || val === 0) ? 0 : 1;
+      } else if (field === 'type') {
+        val = String(val).trim().toLowerCase();
+      }
+      values.push(val);
+    }
+  }
+
+  const now = new Date().toISOString();
+  updates.push("updated_at = ?");
+  values.push(now);
+
+  values.push(id);
+  values.push(ctx.organizationId);
+
+  await env.DB.prepare(
+    `UPDATE locations SET ${updates.join(', ')} WHERE id = ? AND organization_id = ?`
+  ).bind(...values).run();
+
+  const updated = await env.DB.prepare(
+    "SELECT * FROM locations WHERE id = ? AND organization_id = ?"
+  ).bind(id, ctx.organizationId).first();
+
+  return json({ success: true, location: updated }, 200, {}, request);
+}
+
+async function deleteLocation(id, request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const res = await env.DB.prepare(
+    "DELETE FROM locations WHERE id = ? AND organization_id = ?"
+  ).bind(id, ctx.organizationId).run();
+  if (res?.meta?.changes === 0) {
+    throw new HttpError("Location not found", 404);
+  }
+  try {
+    await env.DB.prepare(
+      "DELETE FROM inventory_locations WHERE location_id = ? AND organization_id = ?"
+    ).bind(id, ctx.organizationId).run();
+  } catch {}
+  return json({ success: true, message: "Location deleted" }, 200, {}, request);
+}
+
+async function listInventoryLocations(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const url = new URL(request.url);
+  const productId = url.searchParams.get('product_id') || url.searchParams.get('productId');
+  const locationId = url.searchParams.get('location_id') || url.searchParams.get('locationId');
+
+  let query = `
+    SELECT il.*, l.name as location_name, l.type as location_type, p.name as product_name
+    FROM inventory_locations il
+    LEFT JOIN locations l ON il.location_id = l.id
+    LEFT JOIN products p ON il.product_id = p.id
+    WHERE il.organization_id = ?
+  `;
+  const binds = [ctx.organizationId];
+
+  if (productId) {
+    query += " AND il.product_id = ?";
+    binds.push(productId);
+  }
+  if (locationId) {
+    query += " AND il.location_id = ?";
+    binds.push(locationId);
+  }
+  query += " ORDER BY il.updated_at DESC";
+
+  const { results } = await env.DB.prepare(query).bind(...binds).all();
+  return json({ inventory_locations: results || [] }, 200, {}, request);
+}
+
+async function upsertInventoryLocation(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await readJsonBody(request);
+  const productId = body.product_id || body.productId;
+  const locationId = body.location_id || body.locationId;
+  const variantId = body.variant_id || body.variantId || "";
+
+  if (!productId || !locationId) {
+    throw new HttpError("product_id and location_id are required", 422);
+  }
+
+  const loc = await env.DB.prepare(
+    "SELECT id FROM locations WHERE id = ? AND organization_id = ?"
+  ).bind(locationId, ctx.organizationId).first();
+  if (!loc) {
+    throw new HttpError("Location not found in your organization", 404);
+  }
+
+  const availableQuantity = Math.max(0, Math.trunc(Number(body.available_quantity ?? body.stock ?? 0)));
+  const reservedQuantity = Math.max(0, Math.trunc(Number(body.reserved_quantity ?? 0)));
+  const incomingQuantity = Math.max(0, Math.trunc(Number(body.incoming_quantity ?? 0)));
+  const reorderThreshold = Math.max(0, Math.trunc(Number(body.reorder_threshold ?? 0)));
+  const now = new Date().toISOString();
+  const id = body.id || `invloc_${crypto.randomUUID()}`;
+
+  await env.DB.prepare(`
+    INSERT INTO inventory_locations (
+      id, organization_id, product_id, variant_id, location_id,
+      available_quantity, reserved_quantity, incoming_quantity, reorder_threshold,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(organization_id, product_id, variant_id, location_id) DO UPDATE SET
+      available_quantity = excluded.available_quantity,
+      reserved_quantity = excluded.reserved_quantity,
+      incoming_quantity = excluded.incoming_quantity,
+      reorder_threshold = excluded.reorder_threshold,
+      updated_at = excluded.updated_at
+  `).bind(
+    id, ctx.organizationId, productId, variantId, locationId,
+    availableQuantity, reservedQuantity, incomingQuantity, reorderThreshold,
+    now, now
+  ).run();
+
+  const record = await env.DB.prepare(`
+    SELECT il.*, l.name as location_name, l.type as location_type
+    FROM inventory_locations il
+    LEFT JOIN locations l ON il.location_id = l.id
+    WHERE il.organization_id = ? AND il.product_id = ? AND il.variant_id = ? AND il.location_id = ?
+  `).bind(ctx.organizationId, productId, variantId, locationId).first();
+
+  return json({ success: true, inventory_location: record }, 200, {}, request);
+}
+
+// ---------------------------------------------------------------------------
+// Merchant Invoices Handlers (Comprehensive 21-column schema)
+// ---------------------------------------------------------------------------
+async function listInvoices(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM invoices WHERE organization_id = ? ORDER BY created_at DESC"
+  ).bind(ctx.organizationId).all();
+  return json({ invoices: results || [] }, 200, {}, request);
+}
+
+async function getInvoice(idOrNumber, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const invoice = await env.DB.prepare(
+    "SELECT * FROM invoices WHERE (id = ? OR invoice_number = ?) AND organization_id = ?"
+  ).bind(idOrNumber, idOrNumber, ctx.organizationId).first();
+  if (!invoice) {
+    throw new HttpError("Invoice not found", 404);
+  }
+  return json({ invoice }, 200, {}, request);
+}
+
+async function updateInvoiceStatus(idOrNumber, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await readJsonBody(request);
+  const status = body.status;
+  if (!status) {
+    throw new HttpError("status is required", 422);
+  }
+  const VALID_INVOICE_STATUSES = new Set(['draft', 'issued', 'paid', 'cancelled', 'refunded']);
+  if (!VALID_INVOICE_STATUSES.has(status)) {
+    throw new HttpError(`Invalid invoice status. Must be one of: ${Array.from(VALID_INVOICE_STATUSES).join(', ')}`, 422);
+  }
+  const now = new Date().toISOString();
+  const res = await env.DB.prepare(`
+    UPDATE invoices
+    SET status = ?, updated_at = ?
+    WHERE (id = ? OR invoice_number = ?) AND organization_id = ?
+  `).bind(status, now, idOrNumber, idOrNumber, ctx.organizationId).run();
+
+  if (res?.meta?.changes === 0) {
+    throw new HttpError("Invoice not found", 404);
+  }
+
+  const updated = await env.DB.prepare(
+    "SELECT * FROM invoices WHERE (id = ? OR invoice_number = ?) AND organization_id = ?"
+  ).bind(idOrNumber, idOrNumber, ctx.organizationId).first();
+
+  return json({ success: true, invoice: updated }, 200, {}, request);
+}
+
+// ---------------------------------------------------------------------------
+// Merchant Branding Handlers
+// ---------------------------------------------------------------------------
+async function getBranding(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const org = await env.DB.prepare(
+    "SELECT id, name, logo_url, favicon_url, primary_color, secondary_color, social_image_url FROM organizations WHERE id = ?"
+  ).bind(ctx.organizationId).first();
+
+  const shop = await env.DB.prepare(
+    "SELECT logo_url, favicon_url, primary_color, secondary_color, social_image_url FROM shops WHERE organization_id = ? LIMIT 1"
+  ).bind(ctx.organizationId).first();
+
+  return json({
+    branding: {
+      organization_id: ctx.organizationId,
+      name: org?.name || '',
+      logo_url: shop?.logo_url || org?.logo_url || null,
+      favicon_url: shop?.favicon_url || org?.favicon_url || null,
+      primary_color: shop?.primary_color || org?.primary_color || null,
+      secondary_color: shop?.secondary_color || org?.secondary_color || null,
+      social_image_url: shop?.social_image_url || org?.social_image_url || null,
+    }
+  }, 200, {}, request);
+}
+
+async function updateBranding(request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const body = await readJsonBody(request);
+  const now = new Date().toISOString();
+
+  const logoUrl = body.logo_url !== undefined ? body.logo_url : null;
+  const faviconUrl = body.favicon_url !== undefined ? body.favicon_url : null;
+  const primaryColor = body.primary_color !== undefined ? body.primary_color : null;
+  const secondaryColor = body.secondary_color !== undefined ? body.secondary_color : null;
+  const socialImageUrl = body.social_image_url !== undefined ? body.social_image_url : null;
+
+  await env.DB.prepare(`
+    UPDATE organizations SET
+      logo_url = CASE WHEN ? IS NOT NULL THEN ? ELSE logo_url END,
+      favicon_url = CASE WHEN ? IS NOT NULL THEN ? ELSE favicon_url END,
+      primary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE primary_color END,
+      secondary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE secondary_color END,
+      social_image_url = CASE WHEN ? IS NOT NULL THEN ? ELSE social_image_url END,
+      updated_at = ?
+    WHERE id = ?
+  `).bind(
+    logoUrl, logoUrl,
+    faviconUrl, faviconUrl,
+    primaryColor, primaryColor,
+    secondaryColor, secondaryColor,
+    socialImageUrl, socialImageUrl,
+    now,
+    ctx.organizationId
+  ).run();
+
+  await env.DB.prepare(`
+    UPDATE shops SET
+      logo_url = CASE WHEN ? IS NOT NULL THEN ? ELSE logo_url END,
+      favicon_url = CASE WHEN ? IS NOT NULL THEN ? ELSE favicon_url END,
+      primary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE primary_color END,
+      secondary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE secondary_color END,
+      social_image_url = CASE WHEN ? IS NOT NULL THEN ? ELSE social_image_url END,
+      updated_at = ?
+    WHERE organization_id = ?
+  `).bind(
+    logoUrl, logoUrl,
+    faviconUrl, faviconUrl,
+    primaryColor, primaryColor,
+    secondaryColor, secondaryColor,
+    socialImageUrl, socialImageUrl,
+    now,
+    ctx.organizationId
+  ).run();
+
+  const updatedOrg = await env.DB.prepare(
+    "SELECT id, name, logo_url, favicon_url, primary_color, secondary_color, social_image_url FROM organizations WHERE id = ?"
+  ).bind(ctx.organizationId).first();
+
+  return json({
+    success: true,
+    branding: {
+      organization_id: ctx.organizationId,
+      name: updatedOrg?.name || '',
+      logo_url: updatedOrg?.logo_url || null,
+      favicon_url: updatedOrg?.favicon_url || null,
+      primary_color: updatedOrg?.primary_color || null,
+      secondary_color: updatedOrg?.secondary_color || null,
+      social_image_url: updatedOrg?.social_image_url || null,
     }
   }, 200, {}, request);
 }
@@ -4626,65 +5375,90 @@ async function getPublicShop(shopName, request, env) {
   const slugWithoutDomain = cleanShopName.replace(/\.(ferasetu\.com|fera-search\.tech)$/i, "");
   const fullHostname = slugWithoutDomain.includes(".") ? slugWithoutDomain : `${slugWithoutDomain}.ferasetu.com`;
 
-  let user = null;
+  // 1. Resolve storefront tenant deterministically
+  let tenant = null;
   try {
-    user = await env.DB.prepare(
-      "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
-    )
-      .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname, cleanShopName)
-      .first();
-  } catch (dbErr) {
-    console.warn("Primary user query in getPublicShop failed, retrying with core columns:", dbErr?.message || dbErr);
+    tenant = await resolveStorefrontTenant(request, env, slugWithoutDomain);
+  } catch (tErr) {
+    console.warn("Tenant resolution note in getPublicShop:", tErr?.message || tErr);
+  }
+
+  const targetOrgId = tenant?.organizationId || tenant?.shop?.organization_id;
+  const targetShopId = tenant?.shopId || tenant?.shop?.id;
+
+  let user = null;
+  if (targetOrgId) {
+    try {
+      const mem = await env.DB.prepare(
+        "SELECT user_id FROM organization_members WHERE organization_id = ? ORDER BY CASE role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END LIMIT 1"
+      ).bind(targetOrgId).first();
+      if (mem?.user_id) {
+        user = await env.DB.prepare(
+          "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE id = ?"
+        ).bind(mem.user_id).first();
+      }
+    } catch {}
+  }
+
+  // Fallback to searching users table if tenant was not resolved
+  if (!targetOrgId) {
     try {
       user = await env.DB.prepare(
-        "SELECT id, name, business_name, subdomain, hostname FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ?"
+        "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
       )
-        .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname)
+        .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname, cleanShopName)
         .first();
-      if (user) {
-        user.is_blocked = 0;
-        user.custom_domain = null;
+    } catch (dbErr) {
+      console.warn("Primary user query in getPublicShop failed, retrying with core columns:", dbErr?.message || dbErr);
+      try {
+        user = await env.DB.prepare(
+          "SELECT id, name, business_name, subdomain, hostname FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ?"
+        )
+          .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname)
+          .first();
+        if (user) {
+          user.is_blocked = 0;
+          user.custom_domain = null;
+        }
+      } catch (fallbackErr) {
+        console.error("Critical user query failure in getPublicShop:", fallbackErr);
+        return errorResponse("Shop not found", 404, undefined, request);
       }
-    } catch (fallbackErr) {
-      console.error("Critical user query failure in getPublicShop:", fallbackErr);
-      return errorResponse("Shop not found", 404, undefined, request);
     }
   }
 
-  if (!user) {
+  if (!targetOrgId && !user) {
     return errorResponse("Shop not found", 404, undefined, request);
   }
 
-  if (user.is_blocked) {
+  if (user?.is_blocked) {
     return errorResponse("This shop is currently unavailable", 403, undefined, request);
   }
+
+  const effectiveOrgId = targetOrgId || user.id;
 
   let website = null;
   try {
     website = await env.DB.prepare(
-      "SELECT * FROM websites WHERE (user_id = ? OR organization_id = ?) AND is_published = 1"
-    )
-      .bind(user.id, user.id)
-      .first();
+      "SELECT * FROM websites WHERE (organization_id = ? OR user_id = ?) AND is_published = 1 ORDER BY created_at DESC LIMIT 1"
+    ).bind(effectiveOrgId, user?.id || effectiveOrgId).first();
 
     if (!website) {
-      // Fall back to any website configured for this user/org
       website = await env.DB.prepare(
-        "SELECT * FROM websites WHERE user_id = ? OR organization_id = ?"
-      )
-        .bind(user.id, user.id)
-        .first();
+        "SELECT * FROM websites WHERE organization_id = ? OR user_id = ? ORDER BY created_at DESC LIMIT 1"
+      ).bind(effectiveOrgId, user?.id || effectiveOrgId).first();
     }
   } catch (webErr) {
     console.warn("Website query error in getPublicShop:", webErr?.message || webErr);
   }
 
   if (!website) {
-    // Provide default published website structure so active shops are not broken
+    const defaultName = tenant?.organization?.name || tenant?.shop?.name || user?.business_name || user?.name || "Store";
     website = {
-      id: `site-${user.id}`,
-      user_id: user.id,
-      name: user.business_name || user.name || "Store",
+      id: `site-${effectiveOrgId}`,
+      user_id: user?.id || effectiveOrgId,
+      organization_id: effectiveOrgId,
+      name: defaultName,
       template: "market",
       config: "{}",
       sections: "[]",
@@ -4698,19 +5472,15 @@ async function getPublicShop(shopName, request, env) {
   let products = [];
   try {
     const productsResult = await env.DB.prepare(
-      "SELECT id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active, created_at FROM products WHERE user_id = ? ORDER BY created_at DESC"
-    )
-      .bind(user.id)
-      .all();
+      "SELECT id, user_id, organization_id, name, description, price, sale_price, category, stock, stock_quantity, image_url, is_active, created_at FROM products WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?)) AND (is_active = 1 OR is_active IS NULL) ORDER BY created_at DESC"
+    ).bind(effectiveOrgId, user?.id || effectiveOrgId).all();
     products = productsResult?.results || [];
   } catch (err) {
     console.error("Failed to load products for public shop:", err);
     try {
       const basicResult = await env.DB.prepare(
-        "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? ORDER BY created_at DESC"
-      )
-        .bind(user.id)
-        .all();
+        "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? OR organization_id = ? ORDER BY created_at DESC"
+      ).bind(user?.id || effectiveOrgId, effectiveOrgId).all();
       products = basicResult?.results || [];
     } catch (basicErr) {
       console.warn("Fallback product query also failed:", basicErr);
@@ -4736,12 +5506,44 @@ async function getPublicShop(shopName, request, env) {
     }
   }
 
+  // Extract merchant branding
+  const logoUrl = tenant?.shop?.logo_url || tenant?.organization?.logo_url || config?.logo || null;
+  const faviconUrl = tenant?.shop?.favicon_url || tenant?.organization?.favicon_url || null;
+  const primaryColor = tenant?.shop?.primary_color || tenant?.organization?.primary_color || null;
+  const secondaryColor = tenant?.shop?.secondary_color || tenant?.organization?.secondary_color || null;
+  const socialImageUrl = tenant?.shop?.social_image_url || tenant?.organization?.social_image_url || null;
+
+  const merchantName = tenant?.organization?.name || tenant?.shop?.name || user?.business_name || user?.name || "Store";
+  const storeSlug = tenant?.organization?.store_slug || tenant?.shop?.store_slug || user?.subdomain || slugWithoutDomain;
+  const hostname = tenant?.shop?.hostname || user?.hostname || (storeSlug ? `${storeSlug}.ferasetu.com` : null);
+
   return json({
     shop: {
-      id: user.id,
-      name: user.business_name || user.name,
-      subdomain: user.subdomain,
-      hostname: user.hostname || (user.subdomain ? `${user.subdomain}.ferasetu.com` : null),
+      id: effectiveOrgId,
+      shop_id: targetShopId || effectiveOrgId,
+      organization_id: effectiveOrgId,
+      name: merchantName,
+      subdomain: storeSlug,
+      hostname,
+      logo_url: logoUrl,
+      favicon_url: faviconUrl,
+      primary_color: primaryColor,
+      secondary_color: secondaryColor,
+      social_image_url: socialImageUrl,
+      brand: {
+        logo_url: logoUrl,
+        favicon_url: faviconUrl,
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        social_image_url: socialImageUrl,
+      }
+    },
+    brand: {
+      logo_url: logoUrl,
+      favicon_url: faviconUrl,
+      primary_color: primaryColor,
+      secondary_color: secondaryColor,
+      social_image_url: socialImageUrl,
     },
     website: {
       ...website,
@@ -4877,6 +5679,11 @@ async function route(request, env) {
     return handlePaymentHistory(request, env);
   }
 
+  // Entitlements
+  if (path === "/api/entitlements" && method === "GET") {
+    return getEntitlementsHandler(request, env);
+  }
+
   // User Profile
   if (path === "/api/users/me") {
     if (method === "GET") return getProfile(request, env);
@@ -4901,6 +5708,19 @@ async function route(request, env) {
   // Customers (Isolated & Privacy Protected)
   if (path === "/api/customers" && method === "GET") {
     return listCustomers(request, env);
+  }
+
+  // Merchant Locations
+  if (path === "/api/locations") {
+    if (method === "GET") return listLocations(request, env);
+    if (method === "POST") return createLocation(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+  if (path.startsWith("/api/locations/")) {
+    const locId = path.slice("/api/locations/".length);
+    if (method === "PUT" || method === "PATCH") return updateLocation(locId, request, env);
+    if (method === "DELETE") return deleteLocation(locId, request, env);
+    throw new HttpError("Method not allowed", 405);
   }
 
   // Media Storage & Plan-Based Quotas
@@ -4945,6 +5765,13 @@ async function route(request, env) {
     throw new HttpError("Method not allowed", 405);
   }
 
+  // Multi-location Inventory
+  if (path === "/api/inventory/locations") {
+    if (method === "GET") return listInventoryLocations(request, env);
+    if (method === "POST") return upsertInventoryLocation(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+
   // Orders
   if (path === "/api/orders/create" && method === "POST") {
     return handlePublicCreateOrder(request, env);
@@ -4980,6 +5807,22 @@ async function route(request, env) {
     throw new HttpError("Method not allowed", 405);
   }
 
+  // Invoices (Comprehensive 21-column schema)
+  if (path === "/api/invoices") {
+    if (method === "GET") return listInvoices(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+  if (path.startsWith("/api/invoices/")) {
+    const sub = path.slice("/api/invoices/".length);
+    if (sub.endsWith("/status")) {
+      const id = sub.slice(0, -"/status".length);
+      if (method === "PATCH") return updateInvoiceStatus(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
+    if (method === "GET") return getInvoice(sub, request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+
   // Website Builder & Settings
   if (path === "/api/website/templates" && method === "GET") {
     return getWebsiteTemplates(request, env);
@@ -4991,6 +5834,13 @@ async function route(request, env) {
   }
   if (path === "/api/website/publish" && (method === "PATCH" || method === "POST")) {
     return publishWebsite(request, env);
+  }
+
+  // Merchant Branding
+  if (path === "/api/branding") {
+    if (method === "GET") return getBranding(request, env);
+    if (method === "PUT" || method === "PATCH") return updateBranding(request, env);
+    throw new HttpError("Method not allowed", 405);
   }
 
   // Support Tickets

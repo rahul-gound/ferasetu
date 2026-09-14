@@ -326,7 +326,7 @@ export async function proxyPagesAsset(request, env, ctx) {
 /**
  * Fetches the SPA HTML shell (index.html) from Pages with in-memory caching and serves it with host-isolated cache controls.
  */
-export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, merchantSlug }) {
+export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, merchantSlug, merchant }) {
   const pagesOrigin = (env?.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN).replace(
     /\/+$/,
     ""
@@ -378,6 +378,23 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
     }
   }
 
+  let customizedHtml = htmlBody;
+  if (merchant) {
+    const storeTitle = merchant.business_name || merchant.name || merchantSlug;
+    customizedHtml = customizedHtml.replace(/<title>.*?<\/title>/gi, `<title>${storeTitle}</title>`);
+    customizedHtml = customizedHtml.replace(/<meta property="og:title" content=".*?" \/>/gi, `<meta property="og:title" content="${storeTitle}" />`);
+    customizedHtml = customizedHtml.replace(/<meta property="og:site_name" content=".*?" \/>/gi, `<meta property="og:site_name" content="${storeTitle}" />`);
+    if (merchant.favicon_url) {
+      customizedHtml = customizedHtml.replace(/<link rel="icon"[^>]*>/gi, `<link rel="icon" href="${merchant.favicon_url}" />`);
+    }
+    if (merchant.logo_url || merchant.social_image_url) {
+      const img = merchant.social_image_url || merchant.logo_url;
+      customizedHtml = customizedHtml.replace(/https:\/\/ferasetu\.com\/logo-official\.png/g, img);
+    } else {
+      customizedHtml = customizedHtml.replace(/https:\/\/ferasetu\.com\/logo-official\.png/g, '');
+    }
+  }
+
   const responseHeaders = new Headers({
     "Content-Type": "text/html; charset=utf-8",
     // CRITICAL: Cache isolation between merchants. Prevents HTML cross-contamination.
@@ -391,7 +408,7 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
     "X-Robots-Tag": isEligibleForIndexing ? "index, follow" : "noindex, nofollow",
   });
 
-  return new Response(htmlBody, {
+  return new Response(customizedHtml, {
     status,
     headers: responseHeaders,
   });
@@ -484,6 +501,18 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
 
       if (user) {
         merchant = user;
+        try {
+          const shopRow = await env.DB.prepare(
+            "SELECT name, logo_url, favicon_url, social_image_url, primary_color FROM shops WHERE store_slug = ? OR hostname = ? LIMIT 1"
+          ).bind(slug, fullHost).first();
+          if (shopRow) {
+            merchant.logo_url = shopRow.logo_url;
+            merchant.favicon_url = shopRow.favicon_url;
+            merchant.social_image_url = shopRow.social_image_url;
+            merchant.name = shopRow.name || merchant.name;
+          }
+        } catch {}
+
         const countRow = await env.DB.prepare(
           "SELECT COUNT(*) as cnt FROM products WHERE user_id = ?"
         )
@@ -536,5 +565,6 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
   return serveStorefrontSpa(request, env, {
     isEligibleForIndexing: isEligible,
     merchantSlug: slug,
+    merchant,
   });
 }

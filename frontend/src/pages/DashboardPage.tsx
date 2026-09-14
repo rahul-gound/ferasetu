@@ -93,7 +93,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { translate } = useLanguage();
-  const { config, subscription } = useMarket();
+  const { config, subscription, market } = useMarket();
   const [downloading, setDownloading] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const greeting = useMemo(() => getGreeting(), []);
@@ -415,7 +415,7 @@ export default function DashboardPage() {
     <div className="pb-10 max-w-[1380px] mx-auto space-y-6">
       
       {/* Active Trial (> 3 days remaining) */}
-      {subscription.isTrialing && !subscription.isEndingSoon && (
+      {market !== 'IN' && subscription.isTrialing && !subscription.isEndingSoon && (
         <div className="rounded-2xl bg-blue-600 border border-blue-700 p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-white/15 backdrop-blur-md shrink-0">
@@ -443,7 +443,7 @@ export default function DashboardPage() {
       )}
 
       {/* Trial Ending Soon (<= 3 days remaining) */}
-      {subscription.isTrialing && subscription.isEndingSoon && (
+      {market !== 'IN' && subscription.isTrialing && subscription.isEndingSoon && (
         <div className="rounded-2xl bg-orange-50 border-2 border-orange-500 p-4 sm:p-5 text-slate-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-orange-100 text-orange-600 shrink-0">
