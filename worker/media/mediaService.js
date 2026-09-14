@@ -286,11 +286,16 @@ export async function handleCompleteUpload(request, env, orgContext) {
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(mediaId, shopId, reservation.r2_key, actualSize, contentType, nowIso).run();
 
+  const cdnBase = (env.CDN_BASE_URL || 'https://cdn.ferasetu.com').replace(/\/+$/, '');
+  const mediaUrl = `${cdnBase}/${reservation.r2_key}`;
+
   return {
     success: true,
     media_file: {
       id: mediaId,
       shop_id: shopId,
+      media_key: reservation.r2_key,
+      url: mediaUrl,
       r2_key: reservation.r2_key,
       size_bytes: actualSize,
       content_type: contentType,
@@ -301,6 +306,183 @@ export async function handleCompleteUpload(request, env, orgContext) {
 
 /**
  * DELETE /api/media/:id
+ */
+/**
+ * POST /api/media/upload
+ * Direct authenticated upload pipeline through the Worker to Backblaze B2.
+ */
+export async function handleDirectUpload(request, env, orgContext) {
+  const db = env.DB;
+  const shopId = orgContext.organization.id;
+  const market = orgContext.organization.market || 'IN';
+  const plan = orgContext.organization.plan || 'free';
+
+  const contentTypeHeader = request.headers.get('content-type') || '';
+  let fileData = null;
+  let filename = 'upload.bin';
+  let category = 'products';
+  let mimeType = 'application/octet-stream';
+  let fileSize = 0;
+
+  if (contentTypeHeader.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const file = formData.get('file');
+    if (!file || typeof file === 'string') {
+      throw new HttpError("Missing file in multipart form data", 400);
+    }
+    filename = sanitizeFilename(file.name || 'upload.bin');
+    mimeType = file.type || 'application/octet-stream';
+    fileSize = file.size;
+    fileData = await file.arrayBuffer();
+
+    const formCategory = formData.get('category');
+    if (typeof formCategory === 'string' && formCategory.trim()) {
+      category = formCategory.toLowerCase().trim();
+    }
+  } else {
+    filename = sanitizeFilename(request.headers.get('x-file-name') || 'upload.bin');
+    category = (request.headers.get('x-category') || 'products').toLowerCase().trim();
+    mimeType = contentTypeHeader.split(';')[0].trim() || 'application/octet-stream';
+    fileData = await request.arrayBuffer();
+    fileSize = fileData.byteLength;
+  }
+
+  // 1. Validate MIME type allowlist
+  const allowedMimes = new Set([
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/x-icon',
+    'video/mp4', 'video/webm',
+    'audio/mpeg', 'audio/wav',
+    'application/pdf',
+  ]);
+
+  if (!allowedMimes.has(mimeType.toLowerCase())) {
+    throw new HttpError(`Unsupported media type: ${mimeType}`, 400);
+  }
+
+  // 2. Validate category (deny by default, restrict to known types)
+  const allowedCategories = new Set(['products', 'logos', 'banners', 'theme', 'invoices', 'customers', 'exports', 'documents']);
+  if (!allowedCategories.has(category)) {
+    category = 'products';
+  }
+
+  // 3. Validate file size
+  if (!fileSize || fileSize <= 0) {
+    throw new HttpError("File is empty", 400);
+  }
+
+  const maxFileSize = getMaxUploadFileSizeBytes(env);
+  if (fileSize > maxFileSize) {
+    throw new HttpError(`File size (${fileSize} bytes) exceeds maximum limit of ${maxFileSize} bytes`, 413);
+  }
+
+  // 4. Clean up stale expired reservations
+  await cleanupExpiredReservations(db, shopId);
+
+  // 5. Load authoritative storage usage and check quota
+  const storage = await getOrCreateShopStorage(db, shopId, market, plan, env);
+  const availableBytes = storage.quota_bytes - (storage.used_bytes + storage.reserved_bytes);
+
+  if (fileSize > availableBytes) {
+    logShardingEvent('upload_rejected_quota', {
+      shop_id: shopId,
+      market,
+      plan,
+      quota_bytes: storage.quota_bytes,
+      used_bytes: storage.used_bytes,
+      reserved_bytes: storage.reserved_bytes,
+      available_bytes: availableBytes,
+      requested_bytes: fileSize,
+    });
+    throw new HttpError("Media storage quota exceeded", 413, {
+      quota_bytes: storage.quota_bytes,
+      used_bytes: storage.used_bytes,
+      available_bytes: Math.max(0, availableBytes),
+      requested_bytes: fileSize,
+    });
+  }
+
+  // 6. Atomically reserve quota
+  const reservationId = `res_${crypto.randomUUID()}`;
+  const fileId = crypto.randomUUID();
+  // Versioned key ensures new uploads never hit stale edge caches
+  const objectKey = `shops/${shopId}/${category}/${fileId}-v${Date.now()}-${filename}`;
+  const nowIso = new Date().toISOString();
+  const ttlSeconds = getReservationTtlSeconds(env);
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+
+  await db.prepare(`
+    INSERT INTO upload_reservations (id, shop_id, r2_key, reserved_bytes, expires_at, status)
+    VALUES (?, ?, ?, ?, ?, 'pending')
+  `).bind(reservationId, shopId, objectKey, fileSize, expiresAt).run();
+
+  await db.prepare(`
+    UPDATE shop_storage
+    SET reserved_bytes = reserved_bytes + ?, updated_at = ?
+    WHERE shop_id = ?
+  `).bind(fileSize, nowIso, shopId).run();
+
+  // 7. Upload to B2 via mediaStore
+  const mediaStore = await getTenantMediaStore(shopId, env);
+  try {
+    await mediaStore.put(objectKey, fileData, {
+      contentType: mimeType,
+      contentLength: fileSize,
+    });
+  } catch (uploadErr) {
+    // Release quota reservation on upload failure!
+    await db.prepare("UPDATE upload_reservations SET status = 'cancelled' WHERE id = ?").bind(reservationId).run();
+    await db.prepare(`
+      UPDATE shop_storage
+      SET reserved_bytes = MAX(0, reserved_bytes - ?), updated_at = ?
+      WHERE shop_id = ?
+    `).bind(fileSize, new Date().toISOString(), shopId).run();
+
+    logShardingEvent('upload_failed', {
+      shop_id: shopId,
+      object_key: objectKey,
+      error: uploadErr.message,
+    });
+    throw new HttpError("Failed to store media object in storage backend", 502);
+  }
+
+  // 8. Commit storage accounting and insert media record
+  const mediaId = `media_${crypto.randomUUID()}`;
+  await db.prepare(`
+    UPDATE shop_storage
+    SET used_bytes = used_bytes + ?,
+        reserved_bytes = MAX(0, reserved_bytes - ?),
+        updated_at = ?
+    WHERE shop_id = ?
+  `).bind(fileSize, fileSize, nowIso, shopId).run();
+
+  await db.prepare("UPDATE upload_reservations SET status = 'completed' WHERE id = ?").bind(reservationId).run();
+
+  await db.prepare(`
+    INSERT INTO media_files (id, shop_id, r2_key, size_bytes, content_type, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(mediaId, shopId, objectKey, fileSize, mimeType, nowIso).run();
+
+  const cdnBase = (env.CDN_BASE_URL || 'https://cdn.ferasetu.com').replace(/\/+$/, '');
+  const mediaUrl = `${cdnBase}/${objectKey}`;
+
+  return {
+    success: true,
+    media_file: {
+      id: mediaId,
+      shop_id: shopId,
+      media_key: objectKey,
+      url: mediaUrl,
+      r2_key: objectKey,
+      size_bytes: fileSize,
+      content_type: mimeType,
+      created_at: nowIso,
+    },
+  };
+}
+
+/**
+ * DELETE /api/media/:id
+ * Failure-safe deletion with storage accounting rollback and edge cache invalidation.
  */
 export async function handleDeleteMedia(mediaId, env, orgContext) {
   const db = env.DB;
@@ -319,12 +501,14 @@ export async function handleDeleteMedia(mediaId, env, orgContext) {
     throw new HttpError("Media file not found or unauthorized", 404);
   }
 
-  // 2. Delete from R2
+  // 2. Delete from B2 / media store first
   const mediaStore = await getTenantMediaStore(shopId, env);
   try {
     await mediaStore.delete(file.r2_key);
-  } catch (r2Err) {
-    console.warn(`[handleDeleteMedia] Warning deleting key ${file.r2_key} from R2:`, r2Err);
+  } catch (storageErr) {
+    console.error(`[handleDeleteMedia] Error deleting key ${file.r2_key} from storage:`, storageErr);
+    // If upstream B2 delete fails, do NOT pretend it succeeded and do not decrement storage
+    throw new HttpError("Failed to delete media object from storage backend. Safe to retry.", 502);
   }
 
   const nowIso = new Date().toISOString();
@@ -337,6 +521,18 @@ export async function handleDeleteMedia(mediaId, env, orgContext) {
   `).bind(file.size_bytes, nowIso, shopId).run();
 
   await db.prepare("DELETE FROM media_files WHERE id = ?").bind(mediaId).run();
+
+  // 4. Invalidate Cloudflare Edge Cache for this exact media key
+  const cache = typeof caches !== 'undefined' && caches.default ? caches.default : null;
+  if (cache) {
+    const cdnBase = (env.CDN_BASE_URL || 'https://cdn.ferasetu.com').replace(/\/+$/, '');
+    const canonicalCdnUrl = `${cdnBase}/${file.r2_key}`;
+    try {
+      await cache.delete(new Request(canonicalCdnUrl, { method: 'GET' }));
+    } catch (cacheErr) {
+      console.warn('[handleDeleteMedia] Cache purge warning:', cacheErr);
+    }
+  }
 
   return {
     success: true,

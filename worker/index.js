@@ -57,7 +57,9 @@ import {
   handleCompleteUpload,
   handleDeleteMedia,
   handleGetMediaUsage,
+  handleDirectUpload,
 } from "./media/mediaService.js";
+import { handleMediaCdnRequest } from "./media/mediaGateway.js";
 
 
 // ---------------------------------------------------------------------------
@@ -302,7 +304,7 @@ function resolveAuthoritativeMarket({ state, city, district, country, market, re
   return 'IN';
 }
 
-async function requireOrgContext(request, env, minRole = 'staff') {
+export async function requireOrgContext(request, env, minRole = 'staff') {
   await ensureTables(env.DB);
   const me = await getAuthenticatedUser(request, env);
 
@@ -1309,6 +1311,9 @@ async function createProduct(request, env) {
   }
   // -----------------------------------------------------------------------
 
+  const imageUrl = typeof body.image_url === "string" && body.image_url.trim() ? body.image_url.trim() : null;
+  const mediaKey = typeof body.media_key === "string" && body.media_key.trim() ? body.media_key.trim() : null;
+
   const product = {
     id: crypto.randomUUID(),
     user_id: ctx.user.$id,
@@ -1317,14 +1322,16 @@ async function createProduct(request, env) {
     price,
     stock,
     description,
+    image_url: imageUrl,
+    media_key: mediaKey,
     created_at: new Date().toISOString(),
   };
 
   await env.DB.prepare(
-    `INSERT INTO products (id, user_id, organization_id, name, price, stock, description, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (id, user_id, organization_id, name, price, stock, description, image_url, media_key, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.stock, product.description, product.created_at)
+    .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.stock, product.description, product.image_url, product.media_key, product.created_at)
     .run();
 
   return json({ product }, 201);
@@ -2041,6 +2048,8 @@ async function ensureTables(db) {
       );
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id);`);
+    await safeExec(`ALTER TABLE products ADD COLUMN image_url TEXT;`);
+    await safeExec(`ALTER TABLE products ADD COLUMN media_key TEXT;`);
 
     // 6. Orders
     await safeExec(`
@@ -3261,7 +3270,7 @@ async function updateProduct(id, request, env) {
 
   const updates = [];
   const values = [];
-  const allowed = ["name", "description", "category", "price", "cost_price", "sale_price", "stock_quantity", "stock", "image_url", "is_active"];
+  const allowed = ["name", "description", "category", "price", "cost_price", "sale_price", "stock_quantity", "stock", "image_url", "media_key", "is_active"];
 
   for (const key of allowed) {
     if (body[key] !== undefined) {
@@ -4136,6 +4145,11 @@ async function route(request, env) {
   }
 
   // Media Storage & Plan-Based Quotas
+  if (path === "/api/media/upload" && method === "POST") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await handleDirectUpload(request, env, orgContext);
+    return json(result, 201, {}, request);
+  }
   if (path === "/api/media/upload-intent" && method === "POST") {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const result = await handleUploadIntent(request, env, orgContext);
@@ -4343,6 +4357,15 @@ export default {
       const url = new URL(request.url);
       const hostClassification = classifyHostname(url.hostname);
 
+      // 0. Worker Custom Domain: cdn.ferasetu.com (or reserved 'cdn' subdomain or /cdn/ path)
+      if (
+        hostClassification.subdomain === "cdn" ||
+        url.hostname === "cdn.ferasetu.com" ||
+        url.pathname.startsWith("/cdn/")
+      ) {
+        return await handleMediaCdnRequest(request, env, ctx);
+      }
+
       // 1. Platform root (ferasetu.com) — must NOT replace Pages handling
       if (hostClassification.type === "platform_root") {
         if (url.pathname.startsWith("/api/")) {
@@ -4424,4 +4447,6 @@ export {
   getTenantDatabase,
   getTenantMediaStore,
   provisionNewShard,
+  handleMediaCdnRequest,
+  handleDirectUpload,
 };

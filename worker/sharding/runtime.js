@@ -11,6 +11,7 @@
  */
 
 import { getShardForShop } from './router.js';
+import { B2Client } from '../media/b2Client.js';
 
 class DynamicD1QueryError extends Error {
   constructor(message, status = 500, details) {
@@ -132,7 +133,7 @@ export async function getTenantDatabase(shopId, env) {
  */
 export async function getTenantMediaStore(shopId, env) {
   const shard = await getShardForShop(shopId, env);
-  const bucketName = shard?.r2_bucket_name || env.MEDIA_BUCKET_NAME || 'ferasetu-media';
+  const bucketName = shard?.r2_bucket_name || env.B2_BUCKET_NAME || env.MEDIA_BUCKET_NAME || 'ferasetu-media';
 
   const tenantPrefix = `shops/${shopId}/`;
 
@@ -145,7 +146,114 @@ export async function getTenantMediaStore(shopId, env) {
     }
   }
 
-  // If native Worker R2 binding is available and matches
+  // 1. Explicit test mock store (allowed for testing / CI)
+  const mockStore = env._mockB2Store || env._mockR2Store;
+  if (mockStore) {
+    return {
+      bucketName,
+      shopId,
+      async put(key, body, options = {}) {
+        validateTenantKey(key);
+        const size = typeof body === 'string' ? body.length : (body?.byteLength || body?.size || 1024);
+        const meta = {
+          size,
+          httpMetadata: { contentType: options?.contentType || options?.httpMetadata?.contentType || 'application/octet-stream' },
+          uploaded: new Date(),
+        };
+        mockStore.set(`${bucketName}:${key}`, { body, meta });
+        return meta;
+      },
+      async get(key, options = {}) {
+        validateTenantKey(key);
+        const item = mockStore.get(`${bucketName}:${key}`);
+        if (!item) return null;
+        return {
+          body: item.body,
+          size: item.meta.size,
+          httpMetadata: item.meta.httpMetadata,
+        };
+      },
+      async head(key) {
+        validateTenantKey(key);
+        const item = mockStore.get(`${bucketName}:${key}`);
+        if (!item) return null;
+        return item.meta;
+      },
+      async delete(key) {
+        validateTenantKey(key);
+        mockStore.delete(`${bucketName}:${key}`);
+        return true;
+      },
+    };
+  }
+
+  // 2. Backblaze B2 S3-compatible media store (Production)
+  if (env.B2_APPLICATION_KEY_ID && env.B2_APPLICATION_KEY) {
+    const b2Client = new B2Client({
+      endpoint: env.B2_ENDPOINT,
+      bucketName,
+      applicationKeyId: env.B2_APPLICATION_KEY_ID,
+      applicationKey: env.B2_APPLICATION_KEY,
+      region: env.B2_REGION,
+      fetcher: env.B2_FETCHER || fetch,
+    });
+
+    return {
+      bucketName,
+      shopId,
+      async put(key, body, options = {}) {
+        validateTenantKey(key);
+        const contentType = options?.contentType || options?.httpMetadata?.contentType || 'application/octet-stream';
+        const contentLength = options?.contentLength ?? (typeof body === 'string' ? body.length : (body?.byteLength || body?.size));
+        const res = await b2Client.putObject(key, body, {
+          contentType,
+          contentLength,
+          payloadSha256: options?.payloadSha256,
+        });
+        return {
+          size: contentLength,
+          httpMetadata: { contentType },
+          uploaded: new Date(),
+          etag: res.etag,
+        };
+      },
+      async get(key, options = {}) {
+        validateTenantKey(key);
+        const res = await b2Client.getObject(key, options);
+        if (res.status === 404) return null;
+        if (!res.ok && res.status !== 206) {
+          throw new Error(`B2 getObject failed with status ${res.status}`);
+        }
+        return {
+          body: res.body,
+          size: parseInt(res.headers.get('content-length') || '0', 10),
+          httpMetadata: { contentType: res.headers.get('content-type') },
+          etag: res.headers.get('etag'),
+          lastModified: res.headers.get('last-modified'),
+          status: res.status,
+          headers: res.headers,
+        };
+      },
+      async head(key) {
+        validateTenantKey(key);
+        const meta = await b2Client.headObject(key);
+        if (!meta) return null;
+        return {
+          size: meta.size,
+          httpMetadata: { contentType: meta.contentType },
+          etag: meta.etag,
+          lastModified: meta.lastModified,
+          acceptRanges: meta.acceptRanges,
+        };
+      },
+      async delete(key) {
+        validateTenantKey(key);
+        return await b2Client.deleteObject(key);
+      },
+    };
+  }
+
+  // 3. Native Worker R2 binding fallback if present
   const nativeBucket = env.MEDIA_BUCKET || env.R2;
   if (nativeBucket && typeof nativeBucket.get === 'function') {
     return {
@@ -170,87 +278,9 @@ export async function getTenantMediaStore(shopId, env) {
     };
   }
 
-  // Supported HTTP / S3 client for dynamic buckets or testing fallback
-  const fetcher = env.CF_API_FETCHER || fetch;
-  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = env.CLOUDFLARE_API_TOKEN;
-
-  return {
-    bucketName,
-    shopId,
-    async put(key, body, options = {}) {
-      validateTenantKey(key);
-      // If simulated or test store
-      if (env._mockR2Store) {
-        const size = typeof body === 'string' ? body.length : (body?.byteLength || body?.size || 1024);
-        const meta = {
-          size,
-          httpMetadata: { contentType: options?.httpMetadata?.contentType || 'application/octet-stream' },
-          uploaded: new Date(),
-        };
-        env._mockR2Store.set(`${bucketName}:${key}`, { body, meta });
-        return meta;
-      }
-
-      const res = await fetcher(`https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodeURIComponent(key)}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': options?.httpMetadata?.contentType || 'application/octet-stream',
-        },
-        body,
-      });
-      return await res.json();
-    },
-    async get(key) {
-      validateTenantKey(key);
-      if (env._mockR2Store) {
-        const item = env._mockR2Store.get(`${bucketName}:${key}`);
-        if (!item) return null;
-        return {
-          body: item.body,
-          size: item.meta.size,
-          httpMetadata: item.meta.httpMetadata,
-        };
-      }
-      const res = await fetcher(`https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodeURIComponent(key)}`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${apiToken}` },
-      });
-      if (res.status === 404) return null;
-      return {
-        body: await res.arrayBuffer(),
-        size: parseInt(res.headers.get('content-length') || '0', 10),
-      };
-    },
-    async head(key) {
-      validateTenantKey(key);
-      if (env._mockR2Store) {
-        const item = env._mockR2Store.get(`${bucketName}:${key}`);
-        if (!item) return null;
-        return item.meta;
-      }
-      const res = await fetcher(`https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodeURIComponent(key)}`, {
-        method: 'HEAD',
-        headers: { 'Authorization': `Bearer ${apiToken}` },
-      });
-      if (res.status === 404) return null;
-      return {
-        size: parseInt(res.headers.get('content-length') || '0', 10),
-        httpMetadata: { contentType: res.headers.get('content-type') },
-      };
-    },
-    async delete(key) {
-      validateTenantKey(key);
-      if (env._mockR2Store) {
-        env._mockR2Store.delete(`${bucketName}:${key}`);
-        return true;
-      }
-      await fetcher(`https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodeURIComponent(key)}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${apiToken}` },
-      });
-      return true;
-    },
-  };
+  // 4. Production guardrail: fail loudly if storage configuration is missing
+  throw new Error(
+    "Media storage configuration error: Backblaze B2 credentials (B2_ENDPOINT, B2_BUCKET_NAME, B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY) are missing."
+  );
 }
+
