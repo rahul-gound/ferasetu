@@ -794,16 +794,16 @@ export default function OrdersPage() {
                 <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
-                       <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Delivery Code</div>
-                       <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)', letterSpacing: '1px' }}>
-                         {selectedOrder.notes.match(/Code: ([A-Z0-9]+)/)?.[1] || '---'}
-                       </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Delivery Code</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)', letterSpacing: '1px' }}>
+                          {selectedOrder.delivery_code || (typeof selectedOrder.notes === 'string' ? selectedOrder.notes.match(/Code:\s*([A-Z0-9]+)/i)?.[1] : null) || '---'}
+                        </div>
                     </div>
                     <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: '12px' }}>
-                       <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Payment OTP</div>
-                       <div style={{ fontSize: '20px', fontWeight: 900, color: '#1E293B', letterSpacing: '1px' }}>
-                         {selectedOrder.notes.match(/OTP: ([0-9]+)/)?.[1] || '---'}
-                       </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Payment OTP</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#1E293B', letterSpacing: '1px' }}>
+                          {(typeof selectedOrder.notes === 'string' ? selectedOrder.notes.match(/OTP:\s*([0-9]+)/i)?.[1] : null) || '---'}
+                        </div>
                     </div>
                   </div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', marginTop: '10px' }}>

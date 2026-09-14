@@ -107,12 +107,16 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
                    {order.delivery_type === 'delivery' ? (
                       <div>
                          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Delivery Security Code</div>
-                         <div style={{ fontSize: '18px', fontWeight: 900, color: '#FF6B35', letterSpacing: '1px' }}>{order.notes.match(/Code: ([A-Z0-9]+)/)?.[1] || '---'}</div>
+                         <div style={{ fontSize: '18px', fontWeight: 900, color: '#FF6B35', letterSpacing: '1px' }}>
+                           {order.delivery_code || (typeof order.notes === 'string' ? order.notes.match(/Code:\s*([A-Z0-9]+)/i)?.[1] : null) || '---'}
+                         </div>
                       </div>
                    ) : (
                       <div>
                          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Pick-up OTP</div>
-                         <div style={{ fontSize: '18px', fontWeight: 900, color: '#0f172a', letterSpacing: '1px' }}>{order.notes.match(/OTP: ([0-9]+)/)?.[1] || '---'}</div>
+                         <div style={{ fontSize: '18px', fontWeight: 900, color: '#0f172a', letterSpacing: '1px' }}>
+                           {(typeof order.notes === 'string' ? order.notes.match(/OTP:\s*([0-9]+)/i)?.[1] : null) || order.delivery_code || '---'}
+                         </div>
                       </div>
                    )}
                 </div>
@@ -120,10 +124,10 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       {order.delivery_type === 'delivery' ? <Truck size={14} /> : <MapPin size={14} />}
-                      {order.delivery_type}
+                      {order.delivery_type || 'standard'}
                    </div>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={14} /> {new Date(order.created_at).toLocaleDateString()}
+                      <Clock size={14} /> {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Recent'}
                    </div>
                 </div>
               </div>

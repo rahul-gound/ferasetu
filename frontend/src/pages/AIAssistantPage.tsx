@@ -36,10 +36,11 @@ function formatContent(text: string): ReactNode {
 
 function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === 'user';
-  const isWebsiteOnboarding = message.content.includes('designed your website');
+  const contentStr = typeof message?.content === 'string' ? message.content : '';
+  const isWebsiteOnboarding = contentStr.includes('designed your website');
   const [showThoughts, setShowThoughts] = useState(false);
   
-  const thoughtMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
+  const thoughtMatch = contentStr.match(/<think>([\s\S]*?)<\/think>/);
   const thoughts = thoughtMatch ? thoughtMatch[1].trim() : null;
 
   return (

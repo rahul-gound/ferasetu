@@ -232,15 +232,16 @@ function ChatBubble({ message, onOpenWebsiteBuilder }: { message: Message; onOpe
   const [showThoughts, setShowThoughts] = useState(false);
 
   // Extract reasoning thought
-  const thoughtMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
+  const contentStr = typeof message?.content === 'string' ? message.content : '';
+  const thoughtMatch = contentStr.match(/<think>([\s\S]*?)<\/think>/);
   const thoughts = thoughtMatch ? thoughtMatch[1].trim() : null;
 
   // Detect website builder onboarding triggers
   const isWebsiteOnboarding =
     !isUser &&
-    (message.content.toLowerCase().includes('designed your website') ||
-      message.content.toLowerCase().includes('website builder') ||
-      message.content.toLowerCase().includes('online store website'));
+    (contentStr.toLowerCase().includes('designed your website') ||
+      contentStr.toLowerCase().includes('website builder') ||
+      contentStr.toLowerCase().includes('online store website'));
 
   return (
     <div
