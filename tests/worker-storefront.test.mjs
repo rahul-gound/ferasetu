@@ -440,7 +440,7 @@ await test('16. in-memory SPA HTML shell caching avoids repetitive origin fetche
   const tempFetch = globalThis.fetch;
   globalThis.fetch = async (urlOrReq, init) => {
     const urlStr = typeof urlOrReq === 'string' ? urlOrReq : urlOrReq.url;
-    if (urlStr.includes('/index.html')) originFetchCount++;
+    if (urlStr.includes('/index.html') || urlStr.endsWith('.com/')) originFetchCount++;
     return tempFetch(urlOrReq, init);
   };
 

@@ -51,7 +51,7 @@ export const PLAN_PAGE_ENTITLEMENTS = {
 // In-memory module-level cache for the SPA HTML shell (index.html)
 let cachedSpaHtml = null;
 let cachedSpaHtmlTime = 0;
-const SPA_HTML_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const SPA_HTML_TTL_MS = 60 * 1000; // 60 seconds (prevents stale builds on merchant subdomains)
 
 export function clearSpaHtmlCache() {
   cachedSpaHtml = null;
@@ -256,13 +256,14 @@ export async function proxyPagesAsset(request, env, ctx) {
       signal: AbortSignal.timeout(5000),
     });
 
-    // If a document route returned 404 from Pages, fallback to /index.html for SPA routing
+    // If a document route returned 404 from Pages, fallback to root / for SPA routing
     if (!response.ok && response.status === 404 && !isStaticAsset(url.pathname)) {
-      const spaUrl = new URL("/index.html", pagesOrigin);
+      const spaUrl = new URL("/", pagesOrigin);
       response = await fetch(spaUrl.toString(), {
         method: "GET",
         headers,
-        cf: { cacheEverything: true, cacheTtl: 3600 },
+        redirect: "follow",
+        cf: { cacheEverything: false, cacheTtl: 60 },
         signal: AbortSignal.timeout(5000),
       });
     }
@@ -331,7 +332,9 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
     ""
   );
   const pagesHost = new URL(pagesOrigin).host;
-  const targetUrl = new URL("/index.html", pagesOrigin);
+  // Cloudflare Pages serves the root SPA document at "/" (HTTP 200).
+  // Requesting "/index.html" returns HTTP 308 Permanent Redirect, which would bypass response.ok caching.
+  const targetUrl = new URL("/", pagesOrigin);
 
   const fallbackHtml = `<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>FeraSetu Storefront</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`;
 
@@ -349,24 +352,28 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
       const response = await fetch(targetUrl.toString(), {
         method: "GET",
         headers,
+        redirect: "follow",
         cf: {
-          cacheEverything: true,
-          cacheTtl: 3600,
+          cacheEverything: false,
+          cacheTtl: 60,
         },
         signal: AbortSignal.timeout(5000),
       });
 
-      if (response.ok) {
-        htmlBody = await response.text();
+      if (response.ok || response.status === 200) {
+        let text = await response.text();
+        // Strip Cloudflare Pages Analytics snippet on merchant subdomains to avoid harmless but noisy CORS/404 beacon console errors
+        text = text.replace(/<!-- Cloudflare Pages Analytics -->[\s\S]*?<\/script>/gi, "");
+        htmlBody = text;
         cachedSpaHtml = htmlBody;
         cachedSpaHtmlTime = Date.now();
       } else {
         // If origin returned an error (e.g. 530 Error 1016), do NOT leak it to the user.
-        console.warn(`Pages origin returned status ${response.status} when fetching index.html`);
+        console.warn(`Pages origin returned status ${response.status} when fetching storefront SPA HTML`);
         htmlBody = cachedSpaHtml || fallbackHtml;
       }
     } catch (err) {
-      console.warn("Origin fetch error for index.html, using fallback shell:", err);
+      console.warn("Origin fetch error for storefront SPA HTML, using fallback shell:", err);
       htmlBody = cachedSpaHtml || fallbackHtml;
     }
   }
