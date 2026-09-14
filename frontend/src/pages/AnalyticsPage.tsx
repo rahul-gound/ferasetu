@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
   const { data: prediction, isLoading: predLoading } = useQuery<PredictionData>({
     queryKey: ['analytics-predict'],
     queryFn: async () => (await api.get('/analytics/predict')).data,
-    enabled: user?.plan === 'premium' || user?.plan === 'pro',
+    enabled: Boolean(user?.plan && ['premium', 'pro', 'business', 'growth', 'standard', 'scale'].includes(user.plan.toLowerCase())),
     retry: 1,
   });
 

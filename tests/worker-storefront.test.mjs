@@ -27,6 +27,9 @@ import {
   isStaticAsset,
   evaluatePageAccess,
   isStoreEligibleForIndexing,
+  DEFAULT_PAGES_ORIGIN,
+  clearSpaHtmlCache,
+  clearMerchantCache,
   BASE_DOMAINS,
   RESERVED_SUBDOMAINS
 } from '../worker/storefront.js';
@@ -35,13 +38,28 @@ let passed = 0;
 let failed = 0;
 const failures = [];
 
+// Mock Cloudflare Edge Cache (caches.default) for test runner
+const mockCacheStore = new Map();
+globalThis.caches = {
+  default: {
+    async match(request) {
+      const key = typeof request === 'string' ? request : request.url;
+      return mockCacheStore.get(key) || null;
+    },
+    async put(request, response) {
+      const key = typeof request === 'string' ? request : request.url;
+      mockCacheStore.set(key, response);
+    }
+  }
+};
+
 // Mock global fetch for Pages origin to run offline deterministically
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (urlOrReq, init) => {
   const urlStr = typeof urlOrReq === 'string' ? urlOrReq : urlOrReq.url;
   const url = new URL(urlStr);
   
-  if (url.hostname === 'ferasetu.pages.dev') {
+  if (url.hostname === 'ferasetu.com' || url.hostname === 'ferasetu.pages.dev') {
     if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
       return new Response('console.log("asset");', {
         status: 200,
@@ -76,8 +94,10 @@ async function test(name, fn) {
 
 // Mock D1 Database
 function createMockDb(users = [], websites = [], products = []) {
-  return {
+  const db = {
+    queryCount: 0,
     prepare(sql) {
+      db.queryCount++;
       return {
         _sql: sql,
         _params: [],
@@ -126,6 +146,7 @@ function createMockDb(users = [], websites = [], products = []) {
       };
     }
   };
+  return db;
 }
 
 console.log('\n🏪 Suite: Hostname Classification & Slug Validation');
@@ -237,7 +258,7 @@ const mockProducts = [
 
 const mockEnv = {
   DB: createMockDb(mockUsers, mockWebsites, mockProducts),
-  PAGES_ORIGIN: 'https://ferasetu.pages.dev'
+  PAGES_ORIGIN: 'https://ferasetu.com'
 };
 
 await test('1. ferasetu.com root request proxies to Pages without taking over', async () => {
@@ -384,6 +405,97 @@ await test('13. cache isolation between two merchants', async () => {
   assert.ok(cc2?.includes('private') && cc2?.includes('no-store'));
   assert.ok(vary1?.includes('Host'));
   assert.ok(vary2?.includes('Host'));
+});
+
+await test('14. static asset edge caching with caches.default (cross-tenant shared cache)', async () => {
+  mockCacheStore.clear();
+  // Request asset from tenant 1
+  const req1 = new Request('https://rajeshmart-mumbai-mh-in.ferasetu.com/assets/index-DCmqvoKc.js');
+  const res1 = await worker.fetch(req1, mockEnv);
+  assert.equal(res1.status, 200);
+  assert.equal(res1.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+  
+  // Verify cached under normalized origin URL https://ferasetu.com/assets/index-DCmqvoKc.js
+  const normalizedKey = 'https://ferasetu.com/assets/index-DCmqvoKc.js';
+  assert.ok(mockCacheStore.has(normalizedKey), 'Asset must be cached under normalized key');
+
+  // Request asset from tenant 2 (should retrieve from edge cache)
+  const req2 = new Request('https://rajeshmart-andheri-mumbai-mh-in-2.ferasetu.com/assets/index-DCmqvoKc.js');
+  const res2 = await worker.fetch(req2, mockEnv);
+  assert.equal(res2.status, 200);
+  assert.equal(res2.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+});
+
+await test('15. static asset requests strictly bypass D1 database queries', async () => {
+  const initialQueryCount = mockEnv.DB.queryCount;
+  const req = new Request('https://rajeshmart-mumbai-mh-in.ferasetu.com/assets/vendor-react-CKROFyGA.js');
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 200);
+  assert.equal(mockEnv.DB.queryCount, initialQueryCount, 'Static asset requests must execute 0 D1 queries');
+});
+
+await test('16. in-memory SPA HTML shell caching avoids repetitive origin fetches', async () => {
+  clearSpaHtmlCache();
+  let originFetchCount = 0;
+  const tempFetch = globalThis.fetch;
+  globalThis.fetch = async (urlOrReq, init) => {
+    const urlStr = typeof urlOrReq === 'string' ? urlOrReq : urlOrReq.url;
+    if (urlStr.includes('/index.html')) originFetchCount++;
+    return tempFetch(urlOrReq, init);
+  };
+
+  try {
+    const req1 = new Request('https://rajeshmart-mumbai-mh-in.ferasetu.com/');
+    const res1 = await worker.fetch(req1, mockEnv);
+    assert.equal(res1.status, 200);
+    assert.equal(originFetchCount, 1, 'Initial request fetches index.html from origin');
+
+    const req2 = new Request('https://rajeshmart-mumbai-mh-in.ferasetu.com/products');
+    const res2 = await worker.fetch(req2, mockEnv);
+    assert.equal(res2.status, 200);
+    assert.equal(originFetchCount, 1, 'Subsequent navigation reuses in-memory cached SPA shell');
+  } finally {
+    globalThis.fetch = tempFetch;
+  }
+});
+
+await test('17. resilience against origin DNS/530 error (never returns Error 1016 to user)', async () => {
+  clearSpaHtmlCache();
+  const tempFetch = globalThis.fetch;
+  // Simulate origin returning HTTP 530 / Error 1016
+  globalThis.fetch = async (urlOrReq, init) => {
+    return new Response('<!DOCTYPE html><title>Origin DNS error | ferasetu.pages.dev | Cloudflare</title>', {
+      status: 530,
+      headers: { 'Content-Type': 'text/html' }
+    });
+  };
+
+  try {
+    const req = new Request('https://sharma-virar-palghar-mh-1.ferasetu.com/');
+    const res = await worker.fetch(req, mockEnv);
+    assert.equal(res.status, 200);
+    const body = await res.text();
+    assert.ok(!body.includes('Origin DNS error'), 'Must not leak Error 1016 to user');
+    assert.ok(body.includes('FeraSetu Storefront') || body.includes('root'), 'Must render fallback SPA shell');
+  } finally {
+    globalThis.fetch = tempFetch;
+  }
+});
+
+await test('18. merchant metadata TTL caching prevents duplicate D1 queries during browsing', async () => {
+  clearMerchantCache();
+  const initialQueryCount = mockEnv.DB.queryCount;
+  
+  // Visit page 1
+  const req1 = new Request('https://rajeshmart-mumbai-mh-in.ferasetu.com/');
+  await worker.fetch(req1, mockEnv);
+  const queriesAfterFirst = mockEnv.DB.queryCount;
+  assert.ok(queriesAfterFirst > initialQueryCount, 'First visit queries D1');
+
+  // Visit page 2 (within 60s TTL)
+  const req2 = new Request('https://rajeshmart-mumbai-mh-in.ferasetu.com/about');
+  await worker.fetch(req2, mockEnv);
+  assert.equal(mockEnv.DB.queryCount, queriesAfterFirst, 'Subsequent page visit reuses cached merchant metadata');
 });
 
 console.log('\n📄 Suite: Extensible Page Entitlement Hook');

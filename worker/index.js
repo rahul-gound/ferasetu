@@ -137,7 +137,12 @@ function json(data, status = 200, extraHeaders = {}, request = null) {
 
 function errorResponse(message, status = 400, details, request = null) {
   const body = { error: message };
-  if (details !== undefined) body.details = details;
+  if (details !== undefined) {
+    body.details = details;
+    if (details && typeof details === 'object' && details.code && !body.code) {
+      body.code = details.code;
+    }
+  }
   return json(body, status, {}, request);
 }
 
@@ -430,6 +435,21 @@ async function requireOrgContext(request, env, minRole = 'staff') {
     throw new HttpError(`Forbidden: Requires '${minRole}' role or higher`, 403);
   }
 
+  // Trial expiration gate for non-Indian accounts
+  if (orgRow.market !== 'IN' && (orgRow.plan === 'trial' || orgRow.plan === 'beta')) {
+    const ownerUser = await env.DB.prepare(
+      "SELECT plan, plan_expires_at, trial_ends_at FROM users WHERE id = ?"
+    ).bind(me.$id).first();
+    const expiry = ownerUser?.plan_expires_at || ownerUser?.trial_ends_at;
+    if (expiry && new Date(expiry).getTime() < Date.now()) {
+      const url = new URL(request.url);
+      const isUpgradePath = url.pathname.includes('/payment') || url.pathname.includes('/upgrade') || url.pathname.includes('/me') || url.pathname.includes('/organizations');
+      if (!isUpgradePath) {
+        throw new HttpError("Your 14-day free trial has concluded. Please upgrade to a paid plan to continue using FeraSetu.", 403, { code: "TRIAL_EXPIRED", expired: true, upgradeUrl: "/upgrade" });
+      }
+    }
+  }
+
   return {
     user: me,
     organization: orgRow,
@@ -462,6 +482,7 @@ async function createOrganizationHandler(request, env) {
   // Authoritative market resolution: not trusted from client
   const market = resolveAuthoritativeMarket({ state, city, district, country, market: body.market, request });
   const plan = market === 'IN' ? 'free' : 'trial';
+  const planExpiresAt = plan === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null;
 
   // Check if user already owns an organization
   let existingOrg = null;
@@ -772,10 +793,12 @@ async function createOrganizationHandler(request, env) {
       try { await env.DB.prepare("ALTER TABLE users ADD COLUMN country TEXT").run(); } catch {}
     }
     await env.DB.prepare(`
-      INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, district, state, country, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, email, name, business_name, plan, plan_expires_at, market, subdomain, hostname, city, district, state, country, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         business_name = excluded.business_name,
+        plan = CASE WHEN users.plan IS NULL OR users.plan = 'free' OR users.plan = 'trial' THEN excluded.plan ELSE users.plan END,
+        plan_expires_at = COALESCE(users.plan_expires_at, excluded.plan_expires_at),
         subdomain = excluded.subdomain,
         hostname = excluded.hostname,
         city = excluded.city,
@@ -784,23 +807,25 @@ async function createOrganizationHandler(request, env) {
         country = excluded.country,
         updated_at = excluded.updated_at
     `).bind(
-      me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, district, state, country, now, now
+      me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, district, state, country, now, now
     ).run();
   } catch (uErr) {
     console.warn("Could not upsert user record in D1 with district/country, retrying fallback:", uErr);
     try {
       await env.DB.prepare(`
-        INSERT INTO users (id, email, name, business_name, plan, market, subdomain, hostname, city, state, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (id, email, name, business_name, plan, plan_expires_at, market, subdomain, hostname, city, state, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           business_name = excluded.business_name,
+          plan = CASE WHEN users.plan IS NULL OR users.plan = 'free' OR users.plan = 'trial' THEN excluded.plan ELSE users.plan END,
+          plan_expires_at = COALESCE(users.plan_expires_at, excluded.plan_expires_at),
           subdomain = excluded.subdomain,
           hostname = excluded.hostname,
           city = excluded.city,
           state = excluded.state,
           updated_at = excluded.updated_at
       `).bind(
-        me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, market, storeSlug, hostname, city, state, now, now
+        me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, state, now, now
       ).run();
     } catch (uErr2) {
       console.warn("User upsert fallback failed (non-blocking):", uErr2);
@@ -893,6 +918,23 @@ async function inviteOrganizationMemberHandler(request, env) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   if (!email || !email.includes('@')) {
     throw new HttpError("Valid email is required", 422);
+  }
+
+  const orgPlan = (ctx.organization.plan || 'free').toLowerCase();
+  const planLimits = CANONICAL_PLANS[orgPlan] || CANONICAL_PLANS.free;
+  const maxSeats = planLimits.staffLimit || 1;
+
+  const countRow = await env.DB.prepare(
+    "SELECT COUNT(*) as cnt FROM organization_members WHERE organization_id = ?"
+  ).bind(ctx.organization.id).first();
+  const currentCount = countRow?.cnt || 1;
+
+  if (currentCount >= maxSeats) {
+    throw new HttpError(
+      `Staff seat limit reached for ${orgPlan} plan (maximum ${maxSeats} seats). Please upgrade to add more team members.`,
+      403,
+      { code: "STAFF_LIMIT_REACHED", maxSeats, currentCount, upgradeUrl: "/upgrade" }
+    );
   }
 
   const role = body.role === 'admin' ? 'admin' : 'staff';
@@ -2273,30 +2315,44 @@ async function ensureTables(db) {
 // Canonical Plans & Server-Authoritative Market Pricing Matrix
 // ---------------------------------------------------------------------------
 const CANONICAL_PLANS = {
-  free: { monthlyCredits: 20, productLimit: 25 },
-  business: { monthlyCredits: 200, productLimit: 500 },
-  pro: { monthlyCredits: 1000, productLimit: Infinity },
+  free: { monthlyCredits: 20, productLimit: 25, staffLimit: 1, customDomain: false },
+  trial: { monthlyCredits: 20, productLimit: 25, staffLimit: 1, customDomain: false },
+  starter: { monthlyCredits: 50, productLimit: 100, staffLimit: 1, customDomain: false },
+  growth: { monthlyCredits: 200, productLimit: 500, staffLimit: 2, customDomain: true },
+  business: { monthlyCredits: 200, productLimit: 500, staffLimit: 2, customDomain: true },
+  pro: { monthlyCredits: 1000, productLimit: Infinity, staffLimit: 5, customDomain: true },
+  scale: { monthlyCredits: 3000, productLimit: Infinity, staffLimit: 10, customDomain: true },
+  enterprise: { monthlyCredits: 3000, productLimit: Infinity, staffLimit: 10, customDomain: true },
 };
 
 const PLAN_ALIAS_MAP = {
   free: 'free',
   beta: 'free',
   trial: 'trial',
-  basic: 'business',
-  growth: 'business',
-  starter: 'business',
+  basic: 'starter',
+  starter: 'starter',
+  growth: 'growth',
   standard: 'business',
   business: 'business',
   pro: 'pro',
   premium: 'pro',
-  scale: 'pro',
-  enterprise: 'pro',
+  scale: 'scale',
+  enterprise: 'scale',
 };
 
-function normalizePlan(plan) {
-  if (!plan) return 'free';
+function normalizePlan(plan, market = 'IN') {
+  if (!plan) return market === 'IN' ? 'free' : 'trial';
   const clean = String(plan).toLowerCase().trim();
-  return PLAN_ALIAS_MAP[clean] || null;
+  const mapped = PLAN_ALIAS_MAP[clean] || clean;
+  if (market === 'IN') {
+    if (mapped === 'starter' || mapped === 'growth') return 'business';
+    if (mapped === 'scale') return 'pro';
+    return mapped;
+  }
+  // US / EU / non-IN
+  if (mapped === 'free' || mapped === 'beta') return 'trial';
+  if (mapped === 'business') return 'growth';
+  return mapped;
 }
 
 const MARKET_PRICING = {
@@ -2315,8 +2371,11 @@ const MARKET_PRICING = {
     permanentFreePlan: false,
     trialDays: 14,
     plans: {
-      business: { monthly: 9, yearly: 90 },
-      pro: { monthly: 19, yearly: 190 },
+      starter: { monthly: 19, yearly: 190 },
+      growth: { monthly: 39, yearly: 390 },
+      business: { monthly: 39, yearly: 390 },
+      pro: { monthly: 79, yearly: 790 },
+      scale: { monthly: 179, yearly: 1790 },
     },
   },
   EU: {
@@ -2324,8 +2383,11 @@ const MARKET_PRICING = {
     permanentFreePlan: false,
     trialDays: 14,
     plans: {
-      business: { monthly: 9, yearly: 90 },
-      pro: { monthly: 19, yearly: 190 },
+      starter: { monthly: 19, yearly: 190 },
+      growth: { monthly: 39, yearly: 390 },
+      business: { monthly: 39, yearly: 390 },
+      pro: { monthly: 79, yearly: 790 },
+      scale: { monthly: 179, yearly: 1790 },
     },
   },
 };
@@ -2337,19 +2399,19 @@ async function handlePaymentInitialize(request, env) {
   const me = await getAuthenticatedUser(request, env);
   const body = await readJsonBody(request);
 
-  const rawPlan = body.plan;
-  const targetPlan = normalizePlan(rawPlan);
-  if (!targetPlan) {
-    throw new HttpError(`Invalid plan selected: "${rawPlan}". Must be one of: free, business, pro.`, 400);
-  }
-  const billingCycle = body.billingCycle === 'yearly' ? 'yearly' : 'monthly';
-
-  // Determine user market (Bug 3 FIX: user.market from DB is authoritative over client body.market)
+  // Determine user market first (authoritative from user profile in D1)
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
   const authoritativeMarket = user?.market || (user?.phone?.startsWith('+1') ? 'US' : null) || resolveAuthoritativeMarket({ state: user?.state, city: user?.city, request }) || 'IN';
   const userMarket = String(authoritativeMarket).toUpperCase();
   const market = ['IN', 'US', 'EU'].includes(userMarket) ? userMarket : 'IN';
   const marketConfig = MARKET_PRICING[market];
+
+  const rawPlan = body.plan;
+  const targetPlan = normalizePlan(rawPlan, market);
+  if (!targetPlan) {
+    throw new HttpError(`Invalid plan selected: "${rawPlan}". Must be one of: free, starter, growth, business, pro, scale.`, 400);
+  }
+  const billingCycle = body.billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
   // 1. Free / Trial plan logic
   if (targetPlan === 'free' || targetPlan === 'trial' || (body.amount !== undefined && Number(body.amount) === 0)) {
@@ -2427,6 +2489,7 @@ async function handlePaymentInitialize(request, env) {
     const isProd = env.CASHFREE_ENV === 'production';
     const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
 
+    const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
     const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
       method: 'POST',
       headers: {
@@ -2445,7 +2508,7 @@ async function handlePaymentInitialize(request, env) {
           customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
         },
         order_meta: {
-          return_url: `https://ferasetu.com/upgrade?order_id=${transactionId}`,
+          return_url: `${requestOrigin}/upgrade?order_id=${transactionId}`,
         },
         order_note: `FeraSetu ${targetPlan} plan subscription`,
       }),
@@ -2666,9 +2729,14 @@ async function handlePaymentVerify(request, env) {
   }
 
   const now = new Date().toISOString();
-  const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
-  const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
-  const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
+
+  let txMeta = {};
+  try {
+    txMeta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : (tx.metadata || {});
+  } catch {}
+
+  const isAiCredits = txMeta.type === 'ai_credits' || tx.plan === 'credits';
+  const isExtraStorage = txMeta.type === 'extra_storage';
 
   await env.DB.prepare(
     `UPDATE transactions
@@ -2677,6 +2745,7 @@ async function handlePaymentVerify(request, env) {
   ).bind(
     verifiedPaymentId || razorpay_payment_id || null,
     JSON.stringify({
+      ...txMeta,
       provider: effectiveProvider,
       razorpay_order_id: razorpay_order_id || null,
       razorpay_payment_id: razorpay_payment_id || null,
@@ -2687,6 +2756,35 @@ async function handlePaymentVerify(request, env) {
     now,
     tx.id
   ).run();
+
+  if (isAiCredits) {
+    const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
+    try {
+      if (txMeta.purchaseId) {
+        await env.DB.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
+      }
+    } catch {}
+    await env.DB.prepare("UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?")
+      .bind(credits, now, me.$id).run();
+    return json({ success: true, type: 'ai_credits', creditsAdded: credits, message: `Added ${credits} AI credits successfully` }, 200, {}, request);
+  }
+
+  if (isExtraStorage) {
+    const gb = txMeta.gb || 1;
+    const bytes = txMeta.bytes || (gb * 1024 * 1024 * 1024);
+    try {
+      if (txMeta.purchaseId) {
+        await env.DB.prepare("UPDATE storage_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
+      }
+    } catch {}
+    await env.DB.prepare("UPDATE users SET storage_limit_bytes = COALESCE(storage_limit_bytes, 52428800) + ?, updated_at = ? WHERE id = ?")
+      .bind(bytes, now, me.$id).run();
+    return json({ success: true, type: 'extra_storage', gbAdded: gb, message: `Added ${gb}GB storage successfully` }, 200, {}, request);
+  }
+
+  const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
+  const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+  const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
 
   await env.DB.prepare(
     `UPDATE users
@@ -2797,9 +2895,14 @@ async function handlePaymentWebhook(request, env) {
       }
 
       const now = new Date().toISOString();
-      const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
-      const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
-      const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
+
+      let txMeta = {};
+      try {
+        txMeta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : (tx.metadata || {});
+      } catch {}
+
+      const isAiCredits = txMeta.type === 'ai_credits' || tx.plan === 'credits';
+      const isExtraStorage = txMeta.type === 'extra_storage';
 
       await env.DB.prepare(
         `UPDATE transactions
@@ -2808,6 +2911,7 @@ async function handlePaymentWebhook(request, env) {
       ).bind(
         paymentData?.cf_payment_id ? String(paymentData.cf_payment_id) : null,
         JSON.stringify({
+          ...txMeta,
           provider: 'cashfree',
           cashfree_order_id: orderId,
           cf_payment_id: paymentData?.cf_payment_id || null,
@@ -2818,17 +2922,42 @@ async function handlePaymentWebhook(request, env) {
         tx.id
       ).run();
 
-      await env.DB.prepare(
-        `UPDATE users
-         SET plan = ?,
-             plan_expires_at = ?,
-             ai_credits_balance = ai_credits_balance + ?,
-             ai_credits_monthly_limit = ?,
-             ai_credits_used_month = 0,
-             ai_credits_reset_at = datetime('now', '+30 days'),
-             updated_at = ?
-         WHERE id = ?`
-      ).bind(tx.plan, planExpiresAt, credits, credits, now, tx.user_id).run();
+      if (isAiCredits) {
+        const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
+        try {
+          if (txMeta.purchaseId) {
+            await env.DB.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
+          }
+        } catch {}
+        await env.DB.prepare("UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?")
+          .bind(credits, now, tx.user_id).run();
+      } else if (isExtraStorage) {
+        const gb = txMeta.gb || 1;
+        const bytes = txMeta.bytes || (gb * 1024 * 1024 * 1024);
+        try {
+          if (txMeta.purchaseId) {
+            await env.DB.prepare("UPDATE storage_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
+          }
+        } catch {}
+        await env.DB.prepare("UPDATE users SET storage_limit_bytes = COALESCE(storage_limit_bytes, 52428800) + ?, updated_at = ? WHERE id = ?")
+          .bind(bytes, now, tx.user_id).run();
+      } else {
+        const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
+        const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+        const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
+
+        await env.DB.prepare(
+          `UPDATE users
+           SET plan = ?,
+               plan_expires_at = ?,
+               ai_credits_balance = ai_credits_balance + ?,
+               ai_credits_monthly_limit = ?,
+               ai_credits_used_month = 0,
+               ai_credits_reset_at = datetime('now', '+30 days'),
+               updated_at = ?
+           WHERE id = ?`
+        ).bind(tx.plan, planExpiresAt, credits, credits, now, tx.user_id).run();
+      }
     }
   }
 
@@ -2884,9 +3013,101 @@ async function handlePaymentAiCreditsPurchase(request, env) {
 
   const usageScope = body.usage_scope || 'shared';
   const purchaseId = crypto.randomUUID();
+  const transactionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  // Record in ai_credit_purchases table
+  const hasCashfree = env.CASHFREE_APP_ID && env.CASHFREE_SECRET_KEY && !env.CASHFREE_APP_ID.includes('your_app_id');
+  if (hasCashfree) {
+    const isProd = env.CASHFREE_ENV === 'production';
+    const cfBaseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+    const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
+
+    const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+
+    const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
+      method: 'POST',
+      headers: {
+        'x-client-id': env.CASHFREE_APP_ID,
+        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        order_id: transactionId,
+        order_amount: pack.amount,
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+          customer_email: user?.email || 'merchant@ferasetu.com',
+          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+        },
+        order_meta: {
+          return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
+        },
+        order_note: `FeraSetu ${pack.label} purchase`,
+      }),
+    });
+
+    if (!cfOrderRes.ok) {
+      const errText = await cfOrderRes.text();
+      console.error('Cashfree credit order creation failed:', cfOrderRes.status, errText);
+      throw new HttpError('Failed to initiate credit payment with Cashfree gateway', 502);
+    }
+
+    const cfOrder = await cfOrderRes.json();
+
+    try {
+      await env.DB.prepare(
+        `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?)`
+      ).bind(purchaseId, me.$id, pack.credits, pack.amount, usageScope, now).run();
+    } catch (err) {
+      console.warn("Could not insert into ai_credit_purchases:", err?.message);
+    }
+
+    try {
+      await env.DB.prepare(
+        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+         VALUES (?, ?, 'cashfree', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
+      ).bind(
+        transactionId,
+        me.$id,
+        cfOrder.order_id || transactionId,
+        pack.amount,
+        JSON.stringify({
+          provider: 'cashfree',
+          type: 'ai_credits',
+          purchaseId,
+          pack: packKey,
+          credits: pack.credits,
+          usage_scope: usageScope,
+          cashfree_order_id: cfOrder.order_id,
+          cf_order_id: cfOrder.cf_order_id
+        }),
+        now,
+        now
+      ).run();
+    } catch (err) {
+      console.warn("Could not record transaction for credit purchase:", err?.message);
+    }
+
+    return json({
+      success: true,
+      requiresPayment: true,
+      gateway: 'cashfree',
+      id: transactionId,
+      purchaseId,
+      pack,
+      usage_scope: usageScope,
+      amount: pack.amount,
+      currency: 'INR',
+      paymentSessionId: cfOrder.payment_session_id,
+      cashfreeOrderId: cfOrder.order_id || transactionId,
+      message: `Cashfree order created for ${pack.label}`
+    }, 201, {}, request);
+  }
+
+  // Record in ai_credit_purchases table (dev/fallback when gateway not configured)
   try {
     await env.DB.prepare(
       `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
@@ -2896,17 +3117,16 @@ async function handlePaymentAiCreditsPurchase(request, env) {
     console.warn("Could not insert into ai_credit_purchases:", err?.message);
   }
 
-  // Record in transactions table
   try {
     await env.DB.prepare(
       `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
        VALUES (?, ?, 'ai_credits', ?, ?, 'INR', 'completed', 'credits', 'one_time', ?, ?, ?)`
     ).bind(
-      crypto.randomUUID(),
+      transactionId,
       me.$id,
       `credits_${purchaseId}`,
       pack.amount,
-      JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, usage_scope: usageScope }),
+      JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, usage_scope: usageScope, purchaseId }),
       now,
       now
     ).run();
@@ -2914,7 +3134,6 @@ async function handlePaymentAiCreditsPurchase(request, env) {
     console.warn("Could not record transaction for credit purchase:", err?.message);
   }
 
-  // Authoritatively increment ai_credits_balance in users table
   await env.DB.prepare(
     "UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?"
   ).bind(pack.credits, now, me.$id).run();
@@ -4132,7 +4351,7 @@ export default {
           }
           return await route(request, env);
         }
-        return await proxyPagesAsset(request, env);
+        return await proxyPagesAsset(request, env, ctx);
       }
 
       // 2. Reserved platform subdomains (api, www, app, admin, docs, status, mail, support, etc.)
@@ -4144,7 +4363,7 @@ export default {
             }
             return await route(request, env);
           }
-          return await proxyPagesAsset(request, env);
+          return await proxyPagesAsset(request, env, ctx);
         }
 
         if (url.pathname.startsWith("/api/")) {

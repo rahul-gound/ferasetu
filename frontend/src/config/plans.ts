@@ -370,7 +370,7 @@ export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[
   return [
     {
       ...starterDef,
-      price: cfg.plans.starter || { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+      price: cfg.plans.starter || { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
       tagline: 'For small stores and independent sellers launching online.',
       badge: '14 Days Free',
       ctaText: 'Start 14-Day Free Trial',

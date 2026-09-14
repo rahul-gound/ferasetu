@@ -10,6 +10,24 @@ interface CreditPack {
   label: string;
 }
 
+declare global {
+  interface Window {
+    Cashfree?: any;
+  }
+}
+
+function loadCashfreeScript(): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') { resolve(false); return; }
+    if (window.Cashfree) { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function AICreditsPage() {
   const { updateUser } = useAuth();
   const [data, setData] = useState<any>(null);
@@ -32,12 +50,66 @@ export default function AICreditsPage() {
     fetchCredits();
   }, []);
 
+  // Handle return from Cashfree checkout via ?order_id=
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    if (!orderId) return;
+
+    let isMounted = true;
+    const verifyCashfree = async () => {
+      const toastId = toast.loading('Verifying your credit purchase with Cashfree...');
+      try {
+        const verifyRes = await api.post('/payment/verify', {
+          cashfree_order_id: orderId,
+          order_id: orderId,
+          transaction_id: orderId,
+        });
+
+        if (verifyRes.data.success) {
+          toast.success(verifyRes.data.message || 'AI credits purchased successfully!', { id: toastId });
+          await fetchCredits();
+          window.history.replaceState({}, '', window.location.pathname);
+        } else {
+          toast.error(verifyRes.data.error || 'Payment verification failed.', { id: toastId });
+        }
+      } catch (err: any) {
+        toast.error(err?.response?.data?.error || 'Failed to verify payment with Cashfree.', { id: toastId });
+      }
+    };
+
+    verifyCashfree();
+    return () => { isMounted = false; };
+  }, []);
+
   const buyPack = async (pack: string) => {
     setBuying(pack);
     try {
       const res = await api.post('/payment/ai-credits/purchase', { pack, usage_scope: scope });
-      updateUser({ ai_credits_balance: res.data.ai_credits_balance } as any);
-      toast.success('AI credits added');
+
+      // If gateway requires payment via Cashfree Checkout
+      if (res.data.requiresPayment && res.data.paymentSessionId) {
+        const cashfreeLoaded = await loadCashfreeScript();
+        if (cashfreeLoaded && window.Cashfree) {
+          const cashfree = window.Cashfree({
+            mode: res.data.cashfreeEnv === 'production' ? 'production' : 'sandbox',
+          });
+          cashfree.checkout({
+            paymentSessionId: res.data.paymentSessionId,
+            redirectTarget: '_self',
+          });
+          return;
+        } else {
+          toast.error('Could not load Cashfree checkout window. Please try again.');
+          return;
+        }
+      }
+
+      // If fulfilled directly (e.g. dev or test mode)
+      if (res.data.ai_credits_balance !== undefined) {
+        updateUser({ ai_credits_balance: res.data.ai_credits_balance } as any);
+      }
+      toast.success('AI credits added successfully!');
       fetchCredits();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to buy credits');

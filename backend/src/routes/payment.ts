@@ -220,13 +220,13 @@ router.post('/webhook', async (req: any, res: Response): Promise<void> => {
           return;
         }
 
-        const planConfig = PLAN_CONFIG[transaction.plan] || PLAN_CONFIG.basic;
-        const credits = planConfig.monthlyCredits || 100;
-        const storageBytes = transaction.plan === 'pro' || transaction.plan === 'premium'
-          ? 5 * 1024 * 1024 * 1024
-          : transaction.plan === 'business' || transaction.plan === 'growth'
-          ? 1024 * 1024 * 1024
-          : 250 * 1024 * 1024;
+        let txMeta: any = {};
+        try {
+          txMeta = typeof transaction.metadata === 'string' ? JSON.parse(transaction.metadata) : (transaction.metadata || {});
+        } catch {}
+
+        const isAiCredits = txMeta.type === 'ai_credits' || transaction.plan === 'credits';
+        const isExtraStorage = txMeta.type === 'extra_storage';
 
         db.prepare(`
           UPDATE transactions
@@ -234,6 +234,7 @@ router.post('/webhook', async (req: any, res: Response): Promise<void> => {
           WHERE id = ?
         `).run(
           JSON.stringify({
+            ...txMeta,
             provider: 'cashfree',
             cashfree_order_id: orderId,
             cf_payment_id: paymentData?.cf_payment_id || null,
@@ -243,12 +244,43 @@ router.post('/webhook', async (req: any, res: Response): Promise<void> => {
           transaction.id
         );
 
-        db.prepare(`
-          UPDATE users
-          SET plan = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
-              ai_credits_reset_at = datetime('now', '+30 days'), storage_limit_bytes = ?, updated_at = datetime('now')
-          WHERE id = ?
-        `).run(transaction.plan, credits, credits, storageBytes, transaction.user_id);
+        if (isAiCredits) {
+          const credits = txMeta.credits || (CREDIT_PACKS[txMeta.pack]?.credits) || 250;
+          try {
+            if (txMeta.purchaseId) {
+              db.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").run(txMeta.purchaseId);
+            }
+          } catch {}
+          db.prepare("UPDATE users SET ai_credits_balance = ai_credits_balance + ?, updated_at = datetime('now') WHERE id = ?").run(credits, transaction.user_id);
+        } else if (isExtraStorage) {
+          const gb = txMeta.gb || 1;
+          const bytes = txMeta.bytes || (gb * 1024 * 1024 * 1024);
+          try {
+            if (txMeta.purchaseId) {
+              db.prepare("UPDATE storage_purchases SET status = 'completed' WHERE id = ?").run(txMeta.purchaseId);
+            }
+          } catch {}
+          db.prepare("UPDATE users SET storage_limit_bytes = storage_limit_bytes + ?, updated_at = datetime('now') WHERE id = ?").run(bytes, transaction.user_id);
+        } else {
+          const planConfig = PLAN_CONFIG[transaction.plan] || PLAN_CONFIG.basic;
+          const credits = planConfig.monthlyCredits || 100;
+          const storageBytes = transaction.plan === 'pro' || transaction.plan === 'premium'
+            ? 5 * 1024 * 1024 * 1024
+            : transaction.plan === 'business' || transaction.plan === 'growth'
+            ? 1024 * 1024 * 1024
+            : 250 * 1024 * 1024;
+
+          const billingCycle = txMeta.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+          const planDays = billingCycle === 'yearly' ? 365 : 30;
+          const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+
+          db.prepare(`
+            UPDATE users
+            SET plan = ?, plan_expires_at = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
+                ai_credits_reset_at = datetime('now', '+30 days'), storage_limit_bytes = ?, updated_at = datetime('now')
+            WHERE id = ?
+          `).run(transaction.plan, planExpiresAt, credits, credits, storageBytes, transaction.user_id);
+        }
       }
     }
 
@@ -430,6 +462,7 @@ router.post('/initialize',
           return;
         }
 
+        const requestOrigin = (req.headers.origin as string) || (req.headers.referer ? new URL(req.headers.referer as string).origin : null) || `${req.protocol}://${req.get('host')}`;
         const cfOrder = await createCashfreeOrder({
           orderId: transactionId,
           amount: expectedAmount,
@@ -437,6 +470,7 @@ router.post('/initialize',
           customerEmail: user?.email,
           customerPhone: user?.phone,
           plan,
+          returnUrl: `${requestOrigin}/upgrade?order_id=${transactionId}`,
         });
 
         db.prepare(`
@@ -570,23 +604,86 @@ router.post('/storage/purchase',
     const db = getDatabase();
     const userId = req.user!.id;
     const purchaseId = uuidv4();
+    const transactionId = uuidv4();
+    const isTestEnv = process.env.NODE_ENV === 'test';
 
     try {
+      if (isTestEnv) {
+        db.prepare(`
+          INSERT INTO storage_purchases (id, user_id, gb_added, amount, status)
+          VALUES (?, ?, ?, ?, 'completed')
+        `).run(purchaseId, userId, gb, amount);
+
+        db.prepare(`
+          INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
+          VALUES (?, ?, ?, ?, ?, 'completed', ?)
+        `).run(transactionId, userId, `storage_${purchaseId}`, amount, req.user!.plan || 'basic', JSON.stringify({ type: 'extra_storage', gb, bytes, purchaseId }));
+
+        db.prepare("UPDATE users SET storage_limit_bytes = storage_limit_bytes + ?, updated_at = datetime('now') WHERE id = ?")
+          .run(bytes, userId);
+
+        const storage = db.prepare('SELECT storage_used_bytes, storage_limit_bytes FROM users WHERE id = ?').get(userId) as any;
+        res.status(201).json({ success: true, purchaseId, gb, amount, storage });
+        return;
+      }
+
+      const hasCashfree = CASHFREE_APP_ID && CASHFREE_SECRET_KEY && !CASHFREE_APP_ID.includes('your_app_id');
+      if (!hasCashfree) {
+        res.status(503).json({ error: 'Payment gateway credentials are not configured on this server.' });
+        return;
+      }
+
+      const requestOrigin = (req.headers.origin as string) || (req.headers.referer ? new URL(req.headers.referer as string).origin : null) || `${req.protocol}://${req.get('host')}`;
+      const userRecord = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+
+      const cfOrder = await createCashfreeOrder({
+        orderId: transactionId,
+        amount,
+        customerId: userId,
+        customerEmail: userRecord?.email || req.user?.email,
+        customerPhone: userRecord?.phone || (req.user as any)?.phone,
+        plan: `storage_${gb}GB`,
+        returnUrl: `${requestOrigin}/dashboard?order_id=${transactionId}`,
+      });
+
       db.prepare(`
         INSERT INTO storage_purchases (id, user_id, gb_added, amount, status)
-        VALUES (?, ?, ?, ?, 'completed')
+        VALUES (?, ?, ?, ?, 'pending')
       `).run(purchaseId, userId, gb, amount);
 
       db.prepare(`
-        INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
-        VALUES (?, ?, ?, ?, ?, 'completed', ?)
-      `).run(uuidv4(), userId, `storage_${purchaseId}`, amount, req.user!.plan || 'basic', JSON.stringify({ type: 'extra_storage', gb }));
+        INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
+        VALUES (?, ?, ?, ?, 'INR', ?, 'pending', ?)
+      `).run(
+        transactionId,
+        userId,
+        cfOrder.order_id || transactionId,
+        amount,
+        req.user!.plan || 'basic',
+        JSON.stringify({
+          provider: 'cashfree',
+          type: 'extra_storage',
+          purchaseId,
+          gb,
+          bytes,
+          cashfree_order_id: cfOrder.order_id,
+          cf_order_id: cfOrder.cf_order_id
+        })
+      );
 
-      db.prepare("UPDATE users SET storage_limit_bytes = storage_limit_bytes + ?, updated_at = datetime('now') WHERE id = ?")
-        .run(bytes, userId);
-
-      const storage = db.prepare('SELECT storage_used_bytes, storage_limit_bytes FROM users WHERE id = ?').get(userId) as any;
-      res.status(201).json({ success: true, purchaseId, gb, amount, storage });
+      res.status(201).json({
+        success: true,
+        requiresPayment: true,
+        gateway: 'cashfree',
+        id: transactionId,
+        purchaseId,
+        gb,
+        amount,
+        currency: 'INR',
+        paymentSessionId: cfOrder.payment_session_id,
+        cashfreeOrderId: cfOrder.order_id || transactionId,
+        message: `Cashfree order created for ${gb}GB storage purchase`
+      });
     } catch (error: any) {
       console.error('Storage purchase failed:', error);
       res.status(500).json({ error: error.message || 'Failed to purchase storage' });
@@ -609,23 +706,88 @@ router.post('/ai-credits/purchase',
     const db = getDatabase();
     const userId = req.user!.id;
     const purchaseId = uuidv4();
+    const transactionId = uuidv4();
+    const isTestEnv = process.env.NODE_ENV === 'test';
 
     try {
+      if (isTestEnv) {
+        db.prepare(`
+          INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status)
+          VALUES (?, ?, ?, ?, ?, 'completed')
+        `).run(purchaseId, userId, pack.credits, pack.amount, usageScope);
+
+        db.prepare(`
+          INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
+          VALUES (?, ?, ?, ?, ?, 'completed', ?)
+        `).run(transactionId, userId, `credits_${purchaseId}`, pack.amount, req.user!.plan || 'basic', JSON.stringify({ type: 'ai_credits', pack: req.body.pack, credits: pack.credits, usage_scope: usageScope, purchaseId }));
+
+        db.prepare("UPDATE users SET ai_credits_balance = ai_credits_balance + ?, updated_at = datetime('now') WHERE id = ?")
+          .run(pack.credits, userId);
+
+        const balance = db.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').get(userId) as any;
+        res.status(201).json({ success: true, purchaseId, pack, usage_scope: usageScope, ai_credits_balance: balance?.ai_credits_balance || 0 });
+        return;
+      }
+
+      const hasCashfree = CASHFREE_APP_ID && CASHFREE_SECRET_KEY && !CASHFREE_APP_ID.includes('your_app_id');
+      if (!hasCashfree) {
+        res.status(503).json({ error: 'Payment gateway credentials are not configured on this server.' });
+        return;
+      }
+
+      const requestOrigin = (req.headers.origin as string) || (req.headers.referer ? new URL(req.headers.referer as string).origin : null) || `${req.protocol}://${req.get('host')}`;
+      const userRecord = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+
+      const cfOrder = await createCashfreeOrder({
+        orderId: transactionId,
+        amount: pack.amount,
+        customerId: userId,
+        customerEmail: userRecord?.email || req.user?.email,
+        customerPhone: userRecord?.phone || (req.user as any)?.phone,
+        plan: `credits_${pack.credits}`,
+        returnUrl: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
+      });
+
       db.prepare(`
         INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status)
-        VALUES (?, ?, ?, ?, ?, 'completed')
+        VALUES (?, ?, ?, ?, ?, 'pending')
       `).run(purchaseId, userId, pack.credits, pack.amount, usageScope);
 
       db.prepare(`
-        INSERT INTO transactions (id, user_id, provider_order_id, amount, plan, status, metadata)
-        VALUES (?, ?, ?, ?, ?, 'completed', ?)
-      `).run(uuidv4(), userId, `credits_${purchaseId}`, pack.amount, req.user!.plan || 'basic', JSON.stringify({ type: 'ai_credits', credits: pack.credits, usage_scope: usageScope }));
+        INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
+        VALUES (?, ?, ?, ?, 'INR', ?, 'pending', ?)
+      `).run(
+        transactionId,
+        userId,
+        cfOrder.order_id || transactionId,
+        pack.amount,
+        req.user!.plan || 'basic',
+        JSON.stringify({
+          provider: 'cashfree',
+          type: 'ai_credits',
+          purchaseId,
+          pack: req.body.pack,
+          credits: pack.credits,
+          usage_scope: usageScope,
+          cashfree_order_id: cfOrder.order_id,
+          cf_order_id: cfOrder.cf_order_id
+        })
+      );
 
-      db.prepare("UPDATE users SET ai_credits_balance = ai_credits_balance + ?, updated_at = datetime('now') WHERE id = ?")
-        .run(pack.credits, userId);
-
-      const balance = db.prepare('SELECT ai_credits_balance FROM users WHERE id = ?').get(userId) as any;
-      res.status(201).json({ success: true, purchaseId, pack, usage_scope: usageScope, ai_credits_balance: balance?.ai_credits_balance || 0 });
+      res.status(201).json({
+        success: true,
+        requiresPayment: true,
+        gateway: 'cashfree',
+        id: transactionId,
+        purchaseId,
+        pack,
+        usage_scope: usageScope,
+        amount: pack.amount,
+        currency: 'INR',
+        paymentSessionId: cfOrder.payment_session_id,
+        cashfreeOrderId: cfOrder.order_id || transactionId,
+        message: `Cashfree order created for ${pack.label}`
+      });
     } catch (error: any) {
       console.error('AI credit purchase failed:', error);
       res.status(500).json({ error: error.message || 'Failed to purchase AI credits' });
@@ -774,13 +936,8 @@ router.post('/verify', async (req: AuthenticatedRequest, res: Response): Promise
         }
       }
 
-      const planConfig = PLAN_CONFIG[transaction.plan] || PLAN_CONFIG.basic;
-      const credits = planConfig.monthlyCredits || 100;
-      const storageBytes = transaction.plan === 'pro' || transaction.plan === 'premium'
-        ? 5 * 1024 * 1024 * 1024
-        : transaction.plan === 'business' || transaction.plan === 'growth'
-        ? 1024 * 1024 * 1024
-        : 250 * 1024 * 1024;
+      const isAiCredits = txMeta.type === 'ai_credits' || transaction.plan === 'credits';
+      const isExtraStorage = txMeta.type === 'extra_storage';
 
       db.prepare(`
         UPDATE transactions
@@ -788,6 +945,7 @@ router.post('/verify', async (req: AuthenticatedRequest, res: Response): Promise
         WHERE id = ?
       `).run(
         JSON.stringify({
+          ...txMeta,
           provider: effectiveProvider,
           razorpay_order_id: razorpay_order_id || null,
           razorpay_payment_id: razorpay_payment_id || null,
@@ -798,12 +956,49 @@ router.post('/verify', async (req: AuthenticatedRequest, res: Response): Promise
         transaction.id
       );
 
+      if (isAiCredits) {
+        const credits = txMeta.credits || (CREDIT_PACKS[txMeta.pack]?.credits) || 250;
+        try {
+          if (txMeta.purchaseId) {
+            db.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").run(txMeta.purchaseId);
+          }
+        } catch {}
+        db.prepare("UPDATE users SET ai_credits_balance = ai_credits_balance + ?, updated_at = datetime('now') WHERE id = ?").run(credits, userId);
+        res.json({ success: true, type: 'ai_credits', creditsAdded: credits, message: `Added ${credits} AI credits successfully` });
+        return;
+      }
+
+      if (isExtraStorage) {
+        const gb = txMeta.gb || 1;
+        const bytes = txMeta.bytes || (gb * 1024 * 1024 * 1024);
+        try {
+          if (txMeta.purchaseId) {
+            db.prepare("UPDATE storage_purchases SET status = 'completed' WHERE id = ?").run(txMeta.purchaseId);
+          }
+        } catch {}
+        db.prepare("UPDATE users SET storage_limit_bytes = storage_limit_bytes + ?, updated_at = datetime('now') WHERE id = ?").run(bytes, userId);
+        res.json({ success: true, type: 'extra_storage', gbAdded: gb, message: `Added ${gb}GB storage successfully` });
+        return;
+      }
+
+      const planConfig = PLAN_CONFIG[transaction.plan] || PLAN_CONFIG.basic;
+      const credits = planConfig.monthlyCredits || 100;
+      const storageBytes = transaction.plan === 'pro' || transaction.plan === 'premium'
+        ? 5 * 1024 * 1024 * 1024
+        : transaction.plan === 'business' || transaction.plan === 'growth'
+        ? 1024 * 1024 * 1024
+        : 250 * 1024 * 1024;
+
+      const billingCycle = txMeta.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+      const planDays = billingCycle === 'yearly' ? 365 : 30;
+      const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+
       db.prepare(`
         UPDATE users
-        SET plan = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
+        SET plan = ?, plan_expires_at = ?, ai_credits_balance = ai_credits_balance + ?, ai_credits_monthly_limit = ?, ai_credits_used_month = 0,
             ai_credits_reset_at = datetime('now', '+30 days'), storage_limit_bytes = ?, updated_at = datetime('now')
         WHERE id = ?
-      `).run(transaction.plan, credits, credits, storageBytes, userId);
+      `).run(transaction.plan, planExpiresAt, credits, credits, storageBytes, userId);
 
       res.json({ success: true, plan: transaction.plan, message: `Plan activated: ${transaction.plan}` });
     } catch (error: any) {

@@ -83,22 +83,36 @@ export const REGIONAL_CONFIGS: Record<PricingRegion, RegionalConfig> = {
       starter: {
         id: 'starter',
         name: 'Starter',
-        price: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+        price: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
         monthlyCredits: 50,
+        isFree: false,
+      },
+      growth: {
+        id: 'growth',
+        name: 'Growth',
+        price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+        monthlyCredits: 200,
         isFree: false,
       },
       business: {
         id: 'business',
         name: 'Business',
-        price: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+        price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
       pro: {
         id: 'pro',
         name: 'Pro',
-        price: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+        price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
+        isFree: false,
+      },
+      scale: {
+        id: 'scale',
+        name: 'Scale',
+        price: { monthly: 179, yearly: 1790, yearlyPerMonth: 149.1 },
+        monthlyCredits: 3000,
         isFree: false,
       },
     },
@@ -115,22 +129,36 @@ export const REGIONAL_CONFIGS: Record<PricingRegion, RegionalConfig> = {
       starter: {
         id: 'starter',
         name: 'Starter',
-        price: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+        price: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
         monthlyCredits: 50,
+        isFree: false,
+      },
+      growth: {
+        id: 'growth',
+        name: 'Growth',
+        price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+        monthlyCredits: 200,
         isFree: false,
       },
       business: {
         id: 'business',
         name: 'Business',
-        price: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+        price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
       pro: {
         id: 'pro',
         name: 'Pro',
-        price: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+        price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
+        isFree: false,
+      },
+      scale: {
+        id: 'scale',
+        name: 'Scale',
+        price: { monthly: 179, yearly: 1790, yearlyPerMonth: 149.1 },
+        monthlyCredits: 3000,
         isFree: false,
       },
     },
@@ -147,22 +175,36 @@ export const REGIONAL_CONFIGS: Record<PricingRegion, RegionalConfig> = {
       starter: {
         id: 'starter',
         name: 'Starter',
-        price: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
+        price: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
         monthlyCredits: 50,
+        isFree: false,
+      },
+      growth: {
+        id: 'growth',
+        name: 'Growth',
+        price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+        monthlyCredits: 200,
         isFree: false,
       },
       business: {
         id: 'business',
         name: 'Business',
-        price: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+        price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
       pro: {
         id: 'pro',
         name: 'Pro',
-        price: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+        price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
+        isFree: false,
+      },
+      scale: {
+        id: 'scale',
+        name: 'Scale',
+        price: { monthly: 179, yearly: 1790, yearlyPerMonth: 149.1 },
+        monthlyCredits: 3000,
         isFree: false,
       },
     },
@@ -193,10 +235,12 @@ export function normalizePlanForRegion(plan: string, region: PricingRegion): str
     return 'business'; // default paid plan for IN
   }
 
-  // Non-Indian regions (US, EU, OTHER) do not have a free tier
+  // Non-Indian regions (US, EU, OTHER) do not have a permanent free tier
   if (clean === 'starter' || clean === 'basic') return 'starter';
-  if (clean === 'pro' || clean === 'premium' || clean === 'scale' || clean === 'enterprise') return 'pro';
-  return 'business';
+  if (clean === 'scale' || clean === 'enterprise') return 'scale';
+  if (clean === 'pro' || clean === 'premium') return 'pro';
+  if (clean === 'growth' || clean === 'business' || clean === 'standard') return 'growth';
+  return 'growth';
 }
 
 /**

@@ -5,6 +5,8 @@
 
 export const BASE_DOMAINS = ["ferasetu.com", "fera-search.tech"];
 
+export const DEFAULT_PAGES_ORIGIN = "https://ferasetu.com";
+
 export const RESERVED_SUBDOMAINS = new Set([
   "api",
   "www",
@@ -45,6 +47,43 @@ export const PLAN_PAGE_ENTITLEMENTS = {
   pro: { maxCustomPages: 25, allowedSystemPages: true },
   enterprise: { maxCustomPages: Infinity, allowedSystemPages: true },
 };
+
+// In-memory module-level cache for the SPA HTML shell (index.html)
+let cachedSpaHtml = null;
+let cachedSpaHtmlTime = 0;
+const SPA_HTML_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export function clearSpaHtmlCache() {
+  cachedSpaHtml = null;
+  cachedSpaHtmlTime = 0;
+}
+
+// In-memory module-level cache for merchant storefront eligibility (TTL: 60s)
+const merchantCache = new Map();
+const MERCHANT_CACHE_TTL_MS = 60 * 1000;
+
+export function clearMerchantCache() {
+  merchantCache.clear();
+}
+
+export function getCachedMerchant(slug) {
+  const cached = merchantCache.get(slug);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
+  return null;
+}
+
+export function setCachedMerchant(slug, data) {
+  if (merchantCache.size > 10000) {
+    const firstKey = merchantCache.keys().next().value;
+    merchantCache.delete(firstKey);
+  }
+  merchantCache.set(slug, {
+    data,
+    expiresAt: Date.now() + MERCHANT_CACHE_TTL_MS,
+  });
+}
 
 /**
  * Classify incoming hostname into platform root, API, reserved, merchant, or unknown.
@@ -171,17 +210,38 @@ export function isStoreEligibleForIndexing(merchant, productCount = 0) {
 }
 
 /**
- * Proxies static assets from the Cloudflare Pages origin.
+ * Proxies static assets from the Cloudflare Pages origin with Cloudflare Edge Cache.
+ * Cross-tenant normalized cache keys ensure that fingerprinted assets (/assets/*.js, etc.)
+ * are cached once at the Cloudflare edge POP and shared across all merchant storefronts.
  */
-export async function proxyPagesAsset(request, env) {
+export async function proxyPagesAsset(request, env, ctx) {
   const url = new URL(request.url);
-  const pagesOrigin = (env?.PAGES_ORIGIN || "https://ferasetu.pages.dev").replace(
+  const pagesOrigin = (env?.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN).replace(
     /\/+$/,
     ""
   );
   const pagesHost = new URL(pagesOrigin).host;
-  const targetUrl = new URL(url.pathname + url.search, pagesOrigin);
 
+  // Normalized cross-tenant cache key: https://ferasetu.com/assets/...
+  // This allows all merchant subdomains (e.g. shop1, shop2) to share the exact same edge cache!
+  const normalizedUrl = new URL(url.pathname + url.search, pagesOrigin);
+  const cacheKey = new Request(normalizedUrl.toString(), { method: "GET" });
+
+  const cache =
+    typeof caches !== "undefined" && caches.default ? caches.default : null;
+
+  if (cache && request.method === "GET") {
+    try {
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    } catch (cacheErr) {
+      console.warn("Edge cache read warning:", cacheErr);
+    }
+  }
+
+  const targetUrl = normalizedUrl;
   const headers = new Headers(request.headers);
   headers.set("Host", pagesHost);
 
@@ -189,6 +249,10 @@ export async function proxyPagesAsset(request, env) {
     let response = await fetch(targetUrl.toString(), {
       method: request.method,
       headers,
+      cf: {
+        cacheEverything: true,
+        cacheTtl: url.pathname.startsWith("/assets/") ? 31536000 : 86400,
+      },
       signal: AbortSignal.timeout(5000),
     });
 
@@ -198,7 +262,20 @@ export async function proxyPagesAsset(request, env) {
       response = await fetch(spaUrl.toString(), {
         method: "GET",
         headers,
+        cf: { cacheEverything: true, cacheTtl: 3600 },
         signal: AbortSignal.timeout(5000),
+      });
+    }
+
+    // Guard against upstream origin errors (such as 530 / Error 1016)
+    if (!response.ok && response.status >= 500) {
+      console.warn(`Static asset origin returned status ${response.status} for ${url.pathname}`);
+      return new Response("Asset temporarily unavailable", {
+        status: 502,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "X-Content-Type-Options": "nosniff",
+        },
       });
     }
 
@@ -216,11 +293,23 @@ export async function proxyPagesAsset(request, env) {
       responseHeaders.set("Cache-Control", "public, max-age=0, must-revalidate");
     }
 
-    return new Response(response.body, {
+    const clientResponse = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
     });
+
+    // Store in Cloudflare Edge Cache for GET 200 responses
+    if (cache && request.method === "GET" && response.status === 200) {
+      const toCache = clientResponse.clone();
+      if (ctx && typeof ctx.waitUntil === "function") {
+        ctx.waitUntil(cache.put(cacheKey, toCache));
+      } else {
+        await cache.put(cacheKey, toCache).catch(() => {});
+      }
+    }
+
+    return clientResponse;
   } catch (err) {
     console.error("Failed to proxy asset from Pages:", err);
     return new Response("Asset not found", {
@@ -234,37 +323,52 @@ export async function proxyPagesAsset(request, env) {
 }
 
 /**
- * Fetches the SPA HTML shell (index.html) from Pages and serves it with host-isolated cache controls.
+ * Fetches the SPA HTML shell (index.html) from Pages with in-memory caching and serves it with host-isolated cache controls.
  */
 export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, merchantSlug }) {
-  const pagesOrigin = (env?.PAGES_ORIGIN || "https://ferasetu.pages.dev").replace(
+  const pagesOrigin = (env?.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN).replace(
     /\/+$/,
     ""
   );
   const pagesHost = new URL(pagesOrigin).host;
   const targetUrl = new URL("/index.html", pagesOrigin);
 
-  const headers = new Headers(request.headers);
-  headers.set("Host", pagesHost);
+  const fallbackHtml = `<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>FeraSetu Storefront</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`;
 
   let htmlBody = "";
   let status = 200;
 
-  try {
-    const response = await fetch(targetUrl.toString(), {
-      method: "GET",
-      headers,
-      signal: AbortSignal.timeout(5000),
-    });
-    if (response.ok) {
-      htmlBody = await response.text();
-    } else {
-      status = response.status;
-      htmlBody = await response.text();
+  // Check in-memory fresh cache (avoids repeated origin subrequests on every HTML page load)
+  if (cachedSpaHtml && Date.now() - cachedSpaHtmlTime < SPA_HTML_TTL_MS) {
+    htmlBody = cachedSpaHtml;
+  } else {
+    const headers = new Headers(request.headers);
+    headers.set("Host", pagesHost);
+
+    try {
+      const response = await fetch(targetUrl.toString(), {
+        method: "GET",
+        headers,
+        cf: {
+          cacheEverything: true,
+          cacheTtl: 3600,
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (response.ok) {
+        htmlBody = await response.text();
+        cachedSpaHtml = htmlBody;
+        cachedSpaHtmlTime = Date.now();
+      } else {
+        // If origin returned an error (e.g. 530 Error 1016), do NOT leak it to the user.
+        console.warn(`Pages origin returned status ${response.status} when fetching index.html`);
+        htmlBody = cachedSpaHtml || fallbackHtml;
+      }
+    } catch (err) {
+      console.warn("Origin fetch error for index.html, using fallback shell:", err);
+      htmlBody = cachedSpaHtml || fallbackHtml;
     }
-  } catch (err) {
-    // Fallback HTML shell if Pages origin is temporarily unreachable or mocked in test environment
-    htmlBody = `<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>FeraSetu Storefront</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`;
   }
 
   const responseHeaders = new Headers({
@@ -289,9 +393,9 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
 /**
  * Handles incoming merchant storefront requests:
  * 1. Validates slug
- * 2. Routes static assets to Pages asset proxy
+ * 2. Routes static assets immediately to Pages asset proxy (ZERO D1 queries)
  * 3. Evaluates page route access
- * 4. Checks merchant indexing eligibility in D1
+ * 4. Checks merchant indexing eligibility in D1 (cached for 60s)
  * 5. Serves the SPA shell with host-safe isolation headers
  */
 export async function handleStorefrontRequest(request, env, ctx, hostClassification) {
@@ -310,9 +414,9 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
     });
   }
 
-  // 2. Static asset requests (JS, CSS, images, etc.)
+  // 2. Static asset requests (JS, CSS, images, etc.) — strictly bypass D1
   if (isStaticAsset(url.pathname)) {
-    return proxyPagesAsset(request, env);
+    return proxyPagesAsset(request, env, ctx);
   }
 
   // 3. Page route access evaluation (future page-builder hook)
@@ -327,15 +431,20 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
     });
   }
 
-  // 4. Query merchant status in D1 if available
+  // 4. Query merchant status in D1 if available (with 60-second in-memory cache)
   let merchant = null;
   let productCount = 0;
 
-  if (env?.DB) {
+  const cachedData = getCachedMerchant(slug);
+  if (cachedData) {
+    merchant = cachedData.merchant;
+    productCount = cachedData.productCount;
+  } else if (env?.DB) {
     try {
       const fullHost = `${slug}.${hostClassification.domain || "ferasetu.com"}`;
       const user = await env.DB.prepare(
         `SELECT u.id, u.business_name, u.name, u.subdomain, u.hostname, u.is_blocked, u.plan,
+                u.market, u.plan_expires_at, u.trial_ends_at,
                 w.is_published
          FROM users u
          LEFT JOIN websites w ON w.user_id = u.id
@@ -346,18 +455,6 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
 
       if (user) {
         merchant = user;
-
-        if (user.is_blocked) {
-          return new Response("This store is currently unavailable.", {
-            status: 403,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8",
-              "X-Robots-Tag": "noindex, nofollow",
-              "Cache-Control": "private, no-cache, no-store",
-            },
-          });
-        }
-
         const countRow = await env.DB.prepare(
           "SELECT COUNT(*) as cnt FROM products WHERE user_id = ?"
         )
@@ -366,8 +463,40 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
 
         productCount = countRow?.cnt || 0;
       }
+
+      setCachedMerchant(slug, { merchant, productCount });
     } catch (dbErr) {
       console.error("D1 lookup error during storefront routing:", dbErr);
+    }
+  }
+
+  if (merchant) {
+    if (merchant.is_blocked) {
+      return new Response("This store is currently unavailable.", {
+        status: 403,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "X-Robots-Tag": "noindex, nofollow",
+          "Cache-Control": "private, no-cache, no-store",
+        },
+      });
+    }
+
+    if ((merchant.plan === 'trial' || merchant.plan === 'beta') && merchant.market !== 'IN') {
+      const expiry = merchant.plan_expires_at || merchant.trial_ends_at;
+      if (expiry && new Date(expiry).getTime() < Date.now()) {
+        return new Response(
+          `<!doctype html><html><head><meta charset="UTF-8"><title>Store Temporarily Unavailable</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h1>Store Temporarily Unavailable</h1><p>The trial period for this store has ended.</p><p>If you are the owner, please log in to your FeraSetu dashboard to upgrade your plan.</p><a href="https://ferasetu.com/login" style="color:#FF6B35;font-weight:bold;">Login to Dashboard</a></body></html>`,
+          {
+            status: 402,
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "X-Robots-Tag": "noindex, nofollow",
+              "Cache-Control": "private, no-cache, no-store",
+            },
+          }
+        );
+      }
     }
   }
 

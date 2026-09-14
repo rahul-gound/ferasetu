@@ -23,8 +23,10 @@ export interface MarketPricingConfig {
   plans: {
     free?: PlanPricingTier;
     starter?: PlanPricingTier;
+    growth?: PlanPricingTier;
     business: PlanPricingTier;
     pro: PlanPricingTier;
+    scale?: PlanPricingTier;
   };
 }
 
@@ -56,9 +58,11 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     taxNote: 'Prices in USD. Local sales tax may apply',
     gateway: 'stripe',
     plans: {
-      starter: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
-      business: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
-      pro: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+      starter: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      growth: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+      business: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+      pro: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
+      scale: { monthly: 179, yearly: 1790, yearlyPerMonth: 149.1 },
     },
   },
   EU: {
@@ -72,9 +76,11 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     taxNote: 'Prices exclude EU VAT where applicable',
     gateway: 'stripe',
     plans: {
-      starter: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
-      business: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
-      pro: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+      starter: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      growth: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+      business: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+      pro: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
+      scale: { monthly: 179, yearly: 1790, yearlyPerMonth: 149.1 },
     },
   },
   OTHER: {
@@ -88,9 +94,11 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     taxNote: 'Prices in USD via Stripe Checkout',
     gateway: 'stripe',
     plans: {
-      starter: { monthly: 9, yearly: 90, yearlyPerMonth: 7.5 },
-      business: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
-      pro: { monthly: 49, yearly: 490, yearlyPerMonth: 40.8 },
+      starter: { monthly: 19, yearly: 190, yearlyPerMonth: 15.8 },
+      growth: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+      business: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
+      pro: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
+      scale: { monthly: 179, yearly: 1790, yearlyPerMonth: 149.1 },
     },
   },
 };

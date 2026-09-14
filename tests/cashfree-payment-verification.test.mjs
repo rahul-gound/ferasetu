@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import worker from '../worker/index.js';
+import * as jose from '../worker/node_modules/jose/dist/node/esm/index.js';
 
 let passed = 0;
 let failed = 0;
@@ -29,6 +30,8 @@ function createTestDb() {
         plan: 'free',
         market: 'IN',
         phone: '+919876543210',
+        subdomain: 'in-kirana',
+        hostname: 'in-kirana.ferasetu.com',
         ai_credits_balance: 20,
         ai_credits_monthly_limit: 20,
         ai_credits_used_month: 0,
@@ -42,6 +45,8 @@ function createTestDb() {
         plan: 'business',
         market: 'US',
         phone: '+15551234567',
+        subdomain: 'us-retail',
+        hostname: 'us-retail.ferasetu.com',
         ai_credits_balance: 50,
         ai_credits_monthly_limit: 200,
         ai_credits_used_month: 0,
@@ -55,11 +60,100 @@ function createTestDb() {
         plan: 'business',
         market: 'EU',
         phone: '+33612345678',
+        subdomain: 'eu-boutique',
+        hostname: 'eu-boutique.ferasetu.com',
         ai_credits_balance: 10,
         ai_credits_monthly_limit: 200,
         ai_credits_used_month: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
+      },
+      {
+        id: 'usr_expired_trial',
+        email: 'expired@ferasetu.com',
+        name: 'Expired Merchant',
+        plan: 'trial',
+        market: 'US',
+        phone: '+15559998877',
+        subdomain: 'expired-store',
+        hostname: 'expired-store.ferasetu.com',
+        plan_expires_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+        trial_ends_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+        ai_credits_balance: 20,
+        ai_credits_monthly_limit: 20,
+        ai_credits_used_month: 0,
+        created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'usr_free_merchant',
+        email: 'free_merchant@ferasetu.com',
+        name: 'Free Tier Merchant',
+        plan: 'free',
+        market: 'IN',
+        phone: '+919876543219',
+        subdomain: 'free-merchant',
+        hostname: 'free-merchant.ferasetu.com',
+        ai_credits_balance: 20,
+        ai_credits_monthly_limit: 20,
+        ai_credits_used_month: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ],
+    organizations: [
+      {
+        id: 'org_in_merchant',
+        name: 'India Kirana Org',
+        workos_organization_id: 'org_workos_1',
+        market: 'IN',
+        plan: 'free',
+        store_slug: 'in-kirana',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'org_expired_trial',
+        name: 'Expired Store Org',
+        workos_organization_id: 'org_workos_2',
+        market: 'US',
+        plan: 'trial',
+        store_slug: 'expired-store',
+        created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'org_free_merchant',
+        name: 'Free Merchant Org',
+        workos_organization_id: 'org_workos_free',
+        market: 'IN',
+        plan: 'free',
+        store_slug: 'free-merchant',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ],
+    organization_members: [
+      {
+        id: 'om_1',
+        organization_id: 'org_in_merchant',
+        user_id: 'usr_in_merchant',
+        role: 'owner',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'om_2',
+        organization_id: 'org_expired_trial',
+        user_id: 'usr_expired_trial',
+        role: 'owner',
+        created_at: new Date(Date.now() - 20 * 86400000).toISOString()
+      },
+      {
+        id: 'om_free_1',
+        organization_id: 'org_free_merchant',
+        user_id: 'usr_free_merchant',
+        role: 'owner',
+        created_at: new Date().toISOString()
       }
     ],
     products: [
@@ -93,7 +187,7 @@ function createTestDb() {
         organization_id: 'org_2',
         user_id: 'usr_other_shop',
         customer_name: 'Vikram Singh',
-        customer_phone: '9876543210', // Same phone, different tenant
+        customer_phone: '9876543210',
         items: JSON.stringify([{ id: 'prod_x', name: 'Other Item', qty: 1, price: 500 }]),
         total: 500,
         status: 'pending',
@@ -115,7 +209,8 @@ function createTestDb() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
-    ]
+    ],
+    ai_credit_purchases: []
   };
 
   return {
@@ -129,15 +224,43 @@ function createTestDb() {
           return this;
         },
         async first() {
-          const s = sql.toLowerCase();
+          const s = sql.toLowerCase().replace(/\s+/g, ' ');
           if (s.includes('from users where id = ?')) {
             const uid = this._params[0];
             return tables.users.find(u => u.id === uid) || null;
           }
+          if (s.includes('from users where (lower(subdomain) = ?') || s.includes('from users where subdomain = ? or hostname = ?') || s.includes('from users u left join websites')) {
+            const val = this._params[0];
+            const host = this._params[1];
+            return tables.users.find(u => u.subdomain === val || u.hostname === val || u.hostname === host || u.id === val) || null;
+          }
+          if (s.includes('count(*) as cnt from organization_members')) {
+            const orgId = this._params[0];
+            return { cnt: tables.organization_members.filter(m => m.organization_id === orgId).length };
+          }
+          if (s.includes('count(*) as cnt from products')) {
+            return { cnt: tables.products.length };
+          }
+          if (s.includes('from organizations where workos_organization_id = ?') || s.includes('from organizations where id = ?') || s.includes('from organizations where')) {
+            const orgId = this._params[0];
+            return tables.organizations.find(o => o.id === orgId || o.workos_organization_id === orgId || o.store_slug === orgId) || null;
+          }
+          if (s.includes('from organization_members om join organizations o')) {
+            const uid = this._params[0];
+            const mem = tables.organization_members.find(m => m.user_id === uid);
+            if (!mem) return null;
+            const org = tables.organizations.find(o => o.id === mem.organization_id);
+            if (!org) return null;
+            return { ...org, member_role: mem.role, member_id: mem.id };
+          }
+          if (s.includes('from organization_members where organization_id = ? and user_id = ?')) {
+            const [orgId, uid] = this._params;
+            return tables.organization_members.find(m => m.organization_id === orgId && m.user_id === uid) || null;
+          }
           if (s.includes('from transactions where')) {
-            const [id1, id2] = this._params;
+            const orderIds = this._params.slice(0, -1);
             return tables.transactions.find(t =>
-              (t.provider_order_id === id1 || t.id === id1 || t.provider_order_id === id2 || t.id === id2)
+              orderIds.some(id => id && (t.id === id || t.provider_order_id === id))
             ) || null;
           }
           if (s.includes('from orders where id = ?')) {
@@ -177,6 +300,23 @@ function createTestDb() {
             }
             return { success: true, meta: { changes: 1 } };
           }
+          if (s.includes('update ai_credit_purchases')) {
+            const purchaseId = this._params[this._params.length - 1];
+            const p = tables.ai_credit_purchases.find(x => x.id === purchaseId);
+            if (p) {
+              p.status = 'completed';
+            }
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('update users set ai_credits_balance = coalesce(ai_credits_balance, 0) + ?')) {
+            const addCredits = this._params[0];
+            const userId = this._params[2];
+            const u = tables.users.find(x => x.id === userId);
+            if (u) {
+              u.ai_credits_balance = (u.ai_credits_balance || 0) + addCredits;
+            }
+            return { success: true, meta: { changes: 1 } };
+          }
           if (s.includes('update users set plan = ?')) {
             const plan = this._params[0];
             const expires = this._params[1];
@@ -192,6 +332,52 @@ function createTestDb() {
               u.ai_credits_monthly_limit = creditsLimit;
               u.updated_at = updatedAt;
             }
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('insert into transactions')) {
+            if (s.includes("'credits', 'one_time'") || this._params.length === 7) {
+              tables.transactions.push({
+                id: this._params[0],
+                user_id: this._params[1],
+                provider: 'cashfree',
+                provider_order_id: this._params[2],
+                amount: this._params[3],
+                currency: 'INR',
+                status: 'pending',
+                plan: 'credits',
+                billing_cycle: 'one_time',
+                metadata: this._params[4],
+                created_at: this._params[5],
+                updated_at: this._params[6],
+              });
+            } else {
+              tables.transactions.push({
+                id: this._params[0],
+                user_id: this._params[1],
+                provider: this._params[2] || 'cashfree',
+                provider_order_id: this._params[3],
+                amount: this._params[4],
+                currency: this._params[5] || 'INR',
+                status: this._params[6] || 'pending',
+                plan: this._params[7],
+                billing_cycle: this._params[8],
+                metadata: this._params[9],
+                created_at: this._params[10],
+                updated_at: this._params[11],
+              });
+            }
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('insert into ai_credit_purchases')) {
+            tables.ai_credit_purchases.push({
+              id: this._params[0],
+              user_id: this._params[1],
+              credits: this._params[2],
+              amount: this._params[3],
+              usage_scope: this._params[4],
+              status: this._params[5],
+              created_at: this._params[6],
+            });
             return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('insert into orders')) {
@@ -211,11 +397,62 @@ function createTestDb() {
 
 const mockSecret = 'cf_secret_test_key_1234567890';
 const db = createTestDb();
+
+// Generate RS256 key for testing authenticated worker routes
+const { publicKey, privateKey } = await jose.generateKeyPair('RS256');
+const jwk = await jose.exportJWK(publicKey);
+const mockJWKS = jose.createLocalJWKSet({ keys: [{ ...jwk, kid: 'test-workos-key', alg: 'RS256', use: 'sig' }] });
+
+async function createAuthToken(userId, role = 'owner', orgId = 'org_in_merchant') {
+  return await new jose.SignJWT({ sub: userId, email: `${userId}@ferasetu.com`, role, org_id: orgId })
+    .setProtectedHeader({ alg: 'RS256', kid: 'test-workos-key' })
+    .setIssuedAt()
+    .setExpirationTime('2h')
+    .sign(privateKey);
+}
+
+// Mock outbound Cashfree fetch calls during tests
+let lastCashfreeOrderBody = null;
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url, options = {}) => {
+  const urlStr = String(url);
+  if (urlStr.includes('cashfree.com/pg/orders')) {
+    if (options.method === 'POST') {
+      const body = JSON.parse(options.body || '{}');
+      lastCashfreeOrderBody = body;
+      return new Response(JSON.stringify({
+        cf_order_id: 'cf_ord_mock_12345',
+        order_id: body.order_id,
+        order_amount: body.order_amount,
+        order_currency: body.order_currency || 'INR',
+        payment_session_id: `session_cf_real_${body.order_id}`,
+        order_status: 'ACTIVE',
+        order_meta: body.order_meta,
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (options.method === 'GET') {
+      const parts = urlStr.split('/');
+      const orderId = decodeURIComponent(parts[parts.length - 1]);
+      const tx = db.tables.transactions.find(t => t.id === orderId || t.provider_order_id === orderId);
+      const amount = tx ? tx.amount : 149;
+      return new Response(JSON.stringify({
+        cf_order_id: 'cf_ord_mock_12345',
+        order_id: orderId,
+        order_amount: amount,
+        order_currency: 'INR',
+        order_status: 'PAID',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+  return originalFetch(url, options);
+};
+
 const mockEnv = {
   DB: db,
   CASHFREE_APP_ID: 'cf_app_id_test',
   CASHFREE_SECRET_KEY: mockSecret,
   CASHFREE_ENV: 'sandbox',
+  JWKS: mockJWKS,
 };
 
 function computeHmacSignature(timestamp, rawBody, secret) {
@@ -414,6 +651,134 @@ await test('WhatsApp checkout dynamically adapts currency symbol and locale', ()
     const formatted = `${tc.symbol}${tc.amount.toLocaleString(locale)}`;
     assert.ok(formatted.startsWith(tc.symbol), `Expected to start with ${tc.symbol}`);
   }
+});
+
+console.log('\n🚀 SUITE 7: End-to-End Monetization, Cashfree Add-ons & Plan Isolation');
+
+await test('POST /api/payment/initialize uses dynamic request origin for Cashfree return_url', async () => {
+  const token = await createAuthToken('usr_free_merchant', 'owner', 'org_workos_free');
+  const req = new Request('https://ferasetu.com/api/payment/initialize', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Origin': 'https://custom-shop.example.com',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      plan: 'business',
+      billingCycle: 'monthly',
+      amount: 399
+    })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 201);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.requiresPayment, true);
+  assert.ok(data.paymentSessionId);
+  assert.ok(lastCashfreeOrderBody);
+  assert.equal(lastCashfreeOrderBody.order_meta.return_url, `https://custom-shop.example.com/upgrade?order_id=${data.id}`);
+});
+
+let creditPurchaseTxId = null;
+let creditCashfreeOrderId = null;
+
+await test('POST /api/payment/ai-credits/purchase creates Cashfree gateway order without granting credits before verification', async () => {
+  const token = await createAuthToken('usr_free_merchant', 'owner', 'org_workos_free');
+  const req = new Request('https://ferasetu.com/api/payment/ai-credits/purchase', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Origin': 'https://custom-shop.example.com',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      pack: 'small',
+      usage_scope: 'shared'
+    })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 201);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.requiresPayment, true);
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.amount, 149);
+  assert.equal(data.currency, 'INR');
+  assert.ok(data.paymentSessionId);
+
+  creditPurchaseTxId = data.id;
+  creditCashfreeOrderId = data.cashfreeOrderId;
+
+  // Verify credits balance was NOT incremented prematurely before verification
+  const user = db.tables.users.find(u => u.id === 'usr_free_merchant');
+  assert.equal(user.ai_credits_balance, 20);
+
+  // Verify transaction status is pending in D1
+  const tx = db.tables.transactions.find(t => t.id === creditPurchaseTxId);
+  assert.ok(tx);
+  assert.equal(tx.status, 'pending');
+  assert.equal(tx.plan, 'credits');
+});
+
+await test('POST /api/payment/verify isolates add-on fulfillment and leaves merchant plan as free', async () => {
+  const token = await createAuthToken('usr_free_merchant', 'owner', 'org_workos_free');
+  const req = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: creditPurchaseTxId,
+      cashfree_order_id: creditCashfreeOrderId,
+      provider: 'cashfree'
+    })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.type, 'ai_credits');
+  assert.equal(data.creditsAdded, 250);
+
+  // Assert user credits updated while plan remains strictly 'free'
+  const user = db.tables.users.find(u => u.id === 'usr_free_merchant');
+  assert.equal(user.ai_credits_balance, 270);
+  assert.equal(user.plan, 'free');
+
+  // Assert transaction is marked completed
+  const tx = db.tables.transactions.find(t => t.id === creditPurchaseTxId);
+  assert.equal(tx.status, 'completed');
+});
+
+await test('POST /api/organizations/invitations enforces staff seat limits and rejects excess team members with 403', async () => {
+  const token = await createAuthToken('usr_free_merchant', 'owner', 'org_workos_free');
+  const req = new Request('https://ferasetu.com/api/organizations/invitations', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      email: 'staffmember@ferasetu.com',
+      role: 'staff'
+    })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 403);
+  const data = await res.json();
+  assert.equal(data.code, 'STAFF_LIMIT_REACHED');
+});
+
+await test('Storefront gateway blocks expired US/EU trials with 402 Store Temporarily Unavailable', async () => {
+  const req = new Request('https://expired-store.ferasetu.com/');
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 402);
+  const html = await res.text();
+  assert.ok(html.includes('Store Temporarily Unavailable'));
+  assert.ok(html.includes('The trial period for this store has ended'));
 });
 
 console.log('\n────────────────────────────────────────────────────────────');

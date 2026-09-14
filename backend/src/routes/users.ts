@@ -217,9 +217,25 @@ router.get('/me', authenticate, (req: AuthenticatedRequest, res: Response): void
 router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const db = getDatabase();
+
+    // Plan-based gating for custom_domain: only paid tiers (Business, Pro, Growth, Scale) can set a custom domain
+    if ('custom_domain' in req.body && req.body.custom_domain && typeof req.body.custom_domain === 'string' && req.body.custom_domain.trim() !== '') {
+      const plan = (req.user?.plan || 'free').toLowerCase();
+      const allowedPlans = ['business', 'growth', 'pro', 'scale', 'enterprise', 'premium'];
+      if (!allowedPlans.includes(plan)) {
+        res.status(403).json({
+          error: 'Custom domain connection is only available on Business and Pro plans. Please upgrade your plan.',
+          upgradeUrl: '/upgrade',
+          code: 'CUSTOM_DOMAIN_UPGRADE_REQUIRED',
+        });
+        return;
+      }
+    }
+
+    // Server-authoritative fields: market, trial_started_at, trial_ends_at, and plan MUST NOT be client-mutable
     const ALLOWED: string[] = [
       'name', 'email', 'phone', 'business_name', 'preferred_language',
-      'subdomain', 'custom_domain', 'market', 'trial_started_at', 'trial_ends_at',
+      'subdomain', 'custom_domain',
     ];
 
     const updates: Record<string, unknown> = {};
@@ -230,7 +246,7 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
     if (Object.keys(updates).length > 0) {
       const fields = Object.keys(updates).map((k) => `${k} = ?`).join(', ');
       const values = Object.values(updates);
-      db.prepare(`UPDATE users SET ${fields} WHERE id = ?`).run(...values, req.user!.id);
+      db.prepare(`UPDATE users SET ${fields}, updated_at = datetime('now') WHERE id = ?`).run(...values, req.user!.id);
     }
 
     const updated = getUserById(req.user!.id);
