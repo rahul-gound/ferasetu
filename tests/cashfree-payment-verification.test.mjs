@@ -258,7 +258,14 @@ function createTestDb() {
             return tables.organization_members.find(m => m.organization_id === orgId && m.user_id === uid) || null;
           }
           if (s.includes('from transactions where')) {
-            const orderIds = this._params.slice(0, -1);
+            if (s.includes('user_id = ?')) {
+              const userId = this._params[this._params.length - 1];
+              const orderIds = this._params.slice(0, -1);
+              return tables.transactions.find(t =>
+                t.user_id === userId && orderIds.some(id => id && (t.id === id || t.provider_order_id === id))
+              ) || null;
+            }
+            const orderIds = this._params;
             return tables.transactions.find(t =>
               orderIds.some(id => id && (t.id === id || t.provider_order_id === id))
             ) || null;
@@ -350,6 +357,22 @@ function createTestDb() {
                 created_at: this._params[5],
                 updated_at: this._params[6],
               });
+            } else if (s.includes('organization_id')) {
+              tables.transactions.push({
+                id: this._params[0],
+                user_id: this._params[1],
+                organization_id: this._params[2],
+                provider: s.includes("'razorpay'") ? 'razorpay' : 'cashfree',
+                provider_order_id: this._params[3],
+                amount: this._params[4],
+                currency: this._params[5] || 'INR',
+                status: 'pending',
+                plan: this._params[6],
+                billing_cycle: this._params[7],
+                metadata: this._params[8],
+                created_at: this._params[9],
+                updated_at: this._params[10],
+              });
             } else {
               tables.transactions.push({
                 id: this._params[0],
@@ -413,10 +436,15 @@ async function createAuthToken(userId, role = 'owner', orgId = 'org_in_merchant'
 
 // Mock outbound Cashfree fetch calls during tests
 let lastCashfreeOrderBody = null;
+let lastCashfreeFetchUrl = null;
+let mockGatewayStatusOverride = null;
+let mockGatewayAmountOverride = null;
+let mockGatewayCurrencyOverride = null;
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (url, options = {}) => {
   const urlStr = String(url);
   if (urlStr.includes('cashfree.com/pg/orders')) {
+    lastCashfreeFetchUrl = urlStr;
     if (options.method === 'POST') {
       const body = JSON.parse(options.body || '{}');
       lastCashfreeOrderBody = body;
@@ -438,9 +466,9 @@ globalThis.fetch = async (url, options = {}) => {
       return new Response(JSON.stringify({
         cf_order_id: 'cf_ord_mock_12345',
         order_id: orderId,
-        order_amount: amount,
-        order_currency: 'INR',
-        order_status: 'PAID',
+        order_amount: mockGatewayAmountOverride !== null ? mockGatewayAmountOverride : amount,
+        order_currency: mockGatewayCurrencyOverride || 'INR',
+        order_status: mockGatewayStatusOverride || 'PAID',
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
   }
@@ -779,6 +807,303 @@ await test('Storefront gateway blocks expired US/EU trials with 402 Store Tempor
   const html = await res.text();
   assert.ok(html.includes('Store Temporarily Unavailable'));
   assert.ok(html.includes('The trial period for this store has ended'));
+});
+
+console.log('\n🔒 SUITE 8: Production vs Sandbox Cashfree Flow, Idempotency & Security Audit');
+
+const prodEnv = {
+  ...mockEnv,
+  CASHFREE_ENV: 'production',
+};
+
+let prodUpgradeTxId = null;
+let prodPaymentSessionId = null;
+
+await test('Production Worker uses Cashfree production API (api.cashfree.com) and returns cashfreeEnv: "production"', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+  lastCashfreeFetchUrl = null;
+
+  const req = new Request('https://ferasetu.com/api/payment/initialize', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Origin': 'https://ferasetu.com',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      plan: 'business',
+      billingCycle: 'monthly',
+      amount: 399
+    })
+  });
+
+  const res = await worker.fetch(req, prodEnv);
+  assert.equal(res.status, 201);
+  const data = await res.json();
+
+  assert.equal(data.success, true);
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.cashfreeEnv, 'production');
+  assert.ok(data.paymentSessionId);
+  assert.ok(lastCashfreeFetchUrl.startsWith('https://api.cashfree.com/pg/orders'), `Expected production URL, got ${lastCashfreeFetchUrl}`);
+
+  // No secrets leaked in API response
+  const stringified = JSON.stringify(data);
+  assert.ok(!stringified.includes(mockEnv.CASHFREE_SECRET_KEY));
+  assert.ok(!stringified.includes(mockEnv.CASHFREE_APP_ID));
+
+  prodUpgradeTxId = data.id;
+  prodPaymentSessionId = data.paymentSessionId;
+});
+
+await test('Sandbox Worker uses Cashfree sandbox API (sandbox.cashfree.com) and returns cashfreeEnv: "sandbox"', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+  lastCashfreeFetchUrl = null;
+
+  const req = new Request('https://ferasetu.com/api/payment/initialize', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Origin': 'https://ferasetu.com',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      plan: 'business',
+      billingCycle: 'monthly',
+      amount: 399
+    })
+  });
+
+  const res = await worker.fetch(req, mockEnv); // mockEnv has CASHFREE_ENV: 'sandbox'
+  assert.equal(res.status, 201);
+  const data = await res.json();
+
+  assert.equal(data.success, true);
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.cashfreeEnv, 'sandbox');
+  assert.ok(lastCashfreeFetchUrl.startsWith('https://sandbox.cashfree.com/pg/orders'), `Expected sandbox URL, got ${lastCashfreeFetchUrl}`);
+});
+
+await test('POST /api/payment/verify rejects non-PAID Cashfree orders (e.g. ACTIVE / PENDING)', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+  mockGatewayStatusOverride = 'ACTIVE';
+
+  const req = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: prodUpgradeTxId,
+      cashfree_order_id: prodUpgradeTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const res = await worker.fetch(req, prodEnv);
+  assert.equal(res.status, 400);
+  const data = await res.json();
+  assert.ok(data.error.includes('not been completed or paid'));
+  mockGatewayStatusOverride = null;
+});
+
+await test('POST /api/payment/verify rejects amount mismatch between gateway and transaction', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+  mockGatewayAmountOverride = 10; // Expected 399
+
+  const req = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: prodUpgradeTxId,
+      cashfree_order_id: prodUpgradeTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const res = await worker.fetch(req, prodEnv);
+  assert.equal(res.status, 400);
+  const data = await res.json();
+  assert.ok(data.error.includes('Payment amount mismatch'));
+  mockGatewayAmountOverride = null;
+});
+
+await test('POST /api/payment/verify rejects currency mismatch between gateway and transaction', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+  mockGatewayCurrencyOverride = 'USD'; // Expected INR
+
+  const req = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: prodUpgradeTxId,
+      cashfree_order_id: prodUpgradeTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const res = await worker.fetch(req, prodEnv);
+  assert.equal(res.status, 400);
+  const data = await res.json();
+  assert.ok(data.error.includes('Payment currency mismatch'));
+  mockGatewayCurrencyOverride = null;
+});
+
+await test('POST /api/payment/verify rejects cross-merchant verification (merchant B cannot verify merchant A)', async () => {
+  // Attacker token
+  const attackerToken = await createAuthToken('usr_us_merchant', 'owner', 'org_workos_us');
+
+  const req = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${attackerToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: prodUpgradeTxId,
+      cashfree_order_id: prodUpgradeTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const res = await worker.fetch(req, prodEnv);
+  assert.equal(res.status, 404);
+  const data = await res.json();
+  assert.ok(data.error.includes('not found'));
+});
+
+await test('Subscription plan verification upgrades plan and is fully idempotent on replay/refresh', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+
+  // Initial verification
+  const req1 = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: prodUpgradeTxId,
+      cashfree_order_id: prodUpgradeTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const res1 = await worker.fetch(req1, prodEnv);
+  assert.equal(res1.status, 200);
+  const data1 = await res1.json();
+  assert.equal(data1.success, true);
+  assert.equal(data1.plan, 'business');
+
+  const user = db.tables.users.find(u => u.id === 'usr_in_merchant');
+  assert.equal(user.plan, 'business');
+
+  // Second verification (browser refresh / duplicate callback / webhook arriving)
+  const req2 = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: prodUpgradeTxId,
+      cashfree_order_id: prodUpgradeTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const res2 = await worker.fetch(req2, prodEnv);
+  assert.equal(res2.status, 200);
+  const data2 = await res2.json();
+  assert.equal(data2.success, true);
+  assert.equal(data2.already_processed, true);
+  assert.equal(data2.plan, 'business');
+
+  // Verify plan remains business without corruption
+  const userAfter = db.tables.users.find(u => u.id === 'usr_in_merchant');
+  assert.equal(userAfter.plan, 'business');
+});
+
+await test('AI credit purchase verification is fully idempotent (repeated verify cannot grant duplicate credits)', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+
+  // 1. Purchase credit pack
+  const purchaseReq = new Request('https://ferasetu.com/api/payment/ai-credits/purchase', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Origin': 'https://ferasetu.com',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      pack: 'small',
+      usage_scope: 'shared'
+    })
+  });
+
+  const purchaseRes = await worker.fetch(purchaseReq, prodEnv);
+  assert.equal(purchaseRes.status, 201);
+  const purchaseData = await purchaseRes.json();
+  assert.equal(purchaseData.cashfreeEnv, 'production');
+  const creditTxId = purchaseData.id;
+
+  const userInitial = db.tables.users.find(u => u.id === 'usr_in_merchant');
+  const initialBalance = userInitial.ai_credits_balance;
+
+  // 2. Verify payment first time
+  const verifyReq1 = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: creditTxId,
+      cashfree_order_id: creditTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const verifyRes1 = await worker.fetch(verifyReq1, prodEnv);
+  assert.equal(verifyRes1.status, 200);
+  const verifyData1 = await verifyRes1.json();
+  assert.equal(verifyData1.success, true);
+  assert.equal(verifyData1.creditsAdded, 250);
+
+  const userAfter1 = db.tables.users.find(u => u.id === 'usr_in_merchant');
+  assert.equal(userAfter1.ai_credits_balance, initialBalance + 250);
+
+  // 3. Re-verify payment (simulate user refresh / duplicate callback)
+  const verifyReq2 = new Request('https://ferasetu.com/api/payment/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      transaction_id: creditTxId,
+      cashfree_order_id: creditTxId,
+      provider: 'cashfree'
+    })
+  });
+
+  const verifyRes2 = await worker.fetch(verifyReq2, prodEnv);
+  assert.equal(verifyRes2.status, 200);
+  const verifyData2 = await verifyRes2.json();
+  assert.equal(verifyData2.success, true);
+  assert.equal(verifyData2.already_processed, true);
+  assert.equal(verifyData2.creditsAdded, 0);
+
+  // Credit balance MUST NOT increase again!
+  const userAfter2 = db.tables.users.find(u => u.id === 'usr_in_merchant');
+  assert.equal(userAfter2.ai_credits_balance, initialBalance + 250);
 });
 
 console.log('\n────────────────────────────────────────────────────────────');

@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   MessageCircle,
   CheckCircle2,
+  User,
 } from 'lucide-react';
 import type { HeaderVariant } from '../theme/themeTypes';
 import { useStorefront } from '../runtime/StorefrontProvider';
@@ -77,6 +78,9 @@ export default function HeaderSection({
     setSearchQuery,
     categories,
     setSelectedCategory,
+    customer,
+    openCustomerAuth,
+    openCustomerAccount,
   } = useStorefront();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -154,8 +158,8 @@ export default function HeaderSection({
             </a>
           </div>
 
-          {/* Right: Search & Cart actions */}
-          <div className="flex items-center gap-4">
+          {/* Right: Search, Customer Account & Cart actions */}
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={() => setShowSearchInput(!showSearchInput)}
@@ -164,6 +168,29 @@ export default function HeaderSection({
             >
               <Search size={18} />
             </button>
+
+            {customer ? (
+              <button
+                type="button"
+                onClick={openCustomerAccount}
+                className="p-2 text-[#121212] hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 text-xs tracking-wider uppercase font-medium"
+                aria-label="Customer Account"
+                title={customer.name || customer.email}
+              >
+                <User size={18} />
+                <span className="hidden lg:inline">{customer.name ? customer.name.split(' ')[0] : 'Account'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openCustomerAuth('login')}
+                className="p-2 text-[#121212] hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 text-xs tracking-wider uppercase font-medium"
+                aria-label="Sign In"
+              >
+                <User size={18} />
+                <span className="hidden lg:inline">Sign In</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -236,6 +263,33 @@ export default function HeaderSection({
                       {link.label}
                     </a>
                   ))}
+                  <div className="pt-4 border-t border-[#E8E4DC]">
+                    {customer ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openCustomerAccount();
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-xs uppercase tracking-widest font-semibold text-slate-900 hover:text-[#D4AF37]"
+                      >
+                        <User size={16} />
+                        <span>{customer.name || customer.email}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openCustomerAuth('login');
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-xs uppercase tracking-widest font-semibold text-slate-900 hover:text-[#D4AF37]"
+                      >
+                        <User size={16} />
+                        <span>Sign In / Register</span>
+                      </button>
+                    )}
+                  </div>
                 </nav>
               </div>
 
@@ -286,6 +340,26 @@ export default function HeaderSection({
               />
             </div>
 
+            {customer ? (
+              <button
+                type="button"
+                onClick={openCustomerAccount}
+                className="flex items-center gap-1.5 border border-neutral-300 px-2.5 py-1 text-xs font-mono text-neutral-800 hover:border-black transition-colors"
+                title={customer.name || customer.email}
+              >
+                <User size={12} />
+                <span>[{customer.name ? customer.name.split(' ')[0].toUpperCase() : 'ACCOUNT'}]</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openCustomerAuth('login')}
+                className="border border-neutral-300 px-2.5 py-1 text-xs font-mono text-neutral-600 hover:text-black hover:border-black transition-colors"
+              >
+                [SIGN IN]
+              </button>
+            )}
+
             <button
               type="button"
               onClick={openCart}
@@ -333,7 +407,28 @@ export default function HeaderSection({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {customer ? (
+              <button
+                type="button"
+                onClick={openCustomerAccount}
+                className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-2 rounded-full font-bold text-xs transition-colors"
+                title={customer.name || customer.email}
+              >
+                <User size={14} />
+                <span className="hidden sm:inline">{customer.name ? customer.name.split(' ')[0] : 'Account'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openCustomerAuth('login')}
+                className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-full font-bold text-xs transition-colors"
+              >
+                <User size={14} />
+                <span className="hidden sm:inline">Sign In</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={openCart}
@@ -355,25 +450,54 @@ export default function HeaderSection({
 
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 flex justify-end">
-            <div className="w-3/4 max-w-xs bg-white h-full p-6 flex flex-col">
-              <div className="flex justify-between items-center pb-4 border-b border-gray-100 mb-6">
-                <span className="font-black text-lg">{displayName}</span>
-                <button type="button" onClick={() => setMobileMenuOpen(false)}>
-                  <X size={20} />
-                </button>
+            <div className="w-3/4 max-w-xs bg-white h-full p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center pb-4 border-b border-gray-100 mb-6">
+                  <span className="font-black text-lg">{displayName}</span>
+                  <button type="button" onClick={() => setMobileMenuOpen(false)}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <nav className="flex flex-col gap-4 font-bold text-sm">
+                  {navLinks.map((l) => (
+                    <a
+                      key={l.label}
+                      href={l.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-gray-800 hover:text-blue-600"
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                  <div className="pt-4 border-t border-gray-100 mt-2">
+                    {customer ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openCustomerAccount();
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-sm font-bold text-gray-900 hover:text-blue-600"
+                      >
+                        <User size={16} />
+                        <span>{customer.name || customer.email}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openCustomerAuth('login');
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-sm font-bold text-gray-800 hover:text-blue-600"
+                      >
+                        <User size={16} />
+                        <span>Sign In / Create Account</span>
+                      </button>
+                    )}
+                  </div>
+                </nav>
               </div>
-              <nav className="flex flex-col gap-4 font-bold text-sm">
-                {navLinks.map((l) => (
-                  <a
-                    key={l.label}
-                    href={l.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-gray-800 hover:text-blue-600"
-                  >
-                    {l.label}
-                  </a>
-                ))}
-              </nav>
             </div>
           </div>
         )}
@@ -418,7 +542,28 @@ export default function HeaderSection({
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {customer ? (
+              <button
+                type="button"
+                onClick={openCustomerAccount}
+                className="flex items-center gap-1.5 text-[#6D5B52] hover:text-[#2C221E] px-2.5 py-1.5 rounded text-xs font-semibold transition-colors"
+                title={customer.name || customer.email}
+              >
+                <User size={14} />
+                <span className="hidden sm:inline">{customer.name ? customer.name.split(' ')[0] : 'Account'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openCustomerAuth('login')}
+                className="flex items-center gap-1.5 text-[#6D5B52] hover:text-[#2C221E] px-2.5 py-1.5 rounded text-xs font-semibold transition-colors"
+              >
+                <User size={14} />
+                <span className="hidden sm:inline">Sign In</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={openCart}
@@ -429,6 +574,62 @@ export default function HeaderSection({
             </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex justify-start">
+            <div className="w-3/4 max-w-xs bg-[#FBF8F3] h-full p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center pb-4 border-b border-[#E7DFD5] mb-6">
+                  <span className="font-bold text-lg text-[#2C221E]" style={{ fontFamily: 'var(--theme-font-heading)' }}>
+                    {displayName}
+                  </span>
+                  <button type="button" onClick={() => setMobileMenuOpen(false)}>
+                    <X size={20} className="text-[#6D5B52]" />
+                  </button>
+                </div>
+                <nav className="flex flex-col gap-4 font-semibold text-sm text-[#2C221E]">
+                  {navLinks.map((l) => (
+                    <a
+                      key={l.label}
+                      href={l.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="hover:text-[#C25E3E]"
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                  <div className="pt-4 border-t border-[#E7DFD5] mt-2">
+                    {customer ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openCustomerAccount();
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-sm font-semibold text-[#2C221E] hover:text-[#C25E3E]"
+                      >
+                        <User size={16} />
+                        <span>{customer.name || customer.email}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openCustomerAuth('login');
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-sm font-semibold text-[#6D5B52] hover:text-[#C25E3E]"
+                      >
+                        <User size={16} />
+                        <span>Sign In / Register</span>
+                      </button>
+                    )}
+                  </div>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
     );
   }
@@ -480,12 +681,36 @@ export default function HeaderSection({
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Customer Account Trigger */}
+          {customer ? (
+            <button
+              type="button"
+              onClick={openCustomerAccount}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 px-2.5 py-1.5 rounded hover:bg-slate-100 transition-colors"
+              title={customer.name || customer.email}
+            >
+              <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">
+                {customer.name ? customer.name.charAt(0).toUpperCase() : <User size={11} />}
+              </div>
+              <span className="hidden sm:inline">{customer.name ? customer.name.split(' ')[0] : 'Account'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openCustomerAuth('login')}
+              className="flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-950 px-2.5 py-1.5 rounded hover:bg-slate-100 transition-colors"
+            >
+              <User size={14} />
+              <span className="hidden sm:inline">Sign In</span>
+            </button>
+          )}
+
           {/* Order tracking shortcut */}
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('fera-open-track-order'))}
-            className="hidden lg:flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-1.5 rounded"
+            className="hidden lg:flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-950 px-2 py-1.5 rounded hover:bg-slate-100 transition-colors"
           >
             <Package size={14} />
             <span>Track Order</span>
@@ -557,6 +782,32 @@ export default function HeaderSection({
                 >
                   <Package size={15} /> Track My Order
                 </button>
+
+                <div className="pt-3 border-t border-slate-100 mt-1">
+                  {customer ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        openCustomerAccount();
+                      }}
+                      className="w-full py-1 text-left hover:text-emerald-600 flex items-center gap-1.5 font-bold text-slate-800"
+                    >
+                      <User size={15} /> My Account ({customer.name ? customer.name.split(' ')[0] : customer.email})
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        openCustomerAuth('login');
+                      }}
+                      className="w-full py-1 text-left hover:text-emerald-600 flex items-center gap-1.5 font-bold text-slate-800"
+                    >
+                      <User size={15} /> Sign In / Create Account
+                    </button>
+                  )}
+                </div>
               </nav>
 
               {categories.length > 0 && (

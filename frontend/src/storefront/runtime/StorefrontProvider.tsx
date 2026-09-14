@@ -6,6 +6,8 @@ import type {
   CheckoutFormData,
   OrderSuccessData,
   StorefrontContextValue,
+  StorefrontCustomer,
+  CustomerOrder,
 } from './storefrontState';
 import { formatWhatsAppPhone } from '../utilities/formatting';
 
@@ -61,6 +63,111 @@ export function StorefrontProvider({
   // Order state
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<OrderSuccessData | null>(null);
+
+  // Customer Authentication & Account state
+  const [customer, setCustomer] = useState<StorefrontCustomer | null>(null);
+  const [isCustomerAuthOpen, setIsCustomerAuthOpen] = useState(false);
+  const [customerAuthInitialTab, setCustomerAuthInitialTab] = useState<'login' | 'register'>('login');
+  const [isCustomerAccountOpen, setIsCustomerAccountOpen] = useState(false);
+  const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([]);
+  const [selectedCustomerOrder, setSelectedCustomerOrder] = useState<CustomerOrder | null>(null);
+
+  const checkCustomerSession = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/storefront/customer/me`, {
+        withCredentials: true,
+        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+      });
+      if (res.data?.authenticated && res.data?.customer) {
+        setCustomer(res.data.customer);
+      } else {
+        setCustomer(null);
+      }
+    } catch {
+      setCustomer(null);
+    }
+  }, [shopName, shopId]);
+
+  useEffect(() => {
+    checkCustomerSession();
+  }, [checkCustomerSession]);
+
+  const openCustomerAuth = useCallback((tab: 'login' | 'register' = 'login') => {
+    setCustomerAuthInitialTab(tab);
+    setIsCustomerAuthOpen(true);
+  }, []);
+
+  const closeCustomerAuth = useCallback(() => {
+    setIsCustomerAuthOpen(false);
+  }, []);
+
+  const openCustomerAccount = useCallback(() => {
+    setIsCustomerAccountOpen(true);
+  }, []);
+
+  const closeCustomerAccount = useCallback(() => {
+    setIsCustomerAccountOpen(false);
+  }, []);
+
+  const loginCustomer = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await axios.post(`${API}/storefront/customer/login`, { email, password }, {
+        withCredentials: true,
+        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+      });
+      if (res.data?.success && res.data?.customer) {
+        setCustomer(res.data.customer);
+        setIsCustomerAuthOpen(false);
+        return { success: true };
+      }
+      return { success: false, error: 'Login failed' };
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Invalid email or password';
+      return { success: false, error: msg };
+    }
+  }, [shopName, shopId]);
+
+  const registerCustomer = useCallback(async (data: { email: string; password: string; name?: string; phone?: string }) => {
+    try {
+      const res = await axios.post(`${API}/storefront/customer/register`, data, {
+        withCredentials: true,
+        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+      });
+      if (res.data?.success && res.data?.customer) {
+        setCustomer(res.data.customer);
+        setIsCustomerAuthOpen(false);
+        return { success: true };
+      }
+      return { success: false, error: 'Registration failed' };
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Registration failed';
+      return { success: false, error: msg };
+    }
+  }, [shopName, shopId]);
+
+  const logoutCustomer = useCallback(async () => {
+    try {
+      await axios.post(`${API}/storefront/customer/logout`, {}, {
+        withCredentials: true,
+        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+      });
+    } catch {}
+    setCustomer(null);
+    setCustomerOrders([]);
+    setIsCustomerAccountOpen(false);
+  }, [shopName, shopId]);
+
+  const fetchCustomerOrders = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/storefront/customer/orders`, {
+        withCredentials: true,
+        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+      });
+      setCustomerOrders(res.data?.orders || []);
+    } catch (err) {
+      console.warn('Failed to fetch customer orders:', err);
+    }
+  }, [shopName, shopId]);
 
   // Check URL query parameter for product deep-linking
   useEffect(() => {
@@ -182,9 +289,9 @@ export function StorefrontProvider({
 
       try {
         const payload = {
-          customerName: formData.customerName,
-          customerEmail: formData.customerEmail || `${formData.customerPhone}@customer.ferasetu.local`,
-          customerPhone: formData.customerPhone,
+          customerName: formData.customerName || customer?.name || 'Customer',
+          customerEmail: formData.customerEmail || customer?.email || `${formData.customerPhone}@customer.ferasetu.local`,
+          customerPhone: formData.customerPhone || customer?.phone,
           deliveryAddress: formData.deliveryAddress,
           deliveryType: formData.deliveryType,
           paymentMethod: formData.paymentMethod,
@@ -193,7 +300,10 @@ export function StorefrontProvider({
           items: cart.map((i) => ({ productId: i.id, quantity: i.quantity })),
         };
 
-        const res = await axios.post(`${API}/orders/create`, payload);
+        const res = await axios.post(`${API}/orders/create`, payload, {
+          withCredentials: true,
+          headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId },
+        });
         const data = res.data;
 
         setOrderSuccess({
@@ -213,7 +323,7 @@ export function StorefrontProvider({
         setIsSubmittingOrder(false);
       }
     },
-    [cart, shopId, clearCart]
+    [cart, shopId, shopName, customer, clearCart]
   );
 
   // WhatsApp helpers
@@ -291,6 +401,23 @@ export function StorefrontProvider({
     submitOrder,
     openWhatsAppInquiry,
     openWhatsAppCartOrder,
+
+    // Customer Authentication & Account
+    customer,
+    isCustomerAuthOpen,
+    customerAuthInitialTab,
+    openCustomerAuth,
+    closeCustomerAuth,
+    isCustomerAccountOpen,
+    openCustomerAccount,
+    closeCustomerAccount,
+    loginCustomer,
+    registerCustomer,
+    logoutCustomer,
+    customerOrders,
+    fetchCustomerOrders,
+    selectedCustomerOrder,
+    setSelectedCustomerOrder,
   };
 
   return (

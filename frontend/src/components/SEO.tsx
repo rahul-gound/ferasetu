@@ -13,6 +13,8 @@ interface SEOProps {
   url?: string;
   type?: 'website' | 'product' | 'business.business';
   shopName?: string;
+  siteName?: string;
+  favicon?: string;
   structuredData?: Record<string, unknown>;
   noindex?: boolean;
 }
@@ -23,6 +25,9 @@ export default function SEO({
   image = DEFAULT_IMAGE,
   url,
   type = 'website',
+  shopName,
+  siteName,
+  favicon,
   structuredData,
   noindex = false,
 }: SEOProps) {
@@ -32,9 +37,17 @@ export default function SEO({
   const finalNoIndex = noindex ?? false;
 
   // Use translated defaults if props aren't provided
-  const finalTitle = title || translate('seo.landing.title');
+  const finalTitle = title || (shopName ? shopName : translate('seo.landing.title'));
   const finalDesc = description || translate('seo.landing.desc');
-  const fullTitle = finalTitle.includes('FeraSetu') ? finalTitle : `${finalTitle} | FeraSetu`;
+  const effectiveSiteName = siteName || shopName || 'FeraSetu';
+  
+  // Independent store branding: If shopName is provided, never force "FeraSetu" branding
+  let fullTitle = finalTitle;
+  if (shopName) {
+    fullTitle = finalTitle.includes(shopName) ? finalTitle : `${finalTitle} | ${shopName}`;
+  } else {
+    fullTitle = finalTitle.includes('FeraSetu') ? finalTitle : `${finalTitle} | FeraSetu`;
+  }
   const ogImage = image || DEFAULT_IMAGE;
 
   // Calculate canonical and hreflang URLs
@@ -60,7 +73,18 @@ export default function SEO({
       <meta property="og:description" content={finalDesc} />
       <meta property="og:image" content={ogImage} />
       <meta property="og:url" content={currentUrl} />
-      <meta property="og:site_name" content="FeraSetu" />
+      <meta property="og:site_name" content={effectiveSiteName} />
+
+      {/* Favicon & Icons */}
+      {favicon ? (
+        <>
+          <link rel="icon" href={favicon} type={favicon.endsWith('.png') ? 'image/png' : favicon.endsWith('.ico') ? 'image/x-icon' : undefined} />
+          <link rel="shortcut icon" href={favicon} />
+          <link rel="apple-touch-icon" href={favicon} />
+        </>
+      ) : (
+        <link rel="icon" href="/favicon.ico" />
+      )}
 
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />

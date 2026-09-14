@@ -308,6 +308,127 @@ export async function handleCompleteUpload(request, env, orgContext) {
  * DELETE /api/media/:id
  */
 /**
+ * Inspects buffer magic bytes to verify actual image file signature.
+ * Prevents spoofed Content-Type, HTML/script injection, and executable uploads.
+ */
+/**
+ * Inspects buffer magic bytes to verify actual image file signature.
+ * Prevents spoofed Content-Type, HTML/script injection, and executable uploads.
+ */
+export function validateImageMagicBytes(arrayBuffer, declaredMime, category = 'products', filename = '') {
+  const bytes = new Uint8Array(arrayBuffer);
+  if (!bytes || bytes.length === 0) {
+    throw new HttpError("Empty file buffer", 400);
+  }
+
+  // 1. Strict rejection of dangerous executables and scripts across ALL categories
+  const isExe = bytes.length >= 2 && bytes[0] === 0x4D && bytes[1] === 0x5A; // MZ header
+  const isElf = bytes.length >= 4 && bytes[0] === 0x7F && bytes[1] === 0x45 && bytes[2] === 0x4C && bytes[3] === 0x46; // \x7fELF
+  const isShebang = bytes.length >= 2 && bytes[0] === 0x23 && bytes[1] === 0x21; // #!
+
+  if (isExe || isElf || isShebang) {
+    throw new HttpError("Executable uploads are strictly prohibited", 400);
+  }
+
+  // Reject HTML / script injection in non-SVG uploads
+  if (declaredMime !== 'image/svg+xml' && declaredMime !== 'application/pdf' && bytes.length >= 6) {
+    const sampleLen = Math.min(bytes.length, 1024);
+    const sample = new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(0, sampleLen)).toLowerCase();
+    if (sample.includes('<script') || sample.includes('<html') || sample.includes('<?php')) {
+      throw new HttpError("Active scripts and HTML uploads are strictly prohibited", 400);
+    }
+  }
+
+  // 2. Magic byte detection
+  // JPEG: FF D8 FF
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  const isPng = bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
+    bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A;
+
+  // GIF: 47 49 46 38
+  const isGif = bytes.length >= 4 &&
+    bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38;
+
+  // WebP: RIFF (bytes 0-3) and WEBP (bytes 8-11)
+  const isWebp = bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+
+  // ICO: 00 00 01 00
+  const isIco = bytes.length >= 4 &&
+    bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x01 && bytes[3] === 0x00;
+
+  // SVG: check XML/SVG header and enforce strict sanitization
+  let isSvg = false;
+  const isSvgMime = declaredMime === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg');
+  if (isSvgMime) {
+    const textSample = new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(0, Math.min(bytes.length, 4096))).toLowerCase().trim();
+    if (textSample.includes('<svg') || textSample.includes('<?xml')) {
+      const fullText = new TextDecoder('utf-8', { fatal: false }).decode(bytes).toLowerCase();
+      if (
+        fullText.includes('<script') ||
+        fullText.includes('javascript:') ||
+        fullText.includes('onload=') ||
+        fullText.includes('onerror=') ||
+        fullText.includes('<iframe') ||
+        fullText.includes('<object') ||
+        fullText.includes('<embed') ||
+        fullText.includes('<foreignobject')
+      ) {
+        throw new HttpError("SVG contains potentially malicious active content or scripts", 400);
+      }
+      isSvg = true;
+    }
+  }
+
+  // Video / Audio / PDF magic bytes
+  const isMp4 = bytes.length >= 8 &&
+    (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70);
+  const isPdf = bytes.length >= 4 &&
+    bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  const isMp3 = (bytes.length >= 3 && bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) ||
+    (bytes.length >= 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33);
+
+  let detectedMime = null;
+  if (isJpeg) detectedMime = 'image/jpeg';
+  else if (isPng) detectedMime = 'image/png';
+  else if (isWebp) detectedMime = 'image/webp';
+  else if (isGif) detectedMime = 'image/gif';
+  else if (isIco) detectedMime = 'image/x-icon';
+  else if (isSvg) detectedMime = 'image/svg+xml';
+  else if (isMp4) detectedMime = 'video/mp4';
+  else if (isPdf) detectedMime = 'application/pdf';
+  else if (isMp3) detectedMime = 'audio/mpeg';
+
+  // 3. Category-specific strict policies
+  if (category === 'logos') {
+    if (!isJpeg && !isPng && !isWebp && !isGif) {
+      throw new HttpError("Logos must be valid PNG, JPEG, WebP, or GIF images", 400);
+    }
+    if (bytes.length > 5 * 1024 * 1024) {
+      throw new HttpError("Logo file size exceeds 5MB limit", 413);
+    }
+    return detectedMime;
+  }
+
+  const isFavicon = category === 'theme' && (filename.toLowerCase().includes('favicon') || declaredMime === 'image/x-icon' || declaredMime === 'image/vnd.microsoft.icon');
+  if (isFavicon) {
+    if (!isIco && !isPng) {
+      throw new HttpError("Favicons must be PNG or ICO format", 400);
+    }
+    if (bytes.length > 1024 * 1024) {
+      throw new HttpError("Favicon file size exceeds 1MB limit", 413);
+    }
+    return detectedMime;
+  }
+
+  return detectedMime || declaredMime;
+}
+
+/**
  * POST /api/media/upload
  * Direct authenticated upload pipeline through the Worker to Backblaze B2.
  */
@@ -358,6 +479,9 @@ export async function handleDirectUpload(request, env, orgContext) {
   if (!allowedMimes.has(mimeType.toLowerCase())) {
     throw new HttpError(`Unsupported media type: ${mimeType}`, 400);
   }
+
+  // 1b. Deep inspection of magic bytes & anti-malware verification
+  mimeType = validateImageMagicBytes(fileData, mimeType, category, filename);
 
   // 2. Validate category (deny by default, restrict to known types)
   const allowedCategories = new Set(['products', 'logos', 'banners', 'theme', 'invoices', 'customers', 'exports', 'documents']);

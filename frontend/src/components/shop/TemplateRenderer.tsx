@@ -22,8 +22,9 @@ import FooterSection from '../../storefront/sections/FooterSection';
 // Overlays & Modals
 import ProductDetailModal from '../../storefront/components/ProductDetailModal';
 import CartDrawer from '../../storefront/components/CartDrawer';
+import CustomerAuthModal from '../../storefront/components/CustomerAuthModal';
+import CustomerAccountDrawer from '../../storefront/components/CustomerAccountDrawer';
 import TrackOrderModal from './TrackOrderModal';
-import Breadcrumb from './Breadcrumb';
 
 export interface TemplateRendererProps {
   sections?: TemplateSection[] | any[];
@@ -111,9 +112,6 @@ export default function TemplateRenderer({
           </div>
         )}
 
-        {/* Optional Breadcrumb */}
-        {!isPreview && <Breadcrumb shopName={shopName} />}
-
         {/* Render Normalized Storefront Sections */}
         {resolvedTheme.sections.map((section) => {
           if (section.enabled === false) return null;
@@ -191,6 +189,8 @@ export default function TemplateRenderer({
         {/* Global Storefront Overlays */}
         <ProductDetailModal />
         <CartDrawer />
+        <CustomerAuthModal />
+        <CustomerAccountDrawer />
 
         {/* Track Order Modal */}
         {showTrackModal && (

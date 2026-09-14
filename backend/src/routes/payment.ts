@@ -457,6 +457,7 @@ router.post('/initialize',
             currency: 'INR',
             paymentSessionId: `session_test_${transactionId.substring(0, 14)}`,
             cashfreeOrderId: `order_test_${transactionId.substring(0, 14)}`,
+            cashfreeEnv: CASHFREE_ENV === 'production' ? 'production' : 'sandbox',
             message: `Cashfree test order created for plan: ${plan}`
           });
           return;
@@ -488,6 +489,7 @@ router.post('/initialize',
           currency: 'INR',
           paymentSessionId: cfOrder.payment_session_id,
           cashfreeOrderId: cfOrder.order_id,
+          cashfreeEnv: CASHFREE_ENV === 'production' ? 'production' : 'sandbox',
           message: `Cashfree order created for plan: ${plan}`
         });
         return;

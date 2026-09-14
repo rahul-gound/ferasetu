@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -25,6 +25,7 @@ import {
   Sliders,
   Type,
   Maximize2,
+  Upload,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -189,6 +190,12 @@ export default function WebsiteBuilderPage() {
   const [isPublished, setIsPublished] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Authoritative Branding State
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [faviconUrl, setFaviconUrl] = useState<string>('');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
+
   // Overrides state
   const [overrides, setOverrides] = useState<MerchantThemeOverrides>({
     radiusStyle: 'soft',
@@ -197,6 +204,19 @@ export default function WebsiteBuilderPage() {
 
   // Modal preview state for gallery
   const [previewModalTheme, setPreviewModalTheme] = useState<ThemeId | null>(null);
+
+  // Fetch authoritative merchant branding
+  const { data: brandingData } = useQuery({
+    queryKey: ['branding'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/branding');
+        return res.data?.branding || null;
+      } catch {
+        return null;
+      }
+    },
+  });
 
   // Fetch website data
   const { data: websiteData } = useQuery<WebsiteRecord | null>({
@@ -210,6 +230,33 @@ export default function WebsiteBuilderPage() {
       }
     },
   });
+
+  // Dynamic favicon update in active browser tab
+  useEffect(() => {
+    if (faviconUrl) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = faviconUrl;
+    }
+  }, [faviconUrl]);
+
+  // Sync from authoritative branding
+  useEffect(() => {
+    if (brandingData) {
+      if (brandingData.logo_url) setLogoUrl(brandingData.logo_url);
+      if (brandingData.favicon_url) setFaviconUrl(brandingData.favicon_url);
+      if (brandingData.primary_color) {
+        setOverrides((prev) => ({ ...prev, primaryColor: brandingData.primary_color }));
+      }
+      if (brandingData.secondary_color) {
+        setOverrides((prev) => ({ ...prev, accentColor: brandingData.secondary_color }));
+      }
+    }
+  }, [brandingData]);
 
   // Fetch merchant products for live preview
   const { data: merchantProducts = [] } = useQuery<ShopProduct[]>({
@@ -237,6 +284,13 @@ export default function WebsiteBuilderPage() {
         setOverrides(websiteData.theme?.overrides || websiteData.config?.overrides || {});
       }
 
+      if (!logoUrl && websiteData.config?.logo) {
+        setLogoUrl(websiteData.config.logo);
+      }
+      if (!faviconUrl && websiteData.config?.favicon) {
+        setFaviconUrl(websiteData.config.favicon);
+      }
+
       if (Array.isArray(websiteData.sections) && websiteData.sections.length > 0) {
         const normalized = normalizeLegacySections(websiteData.sections, websiteData.name);
         setSections(normalized);
@@ -253,10 +307,134 @@ export default function WebsiteBuilderPage() {
     }
   }, [websiteData, user]);
 
-  // Save Mutation
+  // Upload Logo
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const MAX_LOGO_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_LOGO_SIZE) {
+      toast.error('Logo image must be smaller than 5MB');
+      return;
+    }
+
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Supported logo formats: PNG, JPEG, WebP, GIF, SVG');
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      let uploadedUrl = '';
+      try {
+        const res = await api.post('/media/upload', file, {
+          headers: {
+            'Content-Type': file.type,
+            'X-File-Name': file.name,
+            'X-Category': 'logos',
+          },
+        });
+        if (res.data?.media_file?.url) {
+          uploadedUrl = res.data.media_file.url;
+        }
+      } catch {
+        // Fallback to dataURL reader
+      }
+
+      if (!uploadedUrl) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          setLogoUrl(dataUrl);
+          setIsUploadingLogo(false);
+          toast.success('Logo updated and applied to preview!');
+        };
+        reader.onerror = () => {
+          toast.error('Failed to read logo file');
+          setIsUploadingLogo(false);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setLogoUrl(uploadedUrl);
+        setIsUploadingLogo(false);
+        toast.success('Logo uploaded and applied to preview!');
+      }
+    } catch {
+      toast.error('Failed to upload logo');
+      setIsUploadingLogo(false);
+    }
+  };
+
+  // Upload Favicon
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const MAX_FAVICON_SIZE = 1 * 1024 * 1024;
+    if (file.size > MAX_FAVICON_SIZE) {
+      toast.error('Favicon must be smaller than 1MB');
+      return;
+    }
+
+    const allowedTypes = [
+      'image/png',
+      'image/x-icon',
+      'image/vnd.microsoft.icon',
+      'image/svg+xml',
+    ];
+    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.ico')) {
+      toast.error('Supported favicon formats: PNG, ICO, SVG');
+      return;
+    }
+
+    setIsUploadingFavicon(true);
+    try {
+      let uploadedUrl = '';
+      try {
+        const res = await api.post('/media/upload', file, {
+          headers: {
+            'Content-Type': file.type || 'image/x-icon',
+            'X-File-Name': file.name,
+            'X-Category': 'logos',
+          },
+        });
+        if (res.data?.media_file?.url) {
+          uploadedUrl = res.data.media_file.url;
+        }
+      } catch {
+        // Fallback to dataURL reader
+      }
+
+      if (!uploadedUrl) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          setFaviconUrl(dataUrl);
+          setIsUploadingFavicon(false);
+          toast.success('Favicon updated! Check browser tab simulation.');
+        };
+        reader.onerror = () => {
+          toast.error('Failed to read favicon file');
+          setIsUploadingFavicon(false);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setFaviconUrl(uploadedUrl);
+        setIsUploadingFavicon(false);
+        toast.success('Favicon updated! Check browser tab simulation.');
+      }
+    } catch {
+      toast.error('Failed to upload favicon');
+      setIsUploadingFavicon(false);
+    }
+  };
+
+  // Save Mutation: Syncs website config + authoritative branding (shops + organizations)
   const saveMutation = useMutation({
-    mutationFn: () =>
-      api.post('/website', {
+    mutationFn: async () => {
+      // 1. Save website configuration
+      const websiteRes = await api.post('/website', {
         name: shopName,
         template: selectedThemeId,
         theme: {
@@ -265,13 +443,31 @@ export default function WebsiteBuilderPage() {
         },
         config: {
           phone: shopPhone,
+          logo: logoUrl || undefined,
+          favicon: faviconUrl || undefined,
           overrides,
         },
         sections,
-      }),
+      });
+
+      // 2. Authoritative sync to branding (shops + organizations)
+      try {
+        await api.put('/branding', {
+          logo_url: logoUrl || null,
+          favicon_url: faviconUrl || null,
+          primary_color: overrides.primaryColor || null,
+          secondary_color: overrides.accentColor || null,
+        });
+      } catch (brandingErr) {
+        console.warn('Branding sync note:', brandingErr);
+      }
+
+      return websiteRes;
+    },
     onSuccess: () => {
-      toast.success('Storefront changes saved successfully!');
+      toast.success('Storefront & branding saved successfully!');
       queryClient.invalidateQueries({ queryKey: ['website'] });
+      queryClient.invalidateQueries({ queryKey: ['branding'] });
       setSaving(false);
     },
     onError: () => {
@@ -536,7 +732,7 @@ export default function WebsiteBuilderPage() {
             {activeTab === 'gallery' && (
               <div className="space-y-4">
                 <div className="mb-2">
-                  <h3 className="text-sm font-bold text-slate-900">5 Distinct Storefront Themes</h3>
+                  <h3 className="text-sm font-bold text-slate-900">8 Distinct Storefront Themes</h3>
                   <p className="text-xs text-slate-500">
                     Switch between handcrafted design architectures. All products, orders, and content are preserved.
                   </p>
@@ -631,7 +827,142 @@ export default function WebsiteBuilderPage() {
                     Configure your shop branding and contact details.
                   </p>
 
-                  <div className="space-y-3">
+                  <div className="space-y-4">
+                    {/* Store Logo Section */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold uppercase text-slate-600">
+                          Store Logo
+                        </label>
+                        {logoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setLogoUrl('')}
+                            className="text-[10.5px] text-rose-600 hover:text-rose-700 flex items-center gap-1 font-semibold"
+                          >
+                            <Trash2 size={12} /> Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {logoUrl ? (
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                          <div className="w-16 h-16 bg-white border border-slate-200 rounded-md p-1 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
+                            <img src={logoUrl} alt="Store Logo" className="max-h-full max-w-full object-contain" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">Store Brand Logo</p>
+                            <p className="text-[11px] text-slate-500 mb-2">Visible on storefront header, footer, &amp; invoices</p>
+                            <label className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer bg-white px-2.5 py-1 rounded border border-blue-200 hover:border-blue-300 transition-colors">
+                              <Upload size={12} />
+                              <span>Replace Image</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                                onChange={handleLogoUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : (
+                        <label
+                          className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                            isUploadingLogo
+                              ? 'border-blue-400 bg-blue-50/30'
+                              : 'border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/60'
+                          }`}
+                        >
+                          <Upload size={20} className="text-slate-400 mb-1.5" />
+                          <span className="text-xs font-bold text-slate-700">
+                            {isUploadingLogo ? 'Processing logo...' : 'Upload Store Logo'}
+                          </span>
+                          <span className="text-[10.5px] text-slate-400 mt-0.5">
+                            PNG, JPEG, WebP, SVG up to 5MB
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                            onChange={handleLogoUpload}
+                            disabled={isUploadingLogo}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Store Favicon Section with Simulated Browser Tab Preview */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold uppercase text-slate-600">
+                          Browser Tab Favicon
+                        </label>
+                        {faviconUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setFaviconUrl('')}
+                            className="text-[10.5px] text-rose-600 hover:text-rose-700 flex items-center gap-1 font-semibold"
+                          >
+                            <Trash2 size={12} /> Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Simulated Browser Tab Card */}
+                      <div className="p-3 bg-slate-100 border border-slate-200 rounded-lg space-y-2">
+                        <div className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                          <span>Live Tab Simulation</span>
+                          <span className="text-slate-400 text-[10px]">Browser tab preview</span>
+                        </div>
+
+                        {/* Mock Browser Tab Header */}
+                        <div className="bg-slate-200/80 rounded-t-lg pt-1.5 px-2 flex items-center gap-2">
+                          <div className="bg-white rounded-t-md px-3 py-1.5 flex items-center gap-2 max-w-[200px] border-t border-x border-slate-300 shadow-xs">
+                            {faviconUrl ? (
+                              <img
+                                src={faviconUrl}
+                                alt="Favicon"
+                                className="w-3.5 h-3.5 object-contain flex-shrink-0 rounded-xs"
+                              />
+                            ) : (
+                              <span className="text-[11px] flex-shrink-0">🏪</span>
+                            )}
+                            <span className="text-[11px] font-medium text-slate-800 truncate">
+                              {shopName || 'My Store'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 ml-auto select-none">✕</span>
+                          </div>
+                          <span className="text-slate-400 text-xs select-none">+</span>
+                        </div>
+
+                        {/* Mock URL bar */}
+                        <div className="bg-white px-2.5 py-1 rounded border border-slate-200 text-[10.5px] font-mono text-slate-500 flex items-center gap-1.5">
+                          <span className="text-emerald-600 text-xs">🔒</span>
+                          <span className="truncate">
+                            https://{(shopName || 'store').toLowerCase().replace(/[^a-z0-9]/g, '')}.ferasetu.com
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[10.5px] text-slate-500">
+                            {faviconUrl ? 'Custom favicon active' : 'Using default store favicon'}
+                          </span>
+                          <label className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer bg-white px-2.5 py-1 rounded border border-blue-200 hover:border-blue-300 transition-colors">
+                            <Upload size={12} />
+                            <span>{faviconUrl ? 'Replace Favicon' : 'Upload Favicon'}</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml"
+                              onChange={handleFaviconUpload}
+                              disabled={isUploadingFavicon}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Basic Store Fields */}
                     <div>
                       <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
                         Store Name
@@ -917,6 +1248,7 @@ export default function WebsiteBuilderPage() {
                 shopId={user?.id || 'builder-preview'}
                 shopName={shopName || 'Store'}
                 shopPhone={shopPhone}
+                shopLogo={logoUrl}
                 currency={user?.market === 'US' ? 'USD' : user?.market === 'EU' ? 'EUR' : 'INR'}
                 currencySymbol={user?.market === 'US' ? '$' : user?.market === 'EU' ? '€' : '₹'}
                 products={activeProducts}

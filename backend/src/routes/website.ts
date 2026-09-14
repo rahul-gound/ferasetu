@@ -15,43 +15,56 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
   const host = (req.get('host') || '').toLowerCase();
   const baseDomains = ['ferasetu.com', 'fera-search.tech'];
 
-  let user;
+  let org: any = null;
+  let shopRow: any = null;
+  let user: any = null;
 
   // 1. If shopName is provided as a parameter (slug or full hostname)
   if (shopName && shopName !== 'undefined' && shopName !== 'null' && shopName !== 'me') {
     const clean = shopName.toLowerCase();
+    org = db.prepare(
+      'SELECT * FROM organizations WHERE LOWER(store_slug) = ? OR LOWER(id) = ?'
+    ).get(clean, clean);
+
+    if (org) {
+      shopRow = db.prepare('SELECT * FROM shops WHERE organization_id = ?').get(org.id);
+    }
+
     user = db.prepare(
-      'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?'
+      'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url, favicon_url FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?'
     ).get(clean, clean, clean) as any;
   }
 
   // 2. If not found by slug, or if accessed via a subdomain/custom domain directly
-  if (!user && host && !baseDomains.includes(host) && !host.includes('localhost') && !host.includes('github.dev')) {
-    // Try matching the whole host as a custom domain or canonical hostname
+  if (!org && !user && host && !baseDomains.includes(host) && !host.includes('localhost') && !host.includes('github.dev')) {
     user = db.prepare(
-      'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url FROM users WHERE LOWER(custom_domain) = ? OR LOWER(hostname) = ?'
+      'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url, favicon_url FROM users WHERE LOWER(custom_domain) = ? OR LOWER(hostname) = ?'
     ).get(host, host) as any;
 
-    // 3. Try matching as a subdomain against any of the supported base domains
     if (!user) {
       const matchingBase = baseDomains.find(domain => host.endsWith('.' + domain));
       if (matchingBase) {
         const subdomain = host.replace('.' + matchingBase, '').toLowerCase();
+        org = db.prepare('SELECT * FROM organizations WHERE LOWER(store_slug) = ?').get(subdomain);
+        if (org) {
+          shopRow = db.prepare('SELECT * FROM shops WHERE organization_id = ?').get(org.id);
+        }
         user = db.prepare(
-          'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ?'
+          'SELECT id, name, business_name, subdomain, hostname, custom_domain, phone, logo_url, favicon_url FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ?'
         ).get(subdomain, host) as any;
       }
     }
   }
 
-  if (!user) {
+  if (!org && !user) {
     res.status(404).json({ error: 'Shop not found' });
     return;
   }
 
+  const effectiveOrgId = org?.id || user?.id;
   const website = db.prepare(
-    'SELECT * FROM websites WHERE user_id = ? AND is_published = 1'
-  ).get(user.id) as Record<string, unknown> | undefined;
+    'SELECT * FROM websites WHERE (organization_id = ? OR user_id = ?) AND is_published = 1'
+  ).get(effectiveOrgId, user?.id || effectiveOrgId) as Record<string, unknown> | undefined;
 
   if (!website) {
     res.status(404).json({ error: 'Shop is not published yet' });
@@ -59,8 +72,8 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
   }
 
   const products = db.prepare(
-    'SELECT id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active, created_at FROM products WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC'
-  ).all(user.id);
+    'SELECT id, user_id, organization_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active, created_at FROM products WHERE (organization_id = ? OR user_id = ?) AND is_active = 1 ORDER BY created_at DESC'
+  ).all(effectiveOrgId, user?.id || effectiveOrgId);
 
   let parsedTheme: any = website.theme;
   if (typeof website.theme === 'string') {
@@ -71,14 +84,43 @@ router.get('/public/:shopName', validatePublicShop, (req: Request, res: Response
     }
   }
 
+  const logoUrl = shopRow?.logo_url || org?.logo_url || user?.logo_url || null;
+  const faviconUrl = shopRow?.favicon_url || org?.favicon_url || user?.favicon_url || null;
+  const primaryColor = shopRow?.primary_color || org?.primary_color || null;
+  const secondaryColor = shopRow?.secondary_color || org?.secondary_color || null;
+  const socialImageUrl = shopRow?.social_image_url || org?.social_image_url || null;
+
+  const merchantName = org?.name || user?.business_name || user?.name || 'Store';
+  const storeSlug = org?.store_slug || user?.subdomain;
+  const hostname = org?.store_slug ? `${org.store_slug}.ferasetu.com` : (user?.hostname || (user?.subdomain ? `${user.subdomain}.ferasetu.com` : null));
+
   res.json({
     shop: {
-      id: user.id,
-      name: user.business_name || user.name,
-      subdomain: user.subdomain,
-      hostname: user.hostname || (user.subdomain ? `${user.subdomain}.ferasetu.com` : null),
-      phone: user.phone || '',
-      logo_url: user.logo_url || null,
+      id: effectiveOrgId,
+      organization_id: effectiveOrgId,
+      name: merchantName,
+      subdomain: storeSlug,
+      hostname,
+      phone: org?.phone || user?.phone || '',
+      logo_url: logoUrl,
+      favicon_url: faviconUrl,
+      primary_color: primaryColor,
+      secondary_color: secondaryColor,
+      social_image_url: socialImageUrl,
+      brand: {
+        logo_url: logoUrl,
+        favicon_url: faviconUrl,
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        social_image_url: socialImageUrl,
+      }
+    },
+    brand: {
+      logo_url: logoUrl,
+      favicon_url: faviconUrl,
+      primary_color: primaryColor,
+      secondary_color: secondaryColor,
+      social_image_url: socialImageUrl,
     },
     website: {
       ...website,
@@ -328,6 +370,75 @@ router.get('/templates', (_req: AuthenticatedRequest, res: Response): void => {
         { id: 'brand-story-1', type: 'brand-story', variant: 'heritage-story', enabled: true, config: { eyebrow: 'FROM OUR WORKSHOP', title: 'Honoring centuries of regional mastery' } },
         { id: 'testimonials-1', type: 'testimonials', variant: 'editorial-quote', enabled: true, config: { title: 'Words from Our Patrons' } },
         { id: 'footer-1', type: 'footer', variant: 'artisan', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'studio',
+      version: 1,
+      name: 'Studio',
+      tagline: 'Minimal, Portfolio-Style & Designer Grid',
+      description: 'Clean modern lines, stark structured grid, disciplined spacing, and high-impact hero. Built for design studios, architects, creative agencies, and curated product creators.',
+      category: 'design',
+      primaryColor: '#0F172A',
+      accentColor: '#6366F1',
+      emoji: '📐',
+      targetCategories: ['Design Studio', 'Creative Agency', 'Modern Tech', 'Contemporary Art', 'Bespoke Furniture'],
+      cardVariant: 'clean',
+      headerVariant: 'minimal',
+      heroVariant: 'minimal',
+      footerVariant: 'minimal',
+      defaultSections: [
+        { id: 'header-1', type: 'header', variant: 'minimal', enabled: true, config: { showSearch: true, showAccount: true } },
+        { id: 'hero-1', type: 'hero', variant: 'minimal', enabled: true, config: { eyebrow: 'STUDIO CATALOGUE 2026', headline: 'Intentional Form. Uncompromising Function.', subheadline: 'Objects and tools designed with architectural rigor and purposeful simplicity.', ctaText: 'View Catalogue', ctaHref: '#products' } },
+        { id: 'products-1', type: 'product-grid', variant: 'clean', enabled: true, config: { title: 'Selected Works', columns: 3 } },
+        { id: 'newsletter-1', type: 'newsletter', variant: 'minimal', enabled: true, config: { title: 'Studio Editions & Inquiries' } },
+        { id: 'footer-1', type: 'footer', variant: 'minimal', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'home',
+      version: 1,
+      name: 'Home',
+      tagline: 'Cozy Living, Ceramics & Curated Interiors',
+      description: 'Soft organic tones, warm ceramics, tactile neutrals, and gentle curves. Built for homeware, interior decor, textiles, and warm living goods.',
+      category: 'interior',
+      primaryColor: '#3E3832',
+      accentColor: '#B4846C',
+      emoji: '🏺',
+      targetCategories: ['Homeware', 'Ceramics', 'Interior Decor', 'Bed & Linen', 'Handcrafted Furniture', 'Home Fragrance'],
+      cardVariant: 'editorial',
+      headerVariant: 'editorial',
+      heroVariant: 'editorial',
+      footerVariant: 'editorial',
+      defaultSections: [
+        { id: 'announcement-1', type: 'announcement', variant: 'static-center', enabled: true, config: { text: 'Free standard shipping on home goods over ₹1,999 • Responsibly sourced' } },
+        { id: 'header-1', type: 'header', variant: 'editorial', enabled: true, config: { showSearch: true, showAccount: true } },
+        { id: 'hero-1', type: 'hero', variant: 'editorial', enabled: true, config: { eyebrow: 'SERENE LIVING 2026', headline: 'Spaces That Breathe. Objects That Ground.', subheadline: 'Thoughtfully crafted home accents, ceramics, and textiles made for quiet everyday comfort.', ctaText: 'Explore Home Goods', ctaHref: '#products' } },
+        { id: 'products-1', type: 'product-grid', variant: 'editorial', enabled: true, config: { title: 'Curated for the Home', columns: 3 } },
+        { id: 'footer-1', type: 'footer', variant: 'editorial', enabled: true, config: {} },
+      ],
+    },
+    {
+      id: 'dine',
+      version: 1,
+      name: 'Dine',
+      tagline: 'Artisanal Food, Bakery, Cafe & Fine Taste',
+      description: 'Rich culinary warmth, appetizing earthy contrasts, dietary badges, and swift takeaway ordering. Built for bakeries, gourmet food, coffee roasters, and culinary artisans.',
+      category: 'culinary',
+      primaryColor: '#2B1810',
+      accentColor: '#D9531E',
+      emoji: '🥐',
+      targetCategories: ['Bakery & Patisserie', 'Specialty Coffee', 'Gourmet Provisions', 'Artisanal Cafe', 'Confectionery', 'Tea Roasters'],
+      cardVariant: 'bold',
+      headerVariant: 'commerce',
+      heroVariant: 'product-focused',
+      footerVariant: 'commerce',
+      defaultSections: [
+        { id: 'announcement-1', type: 'announcement', variant: 'ticker', enabled: true, config: { text: 'Fresh morning roast & bake ready daily • Order before 2 PM for same-day delivery' } },
+        { id: 'header-1', type: 'header', variant: 'commerce', enabled: true, config: { showSearch: true, showAccount: true } },
+        { id: 'hero-1', type: 'hero', variant: 'product-focused', enabled: true, config: { eyebrow: 'FRESH FROM THE KITCHEN', headline: 'Authentic Flavors, Roasted & Baked Fresh Daily.', subheadline: 'Crafted with unrefined ingredients, single-origin roasts, and traditional sourdough fermentations.', ctaText: 'Order Now', ctaHref: '#products' } },
+        { id: 'products-1', type: 'product-grid', variant: 'bold', enabled: true, config: { title: 'Today’s Fresh Offerings', columns: 3 } },
+        { id: 'footer-1', type: 'footer', variant: 'commerce', enabled: true, config: {} },
       ],
     },
   ];

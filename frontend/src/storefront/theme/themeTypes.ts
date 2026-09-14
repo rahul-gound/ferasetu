@@ -1,6 +1,6 @@
 import type { TypographyTokens, SpacingTokens, RadiusTokens, ElevationTokens, MotionTokens } from './tokens';
 
-export type ThemeId = 'atelier' | 'market' | 'mono' | 'bold' | 'artisan';
+export type ThemeId = 'atelier' | 'market' | 'mono' | 'bold' | 'artisan' | 'studio' | 'home' | 'dine';
 
 export type CardVariant = 'editorial' | 'clean' | 'mono' | 'bold' | 'artisan';
 export type HeaderVariant = 'editorial' | 'commerce' | 'minimal' | 'bold' | 'artisan';

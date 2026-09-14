@@ -26,6 +26,8 @@ import sitemapRoutes from './routes/sitemap';
 import settingsRoutes from './routes/settings';
 import usersRoutes from './routes/users';
 import geoRoutes from './routes/geo';
+import brandingRoutes from './routes/branding';
+import customerAuthRoutes from './routes/customerAuth';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -166,6 +168,11 @@ const CSRF_EXEMPT_ROUTES = [
   '/api/auth/workos/session-token',
   '/api/users/workos-session',
   '/api/orders/create',
+  '/api/storefront/customer/register',
+  '/api/storefront/customer/login',
+  '/api/storefront/customer/logout',
+  '/api/storefront/customer/forgot-password',
+  '/api/storefront/customer/reset-password',
 ];
 
 app.use((req, res, next) => {
@@ -240,6 +247,8 @@ app.use('/api/survey', surveyRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/branding', brandingRoutes);
+app.use('/api/storefront/customer', customerAuthRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

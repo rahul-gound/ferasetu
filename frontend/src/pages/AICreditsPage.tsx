@@ -3,6 +3,7 @@ import { Bot, Coins, CreditCard, Globe, Loader2, MessageSquare, Sparkles } from 
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { validateCashfreePaymentResponse, CashfreeConfigurationError } from '../utils/cashfree';
 
 interface CreditPack {
   credits: number;
@@ -88,20 +89,27 @@ export default function AICreditsPage() {
       const res = await api.post('/payment/ai-credits/purchase', { pack, usage_scope: scope });
 
       // If gateway requires payment via Cashfree Checkout
-      if (res.data.requiresPayment && res.data.paymentSessionId) {
-        const cashfreeLoaded = await loadCashfreeScript();
-        if (cashfreeLoaded && window.Cashfree) {
-          const cashfree = window.Cashfree({
-            mode: res.data.cashfreeEnv === 'production' ? 'production' : 'sandbox',
-          });
-          cashfree.checkout({
-            paymentSessionId: res.data.paymentSessionId,
-            redirectTarget: '_self',
-          });
-          return;
-        } else {
-          toast.error('Could not load Cashfree checkout window. Please try again.');
-          return;
+      if (res.data.requiresPayment && (res.data.gateway === 'cashfree' || res.data.paymentSessionId)) {
+        try {
+          const { paymentSessionId, mode } = validateCashfreePaymentResponse(res.data);
+          const cashfreeLoaded = await loadCashfreeScript();
+          if (cashfreeLoaded && window.Cashfree) {
+            const cashfree = window.Cashfree({ mode });
+            cashfree.checkout({
+              paymentSessionId,
+              redirectTarget: '_self',
+            });
+            return;
+          } else {
+            toast.error('Could not load Cashfree checkout window. Please try again.');
+            return;
+          }
+        } catch (err: any) {
+          if (err instanceof CashfreeConfigurationError) {
+            toast.error(err.message);
+            return;
+          }
+          throw err;
         }
       }
 

@@ -187,6 +187,9 @@ export default function ShopPage() {
       {seoData && (
         <SEO
           title={`${data!.shop.name}`}
+          shopName={data!.shop.name}
+          siteName={data!.shop.name}
+          favicon={(data!.shop as any)?.favicon_url || (data as any)?.brand?.favicon_url || (data!.website.config as any)?.favicon || null}
           description={seoData.description}
           image={(data as any)?.brand?.social_image || (data as any)?.brand?.logo_url || (data!.shop as any).logo_url || seoData.ogImage}
           url={seoData.shopUrl}

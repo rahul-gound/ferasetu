@@ -2400,14 +2400,44 @@ async function ensureTables(db) {
         id TEXT PRIMARY KEY,
         organization_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        email TEXT,
+        email TEXT NOT NULL,
         phone TEXT,
         address TEXT,
+        password_hash TEXT,
+        password_salt TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_customers_org ON customers(organization_id);`);
+    await safeExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_org_email ON customers(organization_id, email);`);
+
+    // 7b. Customer Sessions & Password Resets
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS customer_sessions (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        organization_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_customer_sessions_lookup ON customer_sessions(token_hash, organization_id);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS customer_password_resets (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        organization_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_customer_resets_lookup ON customer_password_resets(token_hash, organization_id);`);
 
     // 8. Invoices
     await safeExec(`
@@ -2613,8 +2643,17 @@ async function ensureTables(db) {
     await safeAddColumn('websites', 'sections TEXT');
     await safeAddColumn('websites', 'is_published INTEGER NOT NULL DEFAULT 0');
     await safeAddColumn('websites', 'theme TEXT');
+    await safeAddColumn('websites', 'draft_config TEXT');
+    await safeAddColumn('websites', 'draft_sections TEXT');
+    await safeAddColumn('websites', 'draft_theme TEXT');
     await safeAddColumn('websites', 'created_at TEXT');
     await safeAddColumn('websites', 'updated_at TEXT');
+
+    // Customers and branding safe migrations
+    await safeAddColumn('customers', 'password_hash TEXT');
+    await safeAddColumn('customers', 'password_salt TEXT');
+    await safeAddColumn('organizations', 'favicon_url TEXT');
+    await safeAddColumn('shops', 'favicon_url TEXT');
 
     // Transactions table schema migrations
     await safeAddColumn('transactions', 'user_id TEXT');
@@ -2939,14 +2978,28 @@ const MARKET_PRICING = {
 // ---------------------------------------------------------------------------
 // Payment Endpoints
 // ---------------------------------------------------------------------------
+function classifyCashfreeError(status, errText) {
+  if (status === 401 || status === 403) {
+    return 'cashfree_authentication_error';
+  }
+  if (status === 400 || status === 422) {
+    return 'cashfree_validation_error';
+  }
+  if (status >= 500) {
+    return 'cashfree_upstream_error';
+  }
+  return 'cashfree_upstream_error';
+}
+
 function getCashfreeCredentials(env) {
   const appId = env.CASHFREE_APP_ID || env.CASHFREE_CLIENT_ID || null;
   const secretKey = env.CASHFREE_SECRET_KEY || env.CASHFREE_CLIENT_SECRET || null;
   const isDummy = !appId || !secretKey || appId.includes('your_app_id') || appId.includes('your_client_id') || secretKey.includes('your_secret_key');
   const isValid = Boolean(appId && secretKey && !isDummy);
   const isProd = env.CASHFREE_ENV === 'production';
+  const cashfreeEnv = isProd ? 'production' : 'sandbox';
   const baseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
-  return { appId, secretKey, isValid, isProd, baseUrl };
+  return { appId, secretKey, isValid, isProd, cashfreeEnv, baseUrl };
 }
 
 async function handlePaymentInitialize(request, env) {
@@ -3074,43 +3127,76 @@ async function handlePaymentInitialize(request, env) {
     const cfBaseUrl = cf.baseUrl;
     const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
 
-    const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
-      method: 'POST',
-      headers: {
-        'x-client-id': cf.appId,
-        'x-client-secret': cf.secretKey,
-        'x-api-version': '2023-08-01',
-        'Content-Type': 'application/json',
-      },
+    const requestId = crypto.randomUUID();
+    let cfOrderRes;
+    try {
+      cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
+        method: 'POST',
+        headers: {
+          'x-client-id': cf.appId,
+          'x-client-secret': cf.secretKey,
+          'x-api-version': '2023-08-01',
+          'Content-Type': 'application/json',
+        },
 
-      body: JSON.stringify({
-        order_id: transactionId,
-        order_amount: expectedAmount,
-        order_currency: marketConfig.currency,
-        customer_details: {
-          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
-          customer_email: user?.email || 'merchant@ferasetu.com',
-          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
-        },
-        order_meta: {
-          return_url: `${requestOrigin}/upgrade?order_id=${transactionId}`,
-        },
-        order_note: `FeraSetu ${targetPlan} plan (${billingCycle})`,
-      }),
-    });
+        body: JSON.stringify({
+          order_id: transactionId,
+          order_amount: expectedAmount,
+          order_currency: marketConfig.currency,
+          customer_details: {
+            customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+            customer_email: user?.email || 'merchant@ferasetu.com',
+            customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+          },
+          order_meta: {
+            return_url: `${requestOrigin}/upgrade?order_id=${transactionId}`,
+          },
+          order_note: `FeraSetu ${targetPlan} plan (${billingCycle})`,
+        }),
+      });
+    } catch (netErr) {
+      console.error(`[handlePaymentInitialize] Cashfree network connection error: classification=cashfree_upstream_error requestId=${requestId}`);
+      throw new HttpError("Unable to connect to Cashfree payment gateway. Please try again later.", 502, {
+        error_classification: 'cashfree_upstream_error',
+        request_id: requestId
+      });
+    }
 
     if (!cfOrderRes.ok) {
       const errText = await cfOrderRes.text();
-      console.error('Cashfree order creation failed:', cfOrderRes.status, errText);
+      const classification = classifyCashfreeError(cfOrderRes.status, errText);
+      console.error(`Cashfree order creation failed: status=${cfOrderRes.status} classification=${classification} requestId=${requestId}`);
       let detail = 'Payment gateway error';
       try {
         const parsed = JSON.parse(errText);
         detail = parsed.message || detail;
       } catch {}
-      throw new HttpError(`Cashfree payment error: ${detail}`, 502);
+      throw new HttpError(`Cashfree payment error: ${detail}`, cfOrderRes.status >= 500 ? 502 : 400, {
+        error_classification: classification,
+        request_id: requestId
+      });
     }
 
-    const cfOrder = await cfOrderRes.json();
+    let cfOrder;
+    try {
+      cfOrder = await cfOrderRes.json();
+    } catch {
+      throw new HttpError("Invalid response received from Cashfree gateway", 502, {
+        error_classification: 'cashfree_upstream_error',
+        request_id: requestId
+      });
+    }
+
+    if (!cfOrder || typeof cfOrder.payment_session_id !== 'string' || !cfOrder.payment_session_id.trim()) {
+      console.error(`Cashfree order response missing payment_session_id: classification=cashfree_upstream_error requestId=${requestId}`);
+      throw new HttpError("Cashfree order created without valid payment session", 502, {
+        error_classification: 'cashfree_upstream_error',
+        request_id: requestId
+      });
+    }
+
+    // Safe logging ONLY AFTER Cashfree successfully creates order and returns valid payment session:
+    console.log(`cashfreeEnvironment=${cf.cashfreeEnv} cashfreeConfigured=true orderCreationSucceeded=true requestId=${requestId}`);
 
     try {
       await env.DB.prepare(
@@ -3140,6 +3226,7 @@ async function handlePaymentInitialize(request, env) {
       currency: marketConfig.currency,
       paymentSessionId: cfOrder.payment_session_id,
       cashfreeOrderId: cfOrder.order_id || transactionId,
+      cashfreeEnv: cf.cashfreeEnv,
       message: `Cashfree order created for plan: ${targetPlan}`
     }, 201, {}, request);
   }
@@ -3240,8 +3327,39 @@ async function handlePaymentVerify(request, env) {
     me.$id
   ).first();
 
-  if (!tx || tx.status !== 'pending') {
-    throw new HttpError("Invalid or already processed transaction", 400);
+  if (!tx) {
+    throw new HttpError("Transaction not found for authenticated user", 404);
+  }
+
+  // Idempotency: If transaction is already completed, return existing verified state safely
+  if (tx.status === 'completed') {
+    let txMeta = {};
+    try {
+      txMeta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : (tx.metadata || {});
+    } catch {}
+    const isAiCredits = txMeta.type === 'ai_credits' || tx.plan === 'credits';
+    if (isAiCredits) {
+      const user = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(me.$id).first();
+      return json({
+        success: true,
+        type: 'ai_credits',
+        creditsAdded: 0,
+        already_processed: true,
+        balance: user?.ai_credits_balance ?? 20,
+        message: "Payment already verified and AI credits credited."
+      }, 200, {}, request);
+    }
+    const user = await env.DB.prepare("SELECT plan FROM users WHERE id = ?").bind(me.$id).first();
+    return json({
+      success: true,
+      plan: tx.plan || user?.plan || 'free',
+      already_processed: true,
+      message: `Payment already verified. Plan: ${tx.plan || user?.plan || 'free'}`
+    }, 200, {}, request);
+  }
+
+  if (tx.status !== 'pending') {
+    throw new HttpError("Transaction is not pending verification", 400);
   }
 
   const effectiveProvider = provider || tx.provider || (
@@ -3284,6 +3402,9 @@ async function handlePaymentVerify(request, env) {
     }
     if (Math.abs(Number(cfData.order_amount) - tx.amount) > 0.01) {
       throw new HttpError("Payment amount mismatch between gateway and transaction record", 400);
+    }
+    if (cfData.order_currency && tx.currency && cfData.order_currency.toUpperCase() !== tx.currency.toUpperCase()) {
+      throw new HttpError("Payment currency mismatch between gateway and transaction record", 400);
     }
     verifiedPaymentId = cfData.cf_order_id || orderIdentifier;
   } else if (effectiveProvider === 'stripe' || Boolean(stripe_session_id || stripeSessionId)) {
@@ -3728,43 +3849,76 @@ async function handlePaymentAiCreditsPurchase(request, env) {
   const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
 
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+  const requestId = crypto.randomUUID();
 
-  const cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
-    method: 'POST',
-    headers: {
-      'x-client-id': cf.appId,
-      'x-client-secret': cf.secretKey,
-      'x-api-version': '2023-08-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      order_id: transactionId,
-      order_amount: pack.amount,
-      order_currency: 'INR',
-      customer_details: {
-        customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
-        customer_email: user?.email || 'merchant@ferasetu.com',
-        customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+  let cfOrderRes;
+  try {
+    cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
+      method: 'POST',
+      headers: {
+        'x-client-id': cf.appId,
+        'x-client-secret': cf.secretKey,
+        'x-api-version': '2023-08-01',
+        'Content-Type': 'application/json',
       },
-      order_meta: {
-        return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
-      },
-      order_note: `FeraSetu ${pack.label} purchase`,
-    }),
-  });
+      body: JSON.stringify({
+        order_id: transactionId,
+        order_amount: pack.amount,
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+          customer_email: user?.email || 'merchant@ferasetu.com',
+          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+        },
+        order_meta: {
+          return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
+        },
+        order_note: `FeraSetu ${pack.label} purchase`,
+      }),
+    });
+  } catch (netErr) {
+    console.error(`[handlePaymentAiCreditsPurchase] Cashfree network connection error: classification=cashfree_upstream_error requestId=${requestId}`);
+    throw new HttpError("Unable to connect to Cashfree payment gateway. Please try again later.", 502, {
+      error_classification: 'cashfree_upstream_error',
+      request_id: requestId
+    });
+  }
 
   if (!cfOrderRes.ok) {
     const errText = await cfOrderRes.text();
-    console.error('Cashfree credit order creation failed:', cfOrderRes.status, errText);
+    const classification = classifyCashfreeError(cfOrderRes.status, errText);
+    console.error(`Cashfree credit order creation failed: status=${cfOrderRes.status} classification=${classification} requestId=${requestId}`);
     let detail = 'Payment gateway error';
     try {
       const parsed = JSON.parse(errText);
       detail = parsed.message || detail;
     } catch {}
-    throw new HttpError(`Cashfree payment error: ${detail}`, 502);
+    throw new HttpError(`Cashfree payment error: ${detail}`, cfOrderRes.status >= 500 ? 502 : 400, {
+      error_classification: classification,
+      request_id: requestId
+    });
   }
 
-  const cfOrder = await cfOrderRes.json();
+  let cfOrder;
+  try {
+    cfOrder = await cfOrderRes.json();
+  } catch {
+    throw new HttpError("Invalid response received from Cashfree gateway", 502, {
+      error_classification: 'cashfree_upstream_error',
+      request_id: requestId
+    });
+  }
+
+  if (!cfOrder || typeof cfOrder.payment_session_id !== 'string' || !cfOrder.payment_session_id.trim()) {
+    console.error(`Cashfree credit order response missing payment_session_id: classification=cashfree_upstream_error requestId=${requestId}`);
+    throw new HttpError("Cashfree order created without valid payment session", 502, {
+      error_classification: 'cashfree_upstream_error',
+      request_id: requestId
+    });
+  }
+
+  // Safe logging ONLY AFTER Cashfree successfully creates order and returns valid payment session:
+  console.log(`cashfreeEnvironment=${cf.cashfreeEnv} cashfreeConfigured=true orderCreationSucceeded=true requestId=${requestId}`);
 
   // P0 Correction 5: Insert into dedicated credit_purchases table with status 'payment_pending'
   try {
@@ -3851,6 +4005,7 @@ async function handlePaymentAiCreditsPurchase(request, env) {
     currency: 'INR',
     paymentSessionId: cfOrder.payment_session_id,
     cashfreeOrderId: cfOrder.order_id || transactionId,
+    cashfreeEnv: cf.cashfreeEnv,
     ai_credits_balance: user?.ai_credits_balance ?? 20,
     message: `Cashfree order created for ${pack.label}`
   }, 201, {}, request);
@@ -4208,15 +4363,34 @@ async function handlePublicCreateOrder(request, env) {
   const orderId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  // P0 Correction 3: Save customer in customers table (FeraSetu customer model, NOT merchant identity)
-  const customerId = `cust_${crypto.randomUUID()}`;
+  // Customer binding: check for active customer session or existing store customer
+  let customerId = null;
   try {
-    await env.DB.prepare(`
-      INSERT INTO customers (id, organization_id, name, email, phone, address, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(customerId, orgId, customerName, customerEmail || null, customerPhone.trim(), deliveryAddress || null, now, now).run();
-  } catch (custErr) {
-    console.warn("Customer record save note:", custErr?.message);
+    const sessionCustomer = await getAuthenticatedCustomerFromRequest(request, env, orgId);
+    if (sessionCustomer && sessionCustomer.customer_id) {
+      customerId = sessionCustomer.customer_id;
+    } else if (customerEmail) {
+      const existingCust = await env.DB.prepare(
+        "SELECT id FROM customers WHERE organization_id = ? AND LOWER(email) = ? LIMIT 1"
+      ).bind(orgId, customerEmail.toLowerCase().trim()).first();
+      if (existingCust?.id) {
+        customerId = existingCust.id;
+      }
+    }
+  } catch (lookupErr) {
+    console.warn("Customer session/lookup note:", lookupErr?.message);
+  }
+
+  if (!customerId) {
+    customerId = `cust_${crypto.randomUUID()}`;
+    try {
+      await env.DB.prepare(`
+        INSERT INTO customers (id, organization_id, name, email, phone, address, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(customerId, orgId, customerName, customerEmail || null, customerPhone.trim(), deliveryAddress || null, now, now).run();
+    } catch (custErr) {
+      console.warn("Customer record save note:", custErr?.message);
+    }
   }
 
   // P0 Correction 15: Store-scoped, collision-safe invoice number
@@ -4327,6 +4501,393 @@ async function handlePublicTrackOrders(request, env) {
   ).all();
 
   return json({ orders: results || [] }, 200, {}, request);
+}
+
+// ---------------------------------------------------------------------------
+// Customer Storefront Authentication & Orders (Separated from Merchant WorkOS Auth)
+// ---------------------------------------------------------------------------
+
+function parseCookies(request) {
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const cookies = {};
+  cookieHeader.split(";").forEach(pair => {
+    const [name, ...val] = pair.trim().split("=");
+    if (name) cookies[name] = decodeURIComponent(val.join("="));
+  });
+  return cookies;
+}
+
+async function hashToken(token) {
+  const enc = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", enc.encode(token));
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashPassword(password, saltHex) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+  const derived = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltBytes,
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    256
+  );
+  return Array.from(new Uint8Array(derived)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function resolveStorefrontOrgId(request, env) {
+  const headerOrgId = request.headers.get("X-Organization-Id");
+  if (headerOrgId) return headerOrgId;
+
+  const headerSlug = request.headers.get("X-Shop-Slug");
+  if (headerSlug) {
+    const tenant = await resolveStorefrontTenant(request, env, headerSlug);
+    if (tenant?.organizationId) return tenant.organizationId;
+  }
+
+  const url = new URL(request.url);
+  const queryShop = url.searchParams.get("shop") || url.searchParams.get("store") || url.searchParams.get("org") || url.searchParams.get("shopId");
+  if (queryShop) {
+    const tenant = await resolveStorefrontTenant(request, env, queryShop);
+    if (tenant?.organizationId) return tenant.organizationId;
+  }
+
+  const hostInfo = classifyHostname(url.hostname);
+  if (hostInfo.type === "merchant" && hostInfo.subdomain) {
+    const tenant = await resolveStorefrontTenant(request, env, hostInfo.subdomain);
+    if (tenant?.organizationId) return tenant.organizationId;
+  }
+
+  const referer = request.headers.get("Referer");
+  if (referer) {
+    try {
+      const refUrl = new URL(referer);
+      const refHostInfo = classifyHostname(refUrl.hostname);
+      if (refHostInfo.type === "merchant" && refHostInfo.subdomain) {
+        const tenant = await resolveStorefrontTenant(request, env, refHostInfo.subdomain);
+        if (tenant?.organizationId) return tenant.organizationId;
+      }
+      const match = refUrl.pathname.match(/\/shop\/([^/]+)/);
+      if (match && match[1]) {
+        const tenant = await resolveStorefrontTenant(request, env, match[1]);
+        if (tenant?.organizationId) return tenant.organizationId;
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+async function getAuthenticatedCustomerFromRequest(request, env, orgId) {
+  const cookies = parseCookies(request);
+  const sessionToken = cookies['fs_customer_session'];
+  if (!sessionToken) return null;
+
+  const tokenHash = await hashToken(sessionToken);
+  const now = new Date().toISOString();
+
+  let session = null;
+  try {
+    session = await env.DB.prepare(`
+      SELECT cs.id, cs.customer_id, cs.organization_id, c.email, c.name, c.phone, c.address, c.created_at
+      FROM customer_sessions cs
+      JOIN customers c ON c.id = cs.customer_id
+      WHERE cs.token_hash = ? AND cs.organization_id = ? AND cs.expires_at > ?
+      LIMIT 1
+    `).bind(tokenHash, orgId, now).first();
+  } catch (err) {
+    console.warn("Session check error:", err);
+  }
+
+  return session || null;
+}
+
+async function createCustomerSession(env, customerId, orgId, request) {
+  const tokenBytes = new Uint8Array(32);
+  crypto.getRandomValues(tokenBytes);
+  const rawToken = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const tokenHash = await hashToken(rawToken);
+
+  const sessionId = `cs_${crypto.randomUUID()}`;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  await env.DB.prepare(`
+    INSERT INTO customer_sessions (id, customer_id, organization_id, token_hash, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(sessionId, customerId, orgId, tokenHash, expiresAt, now.toISOString()).run();
+
+  const isSecure = new URL(request.url).protocol === "https:";
+  const cookieFlags = [
+    `fs_customer_session=${rawToken}`,
+    `HttpOnly`,
+    `Path=/`,
+    `SameSite=Lax`,
+    `Max-Age=2592000`,
+  ];
+  if (isSecure) {
+    cookieFlags.push("Secure");
+  }
+
+  return {
+    rawToken,
+    cookieHeader: cookieFlags.join("; "),
+  };
+}
+
+async function handleCustomerRegister(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const body = await readJsonBody(request);
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const password = typeof body.password === 'string' ? body.password : '';
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+
+  if (!email || !email.includes('@')) throw new HttpError("Valid email is required", 422);
+  if (!password || password.length < 8) throw new HttpError("Password must be at least 8 characters", 422);
+
+  const existing = await env.DB.prepare(
+    "SELECT id, password_hash FROM customers WHERE organization_id = ? AND LOWER(email) = ?"
+  ).bind(orgId, email).first();
+
+  if (existing && existing.password_hash) {
+    throw new HttpError("An account with this email already exists for this store. Please log in.", 409);
+  }
+
+  const saltBytes = new Uint8Array(16);
+  crypto.getRandomValues(saltBytes);
+  const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const passwordHash = await hashPassword(password, saltHex);
+  const now = new Date().toISOString();
+
+  let customerId;
+  if (existing) {
+    customerId = existing.id;
+    await env.DB.prepare(`
+      UPDATE customers SET password_hash = ?, password_salt = ?, name = COALESCE(NULLIF(?, ''), name), phone = COALESCE(NULLIF(?, ''), phone), updated_at = ?
+      WHERE id = ? AND organization_id = ?
+    `).bind(passwordHash, saltHex, name, phone, now, customerId, orgId).run();
+  } else {
+    customerId = `cust_${crypto.randomUUID()}`;
+    await env.DB.prepare(`
+      INSERT INTO customers (id, organization_id, email, password_hash, password_salt, name, phone, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(customerId, orgId, email, passwordHash, saltHex, name, phone, now, now).run();
+  }
+
+  const session = await createCustomerSession(env, customerId, orgId, request);
+  return json({
+    success: true,
+    customer: { id: customerId, email, name, phone, organization_id: orgId }
+  }, 201, { "Set-Cookie": session.cookieHeader }, request);
+}
+
+async function handleCustomerLogin(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const body = await readJsonBody(request);
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const password = typeof body.password === 'string' ? body.password : '';
+
+  if (!email || !password) throw new HttpError("Email and password are required", 422);
+
+  const cust = await env.DB.prepare(`
+    SELECT id, email, password_hash, password_salt, name, phone, created_at
+    FROM customers
+    WHERE organization_id = ? AND LOWER(email) = ?
+  `).bind(orgId, email).first();
+
+  if (!cust || !cust.password_hash || !cust.password_salt) {
+    throw new HttpError("Invalid email or password", 401);
+  }
+
+  const testHash = await hashPassword(password, cust.password_salt);
+  if (testHash !== cust.password_hash) {
+    throw new HttpError("Invalid email or password", 401);
+  }
+
+  const session = await createCustomerSession(env, cust.id, orgId, request);
+  return json({
+    success: true,
+    customer: { id: cust.id, email: cust.email, name: cust.name, phone: cust.phone, organization_id: orgId }
+  }, 200, { "Set-Cookie": session.cookieHeader }, request);
+}
+
+async function handleCustomerLogout(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  const cookies = parseCookies(request);
+  const sessionToken = cookies['fs_customer_session'];
+  if (sessionToken && orgId) {
+    const tokenHash = await hashToken(sessionToken);
+    await env.DB.prepare("DELETE FROM customer_sessions WHERE token_hash = ? AND organization_id = ?").bind(tokenHash, orgId).run();
+  }
+  const clearCookie = "fs_customer_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
+  return json({ success: true }, 200, { "Set-Cookie": clearCookie }, request);
+}
+
+async function handleCustomerMe(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const session = await getAuthenticatedCustomerFromRequest(request, env, orgId);
+  if (!session) {
+    return json({ authenticated: false, customer: null }, 401, {}, request);
+  }
+
+  return json({
+    authenticated: true,
+    customer: {
+      id: session.customer_id,
+      email: session.email,
+      name: session.name,
+      phone: session.phone,
+      address: session.address,
+      created_at: session.created_at,
+      organization_id: session.organization_id
+    }
+  }, 200, {}, request);
+}
+
+async function handleCustomerForgotPassword(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const body = await readJsonBody(request);
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  if (!email) throw new HttpError("Email is required", 422);
+
+  const cust = await env.DB.prepare("SELECT id FROM customers WHERE organization_id = ? AND LOWER(email) = ?").bind(orgId, email).first();
+  let resetToken = null;
+  if (cust) {
+    const tokenBytes = new Uint8Array(32);
+    crypto.getRandomValues(tokenBytes);
+    resetToken = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const tokenHash = await hashToken(resetToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    await env.DB.prepare(`
+      INSERT INTO customer_password_resets (id, customer_id, organization_id, token_hash, expires_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(`cpr_${crypto.randomUUID()}`, cust.id, orgId, tokenHash, expiresAt).run();
+  }
+
+  const url = new URL(request.url);
+  const isDevOrTest = request.headers.get("X-Test-Env") === "true" || url.hostname === "localhost" || url.hostname.includes("127.0.0.1") || env.ENVIRONMENT !== "production";
+
+  return json({
+    success: true,
+    message: "If an account matches this email, password reset instructions have been sent.",
+    ...(resetToken && isDevOrTest ? { resetToken, reset_token: resetToken } : {})
+  }, 200, {}, request);
+}
+
+async function handleCustomerResetPassword(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const body = await readJsonBody(request);
+  const token = typeof body.token === 'string' ? body.token.trim() : '';
+  const newPassword = typeof body.newPassword === 'string'
+    ? body.newPassword
+    : (typeof body.new_password === 'string'
+      ? body.new_password
+      : (typeof body.password === 'string' ? body.password : ''));
+
+  if (!token) throw new HttpError("Reset token is required", 422);
+  if (!newPassword || newPassword.length < 8) throw new HttpError("Password must be at least 8 characters", 422);
+
+  const tokenHash = await hashToken(token);
+  const now = new Date().toISOString();
+
+  const resetRow = await env.DB.prepare(`
+    SELECT id, customer_id, expires_at, used_at
+    FROM customer_password_resets
+    WHERE token_hash = ? AND organization_id = ? AND used_at IS NULL AND expires_at > ?
+  `).bind(tokenHash, orgId, now).first();
+
+  if (!resetRow) {
+    throw new HttpError("Invalid or expired password reset token", 400);
+  }
+
+  await env.DB.prepare("UPDATE customer_password_resets SET used_at = ? WHERE id = ?").bind(now, resetRow.id).run();
+
+  const saltBytes = new Uint8Array(16);
+  crypto.getRandomValues(saltBytes);
+  const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const passwordHash = await hashPassword(newPassword, saltHex);
+
+  await env.DB.prepare(`
+    UPDATE customers SET password_hash = ?, password_salt = ?, updated_at = ? WHERE id = ? AND organization_id = ?
+  `).bind(passwordHash, saltHex, now, resetRow.customer_id, orgId).run();
+
+  await env.DB.prepare("DELETE FROM customer_sessions WHERE customer_id = ? AND organization_id = ?").bind(resetRow.customer_id, orgId).run();
+
+  return json({ success: true, message: "Password updated successfully. Please log in with your new password." }, 200, {}, request);
+}
+
+async function handleCustomerOrders(request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const session = await getAuthenticatedCustomerFromRequest(request, env, orgId);
+  if (!session) {
+    throw new HttpError("Authentication required to view orders", 401);
+  }
+
+  const ordersRes = await env.DB.prepare(`
+    SELECT id, invoice_number, total, subtotal, delivery_fee, status, payment_status, items, delivery_address, delivery_type, created_at
+    FROM orders
+    WHERE customer_id = ? AND organization_id = ?
+    ORDER BY created_at DESC
+  `).bind(session.customer_id, orgId).all();
+
+  const orders = (ordersRes?.results || []).map(o => ({
+    ...o,
+    items: safeParseArray(o.items)
+  }));
+
+  return json({ success: true, orders }, 200, {}, request);
+}
+
+async function handleCustomerOrderDetails(orderId, request, env) {
+  const orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const session = await getAuthenticatedCustomerFromRequest(request, env, orgId);
+  if (!session) {
+    throw new HttpError("Authentication required to view order", 401);
+  }
+
+  const order = await env.DB.prepare(`
+    SELECT id, invoice_number, total, subtotal, delivery_fee, status, payment_status, items, delivery_address, delivery_type, created_at
+    FROM orders
+    WHERE id = ? AND customer_id = ? AND organization_id = ?
+  `).bind(orderId, session.customer_id, orgId).first();
+
+  if (!order) {
+    throw new HttpError("Order not found", 404);
+  }
+
+  return json({
+    order: {
+      ...order,
+      items: safeParseArray(order.items)
+    }
+  }, 200, {}, request);
 }
 
 async function getOrder(orderId, request, env) {
@@ -4724,49 +5285,36 @@ async function updateBranding(request, env) {
   const body = await readJsonBody(request);
   const now = new Date().toISOString();
 
-  const logoUrl = body.logo_url !== undefined ? body.logo_url : null;
-  const faviconUrl = body.favicon_url !== undefined ? body.favicon_url : null;
-  const primaryColor = body.primary_color !== undefined ? body.primary_color : null;
-  const secondaryColor = body.secondary_color !== undefined ? body.secondary_color : null;
-  const socialImageUrl = body.social_image_url !== undefined ? body.social_image_url : null;
+  const org = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(ctx.organizationId).first();
+  const shop = await env.DB.prepare("SELECT * FROM shops WHERE organization_id = ? LIMIT 1").bind(ctx.organizationId).first();
+
+  const newLogo = body.logo_url !== undefined ? (body.logo_url || null) : (shop?.logo_url ?? org?.logo_url ?? null);
+  const newFavicon = body.favicon_url !== undefined ? (body.favicon_url || null) : (shop?.favicon_url ?? org?.favicon_url ?? null);
+  const newPrimary = body.primary_color !== undefined ? (body.primary_color || null) : (shop?.primary_color ?? org?.primary_color ?? null);
+  const newSecondary = body.secondary_color !== undefined ? (body.secondary_color || null) : (shop?.secondary_color ?? org?.secondary_color ?? null);
+  const newSocial = body.social_image_url !== undefined ? (body.social_image_url || null) : (shop?.social_image_url ?? org?.social_image_url ?? null);
 
   await env.DB.prepare(`
     UPDATE organizations SET
-      logo_url = CASE WHEN ? IS NOT NULL THEN ? ELSE logo_url END,
-      favicon_url = CASE WHEN ? IS NOT NULL THEN ? ELSE favicon_url END,
-      primary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE primary_color END,
-      secondary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE secondary_color END,
-      social_image_url = CASE WHEN ? IS NOT NULL THEN ? ELSE social_image_url END,
+      logo_url = ?,
+      favicon_url = ?,
+      primary_color = ?,
+      secondary_color = ?,
+      social_image_url = ?,
       updated_at = ?
     WHERE id = ?
-  `).bind(
-    logoUrl, logoUrl,
-    faviconUrl, faviconUrl,
-    primaryColor, primaryColor,
-    secondaryColor, secondaryColor,
-    socialImageUrl, socialImageUrl,
-    now,
-    ctx.organizationId
-  ).run();
+  `).bind(newLogo, newFavicon, newPrimary, newSecondary, newSocial, now, ctx.organizationId).run();
 
   await env.DB.prepare(`
     UPDATE shops SET
-      logo_url = CASE WHEN ? IS NOT NULL THEN ? ELSE logo_url END,
-      favicon_url = CASE WHEN ? IS NOT NULL THEN ? ELSE favicon_url END,
-      primary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE primary_color END,
-      secondary_color = CASE WHEN ? IS NOT NULL THEN ? ELSE secondary_color END,
-      social_image_url = CASE WHEN ? IS NOT NULL THEN ? ELSE social_image_url END,
+      logo_url = ?,
+      favicon_url = ?,
+      primary_color = ?,
+      secondary_color = ?,
+      social_image_url = ?,
       updated_at = ?
     WHERE organization_id = ?
-  `).bind(
-    logoUrl, logoUrl,
-    faviconUrl, faviconUrl,
-    primaryColor, primaryColor,
-    secondaryColor, secondaryColor,
-    socialImageUrl, socialImageUrl,
-    now,
-    ctx.organizationId
-  ).run();
+  `).bind(newLogo, newFavicon, newPrimary, newSecondary, newSocial, now, ctx.organizationId).run();
 
   const updatedOrg = await env.DB.prepare(
     "SELECT id, name, logo_url, favicon_url, primary_color, secondary_color, social_image_url FROM organizations WHERE id = ?"
@@ -4895,11 +5443,14 @@ async function publishWebsite(request, env) {
 
 function getWebsiteTemplates(request, env) {
   const templates = [
-    { id: 'market', version: 1, name: 'Market', category: 'retail', description: 'Built for high-velocity retail and general commerce.' },
-    { id: 'minimal', version: 1, name: 'Minimal', category: 'boutique', description: 'Understated elegance for curated brands.' },
-    { id: 'bold', version: 1, name: 'Bold', category: 'lifestyle', description: 'High energy, punchy typography.' },
-    { id: 'editorial', version: 1, name: 'Editorial', category: 'story', description: 'Story-driven commerce with generous typography.' },
-    { id: 'craft', version: 1, name: 'Craft', category: 'artisan', description: 'Warm, tactile layout for handmade goods.' },
+    { id: 'atelier', version: 1, name: 'Atelier', category: 'luxury', description: 'Luxury, high fashion, refined serif typography, high-res photography, editorial layout.' },
+    { id: 'market', version: 1, name: 'Market', category: 'retail', description: 'Dynamic retail, badges, fast checkout, quick search, promotions.' },
+    { id: 'mono', version: 1, name: 'Mono', category: 'design', description: 'Brutalist, high contrast, monospace typography, stark lines, architectural.' },
+    { id: 'bold', version: 1, name: 'Bold', category: 'lifestyle', description: 'Vibrant, energetic, rounded shapes, punchy cards, youth/lifestyle.' },
+    { id: 'artisan', version: 1, name: 'Artisan', category: 'craft', description: 'Warm earth tones, handcrafted textures, storytelling blocks, maker profile.' },
+    { id: 'studio', version: 1, name: 'Studio', category: 'portfolio', description: 'Minimal, portfolio-style, sleek grid, agency and designer feel.' },
+    { id: 'home', version: 1, name: 'Home', category: 'interior', description: 'Cozy, warm lifestyle, homeware, interior, ceramics, gentle neutrals.' },
+    { id: 'dine', version: 1, name: 'Dine', category: 'culinary', description: 'Food, beverage, bakery, cafe, restaurant, rich culinary warmth.' },
   ];
   return json({ templates }, 200, {}, request);
 }
@@ -5507,11 +6058,19 @@ async function getPublicShop(shopName, request, env) {
   }
 
   // Extract merchant branding
-  const logoUrl = tenant?.shop?.logo_url || tenant?.organization?.logo_url || config?.logo || null;
-  const faviconUrl = tenant?.shop?.favicon_url || tenant?.organization?.favicon_url || null;
-  const primaryColor = tenant?.shop?.primary_color || tenant?.organization?.primary_color || null;
-  const secondaryColor = tenant?.shop?.secondary_color || tenant?.organization?.secondary_color || null;
-  const socialImageUrl = tenant?.shop?.social_image_url || tenant?.organization?.social_image_url || null;
+  let orgRow = tenant?.organization;
+  let shopRow = tenant?.shop;
+  if (!orgRow && !shopRow && effectiveOrgId) {
+    try {
+      orgRow = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(effectiveOrgId).first();
+      shopRow = await env.DB.prepare("SELECT * FROM shops WHERE organization_id = ?").bind(effectiveOrgId).first();
+    } catch {}
+  }
+  const logoUrl = shopRow?.logo_url || orgRow?.logo_url || user?.logo_url || config?.logo || null;
+  const faviconUrl = shopRow?.favicon_url || orgRow?.favicon_url || null;
+  const primaryColor = shopRow?.primary_color || orgRow?.primary_color || null;
+  const secondaryColor = shopRow?.secondary_color || orgRow?.secondary_color || null;
+  const socialImageUrl = shopRow?.social_image_url || orgRow?.social_image_url || null;
 
   const merchantName = tenant?.organization?.name || tenant?.shop?.name || user?.business_name || user?.name || "Store";
   const storeSlug = tenant?.organization?.store_slug || tenant?.shop?.store_slug || user?.subdomain || slugWithoutDomain;
@@ -5773,7 +6332,7 @@ async function route(request, env) {
   }
 
   // Orders
-  if (path === "/api/orders/create" && method === "POST") {
+  if ((path === "/api/orders/create" || path === "/api/orders/public/create") && method === "POST") {
     return handlePublicCreateOrder(request, env);
   }
   if (path === "/api/orders/public/track" && method === "GET") {
@@ -5805,6 +6364,33 @@ async function route(request, env) {
       return getOrder(sub, request, env);
     }
     throw new HttpError("Method not allowed", 405);
+  }
+
+  // Customer Storefront Authentication & Orders
+  if (path === "/api/storefront/customer/register" && method === "POST") {
+    return handleCustomerRegister(request, env);
+  }
+  if (path === "/api/storefront/customer/login" && method === "POST") {
+    return handleCustomerLogin(request, env);
+  }
+  if (path === "/api/storefront/customer/logout" && method === "POST") {
+    return handleCustomerLogout(request, env);
+  }
+  if (path === "/api/storefront/customer/me" && method === "GET") {
+    return handleCustomerMe(request, env);
+  }
+  if (path === "/api/storefront/customer/forgot-password" && method === "POST") {
+    return handleCustomerForgotPassword(request, env);
+  }
+  if (path === "/api/storefront/customer/reset-password" && method === "POST") {
+    return handleCustomerResetPassword(request, env);
+  }
+  if (path === "/api/storefront/customer/orders" && method === "GET") {
+    return handleCustomerOrders(request, env);
+  }
+  if (path.startsWith("/api/storefront/customer/orders/") && method === "GET") {
+    const orderId = path.slice("/api/storefront/customer/orders/".length);
+    return handleCustomerOrderDetails(orderId, request, env);
   }
 
   // Invoices (Comprehensive 21-column schema)

@@ -18,6 +18,7 @@ import PricingFAQ from '../components/pricing/PricingFAQ';
 import MarketSelector from '../components/marketing/MarketSelector';
 import { getMarketPlans, normalizePlanId, getPlan, getNextPlan, isFreePlan } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
+import { validateCashfreePaymentResponse, CashfreeConfigurationError } from '../utils/cashfree';
 
 declare global {
   interface Window {
@@ -128,21 +129,29 @@ export default function UpgradePage() {
       }
 
       // Paid plans via Cashfree Checkout (India market)
-      if (res.data.gateway === 'cashfree' && res.data.paymentSessionId) {
-        const cashfreeLoaded = await loadCashfreeScript();
-        if (cashfreeLoaded && window.Cashfree) {
-          const cashfree = window.Cashfree({
-            mode: res.data.cashfreeEnv === 'production' ? 'production' : 'sandbox',
-          });
-          cashfree.checkout({
-            paymentSessionId: res.data.paymentSessionId,
-            redirectTarget: '_self',
-          });
-          return;
-        } else {
-          toast.error('Could not load Cashfree checkout window. Please check your connection and try again.');
-          setUpgrading(null);
-          return;
+      if (res.data.gateway === 'cashfree') {
+        try {
+          const { paymentSessionId, mode } = validateCashfreePaymentResponse(res.data);
+          const cashfreeLoaded = await loadCashfreeScript();
+          if (cashfreeLoaded && window.Cashfree) {
+            const cashfree = window.Cashfree({ mode });
+            cashfree.checkout({
+              paymentSessionId,
+              redirectTarget: '_self',
+            });
+            return;
+          } else {
+            toast.error('Could not load Cashfree checkout window. Please check your connection and try again.');
+            setUpgrading(null);
+            return;
+          }
+        } catch (err: any) {
+          if (err instanceof CashfreeConfigurationError) {
+            toast.error(err.message);
+            setUpgrading(null);
+            return;
+          }
+          throw err;
         }
       }
 
