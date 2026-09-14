@@ -81,13 +81,19 @@ async function verifyWorkOSToken(token: string): Promise<jwt.JwtPayload> {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/users/workos-session
+// POST /api/users/workos-session [LEGACY / DEPRECATED]
 //
-// Called by the frontend after WorkOS completes authentication.
-// Verifies the WorkOS access token, provisions the user in the DB if new,
-// and issues a FeraSetu HttpOnly session cookie.
+// NOTE: FeraSetu production authentication is handled authoritatively by the
+// Cloudflare Worker WorkOS multi-tenant organization flow (/api/workos/callback,
+// /api/workos/session, requireOrgContext).
+// This legacy Express endpoint is maintained for backward compatibility only and
+// sets a Deprecation warning header.
 // ---------------------------------------------------------------------------
 router.post('/workos-session', async (req: Request, res: Response): Promise<void> => {
+  res.setHeader('Warning', '299 - "This endpoint is deprecated. Use the Worker WorkOS organization session flow."');
+  res.setHeader('X-Deprecated', 'true');
+  console.warn('[DEPRECATED] /api/users/workos-session was accessed. Route to Worker WorkOS flow.');
+
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Missing WorkOS access token' });

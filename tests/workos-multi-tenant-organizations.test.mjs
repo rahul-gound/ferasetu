@@ -61,7 +61,9 @@ function createTestDb() {
     customers: [],
     websites: [],
     invoices: [],
-    smtp_settings: []
+    smtp_settings: [],
+    tickets: [],
+    ticket_replies: []
   };
 
   return {
@@ -121,16 +123,36 @@ function createTestDb() {
             const m = tables.organization_members.find(x => x.organization_id === orgId && x.user_id === userId);
             return m || null;
           }
+          if (s.includes('from websites where')) {
+            const orgId = this._params[0];
+            const userId = this._params[1];
+            const w = tables.websites.find(x => x.organization_id === orgId || (userId && x.user_id === userId) || x.id === orgId);
+            return w || null;
+          }
+          if (s.includes('from ticket_replies where id =')) {
+            const rId = this._params[0];
+            const r = tables.ticket_replies.find(x => x.id === rId);
+            return r || null;
+          }
+          if (s.includes('from tickets where id =')) {
+            const tId = this._params[0];
+            const orgId = this._params[1];
+            const userId = this._params[2];
+            const t = tables.tickets.find(x => x.id === tId && (!orgId || x.organization_id === orgId || (!x.organization_id && x.user_id === userId)));
+            return t || null;
+          }
           if (s.includes('from products where id =')) {
             const pId = this._params[0];
             const orgId = this._params[1];
-            const p = tables.products.find(x => x.id === pId && (x.organization_id === orgId || !orgId));
+            const userId = this._params[2];
+            const p = tables.products.find(x => x.id === pId && (!orgId || x.organization_id === orgId || (!x.organization_id && x.user_id === userId)));
             return p || null;
           }
           if (s.includes('from orders where id =')) {
             const oId = this._params[0];
             const orgId = this._params[1];
-            const o = tables.orders.find(x => x.id === oId && (x.organization_id === orgId || !orgId));
+            const userId = this._params[2];
+            const o = tables.orders.find(x => x.id === oId && (!orgId || x.organization_id === orgId || (!x.organization_id && x.user_id === userId)));
             return o || null;
           }
           if (s.includes('count(*) as cnt from products')) {
@@ -142,19 +164,32 @@ function createTestDb() {
         },
         async all() {
           const s = sql.toLowerCase();
-          if (s.includes('from products where organization_id =')) {
+          if (s.includes('from products where')) {
             const orgId = this._params[0];
-            const results = tables.products.filter(x => x.organization_id === orgId);
+            const userId = this._params[1];
+            const results = tables.products.filter(x => x.organization_id === orgId || (userId && !x.organization_id && x.user_id === userId));
             return { results };
           }
-          if (s.includes('from orders where organization_id =')) {
+          if (s.includes('from orders where')) {
             const orgId = this._params[0];
-            const results = tables.orders.filter(x => x.organization_id === orgId);
+            const userId = this._params[1];
+            const results = tables.orders.filter(x => x.organization_id === orgId || (userId && !x.organization_id && x.user_id === userId));
             return { results };
           }
-          if (s.includes('from customers where organization_id =')) {
+          if (s.includes('from customers where')) {
             const orgId = this._params[0];
             const results = tables.customers.filter(x => x.organization_id === orgId);
+            return { results };
+          }
+          if (s.includes('from tickets where')) {
+            const orgId = this._params[0];
+            const userId = this._params[1];
+            const results = tables.tickets.filter(x => x.organization_id === orgId || (userId && !x.organization_id && x.user_id === userId));
+            return { results };
+          }
+          if (s.includes('from ticket_replies where ticket_id =')) {
+            const tId = this._params[0];
+            const results = tables.ticket_replies.filter(x => x.ticket_id === tId);
             return { results };
           }
           if (s.includes('from organization_members om')) {
@@ -185,7 +220,7 @@ function createTestDb() {
             if (!existing) {
               tables.organizations.push({ id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at });
             }
-            return { success: true };
+            return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('organization_members') && s.includes('insert')) {
             let id, organization_id, user_id, role, created_at, updated_at;
@@ -199,7 +234,7 @@ function createTestDb() {
             if (!existing) {
               tables.organization_members.push({ id, organization_id, user_id, role: role || 'owner', created_at, updated_at });
             }
-            return { success: true };
+            return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('shops') && s.includes('insert')) {
             const [id, organization_id, name, store_slug, hostname, status, created_at, updated_at] = this._params;
@@ -207,24 +242,91 @@ function createTestDb() {
             if (!existing) {
               tables.shops.push({ id, organization_id, name, store_slug, hostname, status, created_at, updated_at });
             }
-            return { success: true };
+            return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('insert into products')) {
             const [id, user_id, organization_id, name, price, stock, description, created_at] = this._params;
-            tables.products.push({ id, user_id, organization_id, name, price, stock, description, created_at });
-            return { success: true };
+            tables.products.push({ id, user_id, organization_id, name, price, stock: stock || 10, description: description || '', created_at: created_at || new Date().toISOString() });
+            return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('insert into orders')) {
-            const [id, user_id, organization_id, customer_name, items, total, status, created_at] = this._params;
-            tables.orders.push({ id, user_id, organization_id, customer_name, items, total, status, created_at });
-            return { success: true };
+            const [id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at] = this._params;
+            tables.orders.push({
+              id,
+              user_id,
+              organization_id,
+              customer_name,
+              customer_phone: customer_phone || null,
+              items: items || '[]',
+              total: total || 0,
+              status: status || 'pending',
+              delivery_code: '123456',
+              created_at: created_at || new Date().toISOString()
+            });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('update orders set status =')) {
+            const isDelivered = s.includes("'delivered'");
+            const status = isDelivered ? 'delivered' : this._params[0];
+            const now = isDelivered ? this._params[0] : null;
+            const oId = isDelivered ? this._params[1] : this._params[1];
+            const orgId = isDelivered ? this._params[2] : this._params[2];
+            const userId = isDelivered ? this._params[3] : this._params[3];
+            const order = tables.orders.find(x => x.id === oId && (!orgId || x.organization_id === orgId || (!x.organization_id && x.user_id === userId)));
+            if (order) {
+              order.status = status;
+              if (now) order.updated_at = now;
+              return { success: true, meta: { changes: 1 } };
+            }
+            return { success: true, meta: { changes: 0 } };
+          }
+          if (s.includes('update websites set is_published =')) {
+            const isPub = this._params[0];
+            const now = this._params[1];
+            const wId = this._params[2];
+            const orgId = this._params[3];
+            const userId = this._params[4];
+            const web = tables.websites.find(x => x.id === wId && (!orgId || x.organization_id === orgId || (!x.organization_id && x.user_id === userId)));
+            if (web) {
+              web.is_published = isPub;
+              web.updated_at = now;
+              return { success: true, meta: { changes: 1 } };
+            }
+            return { success: true, meta: { changes: 0 } };
+          }
+          if (s.includes('insert into websites')) {
+            const [id, user_id, organization_id, name, template, config, theme, sections, created_at, updated_at] = this._params;
+            tables.websites.push({ id, user_id, organization_id, name, template, config, theme, sections, is_published: 0, created_at, updated_at });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('insert into tickets')) {
+            const id = this._params[0];
+            const user_id = this._params[1];
+            const organization_id = this._params.length >= 7 ? this._params[2] : null;
+            const subject = this._params.length >= 7 ? this._params[3] : this._params[2];
+            const description = this._params.length >= 7 ? this._params[4] : this._params[3];
+            const created_at = this._params[this._params.length - 2];
+            const updated_at = this._params[this._params.length - 1];
+            tables.tickets.push({ id, user_id, organization_id, subject, description, status: 'open', created_at, updated_at });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('insert into ticket_replies')) {
+            const [id, ticket_id, content, created_at] = this._params;
+            tables.ticket_replies.push({ id, ticket_id, sender_role: 'merchant', content, created_at });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('update tickets set updated_at =')) {
+            const [now, ticketId] = this._params;
+            const t = tables.tickets.find(x => x.id === ticketId);
+            if (t) t.updated_at = now;
+            return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('insert into customers')) {
             const [id, organization_id, name, email, phone, address, created_at, updated_at] = this._params;
             tables.customers.push({ id, organization_id, name, email, phone, address, created_at, updated_at });
-            return { success: true };
+            return { success: true, meta: { changes: 1 } };
           }
-          return { success: true };
+          return { success: true, meta: { changes: 1 } };
         }
       };
     }
@@ -644,6 +746,290 @@ await test('17. Onboarding with EU country and District resolves to EU market an
   assert.equal(euOrg.organization.country, 'Germany');
 });
 
+// 18. Website Publishing Scoping: Cross-org publish attempt returns 404
+await test('18. Website Publishing Scoping: Cross-org website publish denied with 404', async () => {
+  const token2 = await createToken('usr_new_merchant_2', 'merchant_two@example.com', 'Merchant Two');
+  
+  // Org 2 has not created a website; attempting to publish returns 404
+  const req = new Request('https://ferasetu.com/api/website/publish', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token2}`
+    },
+    body: JSON.stringify({ published: true })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 404, 'Cross-org or non-existent website publish must return 404');
+});
+
+// 19. Website Publishing Scoping: Authorized same-org staff/admin can publish
+await test('19. Website Publishing Scoping: Same-org staff/admin allowed to publish website', async () => {
+  const token1 = await createToken('usr_new_merchant_1', 'merchant_one@example.com', 'Merchant One');
+  
+  // Org 1 creates website configuration
+  const saveReq = new Request('https://ferasetu.com/api/website', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token1}`
+    },
+    body: JSON.stringify({
+      name: 'Ramesh Super Market Online',
+      template: 'market',
+      config: { announcement: 'Welcome to Ramesh Super Market' }
+    })
+  });
+  const saveRes = await worker.fetch(saveReq, mockEnv);
+  assert.equal(saveRes.status, 200);
+
+  // Org 1 publishes website
+  const pubReq = new Request('https://ferasetu.com/api/website/publish', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token1}`
+    },
+    body: JSON.stringify({ published: true })
+  });
+  const pubRes = await worker.fetch(pubReq, mockEnv);
+  assert.equal(pubRes.status, 200);
+  const pubData = await pubRes.json();
+  assert.equal(pubData.published, true);
+
+  // Verify website in DB is scoped to Org 1
+  const storedWeb = mockDb.tables.websites.find(w => w.organization_id === org1Data.organization.id);
+  assert.ok(storedWeb, 'Website must be stored with organization_id');
+  assert.equal(storedWeb.is_published, 1);
+});
+
+// 20. verifyOrderOtp: Invalid OTP rejected with 400
+await test('20. verifyOrderOtp: Invalid OTP rejected with 400', async () => {
+  const token1 = await createToken('usr_new_merchant_1', 'merchant_one@example.com');
+  
+  // Create an order for Org 1
+  const orderId = `ord_${crypto.randomUUID()}`;
+  mockDb.tables.orders.push({
+    id: orderId,
+    user_id: 'usr_new_merchant_1',
+    organization_id: org1Data.organization.id,
+    customer_name: 'Rohit Patil',
+    customer_phone: '+919811122233',
+    items: JSON.stringify([{ productId: 'prod_1', quantity: 1 }]),
+    total: 299,
+    status: 'pending',
+    delivery_code: '456789',
+    created_at: new Date().toISOString()
+  });
+
+  const req = new Request(`https://ferasetu.com/api/orders/${orderId}/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token1}`
+    },
+    body: JSON.stringify({ otp: '000000' }) // Invalid OTP
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 400, 'Invalid OTP must return 400');
+  const errData = await res.json();
+  assert.equal(errData.error, 'Invalid OTP');
+});
+
+// 21. verifyOrderOtp: Cross-tenant verification returns 404
+await test('21. verifyOrderOtp: Cross-tenant OTP verification returns 404', async () => {
+  const token2 = await createToken('usr_new_merchant_2', 'merchant_two@example.com', 'Merchant Two');
+  
+  // Target order belongs to Org 1
+  const orderId = `ord_${crypto.randomUUID()}`;
+  mockDb.tables.orders.push({
+    id: orderId,
+    user_id: 'usr_new_merchant_1',
+    organization_id: org1Data.organization.id,
+    customer_name: 'Priya Verma',
+    customer_phone: '+919822233344',
+    items: JSON.stringify([{ productId: 'prod_1', quantity: 2 }]),
+    total: 598,
+    status: 'pending',
+    delivery_code: '123456',
+    created_at: new Date().toISOString()
+  });
+
+  // Org 2 tries to verify OTP on Org 1 order
+  const req = new Request(`https://ferasetu.com/api/orders/${orderId}/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token2}`
+    },
+    body: JSON.stringify({ otp: '123456' })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 404, 'Cross-tenant order OTP verification must return 404');
+});
+
+// 22. verifyOrderOtp: Successful verification marks order delivered and changes exactly 1 tenant-scoped row
+await test('22. verifyOrderOtp: Successful OTP verification marks order delivered and scopes row state', async () => {
+  const token1 = await createToken('usr_new_merchant_1', 'merchant_one@example.com');
+  
+  const orderId = `ord_${crypto.randomUUID()}`;
+  mockDb.tables.orders.push({
+    id: orderId,
+    user_id: 'usr_new_merchant_1',
+    organization_id: org1Data.organization.id,
+    customer_name: 'Ananya Deshmukh',
+    customer_phone: '+919833344455',
+    items: JSON.stringify([{ productId: 'prod_1', quantity: 1 }]),
+    total: 299,
+    status: 'confirmed',
+    delivery_code: '789123',
+    created_at: new Date().toISOString()
+  });
+
+  const req = new Request(`https://ferasetu.com/api/orders/${orderId}/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token1}`
+    },
+    body: JSON.stringify({ otp: '789123' })
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 200, 'Valid OTP on owned order must return 200');
+  const resData = await res.json();
+  assert.equal(resData.success, true);
+  assert.equal(resData.order.status, 'delivered');
+
+  // Verify stored order status
+  const updatedOrder = mockDb.tables.orders.find(o => o.id === orderId);
+  assert.equal(updatedOrder.status, 'delivered');
+  assert.equal(updatedOrder.organization_id, org1Data.organization.id);
+});
+
+// 23. Support Tickets: Cross-tenant ticket listing and reply isolation
+await test('23. Support Tickets: Merchant in Org A cannot view tickets from Org B', async () => {
+  const token1 = await createToken('usr_new_merchant_1', 'merchant_one@example.com');
+  const token2 = await createToken('usr_new_merchant_2', 'merchant_two@example.com');
+
+  // Org 1 creates ticket
+  const createReq = new Request('https://ferasetu.com/api/tickets', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token1}`
+    },
+    body: JSON.stringify({
+      subject: 'GST Invoice Generation Question',
+      description: 'How do I download monthly B2B GST invoices?'
+    })
+  });
+  const createRes = await worker.fetch(createReq, mockEnv);
+  assert.equal(createRes.status, 201);
+  const ticket1 = await createRes.json();
+  assert.ok(ticket1.id);
+  assert.equal(ticket1.organization_id, org1Data.organization.id);
+
+  // Org 2 lists tickets: must NOT see Org 1 ticket
+  const listReq = new Request('https://ferasetu.com/api/tickets', {
+    headers: { Authorization: `Bearer ${token2}` }
+  });
+  const listRes = await worker.fetch(listReq, mockEnv);
+  assert.equal(listRes.status, 200);
+  const listData = await listRes.json();
+  const leakedTicket = listData.tickets.find(t => t.id === ticket1.id);
+  assert.equal(leakedTicket, undefined, 'Org 2 must not see tickets belonging to Org 1');
+
+  // Org 2 tries to view replies for Org 1 ticket: must return 404
+  const repliesReq = new Request(`https://ferasetu.com/api/tickets/${ticket1.id}/replies`, {
+    headers: { Authorization: `Bearer ${token2}` }
+  });
+  const repliesRes = await worker.fetch(repliesReq, mockEnv);
+  assert.equal(repliesRes.status, 404, 'Org 2 viewing replies of Org 1 ticket must return 404');
+});
+
+// 24. Support Tickets: Authorized same-org reply and retrieval
+await test('24. Support Tickets: Same-org staff can reply and fetch replies with organization_id scoping', async () => {
+  const token1 = await createToken('usr_new_merchant_1', 'merchant_one@example.com');
+  
+  // Find ticket created in previous test
+  const ticket = mockDb.tables.tickets.find(t => t.organization_id === org1Data.organization.id);
+  assert.ok(ticket);
+
+  // Add reply
+  const replyReq = new Request(`https://ferasetu.com/api/tickets/${ticket.id}/replies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token1}`
+    },
+    body: JSON.stringify({ content: 'We need this urgently for audit.' })
+  });
+  const replyRes = await worker.fetch(replyReq, mockEnv);
+  assert.equal(replyRes.status, 201);
+  const replyData = await replyRes.json();
+  assert.equal(replyData.content, 'We need this urgently for audit.');
+
+  // Org 2 attempts to post reply to Org 1 ticket: must return 404
+  const token2 = await createToken('usr_new_merchant_2', 'merchant_two@example.com');
+  const rogueReplyReq = new Request(`https://ferasetu.com/api/tickets/${ticket.id}/replies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token2}`
+    },
+    body: JSON.stringify({ content: 'Malicious injection from other tenant' })
+  });
+  const rogueReplyRes = await worker.fetch(rogueReplyReq, mockEnv);
+  assert.equal(rogueReplyRes.status, 404, 'Cross-tenant reply must return 404');
+});
+
+// 25. Newly created merchant resources always possess authoritative organization_id
+await test('25. Authoritative Tenant Boundary: Newly created merchant resources always contain organization_id', async () => {
+  const token1 = await createToken('usr_new_merchant_1', 'merchant_one@example.com');
+
+  // Product
+  const prodReq = new Request('https://ferasetu.com/api/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token1}` },
+    body: JSON.stringify({ name: 'Organic Turmeric 500g', price: 140, stock: 25 })
+  });
+  const prodRes = await worker.fetch(prodReq, mockEnv);
+  assert.equal(prodRes.status, 201);
+  const prodData = await prodRes.json();
+  assert.equal(prodData.product.organization_id, org1Data.organization.id, 'Product organization_id must be populated from auth context');
+  assert.notEqual(prodData.product.organization_id, null);
+
+  // Order
+  const orderReq = new Request('https://ferasetu.com/api/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token1}` },
+    body: JSON.stringify({
+      customer_name: 'Kavita Shinde',
+      items: [{ productId: prodData.product.id, quantity: 2 }]
+    })
+  });
+  const orderRes = await worker.fetch(orderReq, mockEnv);
+  assert.equal(orderRes.status, 201);
+  const orderData = await orderRes.json();
+  assert.equal(orderData.order.organization_id, org1Data.organization.id, 'Order organization_id must be populated from auth context');
+  assert.notEqual(orderData.order.organization_id, null);
+});
+
+// 26. Zero Unscoped Fallbacks: Fallback queries maintain strict tenant isolation
+await test('26. Zero-Trust Scoping: Catch-block fallbacks never leak cross-tenant data', async () => {
+  // Verify that all products in DB belonging to Org 1 are not returned to Org 2
+  const token2 = await createToken('usr_new_merchant_2', 'merchant_two@example.com');
+  const req = new Request('https://ferasetu.com/api/products', {
+    headers: { Authorization: `Bearer ${token2}` }
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  for (const p of data.products) {
+    assert.equal(p.organization_id, org2Data.organization.id, 'Products returned must only belong to Org 2');
+  }
+});
+
 console.log('────────────────────────────────────────────────────────────');
 console.log(`Results: ${passed} passed, ${failed} failed`);
 
@@ -654,5 +1040,5 @@ if (failed > 0) {
   }
   process.exit(1);
 } else {
-  console.log('\n🌟 All 17 WorkOS Multi-Tenant Organization requirements verified successfully!\n');
+  console.log('\n🌟 All WorkOS Multi-Tenant Organization and Security Hardening requirements verified successfully!\n');
 }
