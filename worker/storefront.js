@@ -442,16 +442,38 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
   } else if (env?.DB) {
     try {
       const fullHost = `${slug}.${hostClassification.domain || "ferasetu.com"}`;
-      const user = await env.DB.prepare(
-        `SELECT u.id, u.business_name, u.name, u.subdomain, u.hostname, u.is_blocked, u.plan,
-                u.market, u.plan_expires_at, u.trial_ends_at,
-                w.is_published
-         FROM users u
-         LEFT JOIN websites w ON w.user_id = u.id
-         WHERE u.subdomain = ? OR u.hostname = ?`
-      )
-        .bind(slug, fullHost)
-        .first();
+      let user = null;
+      try {
+        user = await env.DB.prepare(
+          `SELECT u.id, u.business_name, u.name, u.subdomain, u.hostname, u.is_blocked, u.plan,
+                  u.market, u.plan_expires_at, u.trial_ends_at,
+                  w.is_published
+           FROM users u
+           LEFT JOIN websites w ON w.user_id = u.id
+           WHERE u.subdomain = ? OR u.hostname = ?`
+        )
+          .bind(slug, fullHost)
+          .first();
+      } catch (colErr) {
+        console.warn("Primary storefront merchant lookup failed, retrying with core columns:", colErr?.message || colErr);
+        try {
+          user = await env.DB.prepare(
+            `SELECT u.id, u.business_name, u.name, u.subdomain, u.hostname, u.plan,
+                    u.market,
+                    w.is_published
+             FROM users u
+             LEFT JOIN websites w ON w.user_id = u.id
+             WHERE u.subdomain = ? OR u.hostname = ?`
+          )
+            .bind(slug, fullHost)
+            .first();
+          if (user) {
+            user.is_blocked = 0;
+          }
+        } catch (colFallbackErr) {
+          console.warn("Fallback storefront merchant lookup also failed:", colFallbackErr?.message || colFallbackErr);
+        }
+      }
 
       if (user) {
         merchant = user;

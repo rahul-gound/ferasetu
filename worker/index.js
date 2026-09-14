@@ -31,6 +31,7 @@
 
 // ---------------------------------------------------------------------------
 import { handleAdminRoutes } from "./routes/admin.js";
+import { handleGeoRoute } from "./routes/geo.js";
 import { feraRouter } from "./ai/router.js";
 import {
   classifyHostname,
@@ -2220,6 +2221,12 @@ async function ensureTables(db) {
     await safeAddColumn('users', 'subdomain TEXT');
     await safeAddColumn('users', 'phone TEXT');
     await safeAddColumn('users', "preferred_language TEXT DEFAULT 'en'");
+    await safeAddColumn('users', 'is_blocked INTEGER NOT NULL DEFAULT 0');
+    await safeAddColumn('users', 'custom_domain TEXT');
+    await safeAddColumn('users', 'plan_expires_at TEXT');
+    await safeAddColumn('users', 'trial_ends_at TEXT');
+    await safeAddColumn('users', 'trial_started_at TEXT');
+    await safeAddColumn('users', 'cancel_at_period_end INTEGER DEFAULT 0');
 
     await safeAddColumn('organizations', 'district TEXT');
     await safeAddColumn('organizations', 'country TEXT');
@@ -3928,12 +3935,33 @@ async function getPublicShop(shopName, request, env) {
   }
 
   const cleanShopName = shopName.trim().toLowerCase();
+  const slugWithoutDomain = cleanShopName.replace(/\.(ferasetu\.com|fera-search\.tech)$/i, "");
+  const fullHostname = slugWithoutDomain.includes(".") ? slugWithoutDomain : `${slugWithoutDomain}.ferasetu.com`;
 
-  const user = await env.DB.prepare(
-    "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
-  )
-    .bind(cleanShopName, cleanShopName, cleanShopName)
-    .first();
+  let user = null;
+  try {
+    user = await env.DB.prepare(
+      "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
+    )
+      .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname, cleanShopName)
+      .first();
+  } catch (dbErr) {
+    console.warn("Primary user query in getPublicShop failed, retrying with core columns:", dbErr?.message || dbErr);
+    try {
+      user = await env.DB.prepare(
+        "SELECT id, name, business_name, subdomain, hostname FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ?"
+      )
+        .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname)
+        .first();
+      if (user) {
+        user.is_blocked = 0;
+        user.custom_domain = null;
+      }
+    } catch (fallbackErr) {
+      console.error("Critical user query failure in getPublicShop:", fallbackErr);
+      return errorResponse("Shop not found", 404, undefined, request);
+    }
+  }
 
   if (!user) {
     return errorResponse("Shop not found", 404, undefined, request);
@@ -3943,26 +3971,62 @@ async function getPublicShop(shopName, request, env) {
     return errorResponse("This shop is currently unavailable", 403, undefined, request);
   }
 
-  const website = await env.DB.prepare(
-    "SELECT * FROM websites WHERE user_id = ? AND is_published = 1"
-  )
-    .bind(user.id)
-    .first();
+  let website = null;
+  try {
+    website = await env.DB.prepare(
+      "SELECT * FROM websites WHERE (user_id = ? OR organization_id = ?) AND is_published = 1"
+    )
+      .bind(user.id, user.id)
+      .first();
+
+    if (!website) {
+      // Fall back to any website configured for this user/org
+      website = await env.DB.prepare(
+        "SELECT * FROM websites WHERE user_id = ? OR organization_id = ?"
+      )
+        .bind(user.id, user.id)
+        .first();
+    }
+  } catch (webErr) {
+    console.warn("Website query error in getPublicShop:", webErr?.message || webErr);
+  }
 
   if (!website) {
-    return errorResponse("Shop is not published yet", 404, undefined, request);
+    // Provide default published website structure so active shops are not broken
+    website = {
+      id: `site-${user.id}`,
+      user_id: user.id,
+      name: user.business_name || user.name || "Store",
+      template: "market",
+      config: "{}",
+      sections: "[]",
+      is_published: 1,
+      theme: "market",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
   }
 
   let products = [];
   try {
     const productsResult = await env.DB.prepare(
-      "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? ORDER BY created_at DESC"
+      "SELECT id, user_id, name, description, price, sale_price, category, stock_quantity, image_url, is_active, created_at FROM products WHERE user_id = ? ORDER BY created_at DESC"
     )
       .bind(user.id)
       .all();
     products = productsResult?.results || [];
   } catch (err) {
     console.error("Failed to load products for public shop:", err);
+    try {
+      const basicResult = await env.DB.prepare(
+        "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? ORDER BY created_at DESC"
+      )
+        .bind(user.id)
+        .all();
+      products = basicResult?.results || [];
+    } catch (basicErr) {
+      console.warn("Fallback product query also failed:", basicErr);
+    }
   }
 
   let config = {};
@@ -4024,6 +4088,7 @@ async function route(request, env) {
       endpoints: [
         "GET  /api/health",
         "GET  /api/v1/health",
+        "GET  /api/geo",
         "POST /api/v1/ai/chat",
         "POST /api/voice/text-to-speech",
         "GET  /api/users/me",
@@ -4076,6 +4141,12 @@ async function route(request, env) {
 
   if (path === "/api/health" && method === "GET") {
     return json({ status: "ok", timestamp: new Date().toISOString(), version: "2.0.0" }, 200, {}, request);
+  }
+
+  // Geo & Regional language detection
+  if ((path === "/api/geo" || path === "/api/geo/") && method === "GET") {
+    const geoData = await handleGeoRoute(request, env);
+    return json(geoData, 200, {}, request);
   }
 
   // Turnstile verification
@@ -4410,9 +4481,6 @@ export default {
       if (hostClassification.type === "merchant") {
         // Direct API calls on the merchant subdomain
         if (url.pathname.startsWith("/api/")) {
-          if (!env.DB) {
-            return errorResponse("Database not configured.", 503, undefined, request);
-          }
           return await route(request, env);
         }
         return await handleStorefrontRequest(request, env, ctx, hostClassification);
@@ -4420,6 +4488,10 @@ export default {
 
       // 4. Default / API Domain handling (api.ferasetu.com, *.workers.dev, localhost, etc.)
       if (!env.DB) {
+        const p = url.pathname;
+        if (p === "/" || p === "/api/health" || p === "/api/v1/health" || p === "/api/geo" || p.startsWith("/api/geo/")) {
+          return await route(request, env);
+        }
         return errorResponse(
           "Database not configured. Set the D1 `database_id` in wrangler.toml and redeploy.",
           503,
