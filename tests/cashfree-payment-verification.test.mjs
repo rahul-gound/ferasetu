@@ -210,6 +210,8 @@ function createTestDb() {
         updated_at: new Date().toISOString()
       }
     ],
+    subscriptions: [],
+    credit_transactions: [],
     ai_credit_purchases: []
   };
 
@@ -225,6 +227,18 @@ function createTestDb() {
         },
         async first() {
           const s = sql.toLowerCase().replace(/\s+/g, ' ');
+          if (s.includes('from subscriptions where user_id = ?')) {
+            const uid = this._params[0];
+            return tables.subscriptions.find(sub => sub.user_id === uid) || null;
+          }
+          if (s.includes('from subscriptions where id = ?')) {
+            const sid = this._params[0];
+            return tables.subscriptions.find(sub => sub.id === sid) || null;
+          }
+          if (s.includes('from credit_transactions where reference_id = ?')) {
+            const refId = this._params[0];
+            return tables.credit_transactions.find(ct => ct.reference_id === refId) || null;
+          }
           if (s.includes('from users where id = ?')) {
             const uid = this._params[0];
             return tables.users.find(u => u.id === uid) || null;
@@ -326,18 +340,23 @@ function createTestDb() {
           }
           if (s.includes('update users set plan = ?')) {
             const plan = this._params[0];
-            const expires = this._params[1];
-            const creditsAdd = this._params[2];
-            const creditsLimit = this._params[3];
-            const updatedAt = this._params[4];
-            const userId = this._params[5];
+            const userId = this._params[this._params.length - 1];
             const u = tables.users.find(x => x.id === userId);
             if (u) {
               u.plan = plan;
-              u.plan_expires_at = expires;
-              u.ai_credits_balance += creditsAdd;
-              u.ai_credits_monthly_limit = creditsLimit;
-              u.updated_at = updatedAt;
+              if (s.includes('trial_used')) {
+                u.trial_used = this._params[1];
+                u.trial_started_at = this._params[2];
+                u.trial_ends_at = this._params[3];
+                u.plan_expires_at = this._params[4];
+                u.cancel_at_period_end = this._params[5];
+                u.updated_at = this._params[6];
+              } else {
+                u.plan_expires_at = this._params[1];
+                u.ai_credits_balance += this._params[2];
+                u.ai_credits_monthly_limit = this._params[3];
+                u.updated_at = this._params[4];
+              }
             }
             return { success: true, meta: { changes: 1 } };
           }
@@ -401,6 +420,50 @@ function createTestDb() {
               status: this._params[5],
               created_at: this._params[6],
             });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('insert into subscriptions')) {
+            const [id, user_id, organization_id, plan, status, trial_used] = this._params;
+            tables.subscriptions.push({
+              id,
+              user_id,
+              organization_id: organization_id || null,
+              plan: plan || 'free',
+              status: status || 'free',
+              trial_used: trial_used || 0,
+              trial_started_at: this._params[6] || null,
+              trial_ends_at: this._params[7] || null,
+              current_period_start: this._params[8] || null,
+              current_period_end: this._params[9] || null,
+              cancel_at_period_end: this._params[10] || 0,
+              payment_provider: this._params[11] || null,
+              provider_order_id: this._params[12] || null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (s.includes('update subscriptions')) {
+            const uid = this._params[this._params.length - 1];
+            let sub = tables.subscriptions.find(x => x.user_id === uid);
+            if (!sub) {
+              sub = { id: `sub_${uid}`, user_id: uid };
+              tables.subscriptions.push(sub);
+            }
+            sub.organization_id = this._params[0];
+            sub.plan = this._params[1];
+            sub.status = this._params[2];
+            sub.trial_used = this._params[3];
+            sub.trial_started_at = this._params[4];
+            sub.trial_ends_at = this._params[5];
+            sub.current_period_start = this._params[6];
+            sub.current_period_end = this._params[7];
+            sub.cancel_at_period_end = this._params[8];
+            sub.payment_provider = this._params[9];
+            sub.provider_order_id = this._params[10];
+            sub.provider_payment_id = this._params[11];
+            sub.metadata = this._params[12];
+            sub.updated_at = this._params[13];
             return { success: true, meta: { changes: 1 } };
           }
           if (s.includes('insert into orders')) {
@@ -1104,6 +1167,75 @@ await test('AI credit purchase verification is fully idempotent (repeated verify
   // Credit balance MUST NOT increase again!
   const userAfter2 = db.tables.users.find(u => u.id === 'usr_in_merchant');
   assert.equal(userAfter2.ai_credits_balance, initialBalance + 250);
+});
+
+console.log('\n🔒 SUITE 9: Authoritative Subscriptions, Trial Immutability & State Machine');
+
+await test('GET /api/subscription returns authoritative status and plan matching /api/entitlements', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+
+  const subReq = new Request('https://ferasetu.com/api/subscription', {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const subRes = await worker.fetch(subReq, prodEnv);
+  assert.equal(subRes.status, 200);
+  const subData = await subRes.json();
+  assert.equal(subData.plan, 'business');
+  assert.equal(subData.status, 'active');
+  assert.equal(subData.trialUsed, true);
+  assert.equal(subData.trialEligible, false);
+
+  const entReq = new Request('https://ferasetu.com/api/entitlements', {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const entRes = await worker.fetch(entReq, prodEnv);
+  assert.equal(entRes.status, 200);
+  const entData = await entRes.json();
+  assert.equal(entData.entitlements.plan, subData.plan);
+});
+
+await test('Trial immutability: US/EU user with consumed trial cannot start another trial', async () => {
+  const token = await createAuthToken('usr_expired_trial', 'owner', 'org_workos_expired');
+
+  // Attempt to initialize a free/trial plan
+  const initReq = new Request('https://ferasetu.com/api/payment/initialize', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      plan: 'trial',
+      amount: 0
+    })
+  });
+
+  const initRes = await worker.fetch(initReq, mockEnv);
+  assert.equal(initRes.status, 403);
+  const data = await initRes.json();
+  assert.equal(data.code, 'TRIAL_ALREADY_CONSUMED');
+});
+
+await test('Downgrade/cancellation does not reset trial_used to 0', async () => {
+  const token = await createAuthToken('usr_in_merchant', 'owner', 'org_workos_in');
+
+  const cancelReq = new Request('https://ferasetu.com/api/payment/cancel-subscription', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const cancelRes = await worker.fetch(cancelReq, prodEnv);
+  assert.equal(cancelRes.status, 200);
+
+  const subReq = new Request('https://ferasetu.com/api/subscription', {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const subRes = await worker.fetch(subReq, prodEnv);
+  const subData = await subRes.json();
+  assert.equal(subData.cancelAtPeriodEnd, true);
+  assert.equal(subData.trialUsed, true);
 });
 
 console.log('\n────────────────────────────────────────────────────────────');

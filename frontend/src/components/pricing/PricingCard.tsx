@@ -76,14 +76,30 @@ export default function PricingCard({
     ? totalYearly.toLocaleString('en-IN')
     : totalYearly.toLocaleString(market === 'EU' ? 'de-DE' : 'en-US');
 
+  const { subscription } = useMarket();
+
   const getButtonLabel = () => {
     if (isCurrentPlan) return t('card.current');
     if (isFree) return isAuthenticated ? t('card.current') : plan.ctaText;
     if (!isAuthenticated) return plan.ctaText;
-    return plan.ctaText;
+
+    // Decision Matrix: If trial has already been consumed, never show trial prompt
+    if (subscription?.trialUsed) {
+      return `Upgrade to ${plan.displayName}`;
+    }
+
+    if (subscription?.trialEligible) {
+      return 'Start 14-Day Free Trial';
+    }
+
+    return plan.ctaText.replace('Start 14-Day Free Trial', `Upgrade to ${plan.displayName}`);
   };
 
-  const badgeText = plan.badge || (plan.highlighted ? t('card.popular') : null);
+  // If trial has been used, suppress '14 Days Free' badge
+  let badgeText = plan.badge || (plan.highlighted ? t('card.popular') : null);
+  if (subscription?.trialUsed && badgeText && badgeText.includes('14 Days Free')) {
+    badgeText = badgeText.replace('14 Days Free • ', '').replace('14 Days Free', '').trim() || (plan.highlighted ? t('card.popular') : null);
+  }
 
   return (
     <article

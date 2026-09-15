@@ -320,36 +320,40 @@ function resolveAuthoritativeMarket({ state, city, district, country, market, re
   return 'IN';
 }
 
-export function resolveAuthoritativeEntitlements(user, organization) {
+export function resolveAuthoritativeEntitlements(user, organization, subscription = null) {
   const market = (organization?.market || user?.market || 'IN').toUpperCase();
-  const plan = organization?.plan || user?.plan || 'free';
+  const plan = subscription?.plan || organization?.plan || user?.plan || 'free';
+  const status = subscription?.status || (plan === 'trial' ? 'trial' : plan !== 'free' ? 'active' : 'free');
   const isIndia = market === 'IN';
 
   let trialActive = false;
   let trialEndsAt = null;
   let trialDaysRemaining = 0;
 
-  if (!isIndia) {
-    const rawTrialEnds = user?.trial_ends_at || user?.plan_expires_at || organization?.trial_ends_at || organization?.plan_expires_at;
-    if (plan === 'trial' && rawTrialEnds) {
-      const endsMs = new Date(rawTrialEnds).getTime();
-      const diffDays = Math.ceil((endsMs - Date.now()) / (1000 * 60 * 60 * 24));
-      if (diffDays > 0) {
-        trialActive = true;
-        trialEndsAt = rawTrialEnds;
-        trialDaysRemaining = diffDays;
-      }
+  const rawTrialEnds = subscription?.trial_ends_at || user?.trial_ends_at || user?.plan_expires_at || organization?.trial_ends_at;
+  if ((plan === 'trial' || status === 'trial') && rawTrialEnds) {
+    const endsMs = new Date(rawTrialEnds).getTime();
+    const diffDays = Math.ceil((endsMs - Date.now()) / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) {
+      trialActive = true;
+      trialEndsAt = rawTrialEnds;
+      trialDaysRemaining = diffDays;
     }
   }
+
+  const trialUsed = Boolean(subscription ? subscription.trial_used : (user?.trial_used || organization?.trial_used || (rawTrialEnds && !trialActive)));
+  const trialEligible = !trialUsed && !isIndia;
 
   const limits = CANONICAL_PLANS[plan] || CANONICAL_PLANS.free;
 
   return {
     market,
     plan: isIndia && plan === 'trial' ? 'free' : plan,
+    status,
     isTrial: trialActive,
     trial: {
-      eligible: !isIndia,
+      used: trialUsed,
+      eligible: trialEligible,
       active: trialActive,
       endsAt: trialEndsAt,
       daysRemaining: trialDaysRemaining
@@ -1225,8 +1229,15 @@ async function getProfile(request, env) {
     role: member.role,
   } : null;
 
+  let sub = null;
+  try {
+    sub = await getAuthoritativeSubscription(me.$id, env, organization?.id);
+  } catch (sErr) {
+    console.warn("Could not query subscription in getProfile:", sErr);
+  }
+
   if (!user) {
-    const entitlements = resolveAuthoritativeEntitlements(null, organization);
+    const entitlements = resolveAuthoritativeEntitlements(null, organization, sub);
     return json({
       user: {
         id: me.$id,
@@ -1239,18 +1250,20 @@ async function getProfile(request, env) {
         entitlements,
       },
       organization,
+      subscription: sub,
       entitlements,
       has_organization: Boolean(organization),
       needs_init: !organization,
     }, 200, {}, request);
   }
 
-  const entitlements = resolveAuthoritativeEntitlements(user, organization);
+  const entitlements = resolveAuthoritativeEntitlements(user, organization, sub);
   const market = entitlements.market;
 
   return json({
     user: { ...user, market, plan: entitlements.plan, entitlements },
     organization,
+    subscription: sub,
     entitlements,
     has_organization: Boolean(organization),
   }, 200, {}, request);
@@ -1260,8 +1273,9 @@ async function getEntitlementsHandler(request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(ctx.user.$id).first();
   const org = await env.DB.prepare("SELECT * FROM organizations WHERE id = ?").bind(ctx.organizationId).first();
-  const entitlements = resolveAuthoritativeEntitlements(user, org);
-  return json({ entitlements }, 200, {}, request);
+  const sub = await getAuthoritativeSubscription(ctx.user.$id, env, ctx.organizationId);
+  const entitlements = resolveAuthoritativeEntitlements(user, org, sub);
+  return json({ entitlements, subscription: sub }, 200, {}, request);
 }
 
 
@@ -2733,6 +2747,34 @@ async function ensureTables(db) {
         updated_at TEXT NOT NULL
       );
     `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_transactions_provider_order_id ON transactions (provider_order_id);`);
+
+    // 9b. Authoritative Subscriptions Table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT UNIQUE NOT NULL,
+        organization_id TEXT,
+        plan TEXT NOT NULL DEFAULT 'free',
+        status TEXT NOT NULL DEFAULT 'free' CHECK(status IN ('free', 'trial', 'active', 'past_due', 'cancelled', 'expired', 'pending')),
+        trial_used INTEGER NOT NULL DEFAULT 0,
+        trial_started_at TEXT,
+        trial_ends_at TEXT,
+        current_period_start TEXT,
+        current_period_end TEXT,
+        cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+        payment_provider TEXT,
+        provider_order_id TEXT,
+        provider_payment_id TEXT,
+        metadata TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_subscriptions_org ON subscriptions(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_subscriptions_provider_order ON subscriptions(provider_order_id);`);
 
     // 10. Websites
     await safeExec(`
@@ -2841,6 +2883,7 @@ async function ensureTables(db) {
     await safeAddColumn('users', 'plan_expires_at TEXT');
     await safeAddColumn('users', 'trial_ends_at TEXT');
     await safeAddColumn('users', 'trial_started_at TEXT');
+    await safeAddColumn('users', 'trial_used INTEGER NOT NULL DEFAULT 0');
     await safeAddColumn('users', 'cancel_at_period_end INTEGER DEFAULT 0');
 
     await safeAddColumn('organizations', 'district TEXT');
@@ -2850,6 +2893,7 @@ async function ensureTables(db) {
     await safeAddColumn('organizations', 'state TEXT');
     await safeAddColumn('organizations', "market TEXT DEFAULT 'IN'");
     await safeAddColumn('organizations', "plan TEXT DEFAULT 'free'");
+    await safeAddColumn('organizations', 'trial_used INTEGER NOT NULL DEFAULT 0');
     await safeAddColumn('organizations', 'store_slug TEXT');
 
     // Products table schema migrations
@@ -3238,6 +3282,499 @@ const MARKET_PRICING = {
 };
 
 // ---------------------------------------------------------------------------
+// Authoritative Subscriptions Engine & State Machine
+// ---------------------------------------------------------------------------
+
+export async function healCompatibilityMirrors(sub, env) {
+  if (!sub || !sub.user_id || !env?.DB) return;
+  const now = new Date().toISOString();
+  try {
+    await env.DB.prepare(
+      `UPDATE users
+       SET plan = ?,
+           trial_used = ?,
+           trial_started_at = ?,
+           trial_ends_at = ?,
+           plan_expires_at = ?,
+           cancel_at_period_end = ?,
+           updated_at = ?
+       WHERE id = ?`
+    ).bind(
+      sub.plan || 'free',
+      sub.trial_used ? 1 : 0,
+      sub.trial_started_at || null,
+      sub.trial_ends_at || null,
+      sub.current_period_end || sub.trial_ends_at || null,
+      sub.cancel_at_period_end ? 1 : 0,
+      now,
+      sub.user_id
+    ).run();
+  } catch (uErr) {
+    console.warn("[healCompatibilityMirrors] user mirror sync warning:", uErr?.message);
+  }
+
+  if (sub.organization_id) {
+    try {
+      await env.DB.prepare(
+        `UPDATE organizations
+         SET plan = ?,
+             trial_used = ?,
+             updated_at = ?
+         WHERE id = ?`
+      ).bind(
+        sub.plan || 'free',
+        sub.trial_used ? 1 : 0,
+        now,
+        sub.organization_id
+      ).run();
+    } catch (oErr) {
+      console.warn("[healCompatibilityMirrors] org mirror sync warning:", oErr?.message);
+    }
+  }
+}
+
+export async function getAuthoritativeSubscription(userId, env, organizationId = null) {
+  if (!userId || !env?.DB) return null;
+  await ensureTables(env.DB);
+
+  let sub = null;
+  try {
+    sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(userId).first();
+  } catch (err) {
+    console.warn("[getAuthoritativeSubscription] query notice:", err?.message);
+  }
+
+  if (!sub) {
+    // Provision baseline subscription from users record or defaults
+    const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+    const now = new Date().toISOString();
+    const effectiveOrgId = organizationId || user?.organization_id || null;
+    const plan = user?.plan || 'free';
+    const trialUsed = Boolean(user?.trial_used || user?.trial_ends_at || (plan === 'trial'));
+    const status = plan === 'trial' ? 'trial' : (plan !== 'free' && plan !== 'beta' ? 'active' : 'free');
+    const subId = `sub_${crypto.randomUUID()}`;
+
+    try {
+      await env.DB.prepare(`
+        INSERT INTO subscriptions (
+          id, user_id, organization_id, plan, status, trial_used,
+          trial_started_at, trial_ends_at, current_period_start, current_period_end,
+          cancel_at_period_end, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        subId, userId, effectiveOrgId, plan, status, trialUsed ? 1 : 0,
+        user?.trial_started_at || null, user?.trial_ends_at || null,
+        user?.created_at || now, user?.plan_expires_at || null,
+        user?.cancel_at_period_end ? 1 : 0, now, now
+      ).run();
+
+      sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(subId).first();
+    } catch (createErr) {
+      // In case of race condition
+      sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(userId).first();
+    }
+  }
+
+  // Check for expired trial transition
+  if (sub && (sub.status === 'trial' || sub.plan === 'trial') && sub.trial_ends_at) {
+    const endsMs = new Date(sub.trial_ends_at).getTime();
+    if (!isNaN(endsMs) && endsMs <= Date.now()) {
+      sub = await transitionSubscription({
+        env,
+        userId,
+        event: 'SUBSCRIPTION_EXPIRED',
+        metadata: { reason: 'trial_expired_on_read' }
+      });
+    }
+  }
+
+  return sub;
+}
+
+export function getTrialEligibility(userId, subscription, market = 'IN') {
+  const isIndia = market === 'IN';
+  if (isIndia) {
+    return {
+      eligible: false,
+      trialUsed: Boolean(subscription?.trial_used),
+      permanentFreePlan: true,
+      reason: 'India market offers permanent Free plan without trials'
+    };
+  }
+
+  const trialUsed = Boolean(subscription?.trial_used);
+  if (trialUsed) {
+    return {
+      eligible: false,
+      trialUsed: true,
+      permanentFreePlan: false,
+      reason: '14-day free trial has already been consumed'
+    };
+  }
+
+  return {
+    eligible: true,
+    trialUsed: false,
+    permanentFreePlan: false,
+    reason: 'Eligible for 14-day free trial'
+  };
+}
+
+export async function transitionSubscription({
+  env,
+  userId,
+  event,
+  plan,
+  provider,
+  providerOrderId,
+  providerPaymentId,
+  periodStart,
+  periodEnd,
+  trialStartedAt,
+  trialEndsAt,
+  organizationId,
+  metadata = {}
+}) {
+  if (!userId || !env?.DB) {
+    throw new Error("Missing userId or database for subscription transition");
+  }
+  await ensureTables(env.DB);
+
+  let sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(userId).first();
+  const now = new Date().toISOString();
+
+  if (!sub) {
+    const newId = `sub_${crypto.randomUUID()}`;
+    await env.DB.prepare(`
+      INSERT INTO subscriptions (
+        id, user_id, organization_id, plan, status, trial_used, created_at, updated_at
+      ) VALUES (?, ?, ?, 'free', 'free', 0, ?, ?)
+    `).bind(newId, userId, organizationId || null, now, now).run();
+    sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(newId).first();
+  }
+
+  const effectiveOrgId = organizationId || sub.organization_id || null;
+  let nextPlan = sub.plan;
+  let nextStatus = sub.status;
+  // Rule: trial_used = 1 is immutable. Normal code can never reset it to 0.
+  let nextTrialUsed = Boolean(sub.trial_used) ? 1 : 0;
+  let nextTrialStartedAt = sub.trial_started_at;
+  let nextTrialEndsAt = sub.trial_ends_at;
+  let nextPeriodStart = sub.current_period_start;
+  let nextPeriodEnd = sub.current_period_end;
+  let nextCancelAtEnd = sub.cancel_at_period_end;
+  let nextProvider = provider || sub.payment_provider;
+  let nextOrderId = providerOrderId || sub.provider_order_id;
+  let nextPaymentId = providerPaymentId || sub.provider_payment_id;
+
+  let existingMeta = {};
+  try {
+    existingMeta = typeof sub.metadata === 'string' ? JSON.parse(sub.metadata) : (sub.metadata || {});
+  } catch {}
+  const nextMeta = { ...existingMeta, ...metadata, last_event: event, last_transition_at: now };
+
+  switch (event) {
+    case 'START_TRIAL': {
+      if (nextTrialUsed === 1) {
+        throw new HttpError("User has already consumed their 14-day free trial", 403, {
+          code: 'TRIAL_ALREADY_CONSUMED'
+        });
+      }
+      nextPlan = 'trial';
+      nextStatus = 'trial';
+      nextTrialUsed = 1;
+      nextTrialStartedAt = trialStartedAt || now;
+      nextTrialEndsAt = trialEndsAt || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+      nextPeriodStart = nextTrialStartedAt;
+      nextPeriodEnd = nextTrialEndsAt;
+      break;
+    }
+
+    case 'PAYMENT_PENDING': {
+      nextProvider = provider || 'cashfree';
+      nextOrderId = providerOrderId || nextOrderId;
+      nextMeta.pending_target_plan = plan || nextPlan;
+      break;
+    }
+
+    case 'PAYMENT_CONFIRMED': {
+      nextPlan = plan || nextMeta.pending_target_plan || 'business';
+      nextStatus = 'active';
+      nextTrialUsed = 1; // User has converted to paid, mark trial used
+      nextProvider = provider || 'cashfree';
+      nextOrderId = providerOrderId || nextOrderId;
+      nextPaymentId = providerPaymentId || nextPaymentId;
+      nextPeriodStart = periodStart || now;
+      nextPeriodEnd = periodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      nextCancelAtEnd = 0;
+      delete nextMeta.pending_target_plan;
+      break;
+    }
+
+    case 'PAYMENT_FAILED': {
+      // Keep existing plan & status, record failure in metadata
+      nextMeta.last_payment_failed_at = now;
+      break;
+    }
+
+    case 'SUBSCRIPTION_CANCELLED': {
+      nextCancelAtEnd = 1;
+      break;
+    }
+
+    case 'SUBSCRIPTION_RESUMED': {
+      nextCancelAtEnd = 0;
+      break;
+    }
+
+    case 'SUBSCRIPTION_EXPIRED': {
+      nextPlan = 'free';
+      nextStatus = 'expired';
+      break;
+    }
+
+    case 'ADMIN_REPAIR': {
+      if (plan !== undefined) nextPlan = plan;
+      if (metadata.status !== undefined) nextStatus = metadata.status;
+      if (metadata.trial_used !== undefined) nextTrialUsed = metadata.trial_used ? 1 : 0;
+      if (periodStart !== undefined) nextPeriodStart = periodStart;
+      if (periodEnd !== undefined) nextPeriodEnd = periodEnd;
+      if (provider !== undefined) nextProvider = provider;
+      if (providerOrderId !== undefined) nextOrderId = providerOrderId;
+      if (providerPaymentId !== undefined) nextPaymentId = providerPaymentId;
+      break;
+    }
+
+    default:
+      throw new Error(`Unknown subscription transition event: ${event}`);
+  }
+
+  await env.DB.prepare(`
+    UPDATE subscriptions
+    SET organization_id = ?,
+        plan = ?,
+        status = ?,
+        trial_used = ?,
+        trial_started_at = ?,
+        trial_ends_at = ?,
+        current_period_start = ?,
+        current_period_end = ?,
+        cancel_at_period_end = ?,
+        payment_provider = ?,
+        provider_order_id = ?,
+        provider_payment_id = ?,
+        metadata = ?,
+        updated_at = ?
+    WHERE user_id = ?
+  `).bind(
+    effectiveOrgId,
+    nextPlan,
+    nextStatus,
+    nextTrialUsed,
+    nextTrialStartedAt,
+    nextTrialEndsAt,
+    nextPeriodStart,
+    nextPeriodEnd,
+    nextCancelAtEnd,
+    nextProvider,
+    nextOrderId,
+    nextPaymentId,
+    JSON.stringify(nextMeta),
+    now,
+    userId
+  ).run();
+
+  const updatedSub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(userId).first();
+
+  // Heal compatibility mirrors in users & organizations synchronously
+  await healCompatibilityMirrors(updatedSub, env);
+
+  return updatedSub;
+}
+
+export async function handleSuccessfulCashfreePayment(paymentContext) {
+  const {
+    env,
+    orderId,
+    paymentId,
+    amount,
+    currency,
+    tx,
+    source = 'unknown'
+  } = paymentContext;
+
+  if (!tx) {
+    throw new HttpError("Transaction record missing for Cashfree payment activation", 404);
+  }
+
+  const now = new Date().toISOString();
+
+  // If already completed and user subscription is already active with this order, return existing state idempotently
+  if (tx.status === 'completed') {
+    const existingSub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(tx.user_id).first();
+    if (existingSub && existingSub.provider_order_id === orderId && existingSub.status === 'active') {
+      return {
+        success: true,
+        plan: existingSub.plan,
+        subscription: existingSub,
+        alreadyProcessed: true,
+        message: `Payment already processed and plan active: ${existingSub.plan}`
+      };
+    }
+  }
+
+  let txMeta = {};
+  try {
+    txMeta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : (tx.metadata || {});
+  } catch {}
+
+  const isAiCredits = txMeta.type === 'ai_credits' || tx.plan === 'credits';
+  const isExtraStorage = txMeta.type === 'extra_storage';
+
+  // Mark transaction completed
+  await env.DB.prepare(`
+    UPDATE transactions
+    SET status = 'completed',
+        provider_payment_id = ?,
+        metadata = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).bind(
+    paymentId || tx.provider_payment_id || null,
+    JSON.stringify({
+      ...txMeta,
+      provider: 'cashfree',
+      cashfree_order_id: orderId,
+      cf_payment_id: paymentId || null,
+      verified_via: source,
+      verified_at: now
+    }),
+    now,
+    tx.id
+  ).run();
+
+  if (isAiCredits) {
+    const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
+    const existingTx = await env.DB.prepare(
+      "SELECT id FROM credit_transactions WHERE reference_id = ?"
+    ).bind(paymentId || tx.id).first();
+
+    if (existingTx) {
+      return {
+        success: true,
+        type: 'ai_credits',
+        creditsAdded: 0,
+        alreadyProcessed: true,
+        message: "Credit payment already processed"
+      };
+    }
+
+    const userRow = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(tx.user_id).first();
+    const currentBalance = Number(userRow?.ai_credits_balance || 0);
+    const balanceAfter = currentBalance + credits;
+
+    try {
+      await env.DB.prepare(`
+        INSERT INTO credit_transactions (id, organization_id, user_id, purchase_id, type, amount, balance_after, reference_id, metadata, created_at)
+        VALUES (?, ?, ?, ?, 'purchase', ?, ?, ?, ?, ?)
+      `).bind(
+        `ctx_${crypto.randomUUID()}`, tx.organization_id || tx.user_id, tx.user_id, txMeta.purchaseId || tx.id,
+        credits, balanceAfter, paymentId || tx.id, JSON.stringify({ gateway: 'cashfree', order_id: orderId, source }), now
+      ).run();
+    } catch {}
+
+    try {
+      await env.DB.prepare(
+        "UPDATE credit_purchases SET status = 'paid', payment_id = ?, updated_at = ? WHERE id = ? OR gateway_order_id = ?"
+      ).bind(paymentId || tx.id, now, txMeta.purchaseId || tx.id, orderId).run();
+    } catch {}
+
+    try {
+      if (txMeta.purchaseId) {
+        await env.DB.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
+      }
+    } catch {}
+
+    await env.DB.prepare("UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?")
+      .bind(credits, now, tx.user_id).run();
+
+    return {
+      success: true,
+      type: 'ai_credits',
+      creditsAdded: credits,
+      balance: balanceAfter,
+      message: `Added ${credits} AI credits successfully`
+    };
+  }
+
+  if (isExtraStorage) {
+    const gb = txMeta.gb || 1;
+    const bytes = txMeta.bytes || (gb * 1024 * 1024 * 1024);
+    try {
+      if (txMeta.purchaseId) {
+        await env.DB.prepare("UPDATE storage_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
+      }
+    } catch {}
+    await env.DB.prepare("UPDATE users SET storage_limit_bytes = COALESCE(storage_limit_bytes, 52428800) + ?, updated_at = ? WHERE id = ?")
+      .bind(bytes, now, tx.user_id).run();
+    return {
+      success: true,
+      type: 'extra_storage',
+      gbAdded: gb,
+      message: `Added ${gb}GB storage successfully`
+    };
+  }
+
+  // Authoritative Subscription Activation
+  const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
+  const periodEnd = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+  const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
+
+  const updatedSub = await transitionSubscription({
+    env,
+    userId: tx.user_id,
+    organizationId: tx.organization_id || null,
+    event: 'PAYMENT_CONFIRMED',
+    plan: tx.plan,
+    provider: 'cashfree',
+    providerOrderId: orderId,
+    providerPaymentId: paymentId || tx.provider_payment_id || null,
+    periodStart: now,
+    periodEnd,
+    metadata: {
+      transaction_id: tx.id,
+      amount: amount || tx.amount,
+      currency: currency || tx.currency,
+      verified_via: source
+    }
+  });
+
+  // Top up AI credits on plan upgrade
+  try {
+    await env.DB.prepare(`
+      UPDATE users
+      SET ai_credits_balance = ai_credits_balance + ?,
+          ai_credits_monthly_limit = ?,
+          ai_credits_used_month = 0,
+          ai_credits_reset_at = datetime('now', '+30 days'),
+          updated_at = ?
+      WHERE id = ?
+    `).bind(credits, credits, now, tx.user_id).run();
+  } catch (crErr) {
+    console.warn("[handleSuccessfulCashfreePayment] AI credits topup note:", crErr?.message);
+  }
+
+  console.log(`[handleSuccessfulCashfreePayment] subscription_activated: user=${tx.user_id} plan=${updatedSub.plan} order=${orderId} source=${source}`);
+
+  return {
+    success: true,
+    plan: updatedSub.plan,
+    subscription: updatedSub,
+    message: `Plan activated: ${updatedSub.plan}`
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Payment Endpoints
 // ---------------------------------------------------------------------------
 function classifyCashfreeError(status, errText) {
@@ -3283,6 +3820,8 @@ async function handlePaymentInitialize(request, env) {
   const market = ['IN', 'US', 'EU'].includes(userMarket) ? userMarket : 'IN';
   const marketConfig = MARKET_PRICING[market];
 
+  const sub = await getAuthoritativeSubscription(me.$id, env, orgId);
+
   const rawPlan = body.plan;
   const targetPlan = normalizePlan(rawPlan, market);
   if (!targetPlan) {
@@ -3296,7 +3835,14 @@ async function handlePaymentInitialize(request, env) {
     let planExpiresAt = null;
 
     if (!marketConfig.permanentFreePlan) {
-      // US and EU markets: No permanent free plan allowed. Must enforce 14-day trial.
+      // Non-India markets require 14-day trial; verify trial eligibility
+      const eligibility = getTrialEligibility(me.$id, sub, market);
+      if (!eligibility.eligible) {
+        throw new HttpError("You have already consumed your 14-day free trial. Please select a paid plan to continue.", 403, {
+          code: 'TRIAL_ALREADY_CONSUMED'
+        });
+      }
+
       finalPlan = 'trial';
       planExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
     }
@@ -3328,21 +3874,36 @@ async function handlePaymentInitialize(request, env) {
 
     const credits = CANONICAL_PLANS[finalPlan === 'trial' ? 'free' : finalPlan]?.monthlyCredits || 20;
 
+    // Transition authoritative subscription
+    if (finalPlan === 'trial') {
+      await transitionSubscription({
+        env,
+        userId: me.$id,
+        organizationId: orgId,
+        event: 'START_TRIAL',
+        trialStartedAt: now,
+        trialEndsAt: planExpiresAt,
+        metadata: { activated_via: 'payment_initialize', market }
+      });
+    } else {
+      await transitionSubscription({
+        env,
+        userId: me.$id,
+        organizationId: orgId,
+        event: 'ADMIN_REPAIR',
+        plan: 'free',
+        metadata: { status: 'free', activated_via: 'payment_initialize', market }
+      });
+    }
+
     await env.DB.prepare(
       `UPDATE users
-       SET plan = ?, plan_expires_at = ?,
-           ai_credits_balance = ai_credits_balance + ?,
+       SET ai_credits_balance = ai_credits_balance + ?,
            ai_credits_monthly_limit = ?,
            ai_credits_reset_at = datetime('now', '+30 days'),
            updated_at = ?
        WHERE id = ?`
-    ).bind(finalPlan, planExpiresAt, credits, credits, now, me.$id).run();
-
-    if (orgId) {
-      try {
-        await env.DB.prepare("UPDATE organizations SET plan = ?, updated_at = ? WHERE id = ?").bind(finalPlan, now, orgId).run();
-      } catch {}
-    }
+    ).bind(credits, credits, now, me.$id).run();
 
     return json({
       success: true,
@@ -3419,6 +3980,7 @@ async function handlePaymentInitialize(request, env) {
           },
           order_meta: {
             return_url: `${requestOrigin}/upgrade?order_id=${transactionId}`,
+            notify_url: `${requestOrigin}/api/payment/webhook`,
           },
           order_note: `FeraSetu ${targetPlan} plan (${billingCycle})`,
         }),
@@ -3484,6 +4046,18 @@ async function handlePaymentInitialize(request, env) {
         JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }), now, now
       ).run();
     }
+
+    // Mark subscription pending payment
+    await transitionSubscription({
+      env,
+      userId: me.$id,
+      organizationId: orgId,
+      event: 'PAYMENT_PENDING',
+      plan: targetPlan,
+      provider: 'cashfree',
+      providerOrderId: cfOrder.order_id || transactionId,
+      metadata: { billingCycle, amount: effectiveAmount, currency: marketConfig.currency }
+    });
 
     return json({
       success: true,
@@ -3676,6 +4250,21 @@ async function handlePaymentVerify(request, env) {
       throw new HttpError("Payment currency mismatch between gateway and transaction record", 400);
     }
     verifiedPaymentId = cfData.cf_order_id || orderIdentifier;
+
+    const activationResult = await handleSuccessfulCashfreePayment({
+      env,
+      orderId: orderIdentifier,
+      paymentId: verifiedPaymentId,
+      amount: Number(cfData.order_amount),
+      currency: cfData.order_currency || tx.currency,
+      tx,
+      source: 'verify_endpoint'
+    });
+
+    return json({
+      ...activationResult,
+      already_processed: activationResult.alreadyProcessed || false,
+    }, 200, {}, request);
   } else if (effectiveProvider === 'stripe' || Boolean(stripe_session_id || stripeSessionId)) {
     // Bug 1 FIX: prevent dummy session IDs from activating paid plans
     const sessionId = stripe_session_id || stripeSessionId || tx.provider_order_id;
@@ -3947,97 +4536,15 @@ async function handlePaymentWebhook(request, env) {
         throw new HttpError("Payment amount mismatch", 400);
       }
 
-      const now = new Date().toISOString();
-
-      let txMeta = {};
-      try {
-        txMeta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : (tx.metadata || {});
-      } catch {}
-
-      const isAiCredits = txMeta.type === 'ai_credits' || tx.plan === 'credits';
-      const isExtraStorage = txMeta.type === 'extra_storage';
-
-      await env.DB.prepare(
-        `UPDATE transactions
-         SET status = 'completed', provider_payment_id = ?, metadata = ?, updated_at = ?
-         WHERE id = ?`
-      ).bind(
-        paymentData?.cf_payment_id ? String(paymentData.cf_payment_id) : null,
-        JSON.stringify({
-          ...txMeta,
-          provider: 'cashfree',
-          cashfree_order_id: orderId,
-          cf_payment_id: paymentData?.cf_payment_id || null,
-          webhook_verified: true,
-          verified_at: now
-        }),
-        now,
-        tx.id
-      ).run();
-
-      if (isAiCredits) {
-        const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
-        const userRow = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(tx.user_id).first();
-        const currentBalance = Number(userRow?.ai_credits_balance || 0);
-        const balanceAfter = currentBalance + credits;
-
-        try {
-          await env.DB.prepare(`
-            INSERT INTO credit_transactions (id, organization_id, user_id, purchase_id, type, amount, balance_after, reference_id, metadata, created_at)
-            VALUES (?, ?, ?, ?, 'purchase', ?, ?, ?, ?, ?)
-          `).bind(
-            `ctx_${crypto.randomUUID()}`, tx.organization_id || tx.user_id, tx.user_id, txMeta.purchaseId || tx.id,
-            credits, balanceAfter, paymentId, JSON.stringify({ gateway: 'cashfree', webhook: true }), now
-          ).run();
-        } catch {}
-
-        try {
-          await env.DB.prepare(
-            "UPDATE credit_purchases SET status = 'paid', payment_id = ?, updated_at = ? WHERE id = ? OR gateway_order_id = ?"
-          ).bind(paymentId, now, txMeta.purchaseId || tx.id, orderId).run();
-        } catch {}
-
-        try {
-          if (txMeta.purchaseId) {
-            await env.DB.prepare("UPDATE ai_credit_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
-          }
-        } catch {}
-
-        await env.DB.prepare("UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?")
-          .bind(credits, now, tx.user_id).run();
-      } else if (isExtraStorage) {
-        const gb = txMeta.gb || 1;
-        const bytes = txMeta.bytes || (gb * 1024 * 1024 * 1024);
-        try {
-          if (txMeta.purchaseId) {
-            await env.DB.prepare("UPDATE storage_purchases SET status = 'completed' WHERE id = ?").bind(txMeta.purchaseId).run();
-          }
-        } catch {}
-        await env.DB.prepare("UPDATE users SET storage_limit_bytes = COALESCE(storage_limit_bytes, 52428800) + ?, updated_at = ? WHERE id = ?")
-          .bind(bytes, now, tx.user_id).run();
-      } else {
-        const planDays = tx.billing_cycle === 'yearly' ? 365 : 30;
-        const planExpiresAt = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
-        const credits = CANONICAL_PLANS[tx.plan]?.monthlyCredits || 200;
-
-        await env.DB.prepare(
-          `UPDATE users
-           SET plan = ?,
-               plan_expires_at = ?,
-               ai_credits_balance = ai_credits_balance + ?,
-               ai_credits_monthly_limit = ?,
-               ai_credits_used_month = 0,
-               ai_credits_reset_at = datetime('now', '+30 days'),
-               updated_at = ?
-           WHERE id = ?`
-        ).bind(tx.plan, planExpiresAt, credits, credits, now, tx.user_id).run();
-
-        if (tx.organization_id) {
-          try {
-            await env.DB.prepare("UPDATE organizations SET plan = ?, updated_at = ? WHERE id = ?").bind(tx.plan, now, tx.organization_id).run();
-          } catch {}
-        }
-      }
+      await handleSuccessfulCashfreePayment({
+        env,
+        orderId,
+        paymentId,
+        amount,
+        currency: tx.currency,
+        tx,
+        source: 'cashfree_webhook'
+      });
     }
   }
 
@@ -4340,25 +4847,55 @@ async function handleVoiceTextToSpeech(request, env) {
   }
 }
 
+async function handleGetSubscription(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+  const user = await env.DB.prepare("SELECT market, state, city FROM users WHERE id = ?").bind(me.$id).first();
+  const market = user?.market || resolveAuthoritativeMarket({ state: user?.state, city: user?.city, request }) || 'IN';
+  const sub = await getAuthoritativeSubscription(me.$id, env);
+  const eligibility = getTrialEligibility(me.$id, sub, market);
+
+  return json({
+    plan: sub?.plan || 'free',
+    status: sub?.status || 'free',
+    trialUsed: Boolean(sub?.trial_used),
+    trialEligible: eligibility.eligible,
+    trialStartedAt: sub?.trial_started_at || null,
+    trialEndsAt: sub?.trial_ends_at || null,
+    currentPeriodStart: sub?.current_period_start || null,
+    currentPeriodEnd: sub?.current_period_end || null,
+    cancelAtPeriodEnd: Boolean(sub?.cancel_at_period_end),
+    paymentProvider: sub?.payment_provider || null,
+    providerOrderId: sub?.provider_order_id || null,
+    subscription: sub,
+  }, 200, {}, request);
+}
+
 async function handleCancelSubscription(request, env) {
   const me = await getAuthenticatedUser(request, env);
-  const now = new Date().toISOString();
-  await env.DB.prepare("UPDATE users SET cancel_at_period_end = 1, updated_at = ? WHERE id = ?").bind(now, me.$id).run();
-  const user = await env.DB.prepare("SELECT plan_expires_at FROM users WHERE id = ?").bind(me.$id).first();
+  const updatedSub = await transitionSubscription({
+    env,
+    userId: me.$id,
+    event: 'SUBSCRIPTION_CANCELLED'
+  });
   return json({
     success: true,
     message: "Subscription renewal cancelled. Access continues until billing period ends.",
-    plan_expires_at: user?.plan_expires_at
+    plan_expires_at: updatedSub.current_period_end,
+    subscription: updatedSub,
   }, 200, {}, request);
 }
 
 async function handleResumeSubscription(request, env) {
   const me = await getAuthenticatedUser(request, env);
-  const now = new Date().toISOString();
-  await env.DB.prepare("UPDATE users SET cancel_at_period_end = 0, updated_at = ? WHERE id = ?").bind(now, me.$id).run();
+  const updatedSub = await transitionSubscription({
+    env,
+    userId: me.$id,
+    event: 'SUBSCRIPTION_RESUMED'
+  });
   return json({
     success: true,
-    message: "Subscription renewal resumed."
+    message: "Subscription renewal resumed.",
+    subscription: updatedSub,
   }, 200, {}, request);
 }
 
@@ -6958,7 +7495,10 @@ async function route(request, env) {
     return handlePaymentHistory(request, env);
   }
 
-  // Entitlements
+  // Subscription & Entitlements
+  if (path === "/api/subscription" && method === "GET") {
+    return handleGetSubscription(request, env);
+  }
   if (path === "/api/entitlements" && method === "GET") {
     return getEntitlementsHandler(request, env);
   }

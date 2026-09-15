@@ -16,11 +16,18 @@ export async function resolveSellablePrice(db, { shopId, productId, variantId })
 
   // 1. Fetch product record scoped to shop / org
   const product = await db.prepare(
-    `SELECT id, shop_id, organization_id, name, title, status, currency,
-            price_minor, compare_at_price_minor, cost_price_minor, price, sale_price,
-            is_inventory_tracked, stock, stock_quantity
+    `SELECT id, shop_id, organization_id, name,
+            COALESCE(title, name) AS title,
+            COALESCE(status, 'active') AS status,
+            COALESCE(currency, 'INR') AS currency,
+            COALESCE(price_minor, CAST(ROUND(COALESCE(sale_price, price, 0) * 100) AS INTEGER), 0) AS price_minor,
+            compare_at_price_minor, cost_price_minor,
+            price, sale_price,
+            COALESCE(is_inventory_tracked, 1) AS is_inventory_tracked,
+            COALESCE(stock, 0) AS stock,
+            COALESCE(stock_quantity, 0) AS stock_quantity
      FROM products 
-     WHERE id = ? AND (shop_id = ? OR organization_id = ?)`
+     WHERE id = ? AND (shop_id = ? OR organization_id = ? OR (shop_id IS NULL AND organization_id IS NULL))`
   ).bind(productId, shopId, shopId).first();
 
   if (!product) {

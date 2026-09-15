@@ -54,7 +54,7 @@ function loadRazorpayScript(): Promise<boolean> {
 export default function UpgradePage() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
-  const { market, config, subscription } = useMarket();
+  const { market, config, subscription, refreshSubscription } = useMarket();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [upgrading, setUpgrading] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -84,6 +84,7 @@ export default function UpgradePage() {
 
         if (verifyRes.data.success) {
           toast.success(verifyRes.data.message || 'Payment verified and plan activated!', { id: toastId });
+          if (refreshSubscription) await refreshSubscription();
           if (updateUser) await updateUser({ plan: verifyRes.data.plan });
           // Clean URL parameter
           window.history.replaceState({}, '', window.location.pathname);
@@ -100,7 +101,7 @@ export default function UpgradePage() {
 
     verifyCashfree();
     return () => { isMounted = false; };
-  }, [user, updateUser, navigate]);
+  }, [user, updateUser, refreshSubscription, navigate]);
 
   const handleSelectPlan = async (plan: PlanDefinition) => {
     if (!user) { navigate('/login'); return; }
