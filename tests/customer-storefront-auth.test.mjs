@@ -314,6 +314,17 @@ function createMockD1() {
             return col ? o[col] : { ...o };
           }
 
+          if (s.includes('from products')) {
+            const prodId = this._params.find(p => tables.products.some(x => x.id === p));
+            if (prodId) {
+              const p = tables.products.find(x => x.id === prodId);
+              return col ? p[col] : { ...p };
+            }
+            const p = tables.products.find(x => this._params.includes(x.organization_id));
+            if (p) return col ? p[col] : { ...p };
+            return null;
+          }
+
           return null;
         },
         async all() {

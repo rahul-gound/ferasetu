@@ -6,6 +6,7 @@ import {
   Plus, Search, Edit2, Trash2, X, Upload, Package,
   AlertTriangle, ChevronDown, ToggleLeft, ToggleRight,
   Download, Sparkles, Check, ArrowRight, ShieldCheck,
+  Layers, Tag,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +15,27 @@ import UpgradePrompt from '../components/ui/UpgradePrompt';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getPlanLimits, normalizePlanId, hasReachedProductLimit } from '../config/plans';
 
+interface ProductOption {
+  id?: string;
+  name: string;
+  values: string[];
+}
+
+interface ProductVariant {
+  id?: string;
+  title: string;
+  price?: number | string;
+  compare_at_price?: number | string | null;
+  cost_price?: number | string | null;
+  price_minor?: number;
+  compare_at_price_minor?: number | null;
+  cost_price_minor?: number | null;
+  sku?: string;
+  barcode?: string;
+  status: 'active' | 'draft' | 'archived';
+  option_values?: Record<string, string>;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -21,10 +43,19 @@ interface Product {
   cost_price?: number;
   price: number;
   sale_price?: number;
+  price_minor?: number;
+  compare_at_price_minor?: number;
+  cost_price_minor?: number;
   category: string;
   stock_quantity: number;
   image_url?: string;
   is_active: boolean;
+  status?: 'active' | 'draft' | 'archived';
+  sku?: string;
+  barcode?: string;
+  has_variants?: boolean;
+  variants?: ProductVariant[];
+  options?: ProductOption[];
   created_at: string;
 }
 
@@ -38,6 +69,21 @@ interface ProductForm {
   stock_quantity: string;
   image_url: string;
   is_active: boolean;
+  status: 'active' | 'draft' | 'archived';
+  sku: string;
+  barcode: string;
+  options: { id?: string; name: string; valuesStr: string }[];
+  variants: {
+    id?: string;
+    title: string;
+    price: string;
+    compare_at_price: string;
+    cost_price: string;
+    sku: string;
+    barcode: string;
+    status: 'active' | 'draft' | 'archived';
+    option_values: Record<string, string>;
+  }[];
 }
 
 const CATEGORIES = ['Grocery', 'Fashion', 'Electronics', 'Food & Beverages', 'Medical', 'Home & Kitchen', 'Sports', 'Beauty', 'Books', 'Other'];
@@ -70,10 +116,12 @@ export default function ProductsPage() {
     }
   }, [searchParams]);
   const [category, setCategory] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all');
   const [showModal, setShowModal] = useState(false);
   const [showGrowthModal, setShowGrowthModal] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -81,14 +129,17 @@ export default function ProductsPage() {
   const emptyForm: ProductForm = {
     name: '', description: '', cost_price: '', price: '', sale_price: '',
     category: '', stock_quantity: '', image_url: '', is_active: true,
+    status: 'active', sku: '', barcode: '', options: [], variants: []
   };
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ['products'],
+    queryKey: ['products', statusFilter],
     queryFn: async () => {
-      const res = await api.get('/products');
+      const res = await api.get('/products', {
+        params: statusFilter !== 'all' ? { status: statusFilter } : undefined
+      });
       return res.data.products || res.data;
     },
   });
@@ -100,7 +151,7 @@ export default function ProductsPage() {
     }
     setExportingCsv(true);
     try {
-      const headers = ['ID', 'Product Name', 'Category', 'Price', 'Sale Price', 'Cost Price', 'Stock Quantity', 'Status', 'Image URL', 'Created At'];
+      const headers = ['ID', 'Product Name', 'Category', 'Price', 'Sale Price', 'Cost Price', 'Stock Quantity', 'Status', 'SKU', 'Barcode', 'Variants Count', 'Image URL', 'Created At'];
       const rows = products.map(p => [
         `"${p.id}"`,
         `"${(p.name || '').replace(/"/g, '""')}"`,
@@ -109,7 +160,10 @@ export default function ProductsPage() {
         p.sale_price ?? '',
         p.cost_price ?? '',
         p.stock_quantity ?? 0,
-        p.is_active ? 'Active' : 'Inactive',
+        p.status || (p.is_active ? 'active' : 'archived'),
+        `"${(p.sku || '').replace(/"/g, '""')}"`,
+        `"${(p.barcode || '').replace(/"/g, '""')}"`,
+        p.variants?.length ?? (p.has_variants ? 'Yes' : '0'),
         `"${(p.image_url || '').replace(/"/g, '""')}"`,
         `"${p.created_at || ''}"`
       ]);
@@ -154,7 +208,9 @@ export default function ProductsPage() {
   });
 
   const filtered = products.filter(p => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
+      (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()));
     const matchCat = !category || p.category === category;
     return matchSearch && matchCat;
   });
@@ -173,17 +229,186 @@ export default function ProductsPage() {
     setShowModal(true);
   };
 
-  const openEdit = (p: Product) => {
+  const openEdit = async (p: Product) => {
     setEditProduct(p);
-    setForm({
-      name: p.name, description: p.description || '',
-      cost_price: p.cost_price ? String(p.cost_price) : '',
-      price: String(p.price), sale_price: p.sale_price ? String(p.sale_price) : '',
-      category: p.category, stock_quantity: String(p.stock_quantity),
-      image_url: p.image_url || '', is_active: p.is_active,
-    });
     setImagePreview(p.image_url || '');
     setShowModal(true);
+    setLoadingDetails(true);
+
+    try {
+      const res = await api.get(`/products/${p.id}`);
+      const fullProd = res.data.product || res.data;
+      const opts = (fullProd.options || []).map((o: any) => ({
+        id: o.id,
+        name: o.name || '',
+        valuesStr: Array.isArray(o.values) ? o.values.join(', ') : '',
+      }));
+      const vars = (fullProd.variants || []).map((v: any) => ({
+        id: v.id,
+        title: v.title || '',
+        price: v.price != null ? String(v.price) : (v.price_minor ? String(v.price_minor / 100) : ''),
+        compare_at_price: v.compare_at_price != null ? String(v.compare_at_price) : (v.compare_at_price_minor ? String(v.compare_at_price_minor / 100) : ''),
+        cost_price: v.cost_price != null ? String(v.cost_price) : (v.cost_price_minor ? String(v.cost_price_minor / 100) : ''),
+        sku: v.sku || '',
+        barcode: v.barcode || '',
+        status: (v.status || 'active') as 'active' | 'draft' | 'archived',
+        option_values: v.option_values || {},
+      }));
+
+      setForm({
+        name: fullProd.name || '',
+        description: fullProd.description || '',
+        cost_price: fullProd.cost_price ? String(fullProd.cost_price) : '',
+        price: String(fullProd.price ?? ''),
+        sale_price: fullProd.sale_price ? String(fullProd.sale_price) : '',
+        category: fullProd.category || '',
+        stock_quantity: String(fullProd.stock_quantity ?? fullProd.stock ?? 0),
+        image_url: fullProd.image_url || '',
+        is_active: fullProd.is_active !== false,
+        status: (fullProd.status || (fullProd.is_active ? 'active' : 'draft')) as 'active' | 'draft' | 'archived',
+        sku: fullProd.sku || '',
+        barcode: fullProd.barcode || '',
+        options: opts,
+        variants: vars,
+      });
+    } catch (err) {
+      console.warn('Failed to load full product details, falling back:', err);
+      setForm({
+        name: p.name,
+        description: p.description || '',
+        cost_price: p.cost_price ? String(p.cost_price) : '',
+        price: String(p.price),
+        sale_price: p.sale_price ? String(p.sale_price) : '',
+        category: p.category,
+        stock_quantity: String(p.stock_quantity),
+        image_url: p.image_url || '',
+        is_active: p.is_active,
+        status: (p.status || (p.is_active ? 'active' : 'draft')) as 'active' | 'draft' | 'archived',
+        sku: p.sku || '',
+        barcode: p.barcode || '',
+        options: [],
+        variants: [],
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Option handlers
+  const handleAddOption = () => {
+    setForm(f => ({
+      ...f,
+      options: [...f.options, { name: '', valuesStr: '' }]
+    }));
+  };
+
+  const handleRemoveOption = (index: number) => {
+    setForm(f => ({
+      ...f,
+      options: f.options.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleOptionChange = (index: number, field: 'name' | 'valuesStr', val: string) => {
+    setForm(f => {
+      const next = [...f.options];
+      next[index] = { ...next[index], [field]: val };
+      return { ...f, options: next };
+    });
+  };
+
+  // Generate Cartesian matrix of variants from options
+  const handleGenerateVariants = () => {
+    const activeOpts = form.options
+      .map(o => ({
+        name: o.name.trim(),
+        values: o.valuesStr.split(',').map(s => s.trim()).filter(Boolean)
+      }))
+      .filter(o => o.name && o.values.length > 0);
+
+    if (activeOpts.length === 0) {
+      toast.error('Add at least one option with values (e.g. Size: S, M, L) before generating variants.');
+      return;
+    }
+
+    const cartesian = (arrays: string[][]): string[][] => {
+      return arrays.reduce((acc, curr) => {
+        return acc.flatMap(a => curr.map(c => [...a, c]));
+      }, [[]] as string[][]);
+    };
+
+    const optValues = activeOpts.map(o => o.values);
+    const combinations = cartesian(optValues);
+
+    const baseSku = form.sku ? form.sku.trim().toUpperCase() : '';
+
+    const newVariants = combinations.map(combo => {
+      const optionMap: Record<string, string> = {};
+      combo.forEach((val, idx) => {
+        optionMap[activeOpts[idx].name] = val;
+      });
+      const title = combo.join(' / ');
+
+      // Keep existing variant details if already present
+      const existing = form.variants.find(v => v.title === title);
+      if (existing) {
+        return {
+          ...existing,
+          option_values: optionMap
+        };
+      }
+
+      const comboSku = combo.map(c => c.replace(/\s+/g, '').toUpperCase()).join('-');
+      const suggestedSku = baseSku ? `${baseSku}-${comboSku}` : '';
+
+      return {
+        title,
+        price: form.price || '',
+        compare_at_price: form.sale_price || '',
+        cost_price: form.cost_price || '',
+        sku: suggestedSku,
+        barcode: '',
+        status: 'active' as const,
+        option_values: optionMap,
+      };
+    });
+
+    setForm(f => ({ ...f, variants: newVariants }));
+    toast.success(`Generated ${newVariants.length} variants!`);
+  };
+
+  const handleAddCustomVariant = () => {
+    setForm(f => ({
+      ...f,
+      variants: [
+        ...f.variants,
+        {
+          title: `Custom Variant ${f.variants.length + 1}`,
+          price: f.price || '',
+          compare_at_price: f.sale_price || '',
+          cost_price: f.cost_price || '',
+          sku: form.sku ? `${form.sku}-V${f.variants.length + 1}` : '',
+          barcode: '',
+          status: 'active' as const,
+          option_values: {},
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    setForm(f => ({
+      ...f,
+      variants: f.variants.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleVariantChange = (index: number, field: string, value: any) => {
+    setForm(f => {
+      const next = [...f.variants];
+      next[index] = { ...next[index], [field]: value };
+      return { ...f, variants: next };
+    });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,6 +465,27 @@ export default function ProductsPage() {
 
     setSaving(true);
     try {
+      const parsedOptions = form.options
+        .map((o, idx) => ({
+          id: o.id,
+          name: o.name.trim(),
+          position: idx,
+          values: o.valuesStr.split(',').map(s => s.trim()).filter(Boolean)
+        }))
+        .filter(o => o.name && o.values.length > 0);
+
+      const parsedVariants = form.variants.map(v => ({
+        id: v.id,
+        title: v.title.trim() || 'Default',
+        price: v.price ? parseFloat(v.price) : parseFloat(form.price),
+        compare_at_price: v.compare_at_price ? parseFloat(v.compare_at_price) : null,
+        cost_price: v.cost_price ? parseFloat(v.cost_price) : null,
+        sku: v.sku?.trim() || null,
+        barcode: v.barcode?.trim() || null,
+        status: v.status || 'active',
+        option_values: v.option_values || {},
+      }));
+
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
@@ -249,7 +495,12 @@ export default function ProductsPage() {
         category: form.category,
         stock_quantity: parseInt(form.stock_quantity) || 0,
         image_url: form.image_url,
-        is_active: form.is_active,
+        is_active: form.status === 'active',
+        status: form.status,
+        sku: form.sku.trim() || null,
+        barcode: form.barcode.trim() || null,
+        options: parsedOptions,
+        variants: parsedVariants,
       };
 
       if (editProduct) {
@@ -344,6 +595,24 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Status Filter Tabs */}
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+        {(['all', 'active', 'draft', 'archived'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setStatusFilter(tab)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+              statusFilter === tab
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
@@ -411,13 +680,21 @@ export default function ProductsPage() {
                 ) : (
                   <Package size={48} color="#ccc" />
                 )}
-                {!product.is_active && (
-                  <div style={{
-                    position: 'absolute', top: '8px', right: '8px',
-                    background: 'rgba(0,0,0,0.6)', color: '#fff',
-                    padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
-                  }}>Inactive</div>
-                )}
+                <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  {product.status === 'draft' ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-amber-500 text-white shadow-sm">
+                      Draft
+                    </span>
+                  ) : (product.status === 'archived' || !product.is_active) ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-600 text-white shadow-sm">
+                      Archived
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-emerald-600 text-white shadow-sm">
+                      Active
+                    </span>
+                  )}
+                </div>
                 {product.sale_price && product.sale_price < product.price && (
                   <div style={{
                     position: 'absolute', top: '8px', left: '8px',
@@ -431,12 +708,26 @@ export default function ProductsPage() {
 
               {/* Info */}
               <div style={{ padding: '14px' }}>
-                <div style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 600, marginBottom: '4px' }}>
-                  {product.category}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 600 }}>
+                    {product.category}
+                  </span>
+                  {((product.variants && product.variants.length > 0) || product.has_variants) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <Layers size={10} />
+                      {product.variants?.length ? `${product.variants.length} Variants` : 'Variants'}
+                    </span>
+                  )}
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text)', marginBottom: '8px', lineHeight: 1.3 }}>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.3 }}>
                   {product.name}
                 </div>
+                {product.sku && (
+                  <div className="text-[11px] font-mono text-slate-400 mb-2 flex items-center gap-1">
+                    <Tag size={10} />
+                    <span>{product.sku}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                   <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text)' }}>
                     ₹{(product.sale_price || product.price).toLocaleString('en-IN')}
@@ -599,18 +890,205 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Active toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                <button
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: form.is_active ? 'var(--primary)' : 'var(--text-muted)', display: 'flex' }}
-                >
-                  {form.is_active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                </button>
-                <span style={{ fontSize: '14px', color: 'var(--text)' }}>
-                  {form.is_active ? 'Active (visible in store)' : 'Inactive (hidden from store)'}
-                </span>
+              {/* SKU + Barcode (Responsive 2-Column Inputs) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                    SKU (Shop Unique)
+                  </label>
+                  <input
+                    className="input font-mono uppercase"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. TSHIRT-BLK"
+                    value={form.sku}
+                    onChange={e => setForm(f => ({ ...f, sku: e.target.value.toUpperCase() }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                    Barcode / UPC / EAN
+                  </label>
+                  <input
+                    className="input font-mono"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. 8901234567890"
+                    value={form.barcode}
+                    onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Status Selector */}
+              <div className="mb-4">
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                  Product Status
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['active', 'draft', 'archived'] as const).map(st => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, status: st, is_active: st === 'active' }))}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold capitalize border transition-all cursor-pointer ${
+                        form.status === st
+                          ? (st === 'active' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' :
+                             st === 'draft' ? 'bg-amber-50 border-amber-500 text-amber-800' :
+                             'bg-slate-100 border-slate-400 text-slate-800')
+                          : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Options & Variants Section */}
+              <div className="border-t border-slate-200 pt-5 mt-5 mb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 m-0">
+                      <Layers size={16} className="text-indigo-600" />
+                      Product Options & Variants
+                    </h3>
+                    <p className="text-xs text-slate-500 m-0 mt-0.5">Configure sizes, colors, and variant pricing</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddOption}
+                    className="btn btn-secondary text-xs px-2.5 py-1.5 inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={13} /> Add Option
+                  </button>
+                </div>
+
+                {loadingDetails && (
+                  <div className="text-center py-4 text-xs text-slate-500 font-medium animate-pulse">
+                    Loading options and variants...
+                  </div>
+                )}
+
+                {/* Options list */}
+                {form.options.length > 0 && (
+                  <div className="space-y-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="text-xs font-semibold text-slate-700">Option Specifications</div>
+                    {form.options.map((opt, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          className="input text-xs py-1.5 w-1/3"
+                          placeholder="e.g. Size"
+                          value={opt.name}
+                          onChange={e => handleOptionChange(idx, 'name', e.target.value)}
+                        />
+                        <input
+                          className="input text-xs py-1.5 flex-1"
+                          placeholder="e.g. S, M, L, XL (comma separated)"
+                          value={opt.valuesStr}
+                          onChange={e => handleOptionChange(idx, 'valuesStr', e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOption(idx)}
+                          className="p-1 text-red-500 hover:text-red-700 cursor-pointer"
+                          title="Remove Option"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={handleGenerateVariants}
+                      className="w-full mt-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles size={14} />
+                      Generate Variants Matrix ({form.options.filter(o => o.name && o.valuesStr).length} Options)
+                    </button>
+                  </div>
+                )}
+
+                {/* Variants Matrix */}
+                {form.variants.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Variants ({form.variants.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomVariant}
+                        className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={12} /> Add Custom
+                      </button>
+                    </div>
+
+                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                      {form.variants.map((v, vIdx) => (
+                        <div key={vIdx} className="p-2.5 rounded-lg border border-slate-200 bg-white space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <input
+                              className="input text-xs font-semibold py-1 flex-1"
+                              value={v.title}
+                              placeholder="Variant Title"
+                              onChange={e => handleVariantChange(vIdx, 'title', e.target.value)}
+                            />
+                            <select
+                              className="input text-xs py-1 w-24 cursor-pointer"
+                              value={v.status}
+                              onChange={e => handleVariantChange(vIdx, 'status', e.target.value)}
+                            >
+                              <option value="active">Active</option>
+                              <option value="draft">Draft</option>
+                              <option value="archived">Archived</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVariant(vIdx)}
+                              className="p-1 text-slate-400 hover:text-red-500 cursor-pointer"
+                              title="Remove Variant"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Price (₹) *</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="input text-xs py-1 w-full"
+                                placeholder="Price"
+                                value={v.price}
+                                onChange={e => handleVariantChange(vIdx, 'price', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">SKU</label>
+                              <input
+                                className="input text-xs py-1 w-full font-mono uppercase"
+                                placeholder="SKU"
+                                value={v.sku}
+                                onChange={e => handleVariantChange(vIdx, 'sku', e.target.value.toUpperCase())}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Barcode</label>
+                              <input
+                                className="input text-xs py-1 w-full font-mono"
+                                placeholder="Barcode"
+                                value={v.barcode}
+                                onChange={e => handleVariantChange(vIdx, 'barcode', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

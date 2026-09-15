@@ -207,8 +207,9 @@ export default function CartDrawer() {
             <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100">
               {cart.map((item) => {
                 const itemPrice = item.sale_price ?? item.price;
+                const itemKey = item.cart_key || (item.variant_id ? `${item.id}__${item.variant_id}` : item.id);
                 return (
-                  <div key={item.id} className="py-3.5 flex gap-3 first:pt-0 last:pb-0">
+                  <div key={itemKey} className="py-3.5 flex gap-3 first:pt-0 last:pb-0">
                     <div className="w-16 h-16 rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0">
                       <img
                         src={item.image_url || getProductPlaceholderSvg(item.name)}
@@ -220,12 +221,19 @@ export default function CartDrawer() {
 
                     <div className="flex-1 flex flex-col justify-between">
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className="text-xs font-bold text-slate-800 line-clamp-1">
-                          {sanitizeText(item.name)}
-                        </h4>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800 line-clamp-1">
+                            {sanitizeText(item.name)}
+                          </h4>
+                          {item.variant_title && (
+                            <span className="inline-block mt-0.5 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                              {item.variant_title}
+                            </span>
+                          )}
+                        </div>
                         <button
                           type="button"
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => removeFromCart(itemKey)}
                           className="text-slate-400 hover:text-red-600 p-0.5 transition-colors"
                           aria-label="Remove item"
                         >
@@ -238,7 +246,7 @@ export default function CartDrawer() {
                         <div className="flex items-center border border-slate-200 rounded bg-white">
                           <button
                             type="button"
-                            onClick={() => updateCartQuantity(item.id, -1)}
+                            onClick={() => updateCartQuantity(itemKey, -1)}
                             className="px-2 py-0.5 text-slate-600 hover:bg-slate-100 text-xs"
                           >
                             <Minus size={11} />
@@ -248,7 +256,7 @@ export default function CartDrawer() {
                           </span>
                           <button
                             type="button"
-                            onClick={() => updateCartQuantity(item.id, 1)}
+                            onClick={() => updateCartQuantity(itemKey, 1)}
                             className="px-2 py-0.5 text-slate-600 hover:bg-slate-100 text-xs"
                           >
                             <Plus size={11} />

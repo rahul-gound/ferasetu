@@ -26,11 +26,23 @@ export default function ProductDetailModal() {
 
   const [quantity, setQuantity] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'description' | 'shipping' | 'returns'>('description');
+  const [selectedOptionValues, setSelectedOptionValues] = useState<Record<string, string>>({});
 
-  // Reset quantity when product changes
+  // Reset quantity and options when product changes
   useEffect(() => {
     setQuantity(1);
     setActiveTab('description');
+    if (selectedProduct?.options && selectedProduct.options.length > 0) {
+      const initial: Record<string, string> = {};
+      for (const opt of selectedProduct.options) {
+        if (opt.values && opt.values.length > 0) {
+          initial[opt.name] = opt.values[0];
+        }
+      }
+      setSelectedOptionValues(initial);
+    } else {
+      setSelectedOptionValues({});
+    }
   }, [selectedProduct]);
 
   // Escape key closes modal
@@ -59,10 +71,21 @@ export default function ProductDetailModal() {
       .slice(0, 4);
   }, [selectedProduct, products]);
 
+  const activeVariant = useMemo(() => {
+    if (!selectedProduct?.variants || selectedProduct.variants.length === 0) return null;
+    return selectedProduct.variants.find((v) => {
+      if (v.status && v.status !== 'active') return false;
+      if (!v.option_values) return false;
+      return Object.entries(selectedOptionValues).every(
+        ([optName, optVal]) => (v.option_values?.[optName] || '').toLowerCase() === (optVal || '').toLowerCase()
+      );
+    }) || selectedProduct.variants[0];
+  }, [selectedProduct, selectedOptionValues]);
+
   if (!selectedProduct) return null;
 
-  const price = selectedProduct.price;
-  const salePrice = selectedProduct.sale_price;
+  const price = activeVariant ? activeVariant.price : selectedProduct.price;
+  const salePrice = activeVariant ? (activeVariant.compare_at_price ?? undefined) : selectedProduct.sale_price;
   const hasSale = salePrice != null && salePrice > 0 && salePrice < price;
   const discount = calculateDiscount(price, salePrice);
   const isOutOfStock = selectedProduct.stock_quantity <= 0;
@@ -76,11 +99,11 @@ export default function ProductDetailModal() {
   );
 
   const handleAddToCart = () => {
-    addToCart(selectedProduct, quantity);
+    addToCart(selectedProduct, quantity, activeVariant || undefined);
   };
 
   const handleBuyNow = () => {
-    addToCart(selectedProduct, quantity);
+    addToCart(selectedProduct, quantity, activeVariant || undefined);
     closeProductModal();
   };
 
@@ -114,7 +137,7 @@ export default function ProductDetailModal() {
               style={{ aspectRatio: '1/1' }}
             >
               <img
-                src={selectedProduct.image_url || getProductPlaceholderSvg(selectedProduct.name)}
+                src={activeVariant?.image_url || selectedProduct.image_url || getProductPlaceholderSvg(selectedProduct.name)}
                 alt={title}
                 onError={(e) => handleImageFallback(e, selectedProduct.name)}
                 className="w-full h-full object-contain p-4"
@@ -178,6 +201,43 @@ export default function ProductDetailModal() {
                 </div>
               )}
             </div>
+
+            {/* Options / Variant Selectors */}
+            {selectedProduct.options && selectedProduct.options.length > 0 && (
+              <div className="mb-6 space-y-4">
+                {selectedProduct.options.map((option) => (
+                  <div key={option.id || option.name}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        {option.name}:
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500">
+                        {selectedOptionValues[option.name] || 'Select'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {option.values.map((val) => {
+                        const isSelected = selectedOptionValues[option.name] === val;
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setSelectedOptionValues((prev) => ({ ...prev, [option.name]: val }))}
+                            className={`px-3 py-1.5 rounded text-xs font-bold transition-all border ${
+                              isSelected
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                                : 'bg-white text-slate-700 border-slate-300 hover:border-slate-500'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Quantity Selector */}
             {!isOutOfStock && (

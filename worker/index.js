@@ -61,7 +61,25 @@ import {
   handleDirectUpload,
 } from "./media/mediaService.js";
 import { handleMediaCdnRequest } from "./media/mediaGateway.js";
-
+import { resolveSellablePrice } from "./catalog/priceResolver.js";
+import {
+  registerShopSku,
+  registerShopBarcode,
+  generateOptionSignature,
+  normalizeSku,
+  normalizeBarcode
+} from "./catalog/skuRegistry.js";
+import {
+  moneyAdd,
+  moneySubtract,
+  moneyMultiplyPercentageBps,
+  formatMoney,
+  legacyFloatToMinorUnits
+} from "./utils/money.js";
+import {
+  migrateLegacyStock,
+  backfillHistoricalOrderItems
+} from "./backfills/sliceABackfill.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -1432,11 +1450,28 @@ async function updateProfile(request, env) {
 
 async function listProducts(request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
+  const url = new URL(request.url);
+  const statusFilter = url.searchParams.get("status"); // active, draft, archived
   let results = [];
   try {
-    const res = await env.DB.prepare(
-      "SELECT * FROM products WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?) ORDER BY created_at DESC"
-    ).bind(ctx.organizationId, ctx.user.$id).all();
+    let sql = "SELECT * FROM products WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?))";
+    const params = [ctx.organizationId, ctx.user.$id];
+
+    if (statusFilter && statusFilter !== 'all') {
+      if (statusFilter === 'active') {
+        sql += " AND (status = 'active' OR (status IS NULL AND (is_active = 1 OR is_active IS NULL)))";
+      } else if (statusFilter === 'draft') {
+        sql += " AND status = 'draft'";
+      } else if (statusFilter === 'archived') {
+        sql += " AND (status = 'archived' OR (status IS NULL AND is_active = 0))";
+      } else {
+        sql += " AND status = ?";
+        params.push(statusFilter);
+      }
+    }
+
+    sql += " ORDER BY created_at DESC";
+    const res = await env.DB.prepare(sql).bind(...params).all();
     results = res.results ?? [];
   } catch (err) {
     console.warn("listProducts query notice, attempting fallback:", err?.message || err);
@@ -1462,10 +1497,14 @@ async function listProducts(request, env) {
     ...p,
     cost_price: p.cost_price != null ? Number(p.cost_price) : null,
     sale_price: p.sale_price != null ? Number(p.sale_price) : null,
+    price_minor: p.price_minor != null ? Number(p.price_minor) : (p.price != null ? Math.round(Number(p.price) * 100) : 0),
+    compare_at_price_minor: p.compare_at_price_minor != null ? Number(p.compare_at_price_minor) : null,
+    cost_price_minor: p.cost_price_minor != null ? Number(p.cost_price_minor) : null,
     category: p.category || 'Other',
     stock_quantity: Number(p.stock_quantity ?? p.stock ?? 0),
     stock: Number(p.stock ?? p.stock_quantity ?? 0),
     is_active: Boolean(p.is_active ?? 1),
+    status: p.status || (p.is_active === 0 ? 'archived' : 'active'),
   }));
 
   return json({ products });
@@ -1540,14 +1579,48 @@ async function createProduct(request, env) {
   const mediaKey = typeof body.media_key === "string" && body.media_key.trim() ? body.media_key.trim() : null;
   const now = new Date().toISOString();
 
+  let shopId = body.shop_id || body.shopId;
+  if (!shopId) {
+    try {
+      const shopRow = await env.DB.prepare("SELECT id FROM shops WHERE organization_id = ? LIMIT 1").bind(ctx.organizationId).first();
+      shopId = shopRow?.id || ctx.organizationId;
+    } catch {
+      shopId = ctx.organizationId;
+    }
+  }
+
+  const currency = (body.currency || 'INR').toUpperCase();
+  const priceMinor = body.price_minor !== undefined && body.price_minor !== null
+    ? Math.max(0, Math.trunc(Number(body.price_minor)))
+    : legacyFloatToMinorUnits(body.sale_price || body.price || 0);
+
+  const compareAtPriceMinor = body.compare_at_price_minor !== undefined && body.compare_at_price_minor !== null
+    ? Math.max(0, Math.trunc(Number(body.compare_at_price_minor)))
+    : (body.price && body.sale_price && Number(body.price) > Number(body.sale_price) ? legacyFloatToMinorUnits(body.price) : null);
+
+  const costPriceMinor = body.cost_price_minor !== undefined && body.cost_price_minor !== null
+    ? Math.max(0, Math.trunc(Number(body.cost_price_minor)))
+    : (body.cost_price ? legacyFloatToMinorUnits(body.cost_price) : null);
+
+  const slug = body.slug ? String(body.slug).trim().toLowerCase() : null;
+  const isInventoryTracked = body.is_inventory_tracked === false || body.is_inventory_tracked === 0 ? 0 : 1;
+
   const product = {
     id: crypto.randomUUID(),
     user_id: ctx.user.$id,
     organization_id: ctx.organizationId,
+    shop_id: shopId,
+    slug,
     name,
+    title: name,
     price,
     cost_price: costPrice,
     sale_price: salePrice,
+    price_minor: priceMinor,
+    compare_at_price_minor: compareAtPriceMinor,
+    cost_price_minor: costPriceMinor,
+    currency,
+    is_inventory_tracked: isInventoryTracked,
     category,
     stock,
     stock_quantity: stockQuantity,
@@ -1559,28 +1632,217 @@ async function createProduct(request, env) {
     updated_at: now,
   };
 
+  // Register SKU & Barcode in shop-wide unique registry
+  let skuNorm = null;
+  if (body.sku) {
+    try {
+      skuNorm = await registerShopSku(env.DB, {
+        shopId,
+        sku: body.sku,
+        productId: product.id,
+        variantId: ''
+      });
+      product.sku = body.sku;
+      product.sku_normalized = skuNorm;
+    } catch (skuErr) {
+      if (skuErr.code === "DUPLICATE_SKU") throw skuErr;
+      console.warn("SKU register warning:", skuErr?.message);
+    }
+  }
+
+  let barcodeNorm = null;
+  if (body.barcode) {
+    try {
+      barcodeNorm = await registerShopBarcode(env.DB, {
+        shopId,
+        barcode: body.barcode,
+        productId: product.id,
+        variantId: ''
+      });
+      product.barcode = body.barcode;
+      product.barcode_normalized = barcodeNorm;
+    } catch (barErr) {
+      if (barErr.code === "DUPLICATE_BARCODE") throw barErr;
+      console.warn("Barcode register warning:", barErr?.message);
+    }
+  }
+
   try {
     await env.DB.prepare(
-      `INSERT INTO products (id, user_id, organization_id, name, price, cost_price, sale_price, category, stock, stock_quantity, description, image_url, media_key, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO products (
+        id, user_id, organization_id, shop_id, slug, name, price, cost_price, sale_price,
+        price_minor, compare_at_price_minor, cost_price_minor, currency, is_inventory_tracked,
+        category, stock, stock_quantity, description, image_url, media_key, sku, barcode,
+        sku_normalized, barcode_normalized, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.cost_price, product.sale_price, product.category, product.stock, product.stock_quantity, product.description, product.image_url, product.media_key, product.is_active, product.created_at, product.updated_at)
+      .bind(
+        product.id, product.user_id, product.organization_id, product.shop_id, product.slug,
+        product.name, product.price, product.cost_price, product.sale_price,
+        product.price_minor, product.compare_at_price_minor, product.cost_price_minor,
+        product.currency, product.is_inventory_tracked, product.category, product.stock,
+        product.stock_quantity, product.description, product.image_url, product.media_key,
+        product.sku || null, product.barcode || null, product.sku_normalized || null,
+        product.barcode_normalized || null, product.is_active, product.created_at, product.updated_at
+      )
       .run();
   } catch (insertErr) {
     console.warn("Full product insert notice, attempting fallback insert:", insertErr?.message || insertErr);
-    // Even in fallback, organization_id must ALWAYS be preserved on new records
-    await env.DB.prepare(
-      `INSERT INTO products (id, user_id, organization_id, name, price, stock, description, image_url, media_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.stock, product.description, product.image_url, product.media_key, product.created_at)
-      .run();
+    try {
+      await env.DB.prepare(
+        `INSERT INTO products (id, user_id, organization_id, name, price, cost_price, sale_price, category, stock, stock_quantity, description, image_url, media_key, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.cost_price, product.sale_price, product.category, product.stock, product.stock_quantity, product.description, product.image_url, product.media_key, product.is_active, product.created_at, product.updated_at)
+        .run();
+    } catch {
+      await env.DB.prepare(
+        `INSERT INTO products (id, user_id, organization_id, name, price, stock, description, image_url, media_key, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(product.id, product.user_id, product.organization_id, product.name, product.price, product.stock, product.description, product.image_url, product.media_key, product.created_at)
+        .run();
+    }
+  }
+
+  // Provision options if provided
+  const options = Array.isArray(body.options) ? body.options : [];
+  const createdOptions = [];
+  if (options.length > 0) {
+    for (let pos = 0; pos < options.length; pos++) {
+      const opt = options[pos];
+      const optId = `opt_${crypto.randomUUID()}`;
+      const optName = String(opt.name || '').trim();
+      if (!optName) continue;
+      const values = Array.isArray(opt.values) ? opt.values : [];
+      try {
+        await env.DB.prepare(`
+          INSERT INTO product_options (id, shop_id, organization_id, product_id, name, position, values_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(optId, shopId, ctx.organizationId, product.id, optName, pos, JSON.stringify(values), now).run();
+        createdOptions.push({ id: optId, name: optName, position: pos, values });
+      } catch (optErr) {
+        console.warn("Option insert notice:", optErr?.message);
+      }
+    }
+  }
+
+  // Provision variants if provided
+  const variants = Array.isArray(body.variants) ? body.variants : [];
+  const createdVariants = [];
+  if (variants.length > 0) {
+    const seenSignatures = new Set();
+    for (const v of variants) {
+      const varTitle = String(v.title || '').trim();
+      const optionValues = v.option_values || v.options || {};
+      const optionSignature = generateOptionSignature(optionValues);
+
+      if (seenSignatures.has(optionSignature)) {
+        throw new HttpError(`Duplicate variant option combination: ${optionSignature}`, 409, { code: "DUPLICATE_VARIANT" });
+      }
+      seenSignatures.add(optionSignature);
+
+      const varId = `var_${crypto.randomUUID()}`;
+      const varPriceMinor = v.price_minor !== undefined && v.price_minor !== null
+        ? Math.max(0, Math.trunc(Number(v.price_minor)))
+        : (v.price !== undefined ? legacyFloatToMinorUnits(v.price) : priceMinor);
+      const varComparePriceMinor = v.compare_at_price_minor !== undefined && v.compare_at_price_minor !== null
+        ? Math.max(0, Math.trunc(Number(v.compare_at_price_minor)))
+        : (v.compare_at_price ? legacyFloatToMinorUnits(v.compare_at_price) : null);
+      const varCostPriceMinor = v.cost_price_minor !== undefined && v.cost_price_minor !== null
+        ? Math.max(0, Math.trunc(Number(v.cost_price_minor)))
+        : (v.cost_price ? legacyFloatToMinorUnits(v.cost_price) : null);
+
+      let varSkuNorm = null;
+      if (v.sku) {
+        varSkuNorm = await registerShopSku(env.DB, {
+          shopId,
+          sku: v.sku,
+          productId: product.id,
+          variantId: varId
+        });
+      }
+
+      let varBarcodeNorm = null;
+      if (v.barcode) {
+        varBarcodeNorm = await registerShopBarcode(env.DB, {
+          shopId,
+          barcode: v.barcode,
+          productId: product.id,
+          variantId: varId
+        });
+      }
+
+      const varStatus = v.status && ['active', 'draft', 'archived'].includes(v.status) ? v.status : 'active';
+
+      try {
+        await env.DB.prepare(`
+          INSERT INTO product_variants (
+            id, shop_id, organization_id, product_id, title, option_signature,
+            sku, barcode, sku_normalized, barcode_normalized, currency,
+            price_minor, compare_at_price_minor, cost_price_minor, image_url,
+            weight_grams, status, option_values_json, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          varId, shopId, ctx.organizationId, product.id, varTitle || 'Default', optionSignature,
+          v.sku || null, v.barcode || null, varSkuNorm, varBarcodeNorm, currency,
+          varPriceMinor, varComparePriceMinor, varCostPriceMinor, v.image_url || null,
+          Math.trunc(Number(v.weight_grams || 0)), varStatus, JSON.stringify(optionValues), now, now
+        ).run();
+
+        createdVariants.push({
+          id: varId,
+          title: varTitle,
+          option_signature: optionSignature,
+          sku: v.sku || null,
+          barcode: v.barcode || null,
+          price_minor: varPriceMinor,
+          compare_at_price_minor: varComparePriceMinor,
+          status: varStatus,
+          option_values: optionValues
+        });
+      } catch (varErr) {
+        if (varErr?.message && varErr.message.includes('UNIQUE')) {
+          throw new HttpError(`Duplicate variant option combination for product`, 409, { code: "DUPLICATE_VARIANT" });
+        }
+        console.warn("Variant insert notice:", varErr?.message);
+      }
+    }
+  }
+
+  // Provision stock into inventory_locations if initial stock is provided
+  if (stock > 0) {
+    try {
+      let loc = await env.DB.prepare(
+        "SELECT id FROM locations WHERE organization_id = ? AND is_active = 1 LIMIT 1"
+      ).bind(ctx.organizationId).first();
+
+      if (!loc) {
+        const locId = `loc_${crypto.randomUUID()}`;
+        await env.DB.prepare(`
+          INSERT INTO locations (id, organization_id, store_id, name, type, address, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, 'Main Warehouse', 'warehouse', 'Primary merchant warehouse', 1, ?, ?)
+        `).bind(locId, ctx.organizationId, shopId, now, now).run();
+        loc = { id: locId };
+      }
+
+      await env.DB.prepare(`
+        INSERT OR REPLACE INTO inventory_locations (
+          id, organization_id, product_id, variant_id, location_id,
+          available_quantity, reserved_quantity, incoming_quantity, reorder_threshold, created_at, updated_at
+        ) VALUES (?, ?, ?, '', ?, ?, 0, 0, 0, ?, ?)
+      `).bind(`inv_${crypto.randomUUID()}`, ctx.organizationId, product.id, loc.id, stock, now, now).run();
+    } catch (invErr) {
+      console.warn("Initial inventory provisioning notice:", invErr?.message);
+    }
   }
 
   return json({
     product: {
       ...product,
       is_active: Boolean(product.is_active),
+      options: createdOptions,
+      variants: createdVariants,
     }
   }, 201);
 }
@@ -4126,14 +4388,53 @@ async function getProduct(id, request, env) {
 
   if (!product) throw new HttpError("Product not found", 404);
 
+  // Fetch product options
+  let options = [];
+  try {
+    const optRes = await env.DB.prepare(
+      "SELECT id, name, position, values_json FROM product_options WHERE product_id = ? ORDER BY position ASC, created_at ASC"
+    ).bind(product.id).all();
+    options = (optRes?.results || []).map(o => ({
+      id: o.id,
+      name: o.name,
+      position: o.position,
+      values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
+    }));
+  } catch {}
+
+  // Fetch product variants
+  let variants = [];
+  try {
+    const varRes = await env.DB.prepare(
+      `SELECT id, title, option_signature, sku, barcode, currency, price_minor,
+              compare_at_price_minor, cost_price_minor, image_url, weight_grams,
+              status, option_values_json
+       FROM product_variants WHERE product_id = ? ORDER BY created_at ASC`
+    ).bind(product.id).all();
+    variants = (varRes?.results || []).map(v => ({
+      ...v,
+      price: v.price_minor ? v.price_minor / 100 : 0,
+      compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
+      cost_price: v.cost_price_minor ? v.cost_price_minor / 100 : null,
+      option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
+    }));
+  } catch {}
+
   const formattedProduct = {
     ...product,
     cost_price: product.cost_price != null ? Number(product.cost_price) : null,
     sale_price: product.sale_price != null ? Number(product.sale_price) : null,
+    price_minor: product.price_minor != null ? Number(product.price_minor) : (product.price != null ? Math.round(Number(product.price) * 100) : 0),
+    compare_at_price_minor: product.compare_at_price_minor != null ? Number(product.compare_at_price_minor) : null,
+    cost_price_minor: product.cost_price_minor != null ? Number(product.cost_price_minor) : null,
     category: product.category || 'Other',
     stock_quantity: Number(product.stock_quantity ?? product.stock ?? 0),
     stock: Number(product.stock ?? product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active ?? 1),
+    status: product.status || (product.is_active === 0 ? 'archived' : 'active'),
+    options,
+    variants,
+    has_variants: variants.length > 0,
   };
 
   return json({
@@ -4167,7 +4468,12 @@ async function updateProduct(id, request, env) {
 
   const updates = [];
   const values = [];
-  const allowed = ["name", "description", "category", "price", "cost_price", "sale_price", "stock_quantity", "stock", "image_url", "media_key", "is_active"];
+  const allowed = [
+    "name", "description", "category", "price", "cost_price", "sale_price",
+    "stock_quantity", "stock", "image_url", "media_key", "is_active",
+    "status", "price_minor", "compare_at_price_minor", "cost_price_minor",
+    "is_inventory_tracked", "sku", "barcode", "slug"
+  ];
 
   for (const key of allowed) {
     if (body[key] !== undefined) {
@@ -4177,16 +4483,85 @@ async function updateProduct(id, request, env) {
         values.push(val);
         updates.push("stock_quantity = ?");
         values.push(val);
-      } else if (key === "price" || key === "cost_price" || key === "sale_price") {
+      } else if (key === "price_minor") {
+        const pMinor = Math.max(0, Math.trunc(Number(body.price_minor)));
+        updates.push("price_minor = ?");
+        values.push(pMinor);
+        updates.push("price = ?");
+        values.push(pMinor / 100);
+      } else if (key === "price") {
+        if (body.price_minor === undefined) {
+          const pVal = Number(body.price) || 0;
+          updates.push("price = ?");
+          values.push(pVal);
+          updates.push("price_minor = ?");
+          values.push(legacyFloatToMinorUnits(pVal));
+        }
+      } else if (key === "compare_at_price_minor") {
+        const capMinor = body[key] !== null && body[key] !== "" ? Math.max(0, Math.trunc(Number(body[key]))) : null;
+        updates.push("compare_at_price_minor = ?");
+        values.push(capMinor);
+      } else if (key === "cost_price_minor") {
+        const cpMinor = body[key] !== null && body[key] !== "" ? Math.max(0, Math.trunc(Number(body[key]))) : null;
+        updates.push("cost_price_minor = ?");
+        values.push(cpMinor);
+      } else if (key === "status") {
+        const stat = String(body.status).toLowerCase();
+        updates.push("status = ?");
+        values.push(stat);
+        updates.push("is_active = ?");
+        values.push(stat === 'active' ? 1 : 0);
+      } else if (key === "is_active") {
+        if (body.status === undefined) {
+          updates.push("is_active = ?");
+          values.push(body.is_active ? 1 : 0);
+          updates.push("status = ?");
+          values.push(body.is_active ? 'active' : 'archived');
+        }
+      } else if (key === "is_inventory_tracked") {
+        updates.push("is_inventory_tracked = ?");
+        values.push(body.is_inventory_tracked ? 1 : 0);
+      } else if (key === "cost_price" || key === "sale_price") {
         updates.push(`${key} = ?`);
         values.push(body[key] === null || body[key] === "" ? null : Number(body[key]));
-      } else if (key === "is_active") {
-        updates.push("is_active = ?");
-        values.push(body[key] ? 1 : 0);
       } else {
         updates.push(`${key} = ?`);
         values.push(body[key]);
       }
+    }
+  }
+
+  // Handle SKU registration if updating SKU
+  if (body.sku && body.sku !== existing.sku) {
+    const shopId = existing.shop_id || ctx.organizationId;
+    try {
+      const skuNorm = await registerShopSku(env.DB, {
+        shopId,
+        sku: body.sku,
+        productId: existing.id,
+        variantId: ''
+      });
+      updates.push("sku_normalized = ?");
+      values.push(skuNorm);
+    } catch (skuErr) {
+      if (skuErr.code === "DUPLICATE_SKU") throw skuErr;
+    }
+  }
+
+  // Handle Barcode registration if updating barcode
+  if (body.barcode && body.barcode !== existing.barcode) {
+    const shopId = existing.shop_id || ctx.organizationId;
+    try {
+      const barNorm = await registerShopBarcode(env.DB, {
+        shopId,
+        barcode: body.barcode,
+        productId: existing.id,
+        variantId: ''
+      });
+      updates.push("barcode_normalized = ?");
+      values.push(barNorm);
+    } catch (barErr) {
+      if (barErr.code === "DUPLICATE_BARCODE") throw barErr;
     }
   }
 
@@ -4232,15 +4607,200 @@ async function updateProduct(id, request, env) {
     }
   }
 
-  const resultProduct = updated || { id, ...body };
+  // Provision/update options if provided
+  let updatedOptions = [];
+  if (Array.isArray(body.options)) {
+    const shopId = existing.shop_id || ctx.organizationId;
+    const now = new Date().toISOString();
+    try {
+      await env.DB.prepare("DELETE FROM product_options WHERE product_id = ?").bind(id).run();
+      for (let pos = 0; pos < body.options.length; pos++) {
+        const opt = body.options[pos];
+        const optId = opt.id && !String(opt.id).startsWith('opt_temp') ? opt.id : `opt_${crypto.randomUUID()}`;
+        const optName = String(opt.name || '').trim();
+        if (!optName) continue;
+        const values = Array.isArray(opt.values) ? opt.values : [];
+        await env.DB.prepare(`
+          INSERT INTO product_options (id, shop_id, organization_id, product_id, name, position, values_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(optId, shopId, ctx.organizationId, id, optName, pos, JSON.stringify(values), now).run();
+        updatedOptions.push({ id: optId, name: optName, position: pos, values });
+      }
+    } catch (optErr) {
+      console.warn("updateProduct options update error:", optErr?.message || optErr);
+    }
+  } else {
+    // Fetch existing options
+    try {
+      const optRes = await env.DB.prepare(
+        "SELECT id, name, position, values_json FROM product_options WHERE product_id = ? ORDER BY position ASC, created_at ASC"
+      ).bind(id).all();
+      updatedOptions = (optRes?.results || []).map(o => ({
+        id: o.id,
+        name: o.name,
+        position: o.position,
+        values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
+      }));
+    } catch {}
+  }
+
+  // Provision/update variants if provided
+  let updatedVariants = [];
+  if (Array.isArray(body.variants)) {
+    const shopId = existing.shop_id || ctx.organizationId;
+    const now = new Date().toISOString();
+    const seenSignatures = new Set();
+    const keptVariantIds = [];
+
+    for (const v of body.variants) {
+      const varTitle = String(v.title || '').trim();
+      const optionValues = v.option_values || v.options || {};
+      const optionSignature = generateOptionSignature(optionValues);
+
+      if (seenSignatures.has(optionSignature)) {
+        throw new HttpError(`Duplicate variant option combination: ${optionSignature}`, 409, { code: "DUPLICATE_VARIANT" });
+      }
+      seenSignatures.add(optionSignature);
+
+      const varId = (v.id && !String(v.id).startsWith('temp_') && !String(v.id).startsWith('new_')) ? v.id : `var_${crypto.randomUUID()}`;
+      keptVariantIds.push(varId);
+
+      const varPriceMinor = v.price_minor !== undefined && v.price_minor !== null
+        ? Math.max(0, Math.trunc(Number(v.price_minor)))
+        : (v.price !== undefined ? legacyFloatToMinorUnits(v.price) : (resultProduct?.price_minor || 0));
+      const varComparePriceMinor = v.compare_at_price_minor !== undefined && v.compare_at_price_minor !== null
+        ? Math.max(0, Math.trunc(Number(v.compare_at_price_minor)))
+        : (v.compare_at_price ? legacyFloatToMinorUnits(v.compare_at_price) : null);
+      const varCostPriceMinor = v.cost_price_minor !== undefined && v.cost_price_minor !== null
+        ? Math.max(0, Math.trunc(Number(v.cost_price_minor)))
+        : (v.cost_price ? legacyFloatToMinorUnits(v.cost_price) : null);
+
+      let varSkuNorm = null;
+      if (v.sku) {
+        try {
+          varSkuNorm = await registerShopSku(env.DB, {
+            shopId,
+            sku: v.sku,
+            productId: id,
+            variantId: varId
+          });
+        } catch (skuErr) {
+          if (skuErr.code === "DUPLICATE_SKU") throw skuErr;
+        }
+      }
+
+      let varBarcodeNorm = null;
+      if (v.barcode) {
+        try {
+          varBarcodeNorm = await registerShopBarcode(env.DB, {
+            shopId,
+            barcode: v.barcode,
+            productId: id,
+            variantId: varId
+          });
+        } catch (barErr) {
+          if (barErr.code === "DUPLICATE_BARCODE") throw barErr;
+        }
+      }
+
+      const varStatus = v.status && ['active', 'draft', 'archived'].includes(v.status) ? v.status : 'active';
+
+      try {
+        await env.DB.prepare(`
+          INSERT INTO product_variants (
+            id, shop_id, organization_id, product_id, title, option_signature,
+            sku, barcode, sku_normalized, barcode_normalized, currency,
+            price_minor, compare_at_price_minor, cost_price_minor, image_url,
+            weight_grams, status, option_values_json, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            option_signature = excluded.option_signature,
+            sku = excluded.sku,
+            barcode = excluded.barcode,
+            sku_normalized = excluded.sku_normalized,
+            barcode_normalized = excluded.barcode_normalized,
+            currency = excluded.currency,
+            price_minor = excluded.price_minor,
+            compare_at_price_minor = excluded.compare_at_price_minor,
+            cost_price_minor = excluded.cost_price_minor,
+            image_url = excluded.image_url,
+            weight_grams = excluded.weight_grams,
+            status = excluded.status,
+            option_values_json = excluded.option_values_json,
+            updated_at = excluded.updated_at
+        `).bind(
+          varId, shopId, ctx.organizationId, id, varTitle || 'Default', optionSignature,
+          v.sku || null, v.barcode || null, varSkuNorm, varBarcodeNorm, resultProduct?.currency || 'INR',
+          varPriceMinor, varComparePriceMinor, varCostPriceMinor, v.image_url || null,
+          Math.trunc(Number(v.weight_grams || 0)), varStatus, JSON.stringify(optionValues), now, now
+        ).run();
+
+        updatedVariants.push({
+          id: varId,
+          title: varTitle,
+          option_signature: optionSignature,
+          sku: v.sku || null,
+          barcode: v.barcode || null,
+          price: varPriceMinor / 100,
+          price_minor: varPriceMinor,
+          compare_at_price_minor: varComparePriceMinor,
+          compare_at_price: varComparePriceMinor ? varComparePriceMinor / 100 : null,
+          cost_price_minor: varCostPriceMinor,
+          cost_price: varCostPriceMinor ? varCostPriceMinor / 100 : null,
+          status: varStatus,
+          option_values: optionValues
+        });
+      } catch (varErr) {
+        if (varErr?.message && varErr.message.includes('UNIQUE')) {
+          throw new HttpError(`Duplicate variant option combination for product`, 409, { code: "DUPLICATE_VARIANT" });
+        }
+        console.warn("Variant update notice:", varErr?.message);
+      }
+    }
+
+    if (keptVariantIds.length > 0) {
+      try {
+        const placeholders = keptVariantIds.map(() => '?').join(',');
+        await env.DB.prepare(
+          `UPDATE product_variants SET status = 'archived', updated_at = ? WHERE product_id = ? AND id NOT IN (${placeholders})`
+        ).bind(now, id, ...keptVariantIds).run();
+      } catch {}
+    }
+  } else {
+    // Fetch existing variants
+    try {
+      const varRes = await env.DB.prepare(
+        `SELECT id, title, option_signature, sku, barcode, currency, price_minor,
+                compare_at_price_minor, cost_price_minor, image_url, weight_grams,
+                status, option_values_json
+         FROM product_variants WHERE product_id = ? ORDER BY created_at ASC`
+      ).bind(id).all();
+      updatedVariants = (varRes?.results || []).map(v => ({
+        ...v,
+        price: v.price_minor ? v.price_minor / 100 : 0,
+        compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
+        cost_price: v.cost_price_minor ? v.cost_price_minor / 100 : null,
+        option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
+      }));
+    } catch {}
+  }
+
   const formattedProduct = {
     ...resultProduct,
     cost_price: resultProduct.cost_price != null ? Number(resultProduct.cost_price) : null,
     sale_price: resultProduct.sale_price != null ? Number(resultProduct.sale_price) : null,
+    price_minor: resultProduct.price_minor != null ? Number(resultProduct.price_minor) : (resultProduct.price != null ? Math.round(Number(resultProduct.price) * 100) : 0),
+    compare_at_price_minor: resultProduct.compare_at_price_minor != null ? Number(resultProduct.compare_at_price_minor) : null,
+    cost_price_minor: resultProduct.cost_price_minor != null ? Number(resultProduct.cost_price_minor) : null,
     category: resultProduct.category || 'Other',
     stock_quantity: Number(resultProduct.stock_quantity ?? resultProduct.stock ?? 0),
     stock: Number(resultProduct.stock ?? resultProduct.stock_quantity ?? 0),
     is_active: Boolean(resultProduct.is_active ?? 1),
+    status: resultProduct.status || (resultProduct.is_active === 0 ? 'archived' : 'active'),
+    options: updatedOptions,
+    variants: updatedVariants,
+    has_variants: updatedVariants.length > 0,
   };
 
   return json({
@@ -4304,64 +4864,129 @@ async function handlePublicCreateOrder(request, env) {
   const storeShopId = tenant.shopId || tenant.shop?.id || orgId;
   const storeSlug = tenant.organization?.store_slug || tenant.shop?.store_slug || 'store';
 
-  let subtotal = 0;
+  let subtotalMinor = 0;
   const resolvedItems = [];
+  const orderItemsToInsert = [];
   const deliveryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   const paymentOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const now = new Date().toISOString();
+  const orderId = crypto.randomUUID();
 
   for (const it of itemList) {
     const productId = it.productId || it.product_id || it.id;
+    const variantId = it.variantId || it.variant_id || null;
     const qty = Math.max(1, Math.trunc(Number(it.quantity || it.qty || 1)));
-    
-    // Authoritative catalog price and stock check
-    const prod = await env.DB.prepare(
-      "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
-    ).bind(productId, orgId, orgId).first();
-    
-    if (!prod) {
-      const fallbackPrice = Math.max(0, Number(it.price) || 0);
-      const itemTotal = fallbackPrice * qty;
-      subtotal += itemTotal;
-      resolvedItems.push({
+
+    // Authoritative catalog price resolution via resolveSellablePrice
+    let priceInfo = null;
+    try {
+      priceInfo = await resolveSellablePrice(env.DB, {
+        shopId: storeShopId,
         productId,
-        product_id: productId,
-        name: it.name || 'Item',
-        price: fallbackPrice,
-        quantity: qty,
-        total: itemTotal
+        variantId
       });
-      continue;
+    } catch (resolveErr) {
+      if (resolveErr.code === "VARIANT_SELECTION_REQUIRED" || resolveErr.code === "INVALID_VARIANT" || resolveErr.code === "PRODUCT_NOT_ACTIVE") {
+        throw resolveErr;
+      }
+      // Fallback for older mock DB / tests where shopId might be orgId
+      try {
+        priceInfo = await resolveSellablePrice(env.DB, {
+          shopId: orgId,
+          productId,
+          variantId
+        });
+      } catch (innerErr) {
+        if (innerErr.code === "VARIANT_SELECTION_REQUIRED" || innerErr.code === "INVALID_VARIANT" || innerErr.code === "PRODUCT_NOT_ACTIVE") {
+          throw innerErr;
+        }
+        const legacyProd = await env.DB.prepare(
+          "SELECT * FROM products WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+        ).bind(productId, orgId, orgId).first();
+
+        if (!legacyProd) throw new HttpError(`Product not found: ${productId}`, 404);
+
+        const legPrice = Number.isFinite(Number(legacyProd.sale_price)) && Number(legacyProd.sale_price) > 0
+          ? Number(legacyProd.sale_price)
+          : (Number(legacyProd.price) || 0);
+
+        priceInfo = {
+          currency: legacyProd.currency || 'INR',
+          price_minor: Math.round(legPrice * 100),
+          is_variant: false,
+          variant: null,
+          product: legacyProd
+        };
+      }
     }
 
+    const unitPriceMinor = priceInfo.price_minor;
+    const itemTotalMinor = unitPriceMinor * qty;
+    subtotalMinor = moneyAdd(subtotalMinor, itemTotalMinor);
 
-    const price = Number.isFinite(Number(prod.sale_price)) && Number(prod.sale_price) > 0 
-      ? Number(prod.sale_price) 
-      : (Number(prod.price) || 0);
-    const itemTotal = price * qty;
-    subtotal += itemTotal;
     resolvedItems.push({
-      productId: prod.id,
-      product_id: prod.id,
-      name: prod.name,
-      price,
+      productId: priceInfo.product.id,
+      product_id: priceInfo.product.id,
+      variantId: priceInfo.variant ? priceInfo.variant.id : null,
+      variant_id: priceInfo.variant ? priceInfo.variant.id : null,
+      name: priceInfo.product.title || priceInfo.product.name,
+      variant_title: priceInfo.variant ? priceInfo.variant.title : null,
+      sku: (priceInfo.variant ? priceInfo.variant.sku : priceInfo.product.sku) || null,
+      price: unitPriceMinor / 100,
+      unit_price_minor: unitPriceMinor,
       quantity: qty,
-      total: itemTotal
+      total: itemTotalMinor / 100,
+      total_minor: itemTotalMinor
     });
 
-    // P0 Correction 12: Atomic inventory decrement during checkout
-    const decRes = await env.DB.prepare(
-      "UPDATE products SET stock = stock - ?, stock_quantity = stock_quantity - ? WHERE id = ? AND stock >= ?"
-    ).bind(qty, qty, prod.id, qty).run();
+    orderItemsToInsert.push({
+      id: `oi_${crypto.randomUUID()}`,
+      shop_id: storeShopId,
+      organization_id: orgId,
+      order_id: orderId,
+      product_id: priceInfo.product.id,
+      variant_id: priceInfo.variant ? priceInfo.variant.id : '',
+      title_snapshot: priceInfo.product.title || priceInfo.product.name,
+      variant_title_snapshot: priceInfo.variant ? priceInfo.variant.title : null,
+      sku_snapshot: (priceInfo.variant ? priceInfo.variant.sku : priceInfo.product.sku) || null,
+      option_values_snapshot: priceInfo.variant ? (priceInfo.variant.option_values_json || JSON.stringify(priceInfo.variant.option_values || {})) : null,
+      quantity: qty,
+      unit_price_minor: unitPriceMinor,
+      total_minor: itemTotalMinor,
+      currency: priceInfo.currency
+    });
 
-    if (decRes && decRes.meta && decRes.meta.changes === 0) {
-      throw new HttpError(`Insufficient stock for product: ${prod.name}`, 400);
+    // Slice A Minimal Inventory Contract:
+    // If tracked (is_inventory_tracked !== 0): check available quantity and decrement atomically
+    if (priceInfo.product.is_inventory_tracked !== 0) {
+      try {
+        const invRow = await env.DB.prepare(
+          "SELECT * FROM inventory_locations WHERE organization_id = ? AND product_id = ? AND (variant_id = ? OR variant_id = '') AND available_quantity >= ? LIMIT 1"
+        ).bind(orgId, priceInfo.product.id, priceInfo.variant ? priceInfo.variant.id : '', qty).first();
+
+        if (invRow) {
+          await env.DB.prepare(
+            "UPDATE inventory_locations SET available_quantity = available_quantity - ? WHERE id = ?"
+          ).bind(qty, invRow.id).run();
+        }
+      } catch {}
+
+      // Decrement cached aggregate stock on products table
+      const decRes = await env.DB.prepare(
+        "UPDATE products SET stock = stock - ?, stock_quantity = stock_quantity - ? WHERE id = ? AND stock >= ?"
+      ).bind(qty, qty, priceInfo.product.id, qty).run();
+
+      if (decRes && decRes.meta && decRes.meta.changes === 0) {
+        throw new HttpError(`Insufficient stock for product: ${priceInfo.product.name || priceInfo.product.title}`, 400);
+      }
     }
   }
 
-  const deliveryFee = deliveryType === 'delivery' ? 30 : 0;
-  const total = Math.round((subtotal + deliveryFee) * 100) / 100;
-  const orderId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const deliveryFeeMinor = deliveryType === 'delivery' ? 3000 : 0;
+  const totalMinor = moneyAdd(subtotalMinor, deliveryFeeMinor);
+  const subtotal = subtotalMinor / 100;
+  const deliveryFee = deliveryFeeMinor / 100;
+  const total = totalMinor / 100;
 
   // Customer binding: check for active customer session or existing store customer
   let customerId = null;
@@ -4396,13 +5021,14 @@ async function handlePublicCreateOrder(request, env) {
   // P0 Correction 15: Store-scoped, collision-safe invoice number
   const invoiceNumber = `INV-${storeSlug.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-  // P0 Correction 1 & 3: Insert order scoped to organization_id and shop_id
+  // Insert order scoped to organization_id and shop_id with integer minor units
   await env.DB.prepare(
     `INSERT INTO orders (
       id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at,
       shop_id, customer_id, delivery_address, delivery_type, subtotal, delivery_fee,
+      subtotal_minor, delivery_fee_minor, total_minor, currency,
       payment_status, invoice_number, delivery_code, delivery_code_hash, payment_otp_hash, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     orderId,
     orgId,
@@ -4419,6 +5045,10 @@ async function handlePublicCreateOrder(request, env) {
     deliveryType,
     subtotal,
     deliveryFee,
+    subtotalMinor,
+    deliveryFeeMinor,
+    totalMinor,
+    'INR',
     paymentMethod === 'online' ? 'paid' : 'unpaid',
     invoiceNumber,
     deliveryCode,
@@ -4426,6 +5056,25 @@ async function handlePublicCreateOrder(request, env) {
     paymentOtp,
     now
   ).run();
+
+  // Insert authoritative order items snapshot
+  for (const oi of orderItemsToInsert) {
+    try {
+      await env.DB.prepare(`
+        INSERT INTO order_items (
+          id, shop_id, organization_id, order_id, product_id, variant_id,
+          title_snapshot, variant_title_snapshot, sku_snapshot, option_values_snapshot,
+          quantity, unit_price_minor, total_minor, discount_minor, tax_minor, currency, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+      `).bind(
+        oi.id, oi.shop_id, oi.organization_id, orderId, oi.product_id, oi.variant_id,
+        oi.title_snapshot, oi.variant_title_snapshot, oi.sku_snapshot, oi.option_values_snapshot,
+        oi.quantity, oi.unit_price_minor, oi.total_minor, oi.currency, now
+      ).run();
+    } catch (oiErr) {
+      console.warn("Order item insert notice:", oiErr?.message);
+    }
+  }
 
 
   // P0 Correction 13 & 14: Comprehensive invoice record with 21 columns
@@ -6023,20 +6672,69 @@ async function getPublicShop(shopName, request, env) {
   let products = [];
   try {
     const productsResult = await env.DB.prepare(
-      "SELECT id, user_id, organization_id, name, description, price, sale_price, category, stock, stock_quantity, image_url, is_active, created_at FROM products WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?)) AND (is_active = 1 OR is_active IS NULL) ORDER BY created_at DESC"
+      `SELECT id, user_id, organization_id, shop_id, name, description, price, sale_price,
+              price_minor, compare_at_price_minor, currency, is_inventory_tracked, category,
+              stock, stock_quantity, image_url, is_active, status, sku, barcode, created_at
+       FROM products
+       WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?))
+         AND (status = 'active' OR (status IS NULL AND (is_active = 1 OR is_active IS NULL)))
+       ORDER BY created_at DESC`
     ).bind(effectiveOrgId, user?.id || effectiveOrgId).all();
     products = productsResult?.results || [];
   } catch (err) {
-    console.error("Failed to load products for public shop:", err);
     try {
-      const basicResult = await env.DB.prepare(
-        "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? OR organization_id = ? ORDER BY created_at DESC"
-      ).bind(user?.id || effectiveOrgId, effectiveOrgId).all();
-      products = basicResult?.results || [];
-    } catch (basicErr) {
-      console.warn("Fallback product query also failed:", basicErr);
+      const productsResult = await env.DB.prepare(
+        "SELECT id, user_id, organization_id, name, description, price, sale_price, category, stock, stock_quantity, image_url, is_active, created_at FROM products WHERE (organization_id = ? OR (organization_id IS NULL AND user_id = ?)) AND (is_active = 1 OR is_active IS NULL) ORDER BY created_at DESC"
+      ).bind(effectiveOrgId, user?.id || effectiveOrgId).all();
+      products = productsResult?.results || [];
+    } catch {
+      try {
+        const basicResult = await env.DB.prepare(
+          "SELECT id, user_id, name, description, price, created_at FROM products WHERE user_id = ? OR organization_id = ? ORDER BY created_at DESC"
+        ).bind(user?.id || effectiveOrgId, effectiveOrgId).all();
+        products = basicResult?.results || [];
+      } catch (basicErr) {
+        console.warn("Fallback product query also failed:", basicErr);
+      }
     }
   }
+
+  // Attach options & variants for each product
+  try {
+    for (const p of products) {
+      p.price_minor = p.price_minor != null ? Number(p.price_minor) : Math.round((Number(p.sale_price) || Number(p.price) || 0) * 100);
+      try {
+        const optRes = await env.DB.prepare(
+          "SELECT id, name, position, values_json FROM product_options WHERE product_id = ? ORDER BY position ASC, created_at ASC"
+        ).bind(p.id).all();
+        p.options = (optRes?.results || []).map(o => ({
+          id: o.id,
+          name: o.name,
+          position: o.position,
+          values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
+        }));
+      } catch {
+        p.options = [];
+      }
+
+      try {
+        const varRes = await env.DB.prepare(
+          `SELECT id, title, option_signature, sku, barcode, currency, price_minor,
+                  compare_at_price_minor, image_url, status, option_values_json
+           FROM product_variants WHERE product_id = ? AND status = 'active' ORDER BY created_at ASC`
+        ).bind(p.id).all();
+        p.variants = (varRes?.results || []).map(v => ({
+          ...v,
+          price: v.price_minor ? v.price_minor / 100 : 0,
+          compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
+          option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
+        }));
+      } catch {
+        p.variants = [];
+      }
+      p.has_variants = (p.variants || []).length > 0;
+    }
+  } catch {}
 
   let config = {};
   try {
@@ -6645,4 +7343,14 @@ export {
   provisionNewShard,
   handleMediaCdnRequest,
   handleDirectUpload,
+  resolveSellablePrice,
+  registerShopSku,
+  registerShopBarcode,
+  generateOptionSignature,
+  moneyAdd,
+  moneySubtract,
+  moneyMultiplyPercentageBps,
+  formatMoney,
+  migrateLegacyStock,
+  backfillHistoricalOrderItems,
 };

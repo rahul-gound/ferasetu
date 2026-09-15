@@ -226,25 +226,38 @@ export function StorefrontProvider({
     }, 0);
   }, [cart]);
 
-  const addToCart = useCallback((product: ShopProduct, quantity: number = 1) => {
+  const addToCart = useCallback((product: ShopProduct, quantity: number = 1, variant?: ProductVariant) => {
+    const itemKey = variant ? `${product.id}__${variant.id}` : product.id;
+    const effectivePrice = variant ? variant.price : (product.sale_price != null && product.sale_price > 0 ? product.sale_price : product.price);
+    const itemStock = variant && (variant as any).stock !== undefined ? Number((variant as any).stock) : product.stock_quantity;
+
     setCart((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
+      const existing = prev.find((i) => (i.cart_key || (i.variant_id ? `${i.id}__${i.variant_id}` : i.id)) === itemKey);
       if (existing) {
         const newQty = existing.quantity + quantity;
-        const cappedQty = product.stock_quantity > 0 ? Math.min(newQty, product.stock_quantity) : newQty;
-        return prev.map((i) => (i.id === product.id ? { ...i, quantity: cappedQty } : i));
+        const cappedQty = itemStock > 0 ? Math.min(newQty, itemStock) : newQty;
+        return prev.map((i) => ((i.cart_key || (i.variant_id ? `${i.id}__${i.variant_id}` : i.id)) === itemKey ? { ...i, quantity: cappedQty } : i));
       }
-      const initialQty = product.stock_quantity > 0 ? Math.min(quantity, product.stock_quantity) : quantity;
-      return [...prev, { ...product, quantity: initialQty }];
+      const initialQty = itemStock > 0 ? Math.min(quantity, itemStock) : quantity;
+      return [...prev, {
+        ...product,
+        price: effectivePrice,
+        variant_id: variant?.id,
+        variant_title: variant?.title,
+        variant,
+        cart_key: itemKey,
+        quantity: initialQty
+      }];
     });
     setIsCartOpen(true);
   }, []);
 
-  const updateCartQuantity = useCallback((productId: string, delta: number) => {
+  const updateCartQuantity = useCallback((itemKey: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) => {
-          if (item.id === productId) {
+          const key = item.cart_key || (item.variant_id ? `${item.id}__${item.variant_id}` : item.id);
+          if (key === itemKey || item.id === itemKey) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
             if (item.stock_quantity > 0 && newQty > item.stock_quantity) {
@@ -258,8 +271,11 @@ export function StorefrontProvider({
     );
   }, []);
 
-  const removeFromCart = useCallback((productId: string) => {
-    setCart((prev) => prev.filter((i) => i.id !== productId));
+  const removeFromCart = useCallback((itemKey: string) => {
+    setCart((prev) => prev.filter((i) => {
+      const key = i.cart_key || (i.variant_id ? `${i.id}__${i.variant_id}` : i.id);
+      return key !== itemKey && i.id !== itemKey;
+    }));
   }, []);
 
   const clearCart = useCallback(() => {
@@ -297,7 +313,11 @@ export function StorefrontProvider({
           paymentMethod: formData.paymentMethod,
           shopId: shopId,
           notes: formData.notes,
-          items: cart.map((i) => ({ productId: i.id, quantity: i.quantity })),
+          items: cart.map((i) => ({
+            productId: i.id,
+            variantId: i.variant_id || undefined,
+            quantity: i.quantity
+          })),
         };
 
         const res = await axios.post(`${API}/orders/create`, payload, {

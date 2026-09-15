@@ -1,7 +1,12 @@
-import type { ShopProduct } from '../../types/template';
+import type { ShopProduct, ProductVariant } from '../../types/template';
 
 export interface CartItem extends ShopProduct {
   quantity: number;
+  cart_key?: string;
+  variant_id?: string;
+  variant_title?: string;
+  variant?: ProductVariant;
+  selected_options?: Record<string, string>;
 }
 
 export interface OrderSuccessData {
@@ -61,9 +66,9 @@ export interface StorefrontContextValue {
   isCartOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addToCart: (product: ShopProduct, quantity?: number) => void;
-  updateCartQuantity: (productId: string, delta: number) => void;
-  removeFromCart: (productId: string) => void;
+  addToCart: (product: ShopProduct, quantity?: number, variant?: ProductVariant) => void;
+  updateCartQuantity: (itemKey: string, delta: number) => void;
+  removeFromCart: (itemKey: string) => void;
   clearCart: () => void;
 
   // Product Modal / Detail
