@@ -1,0 +1,9 @@
+# Backblaze B2 S3-Compatible Storage Credentials (Local Development)
+# Copy this file to dev.vars and fill in with your local/testing credentials.
+# NEVER commit real credentials to git.
+
+B2_APPLICATION_KEY_ID=your_b2_application_key_id
+B2_APPLICATION_KEY=your_b2_application_key
+B2_BUCKET=ferasetu-media-prod
+B2_REGION=eu-central-003
+B2_ENDPOINT=https://s3.eu-central-003.backblazeb2.com

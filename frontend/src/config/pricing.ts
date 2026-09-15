@@ -43,8 +43,11 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     gateway: 'cashfree',
     plans: {
       free: { monthly: 0, yearly: 0, yearlyPerMonth: 0 },
-      business: { monthly: 399, yearly: 3990, yearlyPerMonth: 332 },
-      pro: { monthly: 999, yearly: 9990, yearlyPerMonth: 832 },
+      starter: { monthly: 1, yearly: 1, yearlyPerMonth: 1 },
+      growth: { monthly: 1, yearly: 1, yearlyPerMonth: 1 },
+      business: { monthly: 1, yearly: 1, yearlyPerMonth: 1 },
+      pro: { monthly: 1, yearly: 1, yearlyPerMonth: 1 },
+      scale: { monthly: 1, yearly: 1, yearlyPerMonth: 1 },
     },
   },
   US: {

@@ -71,9 +71,14 @@ export function logMediaEvent(event, data = {}) {
   console.log(JSON.stringify(payload));
 }
 
+// Strict allowlist for root-level public fixtures
+const ROOT_PUBLIC_ASSETS = new Set([
+  'ferasetu-new-web.png',
+]);
+
 /**
  * Validates requested media path and prevents traversal.
- * Expected format: shops/<shop_id>/<category>/<file_name>
+ * Expected format: shops/<shop_id>/<category>/<file_name> or nested shops/<shop_id>/<category>/<subpath>/<file_name>
  */
 export function parseAndValidateMediaKey(pathname) {
   if (!pathname || typeof pathname !== 'string') {
@@ -99,7 +104,25 @@ export function parseAndValidateMediaKey(pathname) {
     clean = clean.slice('cdn/'.length);
   }
 
-  // Key must match: shops/<shop_id>/<category>/<filename>
+  if (!clean) {
+    return { valid: false, reason: 'empty_path' };
+  }
+
+  // Strict allowlist for exact root-level fixtures (e.g. ferasetu-new-web.png)
+  if (ROOT_PUBLIC_ASSETS.has(clean)) {
+    return {
+      valid: true,
+      objectKey: clean,
+      shopId: null,
+      category: 'products',
+      filename: clean,
+      isPublic: true,
+      isPrivate: false,
+      isVersioned: false,
+    };
+  }
+
+  // Key must match: shops/<shop_id>/<category>/<remaining...>
   const parts = clean.split('/');
   if (parts.length < 4 || parts[0] !== 'shops') {
     return { valid: false, reason: 'invalid_format' };
@@ -107,7 +130,7 @@ export function parseAndValidateMediaKey(pathname) {
 
   const shopId = parts[1];
   const category = parts[2].toLowerCase();
-  const filename = parts.slice(3).join('/');
+  const remainingSegments = parts.slice(3);
 
   // Validate characters in shopId and category
   if (!/^[a-zA-Z0-9_-]+$/.test(shopId)) {
@@ -116,10 +139,18 @@ export function parseAndValidateMediaKey(pathname) {
   if (!/^[a-zA-Z0-9_-]+$/.test(category)) {
     return { valid: false, reason: 'invalid_category' };
   }
-  if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
-    return { valid: false, reason: 'invalid_filename' };
+
+  // Validate each subsegment individually
+  for (const seg of remainingSegments) {
+    if (!seg || seg === '.' || seg === '..') {
+      return { valid: false, reason: 'path_traversal' };
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(seg)) {
+      return { valid: false, reason: 'invalid_filename' };
+    }
   }
 
+  const filename = remainingSegments[remainingSegments.length - 1];
   const isPublic = PUBLIC_CATEGORIES.has(category);
   const isPrivate = !isPublic; // Deny by default: any unlisted category is private
 
@@ -142,12 +173,18 @@ export function parseAndValidateMediaKey(pathname) {
  * Instantiates B2Client from Worker environment.
  */
 export function getB2ClientFromEnv(env) {
+  const endpoint = env.B2_ENDPOINT || 'https://s3.eu-central-003.backblazeb2.com';
+  const bucketName = env.B2_BUCKET || env.B2_BUCKET_NAME || env.MEDIA_BUCKET_NAME || 'ferasetu-media-prod';
+  const applicationKeyId = env.B2_APPLICATION_KEY_ID || env.B2_KEY_ID || '';
+  const applicationKey = env.B2_APPLICATION_KEY || env.B2_APP_KEY || env.B2_SECRET_KEY || '';
+  const region = env.B2_REGION || 'eu-central-003';
+
   return new B2Client({
-    endpoint: env.B2_ENDPOINT || '',
-    bucketName: env.B2_BUCKET_NAME || '',
-    applicationKeyId: env.B2_APPLICATION_KEY_ID || '',
-    applicationKey: env.B2_APPLICATION_KEY || '',
-    region: env.B2_REGION,
+    endpoint,
+    bucketName,
+    applicationKeyId,
+    applicationKey,
+    region,
     fetcher: env.B2_FETCHER || fetch,
   });
 }

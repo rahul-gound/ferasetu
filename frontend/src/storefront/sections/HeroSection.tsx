@@ -3,6 +3,7 @@ import { ArrowRight, ShoppingBag, ShieldCheck, Truck, Sparkles } from 'lucide-re
 import type { HeroVariant } from '../theme/themeTypes';
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { sanitizeText } from '../utilities/formatting';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface HeroSectionProps {
   config?: Record<string, unknown>;
@@ -150,7 +151,7 @@ export default function HeroSection({
               >
                 <div className="w-full aspect-square rounded-xl bg-gray-100 overflow-hidden mb-4 relative">
                   <img
-                    src={featuredProduct.image_url || imageUrl}
+                    src={resolveMediaUrl(featuredProduct.media_key || featuredProduct.image_url) || resolveMediaUrl(imageUrl)}
                     alt={featuredProduct.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />

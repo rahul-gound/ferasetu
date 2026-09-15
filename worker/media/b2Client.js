@@ -63,17 +63,17 @@ export async function getSigV4SigningKey(secretKey, dateStamp, region, service =
  * Extracts B2 region from B2_ENDPOINT (e.g. s3.us-west-004.backblazeb2.com -> us-west-004).
  */
 export function extractB2Region(endpoint, explicitRegion) {
-  if (explicitRegion && typeof explicitRegion === 'string') {
+  if (explicitRegion && typeof explicitRegion === 'string' && explicitRegion.trim()) {
     return explicitRegion.trim();
   }
   if (!endpoint || typeof endpoint !== 'string') {
-    return 'us-west-004';
+    return 'eu-central-003';
   }
   const match = endpoint.match(/s3\.([a-zA-Z0-9-]+)\.backblazeb2\.com/i);
   if (match && match[1]) {
     return match[1].toLowerCase();
   }
-  return 'us-west-004';
+  return 'eu-central-003';
 }
 
 /**
@@ -95,14 +95,12 @@ export function buildCanonicalUri(bucketName, objectKey) {
 
 export class B2Client {
   constructor(options = {}) {
-    const {
-      endpoint = '',
-      bucketName = '',
-      applicationKeyId = '',
-      applicationKey = '',
-      region,
-      fetcher = fetch,
-    } = options;
+    const endpoint = options.endpoint || options.B2_ENDPOINT || 'https://s3.eu-central-003.backblazeb2.com';
+    const bucketName = options.bucketName || options.B2_BUCKET || options.B2_BUCKET_NAME || options.MEDIA_BUCKET_NAME || 'ferasetu-media-prod';
+    const applicationKeyId = options.applicationKeyId || options.B2_APPLICATION_KEY_ID || options.B2_KEY_ID || '';
+    const applicationKey = options.applicationKey || options.B2_APPLICATION_KEY || options.B2_APP_KEY || options.B2_SECRET_KEY || '';
+    const region = options.region || options.B2_REGION;
+    const fetcher = options.fetcher || fetch;
 
     if (!endpoint || !bucketName || !applicationKeyId || !applicationKey) {
       this.isConfigured = false;
@@ -123,9 +121,9 @@ export class B2Client {
    */
   assertConfigured() {
     if (!this.isConfigured) {
-      throw new Error(
-        'B2Client configuration error: B2_ENDPOINT, B2_BUCKET_NAME, B2_APPLICATION_KEY_ID, and B2_APPLICATION_KEY must all be set.'
-      );
+      const err = new Error('B2Client configuration error: B2 credentials or bucket name are missing.');
+      err.code = 'B2_CONFIG_MISSING';
+      throw err;
     }
   }
 
@@ -299,14 +297,14 @@ export class B2Client {
 
     if (!res.ok) {
       const status = res.status;
-      let errText = '';
-      try {
-        errText = await res.text();
-      } catch {
-        // ignore
-      }
-      // Never expose B2 internal XML / signatures in thrown error
-      throw new Error(`B2 upload failed with HTTP status ${status}`);
+      let errCode = 'B2_UPLOAD_FAILED';
+      if (status === 401) errCode = 'B2_AUTH_FAILED';
+      else if (status === 403) errCode = 'B2_ACCESS_DENIED';
+      else if (status === 404) errCode = 'B2_BUCKET_NOT_FOUND';
+      const err = new Error(`B2 upload failed with HTTP status ${status}`);
+      err.code = errCode;
+      err.status = status;
+      throw err;
     }
 
     return {
@@ -325,6 +323,12 @@ export class B2Client {
     if (res.status === 204 || res.status === 200 || res.status === 404) {
       return true;
     }
-    throw new Error(`B2 delete failed with HTTP status ${res.status}`);
+    let errCode = 'B2_DELETE_FAILED';
+    if (res.status === 401) errCode = 'B2_AUTH_FAILED';
+    else if (res.status === 403) errCode = 'B2_ACCESS_DENIED';
+    const err = new Error(`B2 delete failed with HTTP status ${res.status}`);
+    err.code = errCode;
+    err.status = res.status;
+    throw err;
   }
 }

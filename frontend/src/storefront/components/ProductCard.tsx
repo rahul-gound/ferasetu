@@ -5,6 +5,7 @@ import type { CardVariant } from '../theme/themeTypes';
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, calculateDiscount, sanitizeText } from '../utilities/formatting';
 import { handleImageFallback, getProductPlaceholderSvg } from '../utilities/imageFallback';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface ProductCardProps {
   product: ShopProduct;
@@ -30,6 +31,7 @@ export default function ProductCard({
 
   const title = sanitizeText(product.name);
   const category = sanitizeText(product.category || 'General');
+  const imageUrl = resolveMediaUrl(product.media_key || product.image_url);
 
   // ─────────────────────────────────────────────────────────────
   // 1. EDITORIAL VARIANT (Atelier: Luxury, 3:4 portrait, minimalist)
@@ -49,7 +51,7 @@ export default function ProductCard({
           style={{ aspectRatio: '3/4', borderRadius: 'var(--theme-radius-card)' }}
         >
           <img
-            src={product.image_url || getProductPlaceholderSvg(product.name, '#121212')}
+            src={imageUrl || getProductPlaceholderSvg(product.name, '#121212')}
             alt={title}
             loading="lazy"
             onError={(e) => handleImageFallback(e, product.name)}
@@ -122,7 +124,7 @@ export default function ProductCard({
           style={{ aspectRatio: '1/1' }}
         >
           <img
-            src={product.image_url || getProductPlaceholderSvg(product.name, '#000000')}
+            src={imageUrl || getProductPlaceholderSvg(product.name, '#000000')}
             alt={title}
             loading="lazy"
             onError={(e) => handleImageFallback(e, product.name)}
@@ -180,7 +182,7 @@ export default function ProductCard({
           style={{ aspectRatio: '4/5' }}
         >
           <img
-            src={product.image_url || getProductPlaceholderSvg(product.name, '#2563EB')}
+            src={imageUrl || getProductPlaceholderSvg(product.name, '#2563EB')}
             alt={title}
             loading="lazy"
             onError={(e) => handleImageFallback(e, product.name)}
@@ -256,7 +258,7 @@ export default function ProductCard({
           style={{ aspectRatio: '4/5' }}
         >
           <img
-            src={product.image_url || getProductPlaceholderSvg(product.name, '#C25E3E')}
+            src={imageUrl || getProductPlaceholderSvg(product.name, '#C25E3E')}
             alt={title}
             loading="lazy"
             onError={(e) => handleImageFallback(e, product.name)}
@@ -330,7 +332,7 @@ export default function ProductCard({
         style={{ aspectRatio: '1/1' }}
       >
         <img
-          src={product.image_url || getProductPlaceholderSvg(product.name, '#0F172A')}
+          src={imageUrl || getProductPlaceholderSvg(product.name, '#0F172A')}
           alt={title}
           loading="lazy"
           onError={(e) => handleImageFallback(e, product.name)}

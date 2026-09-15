@@ -14,6 +14,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import UpgradePrompt from '../components/ui/UpgradePrompt';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getPlanLimits, normalizePlanId, hasReachedProductLimit } from '../config/plans';
+import { resolveMediaUrl } from '../utils/media';
 
 interface ProductOption {
   id?: string;
@@ -49,6 +50,7 @@ interface Product {
   category: string;
   stock_quantity: number;
   image_url?: string;
+  media_key?: string;
   is_active: boolean;
   status?: 'active' | 'draft' | 'archived';
   sku?: string;
@@ -68,6 +70,7 @@ interface ProductForm {
   category: string;
   stock_quantity: string;
   image_url: string;
+  media_key: string;
   is_active: boolean;
   status: 'active' | 'draft' | 'archived';
   sku: string;
@@ -128,11 +131,12 @@ export default function ProductsPage() {
 
   const emptyForm: ProductForm = {
     name: '', description: '', cost_price: '', price: '', sale_price: '',
-    category: '', stock_quantity: '', image_url: '', is_active: true,
+    category: '', stock_quantity: '', image_url: '', media_key: '', is_active: true,
     status: 'active', sku: '', barcode: '', options: [], variants: []
   };
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products', statusFilter],
@@ -231,7 +235,7 @@ export default function ProductsPage() {
 
   const openEdit = async (p: Product) => {
     setEditProduct(p);
-    setImagePreview(p.image_url || '');
+    setImagePreview(resolveMediaUrl(p.media_key || p.image_url || ''));
     setShowModal(true);
     setLoadingDetails(true);
 
@@ -255,6 +259,7 @@ export default function ProductsPage() {
         option_values: v.option_values || {},
       }));
 
+      setImagePreview(resolveMediaUrl(fullProd.media_key || fullProd.image_url || ''));
       setForm({
         name: fullProd.name || '',
         description: fullProd.description || '',
@@ -264,6 +269,7 @@ export default function ProductsPage() {
         category: fullProd.category || '',
         stock_quantity: String(fullProd.stock_quantity ?? fullProd.stock ?? 0),
         image_url: fullProd.image_url || '',
+        media_key: fullProd.media_key || '',
         is_active: fullProd.is_active !== false,
         status: (fullProd.status || (fullProd.is_active ? 'active' : 'draft')) as 'active' | 'draft' | 'archived',
         sku: fullProd.sku || '',
@@ -282,6 +288,7 @@ export default function ProductsPage() {
         category: p.category,
         stock_quantity: String(p.stock_quantity),
         image_url: p.image_url || '',
+        media_key: p.media_key || '',
         is_active: p.is_active,
         status: (p.status || (p.is_active ? 'active' : 'draft')) as 'active' | 'draft' | 'archived',
         sku: p.sku || '',
@@ -411,51 +418,50 @@ export default function ProductsPage() {
     });
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
 
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const dataUrl = ev.target?.result as string;
-      const img = new window.Image();
-      img.onload = () => {
-        const MAX_DIM = 800;
-        let width = img.width;
-        let height = img.height;
+    // Show instant preview using blob URL (local only, never persisted)
+    const blobUrl = URL.createObjectURL(file);
+    setImagePreview(blobUrl);
 
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) {
-            height = Math.round((height * MAX_DIM) / width);
-            width = MAX_DIM;
-          } else {
-            width = Math.round((width * MAX_DIM) / height);
-            height = MAX_DIM;
-          }
-        }
+    // Upload to B2 via /api/media/upload
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      // If editing an existing product, attach the product ID for canonical key
+      if (editProduct?.id) {
+        formData.append('productId', editProduct.id);
+      }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.8);
-          setImagePreview(compressed);
-          setForm(f => ({ ...f, image_url: compressed }));
-        } else {
-          setImagePreview(dataUrl);
-          setForm(f => ({ ...f, image_url: dataUrl }));
-        }
-      };
-      img.onerror = () => {
-        setImagePreview(dataUrl);
-        setForm(f => ({ ...f, image_url: dataUrl }));
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
+      const res = await api.post('/media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const mediaKey = res.data?.media_key || res.data?.key;
+      if (!mediaKey) {
+        throw new Error('Upload succeeded but no media key returned');
+      }
+
+      // Store the canonical media key (NOT a URL, NOT base64)
+      setForm(f => ({ ...f, media_key: mediaKey, image_url: '' }));
+      // Update preview to CDN URL for display
+      setImagePreview(resolveMediaUrl(mediaKey));
+      toast.success('Image uploaded!');
+    } catch (err: any) {
+      console.error('Media upload failed:', err);
+      const msg = err.response?.data?.error || err.message || 'Failed to upload image';
+      toast.error(msg);
+      // Revert preview on failure
+      setImagePreview(form.media_key ? resolveMediaUrl(form.media_key) : (form.image_url || ''));
+    } finally {
+      setUploading(false);
+      // Revoke the blob URL to free memory
+      URL.revokeObjectURL(blobUrl);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -486,7 +492,7 @@ export default function ProductsPage() {
         option_values: v.option_values || {},
       }));
 
-      const payload = {
+      const payload: Record<string, any> = {
         name: form.name.trim(),
         description: form.description.trim(),
         cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
@@ -494,7 +500,6 @@ export default function ProductsPage() {
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         category: form.category,
         stock_quantity: parseInt(form.stock_quantity) || 0,
-        image_url: form.image_url,
         is_active: form.status === 'active',
         status: form.status,
         sku: form.sku.trim() || null,
@@ -502,6 +507,16 @@ export default function ProductsPage() {
         options: parsedOptions,
         variants: parsedVariants,
       };
+
+      // If we have a media_key from B2 upload, send that (canonical storage).
+      // Also set image_url to CDN URL for backward compatibility with list views.
+      // If no media_key, fall back to legacy image_url (existing products).
+      if (form.media_key) {
+        payload.media_key = form.media_key;
+        payload.image_url = resolveMediaUrl(form.media_key);
+      } else if (form.image_url) {
+        payload.image_url = form.image_url;
+      }
 
       if (editProduct) {
         await api.put(`/products/${editProduct.id}`, payload);
@@ -670,12 +685,12 @@ export default function ProductsPage() {
             <div key={product.id} className="card" style={{ overflow: 'hidden', padding: 0 }}>
               {/* Image */}
               <div style={{
-                height: '160px', background: product.image_url ? 'none' : 'linear-gradient(135deg,#f5f5f5,#e8e8e8)',
+                height: '160px', background: (product.media_key || product.image_url) ? 'none' : 'linear-gradient(135deg,#f5f5f5,#e8e8e8)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative', overflow: 'hidden',
               }}>
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name}
+                {(product.media_key || product.image_url) ? (
+                  <img src={resolveMediaUrl(product.media_key || product.image_url)} alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <Package size={48} color="#ccc" />
@@ -801,15 +816,21 @@ export default function ProductsPage() {
                   Product Image
                 </label>
                 <div
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() => !uploading && fileRef.current?.click()}
                   style={{
                     height: '140px', border: '2px dashed var(--border)', borderRadius: '10px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                    cursor: uploading ? 'wait' : 'pointer', overflow: 'hidden', position: 'relative',
                     background: imagePreview ? 'none' : 'var(--bg)',
+                    opacity: uploading ? 0.7 : 1,
                   }}
                 >
-                  {imagePreview ? (
+                  {uploading ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <div style={{ width: '28px', height: '28px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 8px' }} />
+                      <p style={{ fontSize: '13px' }}>Uploading to cloud...</p>
+                    </div>
+                  ) : imagePreview ? (
                     <img src={imagePreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -818,7 +839,7 @@ export default function ProductsPage() {
                     </div>
                   )}
                 </div>
-                <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} disabled={uploading} />
               </div>
 
               {/* Name */}
@@ -1096,9 +1117,9 @@ export default function ProductsPage() {
                 <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary">
                   {translate('cancel')}
                 </button>
-                <button type="submit" disabled={saving} className="btn btn-primary"
-                  style={{ opacity: saving ? 0.7 : 1, minWidth: '100px' }}>
-                  {saving ? 'Saving...' : translate('save')}
+                <button type="submit" disabled={saving || uploading} className="btn btn-primary"
+                  style={{ opacity: (saving || uploading) ? 0.7 : 1, minWidth: '100px' }}>
+                  {uploading ? 'Uploading...' : saving ? 'Saving...' : translate('save')}
                 </button>
               </div>
             </form>

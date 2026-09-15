@@ -429,6 +429,34 @@ export function validateImageMagicBytes(arrayBuffer, declaredMime, category = 'p
 }
 
 /**
+ * Infers file extension from MIME type or fallback filename.
+ */
+export function getExtensionForMime(mimeType, fallbackFilename = '') {
+  const mimeMap = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'image/svg+xml': 'svg',
+    'image/x-icon': 'ico',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'audio/mpeg': 'mp3',
+    'audio/wav': 'wav',
+    'application/pdf': 'pdf',
+  };
+  if (mimeType && mimeMap[mimeType.toLowerCase()]) {
+    return mimeMap[mimeType.toLowerCase()];
+  }
+  const parts = (fallbackFilename || '').split('.');
+  if (parts.length > 1) {
+    const ext = parts.pop().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (ext) return ext;
+  }
+  return 'bin';
+}
+
+/**
  * POST /api/media/upload
  * Direct authenticated upload pipeline through the Worker to Backblaze B2.
  */
@@ -444,6 +472,7 @@ export async function handleDirectUpload(request, env, orgContext) {
   let category = 'products';
   let mimeType = 'application/octet-stream';
   let fileSize = 0;
+  let productId = null;
 
   if (contentTypeHeader.includes('multipart/form-data')) {
     const formData = await request.formData();
@@ -460,9 +489,17 @@ export async function handleDirectUpload(request, env, orgContext) {
     if (typeof formCategory === 'string' && formCategory.trim()) {
       category = formCategory.toLowerCase().trim();
     }
+    const formProductId = formData.get('productId') || formData.get('product_id');
+    if (typeof formProductId === 'string' && formProductId.trim()) {
+      productId = formProductId.trim();
+    }
   } else {
     filename = sanitizeFilename(request.headers.get('x-file-name') || 'upload.bin');
     category = (request.headers.get('x-category') || 'products').toLowerCase().trim();
+    const headerProdId = request.headers.get('x-product-id');
+    if (headerProdId && typeof headerProdId === 'string' && headerProdId.trim()) {
+      productId = headerProdId.trim();
+    }
     mimeType = contentTypeHeader.split(';')[0].trim() || 'application/octet-stream';
     fileData = await request.arrayBuffer();
     fileSize = fileData.byteLength;
@@ -525,11 +562,22 @@ export async function handleDirectUpload(request, env, orgContext) {
     });
   }
 
-  // 6. Atomically reserve quota
+  // 6. Atomically reserve quota & construct canonical object key
   const reservationId = `res_${crypto.randomUUID()}`;
   const fileId = crypto.randomUUID();
-  // Versioned key ensures new uploads never hit stale edge caches
-  const objectKey = `shops/${shopId}/${category}/${fileId}-v${Date.now()}-${filename}`;
+  const ext = getExtensionForMime(mimeType, filename);
+
+  let objectKey;
+  if (category === 'products') {
+    if (productId && /^[a-zA-Z0-9_-]+$/.test(productId)) {
+      objectKey = `shops/${shopId}/products/${productId}/${fileId}.${ext}`;
+    } else {
+      objectKey = `shops/${shopId}/products/pending/${fileId}.${ext}`;
+    }
+  } else {
+    objectKey = `shops/${shopId}/${category}/${fileId}.${ext}`;
+  }
+
   const nowIso = new Date().toISOString();
   const ttlSeconds = getReservationTtlSeconds(env);
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
@@ -545,8 +593,25 @@ export async function handleDirectUpload(request, env, orgContext) {
     WHERE shop_id = ?
   `).bind(fileSize, nowIso, shopId).run();
 
-  // 7. Upload to B2 via mediaStore
-  const mediaStore = await getTenantMediaStore(shopId, env);
+  // 7. Upload to B2 via mediaStore (fail fast on config error, no silent fallback)
+  let mediaStore;
+  try {
+    mediaStore = await getTenantMediaStore(shopId, env);
+  } catch (configErr) {
+    await db.prepare("UPDATE upload_reservations SET status = 'cancelled' WHERE id = ?").bind(reservationId).run();
+    await db.prepare(`
+      UPDATE shop_storage
+      SET reserved_bytes = MAX(0, reserved_bytes - ?), updated_at = ?
+      WHERE shop_id = ?
+    `).bind(fileSize, new Date().toISOString(), shopId).run();
+
+    logShardingEvent('upload_storage_config_error', {
+      shop_id: shopId,
+      error: configErr.message,
+    });
+    throw new HttpError("Storage backend configuration error", 500);
+  }
+
   try {
     await mediaStore.put(objectKey, fileData, {
       contentType: mimeType,
@@ -588,6 +653,8 @@ export async function handleDirectUpload(request, env, orgContext) {
 
   const cdnBase = (env.CDN_BASE_URL || 'https://cdn.ferasetu.com').replace(/\/+$/, '');
   const mediaUrl = `${cdnBase}/${objectKey}`;
+
+  console.log(`[MEDIA_EVENT] PRODUCT_IMAGE_UPLOAD_SUCCESS=true provider=b2 key=${objectKey}`);
 
   return {
     success: true,

@@ -13,6 +13,7 @@ import {
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, calculateDiscount, sanitizeText } from '../utilities/formatting';
 import { handleImageFallback, getProductPlaceholderSvg } from '../utilities/imageFallback';
+import { resolveMediaUrl } from '../../utils/media';
 
 export default function ProductDetailModal() {
   const {
@@ -137,7 +138,7 @@ export default function ProductDetailModal() {
               style={{ aspectRatio: '1/1' }}
             >
               <img
-                src={activeVariant?.image_url || selectedProduct.image_url || getProductPlaceholderSvg(selectedProduct.name)}
+                src={resolveMediaUrl(activeVariant?.media_key || activeVariant?.image_url) || resolveMediaUrl(selectedProduct.media_key || selectedProduct.image_url) || getProductPlaceholderSvg(selectedProduct.name)}
                 alt={title}
                 onError={(e) => handleImageFallback(e, selectedProduct.name)}
                 className="w-full h-full object-contain p-4"
@@ -388,7 +389,7 @@ export default function ProductDetailModal() {
                     >
                       <div className="relative overflow-hidden rounded bg-slate-100 border border-slate-200 aspect-square mb-1">
                         <img
-                          src={rel.image_url || getProductPlaceholderSvg(rel.name)}
+                          src={resolveMediaUrl(rel.media_key || rel.image_url) || getProductPlaceholderSvg(rel.name)}
                           alt={rel.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />

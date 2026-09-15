@@ -46,7 +46,7 @@ export default function ReferEarnPage() {
   const referrals: ReferralRecord[] = [];
   const totalReferred = referrals.length;
   const successfulStores = referrals.filter(r => r.status === 'completed').length;
-  const totalRewardsWon = successfulStores * 500;
+  const totalRewardsWon = successfulStores * 200;
 
   return (
     <div className="pb-12 max-w-[1380px] mx-auto space-y-6">
@@ -75,7 +75,7 @@ export default function ReferEarnPage() {
             </h1>
           </div>
           <p className="text-xs sm:text-sm font-medium text-slate-500 max-w-2xl">
-            Invite fellow business owners to FeraSetu. Earn ₹500 directly in your payout account for every merchant who launches their store, and they get 100 free AI credits!
+            Invite fellow business owners to FeraSetu. Earn 200 free AI credits for every merchant who launches their store, and they get 100 free AI credits!
           </p>
         </div>
 
@@ -119,8 +119,8 @@ export default function ReferEarnPage() {
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
           <div>
             <p className="text-xs font-bold text-slate-400">Total Rewards Won</p>
-            <h3 className="text-3xl font-black text-[#0052FF] tracking-tight mt-1">₹{totalRewardsWon.toLocaleString('en-IN')}</h3>
-            <p className="text-[11px] font-medium text-slate-400 mt-1">Credited to payout account</p>
+            <h3 className="text-3xl font-black text-[#0052FF] tracking-tight mt-1">{totalRewardsWon.toLocaleString('en-IN')} Credits</h3>
+            <p className="text-[11px] font-medium text-slate-400 mt-1">Free AI credits earned</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 flex-shrink-0">
             <Trophy size={24} />
@@ -201,7 +201,7 @@ export default function ReferEarnPage() {
               </span>
               <div>
                 <p className="text-xs font-bold text-slate-900">You both get rewarded</p>
-                <p className="text-[11px] text-slate-500 font-medium">You get ₹500 directly in your payout account, and they get 100 free AI credits.</p>
+                <p className="text-[11px] text-slate-500 font-medium">You get 200 free AI credits, and they get 100 free AI credits.</p>
               </div>
             </div>
           </div>
@@ -279,7 +279,7 @@ export default function ReferEarnPage() {
             </div>
             <h3 className="text-sm font-bold text-slate-800 mb-1">No referrals yet</h3>
             <p className="text-xs text-slate-400 font-medium max-w-sm mb-4">
-              Share your unique referral link with retailers and shopkeepers to earn ₹500 for every merchant that launches their store on FeraSetu.
+              Share your unique referral link with retailers and shopkeepers to earn 200 free AI credits for every merchant that launches their store on FeraSetu.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button

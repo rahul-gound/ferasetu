@@ -3,6 +3,7 @@ import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, calculateDiscount, sanitizeText } from '../utilities/formatting';
 import { handleImageFallback, getProductPlaceholderSvg } from '../utilities/imageFallback';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface FeaturedProductSectionProps {
   config?: Record<string, unknown>;
@@ -41,7 +42,7 @@ export default function FeaturedProductSection({
             onClick={() => openProductModal(product)}
           >
             <img
-              src={product.image_url || getProductPlaceholderSvg(product.name)}
+              src={resolveMediaUrl(product.media_key || product.image_url) || getProductPlaceholderSvg(product.name)}
               alt={title}
               onError={(e) => handleImageFallback(e, product.name)}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

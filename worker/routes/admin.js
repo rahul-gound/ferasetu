@@ -36,13 +36,16 @@ function isOriginAllowed(origin) {
 }
 
 function getCorsHeaders(request) {
-  const origin = request ? request.headers.get("Origin") : null;
+  const origin = request ? request.headers?.get("Origin") : null;
   const allowedOrigin = isOriginAllowed(origin) ? origin : "https://ferasetu.com";
+  const reqHeaders = request ? request.headers?.get("Access-Control-Request-Headers") : null;
+  const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Cache-Control, Pragma";
+  const allowedHeaders = reqHeaders ? `${baseHeaders}, ${reqHeaders}` : baseHeaders;
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
+    "Access-Control-Allow-Headers": allowedHeaders,
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400"
   };

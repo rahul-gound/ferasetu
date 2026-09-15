@@ -133,7 +133,11 @@ export async function getTenantDatabase(shopId, env) {
  */
 export async function getTenantMediaStore(shopId, env) {
   const shard = await getShardForShop(shopId, env);
-  const bucketName = shard?.r2_bucket_name || env.B2_BUCKET_NAME || env.MEDIA_BUCKET_NAME || 'ferasetu-media';
+  const bucketName = shard?.r2_bucket_name || env.B2_BUCKET || env.B2_BUCKET_NAME || env.MEDIA_BUCKET_NAME || 'ferasetu-media-prod';
+  const applicationKeyId = env.B2_APPLICATION_KEY_ID || env.B2_KEY_ID;
+  const applicationKey = env.B2_APPLICATION_KEY || env.B2_APP_KEY || env.B2_SECRET_KEY;
+  const endpoint = env.B2_ENDPOINT || 'https://s3.eu-central-003.backblazeb2.com';
+  const region = env.B2_REGION || 'eu-central-003';
 
   const tenantPrefix = `shops/${shopId}/`;
 
@@ -188,13 +192,13 @@ export async function getTenantMediaStore(shopId, env) {
   }
 
   // 2. Backblaze B2 S3-compatible media store (Production)
-  if (env.B2_APPLICATION_KEY_ID && env.B2_APPLICATION_KEY) {
+  if (applicationKeyId && applicationKey) {
     const b2Client = new B2Client({
-      endpoint: env.B2_ENDPOINT,
+      endpoint,
       bucketName,
-      applicationKeyId: env.B2_APPLICATION_KEY_ID,
-      applicationKey: env.B2_APPLICATION_KEY,
-      region: env.B2_REGION,
+      applicationKeyId,
+      applicationKey,
+      region,
       fetcher: env.B2_FETCHER || fetch,
     });
 

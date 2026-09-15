@@ -14,6 +14,7 @@ import {
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, sanitizeText } from '../utilities/formatting';
 import { handleImageFallback, getProductPlaceholderSvg } from '../utilities/imageFallback';
+import { resolveMediaUrl } from '../../utils/media';
 
 const FREE_SHIPPING_THRESHOLD = 499;
 
@@ -212,7 +213,7 @@ export default function CartDrawer() {
                   <div key={itemKey} className="py-3.5 flex gap-3 first:pt-0 last:pb-0">
                     <div className="w-16 h-16 rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0">
                       <img
-                        src={item.image_url || getProductPlaceholderSvg(item.name)}
+                        src={resolveMediaUrl((item as any).media_key || item.image_url) || getProductPlaceholderSvg(item.name)}
                         alt={item.name}
                         onError={(e) => handleImageFallback(e, item.name)}
                         className="w-full h-full object-cover"

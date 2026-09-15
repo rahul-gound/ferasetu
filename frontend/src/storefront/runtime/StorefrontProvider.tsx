@@ -11,7 +11,8 @@ import type {
 } from './storefrontState';
 import { formatWhatsAppPhone } from '../utilities/formatting';
 
-const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const rawApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const API = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
 
 const StorefrontContext = createContext<StorefrontContextValue | null>(null);
 
@@ -72,11 +73,25 @@ export function StorefrontProvider({
   const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([]);
   const [selectedCustomerOrder, setSelectedCustomerOrder] = useState<CustomerOrder | null>(null);
 
+  const getCustomerHeaders = useCallback(() => {
+    const headers: Record<string, string> = {
+      'X-Shop-Slug': shopName,
+      'X-Organization-Id': shopId,
+    };
+    try {
+      const token = localStorage.getItem('fs_customer_session_token');
+      if (token) {
+        headers['X-Customer-Session'] = token;
+      }
+    } catch {}
+    return headers;
+  }, [shopName, shopId]);
+
   const checkCustomerSession = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/storefront/customer/me`, {
         withCredentials: true,
-        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+        headers: getCustomerHeaders()
       });
       if (res.data?.authenticated && res.data?.customer) {
         setCustomer(res.data.customer);
@@ -86,7 +101,7 @@ export function StorefrontProvider({
     } catch {
       setCustomer(null);
     }
-  }, [shopName, shopId]);
+  }, [getCustomerHeaders]);
 
   useEffect(() => {
     checkCustomerSession();
@@ -113,9 +128,14 @@ export function StorefrontProvider({
     try {
       const res = await axios.post(`${API}/storefront/customer/login`, { email, password }, {
         withCredentials: true,
-        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+        headers: getCustomerHeaders()
       });
       if (res.data?.success && res.data?.customer) {
+        if (res.data?.token) {
+          try {
+            localStorage.setItem('fs_customer_session_token', res.data.token);
+          } catch {}
+        }
         setCustomer(res.data.customer);
         setIsCustomerAuthOpen(false);
         return { success: true };
@@ -125,15 +145,20 @@ export function StorefrontProvider({
       const msg = err.response?.data?.error || 'Invalid email or password';
       return { success: false, error: msg };
     }
-  }, [shopName, shopId]);
+  }, [getCustomerHeaders]);
 
   const registerCustomer = useCallback(async (data: { email: string; password: string; name?: string; phone?: string }) => {
     try {
       const res = await axios.post(`${API}/storefront/customer/register`, data, {
         withCredentials: true,
-        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+        headers: getCustomerHeaders()
       });
       if (res.data?.success && res.data?.customer) {
+        if (res.data?.token) {
+          try {
+            localStorage.setItem('fs_customer_session_token', res.data.token);
+          } catch {}
+        }
         setCustomer(res.data.customer);
         setIsCustomerAuthOpen(false);
         return { success: true };
@@ -143,31 +168,34 @@ export function StorefrontProvider({
       const msg = err.response?.data?.error || 'Registration failed';
       return { success: false, error: msg };
     }
-  }, [shopName, shopId]);
+  }, [getCustomerHeaders]);
 
   const logoutCustomer = useCallback(async () => {
     try {
       await axios.post(`${API}/storefront/customer/logout`, {}, {
         withCredentials: true,
-        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+        headers: getCustomerHeaders()
       });
+    } catch {}
+    try {
+      localStorage.removeItem('fs_customer_session_token');
     } catch {}
     setCustomer(null);
     setCustomerOrders([]);
     setIsCustomerAccountOpen(false);
-  }, [shopName, shopId]);
+  }, [getCustomerHeaders]);
 
   const fetchCustomerOrders = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/storefront/customer/orders`, {
         withCredentials: true,
-        headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId }
+        headers: getCustomerHeaders()
       });
       setCustomerOrders(res.data?.orders || []);
     } catch (err) {
       console.warn('Failed to fetch customer orders:', err);
     }
-  }, [shopName, shopId]);
+  }, [getCustomerHeaders]);
 
   // Check URL query parameter for product deep-linking
   useEffect(() => {
@@ -322,7 +350,7 @@ export function StorefrontProvider({
 
         const res = await axios.post(`${API}/orders/create`, payload, {
           withCredentials: true,
-          headers: { 'X-Shop-Slug': shopName, 'X-Organization-Id': shopId },
+          headers: getCustomerHeaders(),
         });
         const data = res.data;
 

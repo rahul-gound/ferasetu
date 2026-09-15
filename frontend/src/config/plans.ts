@@ -71,19 +71,19 @@ export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
     yearlyPerMonth: 0,
   },
   starter: {
-    monthly: 299,
-    yearly: 2990,
-    yearlyPerMonth: 249,
+    monthly: 1,
+    yearly: 1,
+    yearlyPerMonth: 1,
   },
   business: {
-    monthly: 399,
-    yearly: 3990,
-    yearlyPerMonth: 332,
+    monthly: 1,
+    yearly: 1,
+    yearlyPerMonth: 1,
   },
   pro: {
-    monthly: 999,
-    yearly: 9990,
-    yearlyPerMonth: 832,
+    monthly: 1,
+    yearly: 1,
+    yearlyPerMonth: 1,
   },
 };
 
@@ -93,19 +93,19 @@ export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
  */
 export const BUSINESS_PRICE_VARIANTS: Record<string, PlanPrice> = {
   variant_299: {
-    monthly: 299,
-    yearly: 2990,
-    yearlyPerMonth: 249,
+    monthly: 1,
+    yearly: 1,
+    yearlyPerMonth: 1,
   },
   control_399: {
-    monthly: 399,
-    yearly: 3990,
-    yearlyPerMonth: 332,
+    monthly: 1,
+    yearly: 1,
+    yearlyPerMonth: 1,
   },
   variant_499: {
-    monthly: 499,
-    yearly: 4990,
-    yearlyPerMonth: 416,
+    monthly: 1,
+    yearly: 1,
+    yearlyPerMonth: 1,
   },
 };
 

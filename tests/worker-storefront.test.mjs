@@ -337,6 +337,24 @@ await test('8. API request from merchant origin: OPTIONS preflight succeeds with
   assert.equal(res.headers.get('access-control-allow-credentials'), 'true');
 });
 
+await test('8c. OPTIONS preflight for /orders/create allows x-organization-id and x-shop-slug from merchant origin', async () => {
+  const req = new Request('https://ferasetu.singhantima203.workers.dev/orders/create', {
+    method: 'OPTIONS',
+    headers: {
+      'Origin': 'https://sharma-virar-palghar-mh-1.ferasetu.com',
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'content-type,x-organization-id,x-shop-slug'
+    }
+  });
+  const res = await worker.fetch(req, mockEnv);
+  assert.equal(res.status, 204);
+  assert.equal(res.headers.get('access-control-allow-origin'), 'https://sharma-virar-palghar-mh-1.ferasetu.com');
+  assert.equal(res.headers.get('access-control-allow-credentials'), 'true');
+  const allowHeaders = (res.headers.get('access-control-allow-headers') || '').toLowerCase();
+  assert.ok(allowHeaders.includes('x-organization-id'), 'Must allow x-organization-id header');
+  assert.ok(allowHeaders.includes('x-shop-slug'), 'Must allow x-shop-slug header');
+});
+
 await test('8b. Public shop API (/api/website/public/:shopName) on Worker', async () => {
   const req = new Request('https://ferasetu.singhantima203.workers.dev/api/website/public/rajeshmart-mumbai-mh-in', {
     headers: {

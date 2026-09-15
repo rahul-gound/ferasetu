@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { SectionConfig, ShopProduct } from '../../../types/template';
 import DOMPurify from 'isomorphic-dompurify';
+import { resolveMediaUrl } from '../../../utils/media';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -40,6 +41,7 @@ function ProductCard({ product, accentColor, showStock, onBuyNow, onAddToCart, s
   const hasSale = product.sale_price != null && product.sale_price < product.price;
   const discount = hasSale ? Math.round(((product.price - product.sale_price!) / product.price) * 100) : 0;
   const isOutOfStock = product.stock_quantity <= 0;
+  const productImage = resolveMediaUrl(product.media_key || product.image_url);
 
   return (
     <>
@@ -75,10 +77,10 @@ function ProductCard({ product, accentColor, showStock, onBuyNow, onAddToCart, s
         <div className="fera-product-badge" style={{ background: '#64748b', left: 'auto', right: '12px' }}>OUT OF STOCK</div>
       )}
 
-      {product.image_url ? (
+      {productImage ? (
         <div style={{ position: 'relative', height: '200px', overflow: 'hidden', background: '#f5f7fa' }}>
           <img
-            src={product.image_url}
+            src={productImage}
             alt={sanitizeText(product.name)}
             style={{ 
               width: '100%', height: '100%', objectFit: 'cover',
@@ -371,9 +373,9 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                        {cart.map(item => (
                           <div key={item.id} style={{ display: 'flex', gap: '16px' }}>
-                             <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: '#f8fafc', overflow: 'hidden' }}>
-                                {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentColor, fontWeight: 800 }}>{item.name[0]}</div>}
-                             </div>
+                              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: '#f8fafc', overflow: 'hidden' }}>
+                                 {resolveMediaUrl(item.media_key || item.image_url) ? <img src={resolveMediaUrl(item.media_key || item.image_url)} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentColor, fontWeight: 800 }}>{item.name[0]}</div>}
+                              </div>
                              <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 700, fontSize: '15px' }}>{item.name}</div>
                                 <div style={{ color: accentColor, fontWeight: 700, marginTop: '4px' }}>₹{(item.sale_price || item.price).toLocaleString('en-IN')}</div>

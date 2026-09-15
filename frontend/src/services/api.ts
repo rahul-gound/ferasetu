@@ -1274,12 +1274,35 @@ remoteApi.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Handle 401 and 403 globally
+// Handle 401 and 403 globally with automatic token refresh retry
 remoteApi.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
     const status = error.response?.status;
-    if (status === 401 || status === 403) {
+
+    // If 401 and not already retried, attempt to refresh WorkOS token once
+    if (status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        const freshToken = await getWorkOSToken();
+        if (freshToken) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+          return remoteApi(originalRequest);
+        }
+      } catch (refreshErr) {
+        console.warn('WorkOS token refresh retry failed:', refreshErr);
+      }
+      try {
+        localStorage.removeItem('fera_user');
+      } catch {}
+      notifyUnauthorized({
+        url: originalRequest?.url ?? '',
+        status,
+        error,
+      });
+    } else if (status === 401 || status === 403) {
       try {
         localStorage.removeItem('fera_user');
       } catch {

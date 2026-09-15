@@ -37,6 +37,7 @@ export interface ProductVariant {
   compare_at_price?: number | null;
   compare_at_price_minor?: number | null;
   image_url?: string;
+  media_key?: string;
   status: 'active' | 'draft' | 'archived';
   option_values?: Record<string, string>;
 }
@@ -53,6 +54,7 @@ export interface ShopProduct {
   stock_quantity: number;
   stock?: number;
   image_url?: string;
+  media_key?: string;
   is_active: number;
   status?: string;
   sku?: string;

@@ -1066,6 +1066,97 @@ await test('Scenario 20: Frontend and API responses never expose raw B2 URLs or 
   assert.ok(res.media_file.url.startsWith('https://cdn.ferasetu.com/shops/shop_sec_check/products/'));
 });
 
+await test('Scenario 21: Root allowlist serves ferasetu-new-web.png and blocks arbitrary root files', async () => {
+  const b2Backend = createMockB2Backend();
+  b2Backend.objects.set('ferasetu-media-prod/ferasetu-new-web.png', {
+    data: new TextEncoder().encode('png-bytes'),
+    contentType: 'image/png',
+    etag: '"test-etag"',
+    lastModified: new Date().toUTCString(),
+  });
+
+  const env = {
+    B2_ENDPOINT: 's3.eu-central-003.backblazeb2.com',
+    B2_BUCKET: 'ferasetu-media-prod',
+    B2_APPLICATION_KEY_ID: 'key_id',
+    B2_APPLICATION_KEY: 'app_key',
+    B2_FETCHER: b2Backend.mockFetcher,
+  };
+
+  // Allowlisted root fixture
+  const reqOk = new Request('https://cdn.ferasetu.com/ferasetu-new-web.png', { method: 'GET' });
+  const resOk = await handleMediaCdnRequest(reqOk, env);
+  assert.equal(resOk.status, 200, 'Root allowlisted asset should return 200');
+  assert.equal(resOk.headers.get('Content-Type'), 'image/png');
+
+  // Disallowed root file
+  const reqBad = new Request('https://cdn.ferasetu.com/random-fixture.png', { method: 'GET' });
+  const resBad = await handleMediaCdnRequest(reqBad, env);
+  assert.equal(resBad.status, 400, 'Unallowlisted root asset should return 400 invalid_format');
+});
+
+await test('Scenario 22: Nested canonical keys with productId are parsed and served via CDN', async () => {
+  const b2Backend = createMockB2Backend();
+  const testKey = 'shops/shop_prod_1/products/prod_abc_123/image_456.webp';
+  b2Backend.objects.set(`ferasetu-media-prod/${testKey}`, {
+    data: new TextEncoder().encode('webp-image-data'),
+    contentType: 'image/webp',
+    etag: '"etag-webp"',
+    lastModified: new Date().toUTCString(),
+  });
+
+  const env = {
+    B2_ENDPOINT: 's3.eu-central-003.backblazeb2.com',
+    B2_BUCKET: 'ferasetu-media-prod',
+    B2_KEY_ID: 'key_id',
+    B2_APP_KEY: 'app_key',
+    B2_FETCHER: b2Backend.mockFetcher,
+  };
+
+  const req = new Request(`https://cdn.ferasetu.com/${testKey}`, { method: 'GET' });
+  const res = await handleMediaCdnRequest(req, env);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('Content-Type'), 'image/webp');
+});
+
+await test('Scenario 23: Direct upload with x-product-id attaches productId to canonical key', async () => {
+  const b2Backend = createMockB2Backend();
+  const db = createMockD1();
+  db.tables.shop_storage.push({
+    shop_id: 'shop_prod_upload',
+    quota_bytes: 500 * 1024 * 1024,
+    used_bytes: 0,
+    reserved_bytes: 0,
+    updated_at: new Date().toISOString(),
+  });
+
+  const env = {
+    DB: db,
+    B2_ENDPOINT: 's3.eu-central-003.backblazeb2.com',
+    B2_BUCKET: 'ferasetu-media-prod',
+    B2_KEY_ID: 'key_1',
+    B2_APP_KEY: 'key_2',
+    B2_FETCHER: b2Backend.mockFetcher,
+  };
+
+  const orgContext = { organization: { id: 'shop_prod_upload', market: 'IN', plan: 'free' } };
+
+  const req = new Request('https://ferasetu.com/api/media/upload', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'image/jpeg',
+      'X-File-Name': 'main.jpg',
+      'X-Product-Id': 'prod_xyz_789',
+    },
+    body: new Uint8Array([1, 2, 3, 4]),
+  });
+
+  const res = await handleDirectUpload(req, env, orgContext);
+  assert.ok(res.media_file.media_key.startsWith('shops/shop_prod_upload/products/prod_xyz_789/'));
+  assert.ok(res.media_file.media_key.endsWith('.jpg'));
+  assert.ok(b2Backend.objects.has(`ferasetu-media-prod/${res.media_file.media_key}`));
+});
+
 console.log('\n────────────────────────────────────────────────────────────');
 console.log(`Results: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
@@ -1075,6 +1166,6 @@ if (failed > 0) {
   }
   process.exit(1);
 } else {
-  console.log('\n🌟 All 20 comprehensive B2 & cdn.ferasetu.com scenarios passed successfully!');
+  console.log(`\n🌟 All ${passed} comprehensive B2 & cdn.ferasetu.com scenarios passed successfully!`);
 }
 

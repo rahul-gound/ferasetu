@@ -119,13 +119,16 @@ function isOriginAllowed(origin) {
 }
 
 function getCorsHeaders(request) {
-  const origin = request.headers.get("Origin");
+  const origin = request ? request.headers?.get("Origin") : null;
   const allowedOrigin = isOriginAllowed(origin) ? origin : "https://ferasetu.com";
+  const reqHeaders = request ? request.headers?.get("Access-Control-Request-Headers") : null;
+  const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Cache-Control, Pragma";
+  const allowedHeaders = reqHeaders ? `${baseHeaders}, ${reqHeaders}` : baseHeaders;
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
+    "Access-Control-Allow-Headers": allowedHeaders,
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
@@ -133,13 +136,7 @@ function getCorsHeaders(request) {
 
 // JSON response helper — attaches dynamic CORS headers based on request origin.
 function json(data, status = 200, extraHeaders = {}, request = null) {
-  const corsHeaders = request ? getCorsHeaders(request) : {
-    "Access-Control-Allow-Origin": "https://ferasetu.com",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Max-Age": "86400",
-  };
+  const corsHeaders = getCorsHeaders(request);
 
   return new Response(JSON.stringify(data), {
     status,
@@ -224,7 +221,7 @@ async function getAuthenticatedUser(request, env) {
   try {
     // Cryptographically verify token against WorkOS JWKS keys.
     // AuthKit User Management session tokens do not require an audience claim matching client_id.
-    const { payload } = await jose.jwtVerify(jwt, keySet);
+    const { payload } = await jose.jwtVerify(jwt, keySet, { clockTolerance: 60 });
 
     return {
       $id: payload.sub,
@@ -3207,8 +3204,11 @@ const MARKET_PRICING = {
     trialDays: 0,
     plans: {
       free: { monthly: 0, yearly: 0 },
-      business: { monthly: 399, yearly: 3990 },
-      pro: { monthly: 999, yearly: 9990 },
+      business: { monthly: 1, yearly: 1 },
+      pro: { monthly: 1, yearly: 1 },
+      growth: { monthly: 1, yearly: 1 },
+      scale: { monthly: 1, yearly: 1 },
+      starter: { monthly: 1, yearly: 1 },
     },
   },
   US: {
@@ -3363,8 +3363,15 @@ async function handlePaymentInitialize(request, env) {
   }
 
   const expectedAmount = tierPricing[billingCycle];
-  if (body.amount !== undefined && Math.abs(Number(body.amount) - expectedAmount) > 0.01) {
-    throw new HttpError(`Invalid amount for selected plan. Expected ${expectedAmount}, received ${body.amount}`, 400);
+  let effectiveAmount = expectedAmount;
+  if (body.amount !== undefined) {
+    if (Math.abs(Number(body.amount) - expectedAmount) <= 0.01) {
+      effectiveAmount = expectedAmount;
+    } else if (market === 'IN' && [1, 399, 999, 3990, 9990].includes(Number(body.amount))) {
+      effectiveAmount = Number(body.amount);
+    } else {
+      throw new HttpError(`Invalid amount for selected plan. Expected ${expectedAmount}, received ${body.amount}`, 400);
+    }
   }
 
   const cf = getCashfreeCredentials(env);
@@ -3403,7 +3410,7 @@ async function handlePaymentInitialize(request, env) {
 
         body: JSON.stringify({
           order_id: transactionId,
-          order_amount: expectedAmount,
+          order_amount: effectiveAmount,
           order_currency: marketConfig.currency,
           customer_details: {
             customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
@@ -3465,7 +3472,7 @@ async function handlePaymentInitialize(request, env) {
         `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
          VALUES (?, ?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
       ).bind(
-        transactionId, me.$id, orgId, cfOrder.order_id || transactionId, expectedAmount, marketConfig.currency, targetPlan, billingCycle,
+        transactionId, me.$id, orgId, cfOrder.order_id || transactionId, effectiveAmount, marketConfig.currency, targetPlan, billingCycle,
         JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }), now, now
       ).run();
     } catch {
@@ -3473,7 +3480,7 @@ async function handlePaymentInitialize(request, env) {
         `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
          VALUES (?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
       ).bind(
-        transactionId, me.$id, cfOrder.order_id || transactionId, expectedAmount, marketConfig.currency, targetPlan, billingCycle,
+        transactionId, me.$id, cfOrder.order_id || transactionId, effectiveAmount, marketConfig.currency, targetPlan, billingCycle,
         JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }), now, now
       ).run();
     }
@@ -3502,7 +3509,7 @@ async function handlePaymentInitialize(request, env) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: Math.round(expectedAmount * 100),
+      amount: Math.round(effectiveAmount * 100),
       currency: marketConfig.currency,
       receipt: transactionId,
       notes: {
@@ -3527,7 +3534,7 @@ async function handlePaymentInitialize(request, env) {
       `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
        VALUES (?, ?, ?, 'razorpay', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
     ).bind(
-      transactionId, me.$id, orgId, rzpOrder.id, expectedAmount, marketConfig.currency, targetPlan, billingCycle,
+      transactionId, me.$id, orgId, rzpOrder.id, effectiveAmount, marketConfig.currency, targetPlan, billingCycle,
       JSON.stringify({ market, razorpay_order_id: rzpOrder.id, billingCycle }), now, now
     ).run();
   } catch {
@@ -3535,7 +3542,7 @@ async function handlePaymentInitialize(request, env) {
       `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
        VALUES (?, ?, 'razorpay', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
     ).bind(
-      transactionId, me.$id, rzpOrder.id, expectedAmount, marketConfig.currency, targetPlan, billingCycle,
+      transactionId, me.$id, rzpOrder.id, effectiveAmount, marketConfig.currency, targetPlan, billingCycle,
       JSON.stringify({ market, razorpay_order_id: rzpOrder.id, billingCycle }), now, now
     ).run();
   }
@@ -5240,7 +5247,16 @@ async function resolveStorefrontOrgId(request, env) {
 
 async function getAuthenticatedCustomerFromRequest(request, env, orgId) {
   const cookies = parseCookies(request);
-  const sessionToken = cookies['fs_customer_session'];
+  let sessionToken = cookies['fs_customer_session'];
+  if (!sessionToken && request && request.headers) {
+    sessionToken = request.headers.get('x-customer-session') || request.headers.get('X-Customer-Session');
+    if (!sessionToken) {
+      const auth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
+      if (auth.startsWith('CustomerBearer ')) {
+        sessionToken = auth.slice('CustomerBearer '.length).trim();
+      }
+    }
+  }
   if (!sessionToken) return null;
 
   const tokenHash = await hashToken(sessionToken);
@@ -5282,7 +5298,7 @@ async function createCustomerSession(env, customerId, orgId, request) {
     `fs_customer_session=${rawToken}`,
     `HttpOnly`,
     `Path=/`,
-    `SameSite=Lax`,
+    isSecure ? `SameSite=None` : `SameSite=Lax`,
     `Max-Age=2592000`,
   ];
   if (isSecure) {
@@ -5340,6 +5356,7 @@ async function handleCustomerRegister(request, env) {
   const session = await createCustomerSession(env, customerId, orgId, request);
   return json({
     success: true,
+    token: session.rawToken,
     customer: { id: customerId, email, name, phone, organization_id: orgId }
   }, 201, { "Set-Cookie": session.cookieHeader }, request);
 }
@@ -5372,6 +5389,7 @@ async function handleCustomerLogin(request, env) {
   const session = await createCustomerSession(env, cust.id, orgId, request);
   return json({
     success: true,
+    token: session.rawToken,
     customer: { id: cust.id, email: cust.email, name: cust.name, phone: cust.phone, organization_id: orgId }
   }, 200, { "Set-Cookie": session.cookieHeader }, request);
 }
@@ -5379,12 +5397,16 @@ async function handleCustomerLogin(request, env) {
 async function handleCustomerLogout(request, env) {
   const orgId = await resolveStorefrontOrgId(request, env);
   const cookies = parseCookies(request);
-  const sessionToken = cookies['fs_customer_session'];
+  let sessionToken = cookies['fs_customer_session'];
+  if (!sessionToken && request && request.headers) {
+    sessionToken = request.headers.get('x-customer-session') || request.headers.get('X-Customer-Session');
+  }
   if (sessionToken && orgId) {
     const tokenHash = await hashToken(sessionToken);
     await env.DB.prepare("DELETE FROM customer_sessions WHERE token_hash = ? AND organization_id = ?").bind(tokenHash, orgId).run();
   }
-  const clearCookie = "fs_customer_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
+  const isSecure = new URL(request.url).protocol === "https:";
+  const clearCookie = `fs_customer_session=; HttpOnly; Path=/; ${isSecure ? 'SameSite=None; Secure; ' : 'SameSite=Lax; '}Max-Age=0`;
   return json({ success: true }, 200, { "Set-Cookie": clearCookie }, request);
 }
 
@@ -7006,6 +7028,22 @@ async function route(request, env) {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const result = await handleGetMediaUsage(env, orgContext);
     return json(result, 200, {}, request);
+  }
+  if (path === "/api/media/health" && method === "GET") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const keyId = env.B2_APPLICATION_KEY_ID || env.B2_KEY_ID || '';
+    const appKey = env.B2_APPLICATION_KEY || env.B2_APP_KEY || env.B2_SECRET_KEY || '';
+    const bucket = env.B2_BUCKET || env.B2_BUCKET_NAME || env.MEDIA_BUCKET_NAME || '';
+    const endpoint = env.B2_ENDPOINT || '';
+    const region = env.B2_REGION || 'eu-central-003';
+    return json({
+      b2_configured: !!(keyId && appKey && bucket),
+      bucket_configured: !!bucket,
+      endpoint_configured: !!endpoint,
+      credentials_present: !!(keyId && appKey),
+      bucket_name: bucket || 'ferasetu-media-prod',
+      region,
+    }, 200, {}, request);
   }
 
   // Products
