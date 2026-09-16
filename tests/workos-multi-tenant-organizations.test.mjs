@@ -599,6 +599,19 @@ await test('10. Multi-tenant isolation: Two organizations cannot read or modify 
 
 // 11. Customer email is redacted by default
 await test('11. Customer email is redacted by default from merchant dashboard API endpoints', async () => {
+  mockDb.tables.products.push({
+    id: 'mock_prod',
+    organization_id: org1Data.organization.id,
+    shop_id: org1Data.organization.id,
+    name: 'Mock Product',
+    price: 100,
+    price_minor: 10000,
+    stock: 50,
+    stock_quantity: 50,
+    status: 'active',
+    is_active: 1
+  });
+
   // Public customer places order
   const checkoutReq = new Request('https://ferasetu.com/api/orders/create', {
     method: 'POST',

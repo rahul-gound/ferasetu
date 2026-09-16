@@ -126,7 +126,12 @@ export function StorefrontProvider({
 
   const loginCustomer = useCallback(async (email: string, password: string) => {
     try {
-      const res = await axios.post(`${API}/storefront/customer/login`, { email, password }, {
+      const res = await axios.post(`${API}/storefront/customer/login`, {
+        email,
+        password,
+        shopId,
+        shopSlug: shopName
+      }, {
         withCredentials: true,
         headers: getCustomerHeaders()
       });
@@ -145,11 +150,15 @@ export function StorefrontProvider({
       const msg = err.response?.data?.error || 'Invalid email or password';
       return { success: false, error: msg };
     }
-  }, [getCustomerHeaders]);
+  }, [getCustomerHeaders, shopId, shopName]);
 
   const registerCustomer = useCallback(async (data: { email: string; password: string; name?: string; phone?: string }) => {
     try {
-      const res = await axios.post(`${API}/storefront/customer/register`, data, {
+      const res = await axios.post(`${API}/storefront/customer/register`, {
+        ...data,
+        shopId,
+        shopSlug: shopName
+      }, {
         withCredentials: true,
         headers: getCustomerHeaders()
       });
@@ -168,7 +177,7 @@ export function StorefrontProvider({
       const msg = err.response?.data?.error || 'Registration failed';
       return { success: false, error: msg };
     }
-  }, [getCustomerHeaders]);
+  }, [getCustomerHeaders, shopId, shopName]);
 
   const logoutCustomer = useCallback(async () => {
     try {
@@ -363,8 +372,10 @@ export function StorefrontProvider({
 
         clearCart();
         return true;
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to submit order:', err);
+        const errMsg = err?.response?.data?.error || err?.message || 'Failed to place order';
+        alert(`Order failed: ${errMsg}`);
         // Do NOT clear cart on failure to preserve customer selections
         return false;
       } finally {

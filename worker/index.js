@@ -376,13 +376,13 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
     const clean = shopIdOrSlug.trim();
     if (clean) {
       shop = await env.DB.prepare(
-        "SELECT * FROM shops WHERE id = ? OR store_slug = ?"
-      ).bind(clean, clean).first();
+        "SELECT * FROM shops WHERE id = ? OR store_slug = ? OR LOWER(name) = ?"
+      ).bind(clean, clean, clean.toLowerCase()).first();
 
       if (!shop) {
         organization = await env.DB.prepare(
-          "SELECT * FROM organizations WHERE id = ? OR store_slug = ?"
-        ).bind(clean, clean).first();
+          "SELECT * FROM organizations WHERE id = ? OR store_slug = ? OR LOWER(name) = ?"
+        ).bind(clean, clean, clean.toLowerCase()).first();
 
         if (organization) {
           shop = await env.DB.prepare(
@@ -393,8 +393,8 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
 
       if (!shop && !organization) {
         const legacyUser = await env.DB.prepare(
-          "SELECT id, business_name, name, subdomain FROM users WHERE id = ? OR subdomain = ?"
-        ).bind(clean, clean).first();
+          "SELECT id, business_name, name, subdomain FROM users WHERE id = ? OR subdomain = ? OR LOWER(business_name) = ? OR LOWER(name) = ?"
+        ).bind(clean, clean, clean.toLowerCase(), clean.toLowerCase()).first();
         if (legacyUser) {
           const mem = await env.DB.prepare(
             "SELECT organization_id FROM organization_members WHERE user_id = ? ORDER BY created_at ASC"
@@ -5516,13 +5516,17 @@ async function handlePublicCreateOrder(request, env) {
       } catch {}
 
       // Decrement cached aggregate stock on products table
-      const decRes = await env.DB.prepare(
-        "UPDATE products SET stock = stock - ?, stock_quantity = stock_quantity - ? WHERE id = ? AND stock >= ?"
-      ).bind(qty, qty, priceInfo.product.id, qty).run();
-
-      if (decRes && decRes.meta && decRes.meta.changes === 0) {
+      const availableStock = Math.max(
+        Number(priceInfo.product.stock) || 0,
+        Number(priceInfo.product.stock_quantity) || 0
+      );
+      if (availableStock < qty) {
         throw new HttpError(`Insufficient stock for product: ${priceInfo.product.name || priceInfo.product.title}`, 400);
       }
+
+      await env.DB.prepare(
+        "UPDATE products SET stock = stock - ?, stock_quantity = stock_quantity - ? WHERE id = ?"
+      ).bind(qty, qty, priceInfo.product.id).run();
     }
   }
 
@@ -5740,8 +5744,12 @@ async function hashPassword(password, saltHex) {
 }
 
 async function resolveStorefrontOrgId(request, env) {
-  const headerOrgId = request.headers.get("X-Organization-Id");
-  if (headerOrgId) return headerOrgId;
+  const headerOrgId = request.headers.get("X-Organization-Id") || request.headers.get("X-Shop-Id");
+  if (headerOrgId) {
+    const tenant = await resolveStorefrontTenant(request, env, headerOrgId);
+    if (tenant?.organizationId) return tenant.organizationId;
+    return headerOrgId;
+  }
 
   const headerSlug = request.headers.get("X-Shop-Slug");
   if (headerSlug) {
@@ -5849,14 +5857,19 @@ async function createCustomerSession(env, customerId, orgId, request) {
 }
 
 async function handleCustomerRegister(request, env) {
-  const orgId = await resolveStorefrontOrgId(request, env);
-  if (!orgId) throw new HttpError("Storefront context required", 400);
-
   const body = await readJsonBody(request);
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+  const bodyShop = body.shopId || body.shop_id || body.shopSlug || body.shop_slug;
+
+  let orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId && bodyShop) {
+    const tenant = await resolveStorefrontTenant(request, env, bodyShop);
+    if (tenant?.organizationId) orgId = tenant.organizationId;
+  }
+  if (!orgId) throw new HttpError("Storefront context required", 400);
 
   if (!email || !email.includes('@')) throw new HttpError("Valid email is required", 422);
   if (!password || password.length < 8) throw new HttpError("Password must be at least 8 characters", 422);
@@ -5899,12 +5912,17 @@ async function handleCustomerRegister(request, env) {
 }
 
 async function handleCustomerLogin(request, env) {
-  const orgId = await resolveStorefrontOrgId(request, env);
-  if (!orgId) throw new HttpError("Storefront context required", 400);
-
   const body = await readJsonBody(request);
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
+  const bodyShop = body.shopId || body.shop_id || body.shopSlug || body.shop_slug;
+
+  let orgId = await resolveStorefrontOrgId(request, env);
+  if (!orgId && bodyShop) {
+    const tenant = await resolveStorefrontTenant(request, env, bodyShop);
+    if (tenant?.organizationId) orgId = tenant.organizationId;
+  }
+  if (!orgId) throw new HttpError("Storefront context required", 400);
 
   if (!email || !password) throw new HttpError("Email and password are required", 422);
 
@@ -5950,6 +5968,14 @@ async function handleCustomerLogout(request, env) {
 async function handleCustomerMe(request, env) {
   const orgId = await resolveStorefrontOrgId(request, env);
   if (!orgId) throw new HttpError("Storefront context required", 400);
+
+  const cookies = parseCookies(request);
+  const sessionToken = cookies['fs_customer_session'] ||
+    (request && request.headers ? (request.headers.get('x-customer-session') || request.headers.get('X-Customer-Session')) : null);
+
+  if (!sessionToken) {
+    return json({ authenticated: false, customer: null }, 200, {}, request);
+  }
 
   const session = await getAuthenticatedCustomerFromRequest(request, env, orgId);
   if (!session) {
