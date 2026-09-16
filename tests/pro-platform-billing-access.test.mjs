@@ -246,6 +246,75 @@ await test('End-to-End Worker route /api/pro/overview returns 200 OK for Active 
   assert.ok(json.quotas.usage);
 });
 
+await test('End-to-End CORS: OPTIONS preflight to /api/pro/* returns 204 with CORS headers', async () => {
+  const db = createProMockD1();
+  const env = { DB: db, JWT_SECRET: 'test_secret' };
+  const req = new Request('https://api.ferasetu.com/api/pro/pages', {
+    method: 'OPTIONS',
+    headers: {
+      'Origin': 'https://ferasetu.com',
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'Authorization, Content-Type',
+    }
+  });
+
+  const res = await worker.fetch(req, env);
+  assert.equal(res.status, 204);
+  assert.equal(res.headers.get('Access-Control-Allow-Origin'), 'https://ferasetu.com');
+  assert.ok(res.headers.get('Access-Control-Allow-Methods').includes('POST'));
+});
+
+await test('End-to-End CORS: 403 and 200 responses attach Access-Control-Allow-Origin', async () => {
+  const db = createProMockD1();
+  const env = { DB: db, JWT_SECRET: 'test_secret' };
+  
+  // 403 Forbidden
+  const req403 = new Request('https://api.ferasetu.com/api/pro/overview', {
+    method: 'GET',
+    headers: { 'Origin': 'https://ferasetu.com', Authorization: 'Bearer usr_free' }
+  });
+  const res403 = await worker.fetch(req403, env);
+  assert.equal(res403.status, 403);
+  assert.equal(res403.headers.get('Access-Control-Allow-Origin'), 'https://ferasetu.com');
+
+  // 200 OK
+  const req200 = new Request('https://api.ferasetu.com/api/pro/overview', {
+    method: 'GET',
+    headers: { 'Origin': 'https://ferasetu.com', Authorization: 'Bearer usr_pro_active' }
+  });
+  const res200 = await worker.fetch(req200, env);
+  assert.equal(res200.status, 200);
+  assert.equal(res200.headers.get('Access-Control-Allow-Origin'), 'https://ferasetu.com');
+});
+
+await test('End-to-End: Duplicate page creation auto-deduplicates slugs without 500 error', async () => {
+  const db = createProMockD1();
+  const env = { DB: db, JWT_SECRET: 'test_secret' };
+
+  // Create first page with slug 'about'
+  const req1 = new Request('https://api.ferasetu.com/api/pro/pages', {
+    method: 'POST',
+    headers: { 'Origin': 'https://ferasetu.com', 'Content-Type': 'application/json', Authorization: 'Bearer usr_pro_active' },
+    body: JSON.stringify({ title: 'About Us', slug: 'about' })
+  });
+  const res1 = await worker.fetch(req1, env);
+  assert.equal(res1.status, 201);
+  const json1 = await res1.json();
+  assert.equal(json1.slug, 'about');
+
+  // Create second page with same slug 'about' — should auto-deduplicate to 'about-2'
+  const req2 = new Request('https://api.ferasetu.com/api/pro/pages', {
+    method: 'POST',
+    headers: { 'Origin': 'https://ferasetu.com', 'Content-Type': 'application/json', Authorization: 'Bearer usr_pro_active' },
+    body: JSON.stringify({ title: 'About Us Duplicate', slug: 'about' })
+  });
+  const res2 = await worker.fetch(req2, env);
+  assert.equal(res2.status, 201);
+  const json2 = await res2.json();
+  assert.equal(json2.slug, 'about-2');
+  assert.equal(res2.headers.get('Access-Control-Allow-Origin'), 'https://ferasetu.com');
+});
+
 console.log(`\nResults: ${passed} passed, ${failed} failed\n`);
 if (failed > 0) {
   process.exit(1);

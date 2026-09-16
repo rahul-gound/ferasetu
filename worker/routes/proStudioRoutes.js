@@ -8,20 +8,61 @@ import { requireProAccess, ProAccessError } from '../middleware/proAuth.js';
 import * as proService from '../services/proPlatformService.js';
 import { PRO_TEMPLATES, installProTemplate } from '../templates/proTemplates.js';
 
-function jsonResponse(data, status = 200, extraHeaders = {}) {
+const ALLOWED_ORIGINS = [
+  "https://ferasetu.com",
+  "https://www.ferasetu.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+];
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    if (url.protocol === "http:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") return false;
+    if (url.hostname.endsWith(".ferasetu.com") || url.hostname === "ferasetu.com") return true;
+    if (url.hostname.endsWith(".workers.dev")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function getCorsHeaders(request) {
+  const origin = request ? (request.headers?.get("Origin") || request.headers?.get("origin")) : null;
+  const allowedOrigin = isOriginAllowed(origin) ? origin : (origin || "https://ferasetu.com");
+  const reqHeaders = request ? request.headers?.get("Access-Control-Request-Headers") : null;
+  const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Cache-Control, Pragma";
+  const allowedHeaders = reqHeaders ? `${baseHeaders}, ${reqHeaders}` : baseHeaders;
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": allowedHeaders,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+function jsonResponse(data, status = 200, extraHeaders = {}, request = null) {
+  const cors = getCorsHeaders(request);
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store, private",
+      ...cors,
       ...extraHeaders,
     },
   });
 }
 
-function errorResponse(err, defaultStatus = 400) {
+function errorResponse(err, defaultStatus = 400, request = null) {
   const status = err.status || defaultStatus;
   const code = err.code || "REQUEST_FAILED";
+  const cors = getCorsHeaders(request);
   return new Response(
     JSON.stringify({
       error: err.message || "An unexpected error occurred",
@@ -33,6 +74,7 @@ function errorResponse(err, defaultStatus = 400) {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store, private",
+        ...cors,
       },
     }
   );
@@ -54,15 +96,64 @@ export async function handleProStudioRoutes(request, env) {
   const path = url.pathname;
   const method = request.method;
 
+  const cors = getCorsHeaders(request);
+
+  // 0. Preflight OPTIONS check — immediately reply with 204 & CORS
+  if (method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: cors });
+  }
+
+  // Request-scoped response helpers guaranteed to attach CORS headers
+  const jsonResponse = (data, status = 200, extraHeaders = {}) => {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store, private",
+        ...cors,
+        ...extraHeaders,
+      },
+    });
+  };
+
+  const errorResponse = (err, defaultStatus = 400) => {
+    const status = err?.status || defaultStatus;
+    const code = err?.code || "REQUEST_FAILED";
+    return new Response(
+      JSON.stringify({
+        error: err?.message || "An unexpected error occurred",
+        code,
+        details: err?.details || undefined,
+      }),
+      {
+        status,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store, private",
+          ...cors,
+        },
+      }
+    );
+  };
+
+  // Ensure D1 Pro Platform tables exist before running any queries
+  try {
+    if (proService.ensureProTables) {
+      await proService.ensureProTables(env);
+    }
+  } catch (tableErr) {
+    console.warn("[handleProStudioRoutes] ensureProTables:", tableErr?.message);
+  }
+
   // 1. Authoritative subscription gate (Strict 403 PRO_REQUIRED if not active Pro)
   let proContext;
   try {
     proContext = await requireProAccess(request, env);
   } catch (authErr) {
     if (authErr instanceof ProAccessError) {
-      return authErr.toResponse();
+      return authErr.toResponse(request);
     }
-    return errorResponse(authErr, 403);
+    return fail(authErr, 403);
   }
 
   const { tenantId, user, subscription } = proContext;

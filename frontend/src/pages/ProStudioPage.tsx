@@ -106,6 +106,7 @@ export default function ProStudioPage() {
   const [validationResult, setValidationResult] = useState<any>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [installingTemplateId, setInstallingTemplateId] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // NON-PRO UPGRADE CTA SCREEN
@@ -963,23 +964,41 @@ export default function ProStudioPage() {
                     <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-400">Ready to install</span>
                       <button
+                        disabled={Boolean(installingTemplateId)}
                         onClick={async () => {
                           if (confirm(`Install '${tmpl.name}' template? This will configure draft pages, routes, functions, and navigation.`)) {
+                            setInstallingTemplateId(tmpl.id);
                             try {
                               const res = await proStudioApi.applyTemplate(tmpl.id);
                               toast.success(`Installed ${tmpl.name} template (${res.pages_installed} pages configured)`);
-                              refetchPages();
-                              refetchRoutes();
-                              refetchFunctions();
+                              await Promise.all([
+                                refetchPages(),
+                                refetchRoutes(),
+                                refetchFunctions()
+                              ]);
                               setTab('pages');
                             } catch (err: any) {
                               toast.error(err?.response?.data?.error || "Failed to install template");
+                            } finally {
+                              setInstallingTemplateId(null);
                             }
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all"
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-xs font-semibold shadow-xs transition-all ${
+                          installingTemplateId === tmpl.id
+                            ? 'bg-slate-700 cursor-wait'
+                            : 'bg-slate-900 hover:bg-slate-800'
+                        }`}
                       >
-                        Install Template <ArrowUpRight size={14} />
+                        {installingTemplateId === tmpl.id ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin" /> Installing...
+                          </>
+                        ) : (
+                          <>
+                            Install Template <ArrowUpRight size={14} />
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

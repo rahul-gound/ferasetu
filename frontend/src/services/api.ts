@@ -1252,7 +1252,7 @@ export const remoteApi = axios.create({
   withCredentials: true,
 });
 
-import { getWorkOSToken, notifyUnauthorized } from './authBridge';
+import { getWorkOSToken, clearCachedToken, notifyUnauthorized } from './authBridge';
 
 // Inject Authorization Bearer token automatically & normalize redundant /api prefixes
 remoteApi.interceptors.request.use(async (config) => {
@@ -1274,7 +1274,7 @@ remoteApi.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Handle 401 and 403 globally with automatic token refresh retry
+// Handle 401 with automatic token refresh retry. Never treat 403 as session expiry.
 remoteApi.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -1285,6 +1285,7 @@ remoteApi.interceptors.response.use(
     if (status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
+        clearCachedToken();
         const freshToken = await getWorkOSToken();
         if (freshToken) {
           originalRequest.headers = originalRequest.headers || {};
@@ -1294,26 +1295,36 @@ remoteApi.interceptors.response.use(
       } catch (refreshErr) {
         console.warn('WorkOS token refresh retry failed:', refreshErr);
       }
-      try {
-        localStorage.removeItem('fera_user');
-      } catch {}
-      notifyUnauthorized({
-        url: originalRequest?.url ?? '',
-        status,
-        error,
-      });
-    } else if (status === 401 || status === 403) {
-      try {
-        localStorage.removeItem('fera_user');
-      } catch {
-        // ignore localStorage access errors
+
+      const reqUrl = String(originalRequest?.url ?? '');
+      // Only wipe session if the failing request is an authoritative identity endpoint (/users/me or /auth/*)
+      const isAuthEndpoint = reqUrl.includes('/users/me') || reqUrl.includes('/auth/');
+      if (isAuthEndpoint) {
+        try {
+          localStorage.removeItem('fera_user');
+        } catch {}
+        notifyUnauthorized({
+          url: reqUrl,
+          status,
+          error,
+        });
       }
-      notifyUnauthorized({
-        url: error.config?.url ?? '',
-        status,
-        error,
-      });
+    } else if (status === 401) {
+      const reqUrl = String(error.config?.url ?? '');
+      const isAuthEndpoint = reqUrl.includes('/users/me') || reqUrl.includes('/auth/');
+      if (isAuthEndpoint) {
+        try {
+          localStorage.removeItem('fera_user');
+        } catch {}
+        notifyUnauthorized({
+          url: reqUrl,
+          status,
+          error,
+        });
+      }
     }
+    // Note: status 403 is Forbidden / Pro Plan Required, NOT expired credentials.
+    // We intentionally do NOT clear localStorage or notifyUnauthorized on 403.
     return Promise.reject(error);
   }
 );

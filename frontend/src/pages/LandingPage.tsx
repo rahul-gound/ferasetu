@@ -22,7 +22,7 @@
  * - No fake urgency
  * - No invented claims
  */
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -44,18 +44,26 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMarket } from '../contexts/MarketContext';
 import { getMarketPlans } from '../config/plans';
-import HowItWorksSection from '../components/marketing/HowItWorksSection';
-import ProofSection from '../components/marketing/ProofSection';
-import FAQSection from '../components/marketing/FAQSection';
-import FinalCTA from '../components/marketing/FinalCTA';
-import AIExamplePrompts from '../components/marketing/AIExamplePrompts';
-import TransformationFlow from '../components/marketing/TransformationFlow';
-import ValueCurveSection from '../components/marketing/ValueCurveSection';
-import HeroProductVisual from '../components/marketing/HeroProductVisual';
-import CommissionCalculator from '../components/marketing/CommissionCalculator';
 import MarketingReveal from '../components/marketing/MarketingReveal';
-import LanguageScroller from '../components/marketing/LanguageScroller';
 import SEO from '../components/SEO';
+
+// Lazy-loaded marketing sections for instant FCP/LCP and progressive chunk loading
+const HowItWorksSection = lazy(() => import('../components/marketing/HowItWorksSection'));
+const ProofSection = lazy(() => import('../components/marketing/ProofSection'));
+const FAQSection = lazy(() => import('../components/marketing/FAQSection'));
+const FinalCTA = lazy(() => import('../components/marketing/FinalCTA'));
+const AIExamplePrompts = lazy(() => import('../components/marketing/AIExamplePrompts'));
+const TransformationFlow = lazy(() => import('../components/marketing/TransformationFlow'));
+const ValueCurveSection = lazy(() => import('../components/marketing/ValueCurveSection'));
+const HeroProductVisual = lazy(() => import('../components/marketing/HeroProductVisual'));
+const CommissionCalculator = lazy(() => import('../components/marketing/CommissionCalculator'));
+const LanguageScroller = lazy(() => import('../components/marketing/LanguageScroller'));
+
+const SectionFallback = () => (
+  <div className="w-full py-16 flex items-center justify-center">
+    <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
+  </div>
+);
 
 /** Outcome-oriented feature block: Feature → Does → Matters */
 const FEATURE_OUTCOMES = [
@@ -158,7 +166,9 @@ export default function LandingPage() {
 
       <PublicLayout>
         {/* Top Language Scroller */}
-        <LanguageScroller />
+        <Suspense fallback={null}>
+          <LanguageScroller />
+        </Suspense>
 
         {/* ================================================================
           SECTION 1 — HERO (ATTENTION)
@@ -286,16 +296,20 @@ export default function LandingPage() {
           </div>
 
           <div className='mt-10 max-w-4xl mx-auto'>
-            <TransformationFlow />
+            <Suspense fallback={<SectionFallback />}>
+              <TransformationFlow />
+            </Suspense>
           </div>
 
           <div className='hero-card-enter hero-card-delay-3 mx-auto mt-14 max-w-[1100px] px-6'>
-            <HeroProductVisual
-              shopName={claimShopName}
-              storeSlug={slugifiedClaim}
-              market={market}
-              currencySymbol={config.symbol}
-            />
+            <Suspense fallback={<SectionFallback />}>
+              <HeroProductVisual
+                shopName={claimShopName}
+                storeSlug={slugifiedClaim}
+                market={market}
+                currencySymbol={config.symbol}
+              />
+            </Suspense>
           </div>
         </section>
 
@@ -360,7 +374,9 @@ export default function LandingPage() {
         </section>
 
         <MarketingReveal>
-          <ValueCurveSection />
+          <Suspense fallback={<SectionFallback />}>
+            <ValueCurveSection />
+          </Suspense>
         </MarketingReveal>
 
         {/* ================================================================
@@ -368,7 +384,9 @@ export default function LandingPage() {
           3-step mechanism: Add → Share → Receive
         ================================================================ */}
         <MarketingReveal>
-          <HowItWorksSection showCTA={false} />
+          <Suspense fallback={<SectionFallback />}>
+            <HowItWorksSection showCTA={false} />
+          </Suspense>
         </MarketingReveal>
 
         {/* ================================================================
@@ -477,7 +495,9 @@ export default function LandingPage() {
           COMMISSION SAVINGS COMPARISON (Interactive Loss Calculator)
         ================================================================ */}
         <MarketingReveal>
-          <CommissionCalculator />
+          <Suspense fallback={<SectionFallback />}>
+            <CommissionCalculator />
+          </Suspense>
         </MarketingReveal>
 
         {/* ================================================================
@@ -517,7 +537,11 @@ export default function LandingPage() {
           SECTION 6 — FERASETU AI (DESIRE — Purple Cow differentiator)
           Real AI examples with shop-specific context.
         ================================================================ */}
-        <AIExamplePrompts showCTA ctaHref="/register" ctaText="Try FeraSetu AI Free" />
+        <MarketingReveal>
+          <Suspense fallback={<SectionFallback />}>
+            <AIExamplePrompts showCTA ctaHref="/register" ctaText="Try FeraSetu AI Free" />
+          </Suspense>
+        </MarketingReveal>
 
         {/* ================================================================
           SECTION 7 — PROOF (TRUST — No fake testimonials)
@@ -525,10 +549,12 @@ export default function LandingPage() {
           Shows real product capabilities and honest what-you-get.
         ================================================================ */}
         <MarketingReveal>
-          <ProofSection
-            title="What you get from day one"
-            subtitle="Every feature below works on the Free plan — no credit card, no trial period, no hidden costs."
-          />
+          <Suspense fallback={<SectionFallback />}>
+            <ProofSection
+              title="What you get from day one"
+              subtitle="Every feature below works on the Free plan — no credit card, no trial period, no hidden costs."
+            />
+          </Suspense>
         </MarketingReveal>
 
         {/* ================================================================
@@ -666,10 +692,12 @@ export default function LandingPage() {
           Real questions. Factual answers. No marketing language.
         ================================================================ */}
         <MarketingReveal>
-          <FAQSection
-            title="Questions merchants ask"
-            subtitle="Honest answers — no fluff."
-          />
+          <Suspense fallback={<SectionFallback />}>
+            <FAQSection
+              title="Questions merchants ask"
+              subtitle="Honest answers — no fluff."
+            />
+          </Suspense>
         </MarketingReveal>
 
         {/* ================================================================
@@ -677,19 +705,21 @@ export default function LandingPage() {
           Ethical. No fake urgency. Strong but truthful.
         ================================================================ */}
         <MarketingReveal>
-          <FinalCTA
-            title={market === 'IN' ? "Your shop is already real.\nNow give it an online front door." : "Your business is already real.\nNow give it an online front door."}
-            subtitle={market === 'IN'
-              ? "Start free today. Your store URL is ready in minutes — no technical setup required."
-              : "Start your 14-day free trial today. Your store URL is ready in minutes — no technical setup required."}
-            primaryText={market === 'IN' ? "Start Free Store (₹0)" : "Start 14-Day Free Trial"}
-            primaryHref="/register"
-            secondaryText="See pricing"
-            secondaryHref="/pricing"
-            trustItems={market === 'IN'
-              ? ['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Secure cloud hosted']
-              : ['14-day free trial', 'No credit card to start', '0% transaction fees', 'Setup in minutes', 'Cancel anytime']}
-          />
+          <Suspense fallback={<SectionFallback />}>
+            <FinalCTA
+              title={market === 'IN' ? "Your shop is already real.\nNow give it an online front door." : "Your business is already real.\nNow give it an online front door."}
+              subtitle={market === 'IN'
+                ? "Start free today. Your store URL is ready in minutes — no technical setup required."
+                : "Start your 14-day free trial today. Your store URL is ready in minutes — no technical setup required."}
+              primaryText={market === 'IN' ? "Start Free Store (₹0)" : "Start 14-Day Free Trial"}
+              primaryHref="/register"
+              secondaryText="See pricing"
+              secondaryHref="/pricing"
+              trustItems={market === 'IN'
+                ? ['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Secure cloud hosted']
+                : ['14-day free trial', 'No credit card to start', '0% transaction fees', 'Setup in minutes', 'Cancel anytime']}
+            />
+          </Suspense>
         </MarketingReveal>
       </PublicLayout>
     </>

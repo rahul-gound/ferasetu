@@ -22,7 +22,9 @@ export class ProAccessError extends Error {
     this.details = { code: "PRO_REQUIRED", ...details };
   }
 
-  toResponse(requestHeaders = null) {
+  toResponse(request = null) {
+    const origin = request ? (request.headers?.get("Origin") || request.headers?.get("origin")) : null;
+    const allowedOrigin = origin || "https://ferasetu.com";
     return new Response(
       JSON.stringify({
         error: this.message,
@@ -34,6 +36,11 @@ export class ProAccessError extends Error {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "no-store, private",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Cache-Control, Pragma",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400",
         },
       }
     );

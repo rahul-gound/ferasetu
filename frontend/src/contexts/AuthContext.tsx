@@ -78,9 +78,22 @@ const PROFILE_KEYS: (keyof User)[] = [
 
 // Global token retriever for Axios
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Authoritative state machine: never initialize as authenticated before WorkOS verification
-  const [profile, setProfile] = useState<User | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  // Initialize profile from localStorage if available for instantaneous UI hydration
+  const [profile, setProfile] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('fera_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('fera_user');
+    } catch {
+      return true;
+    }
+  });
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const {
@@ -105,8 +118,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(({ status, url, error }) => {
-      // Don't wipe session on /users/me failure — loadProfile will provide the fallback profile
-      if (url.includes('/users/me')) {
+      // Never wipe session on arbitrary feature requests (e.g. /api/pro/*, /products, etc.)
+      // Only wipe if it's an explicit /auth/ logout or token rejection
+      if (url.includes('/users/me') || !url.includes('/auth/')) {
         return;
       }
       const detail = error instanceof Error ? error.message : 'Unauthorized';
@@ -207,14 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const status = (err as { response?: { status?: number } }).response?.status;
         const message = err instanceof Error ? err.message : 'Unknown profile error';
         console.error(`Failed to load profile from backend (${status ?? 'network'}):`, err);
-        if (status === 401 || status === 403) {
-          localStorage.removeItem('fera_user');
-          if (mounted) {
-            setProfile(null);
-            setProfileError(`Session expired (${status}): Please sign in again.`);
-            setIsProfileLoading(false);
-          }
-          return;
+        if (status === 401) {
+          console.warn(`Backend returned 401 for /users/me. Using fallback profile for ${workosUser.email}.`);
         }
         if (mounted) {
           setProfileError(`Profile bootstrap failed (${status ?? 'network'}): ${message}`);

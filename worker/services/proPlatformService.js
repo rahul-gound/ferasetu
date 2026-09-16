@@ -27,6 +27,133 @@ export class ProPlatformError extends Error {
   }
 }
 
+let proTablesEnsured = false;
+export async function ensureProTables(env) {
+  if (proTablesEnsured || !env?.DB) return;
+  try {
+    if (typeof env.DB.exec === 'function') {
+      await env.DB.exec(`
+        CREATE TABLE IF NOT EXISTS site_pages (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          slug TEXT NOT NULL,
+          title TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'standard',
+          content TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          parent_id TEXT,
+          is_homepage INTEGER NOT NULL DEFAULT 0,
+          auth_required INTEGER NOT NULL DEFAULT 0,
+          order_index INTEGER NOT NULL DEFAULT 0,
+          seo_title TEXT,
+          seo_description TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(tenant_id, slug)
+        );
+        CREATE TABLE IF NOT EXISTS site_routes (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          path_pattern TEXT NOT NULL,
+          page_id TEXT NOT NULL,
+          access_level TEXT NOT NULL DEFAULT 'public',
+          function_binding TEXT,
+          status TEXT NOT NULL DEFAULT 'draft',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(tenant_id, path_pattern)
+        );
+        CREATE TABLE IF NOT EXISTS site_functions (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          definition TEXT NOT NULL,
+          capabilities TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL DEFAULT 'draft',
+          version INTEGER NOT NULL DEFAULT 1,
+          timeout_ms INTEGER NOT NULL DEFAULT 1500,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(tenant_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS site_function_versions (
+          id TEXT PRIMARY KEY,
+          function_id TEXT NOT NULL,
+          tenant_id TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          definition TEXT NOT NULL,
+          capabilities TEXT NOT NULL DEFAULT '[]',
+          published_at TEXT NOT NULL,
+          published_by TEXT,
+          UNIQUE(function_id, version)
+        );
+        CREATE TABLE IF NOT EXISTS site_navigation (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          menu_location TEXT NOT NULL DEFAULT 'header',
+          items TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL DEFAULT 'draft',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(tenant_id, menu_location)
+        );
+        CREATE TABLE IF NOT EXISTS site_deployments (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'published',
+          snapshot TEXT NOT NULL,
+          deployed_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(tenant_id, version)
+        );
+        CREATE TABLE IF NOT EXISTS site_quotas (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL UNIQUE,
+          max_pages INTEGER NOT NULL DEFAULT 50,
+          max_routes INTEGER NOT NULL DEFAULT 100,
+          max_functions INTEGER NOT NULL DEFAULT 25,
+          max_function_invocations_monthly INTEGER NOT NULL DEFAULT 50000,
+          function_invocations_used INTEGER NOT NULL DEFAULT 0,
+          max_storage_bytes INTEGER NOT NULL DEFAULT 52428800,
+          storage_used_bytes INTEGER NOT NULL DEFAULT 0,
+          max_published_versions INTEGER NOT NULL DEFAULT 20,
+          max_ai_actions_monthly INTEGER NOT NULL DEFAULT 500,
+          ai_actions_used INTEGER NOT NULL DEFAULT 0,
+          resets_at TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS site_storage (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          bytes_size INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(tenant_id, key)
+        );
+        CREATE TABLE IF NOT EXISTS site_execution_logs (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          function_name TEXT,
+          event_type TEXT NOT NULL DEFAULT 'info',
+          details TEXT,
+          duration_ms INTEGER NOT NULL DEFAULT 0,
+          status_code INTEGER NOT NULL DEFAULT 200,
+          created_at TEXT NOT NULL
+        );
+      `);
+    }
+    proTablesEnsured = true;
+  } catch (err) {
+    console.warn("[ensureProTables] note:", err?.message);
+  }
+}
+
 // -----------------------------------------------------------------------------
 // 1. Quotas & Governance
 // -----------------------------------------------------------------------------
@@ -150,7 +277,17 @@ export async function getPage(tenantId, pageId, env) {
 export async function createPage(tenantId, data, env) {
   await checkQuota(tenantId, 'pages', 1, env);
 
-  const slug = sanitizeSlug(data.slug || data.title || "new-page");
+  const baseSlug = sanitizeSlug(data.slug || data.title || "new-page");
+  let slug = baseSlug;
+  let counter = 1;
+  if (env?.DB) {
+    while (true) {
+      const existing = await env.DB.prepare("SELECT id FROM site_pages WHERE tenant_id = ? AND slug = ?").bind(tenantId, slug).first();
+      if (!existing) break;
+      counter++;
+      slug = `${baseSlug}-${counter}`;
+    }
+  }
   const title = String(data.title || "Untitled Page").trim();
   const type = ['standard', 'auth_login', 'auth_signup', 'auth_account', 'protected', 'custom'].includes(data.type) ? data.type : 'standard';
   const content = typeof data.content === 'object' ? JSON.stringify(data.content) : (data.content || '[]');
