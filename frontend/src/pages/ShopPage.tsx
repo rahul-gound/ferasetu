@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import type { PublicShopData } from '../types/template';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
+import ProStorefrontRouter from '../components/shop/ProStorefrontRouter';
 import SEO from '../components/SEO';
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
@@ -198,6 +199,11 @@ export default function ShopPage() {
         />
       )}
       {(() => {
+        // If merchant has published an active Pro multi-page website
+        if ((data as any)?.pro_site && Array.isArray((data as any).pro_site.pages) && (data as any).pro_site.pages.length > 0) {
+          return <ProStorefrontRouter shopData={data!} />;
+        }
+
         const shopMarket = (data!.shop as any)?.market || 'IN';
         const storeCurrency = (data!.shop as any)?.currency || (data!.website.config as any)?.currency || (shopMarket === 'US' ? 'USD' : shopMarket === 'EU' ? 'EUR' : 'INR');
         const storeCurrencySymbol = (data!.shop as any)?.currency_symbol || (data!.website.config as any)?.currency_symbol || (storeCurrency === 'USD' ? '$' : storeCurrency === 'EUR' ? '€' : '₹');

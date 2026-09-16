@@ -21,7 +21,8 @@ import {
   Gift,
   ChevronDown,
   User,
-  Settings
+  Settings,
+  Terminal
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -82,6 +83,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     { path: '/ai-credits', icon: <Coins size={20} />, label: 'AI Credits', badge: user?.ai_credits_balance ?? 20, badgeColor: 'blue' },
     { path: '/survey-feedback', icon: <MessageSquareText size={20} />, label: 'Survey & Feedback' },
     { path: '/website-builder', icon: <Globe size={20} />, label: 'Website Builder' },
+    { path: '/pro-studio', icon: <Terminal size={20} />, label: 'Pro Studio', badge: 'PRO', badgeColor: 'orange' },
     { path: '/support', icon: <LifeBuoy size={20} />, label: 'Support' },
     { path: '/settings/email', icon: <Mail size={20} />, label: 'Email Settings' }
   ], [ordersCount, user?.ai_credits_balance]);
