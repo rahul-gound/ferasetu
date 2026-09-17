@@ -57,7 +57,6 @@ const TransformationFlow = lazy(() => import('../components/marketing/Transforma
 const ValueCurveSection = lazy(() => import('../components/marketing/ValueCurveSection'));
 const HeroProductVisual = lazy(() => import('../components/marketing/HeroProductVisual'));
 const CommissionCalculator = lazy(() => import('../components/marketing/CommissionCalculator'));
-const LanguageScroller = lazy(() => import('../components/marketing/LanguageScroller'));
 
 const SectionFallback = () => (
   <div className="w-full py-16 flex items-center justify-center">
@@ -165,10 +164,6 @@ export default function LandingPage() {
       />
 
       <PublicLayout>
-        {/* Top Language Scroller */}
-        <Suspense fallback={null}>
-          <LanguageScroller />
-        </Suspense>
 
         {/* ================================================================
           SECTION 1 — HERO (ATTENTION)
