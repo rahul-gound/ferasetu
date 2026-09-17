@@ -503,22 +503,32 @@ export async function handleProStudioRoutes(request, env) {
     }
 
     if (path === "/api/pro/import/projects" && method === "GET") {
-      const projects = await proService.listImportedProjects(tenantId, env);
-      return jsonResponse(projects);
+      try {
+        const projects = await proService.listImportedProjects(tenantId, env);
+        return jsonResponse(projects);
+      } catch (err) {
+        console.warn("[proStudioRoutes] listImportedProjects fallback:", err?.message);
+        return jsonResponse([]);
+      }
     }
 
     if (path.startsWith("/api/pro/import/projects/")) {
       const projectId = decodeURIComponent(path.slice("/api/pro/import/projects/".length));
       if (method === "GET") {
-        const project = await proService.getImportedProject(tenantId, projectId, env);
-        if (!project) return errorResponse(new Error("Project not found"), 404);
-        return jsonResponse(project);
+        try {
+          const project = await proService.getImportedProject(tenantId, projectId, env);
+          if (!project) return errorResponse(new Error("Project not found"), 404);
+          return jsonResponse(project);
+        } catch (err) {
+          return errorResponse(new Error("Project not found"), 404);
+        }
       }
     }
 
     return errorResponse(new Error(`Endpoint not found: ${method} ${path}`), 404);
   } catch (err) {
-    return errorResponse(err, err.status || 500);
+    console.error("[handleProStudioRoutes error]", err?.message || err);
+    return errorResponse(err, err?.status || 500);
   }
 }
 

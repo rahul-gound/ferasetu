@@ -6,7 +6,8 @@ import {
   Sparkles, Globe, Terminal, Shield, FileText, Layers, Plus,
   Trash2, Copy, CheckCircle2, AlertCircle, ArrowUpRight, Play,
   Lock, RefreshCw, Send, Check, ExternalLink, Settings, Database,
-  Cpu, HardDrive, Key, Code, HelpCircle, AlertTriangle, Eye, Server, Zap, FolderUp
+  Cpu, HardDrive, Key, Code, HelpCircle, AlertTriangle, Eye, Server, Zap, FolderUp,
+  Search, Edit3, X, Save
 } from 'lucide-react';
 import { proStudioApi, type ProPage, type ProRoute, type ProFunction, type ProTemplate, type ImportedProject } from '../services/proStudioApi';
 import { useAuth } from '../contexts/AuthContext';
@@ -121,6 +122,67 @@ export default function ProStudioPage() {
   const [isValidating, setIsValidating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [installingTemplateId, setInstallingTemplateId] = useState<string | null>(null);
+  const [pageSearchQuery, setPageSearchQuery] = useState('');
+
+  // Storage modal state
+  const [storageModalOpen, setStorageModalOpen] = useState(false);
+  const [storageKeyName, setStorageKeyName] = useState('');
+  const [storageKeyValue, setStorageKeyValue] = useState('');
+  const [isSavingStorage, setIsSavingStorage] = useState(false);
+  const [storageSearchQuery, setStorageSearchQuery] = useState('');
+
+  const handleSaveStorageKey = async () => {
+    const trimmedKey = storageKeyName.trim();
+    if (!trimmedKey) {
+      toast.error('Storage key name is required');
+      return;
+    }
+    setIsSavingStorage(true);
+    try {
+      let valToSave: any = storageKeyValue;
+      try {
+        valToSave = JSON.parse(storageKeyValue);
+      } catch {
+        // Keep string if not JSON
+      }
+      await proStudioApi.setStorage(trimmedKey, valToSave);
+      toast.success(`Key '${trimmedKey}' saved`);
+      setStorageModalOpen(false);
+      setStorageKeyName('');
+      setStorageKeyValue('');
+      refetchStorage();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to save storage key');
+    } finally {
+      setIsSavingStorage(false);
+    }
+  };
+
+  const handleFormatStorageJson = () => {
+    try {
+      const parsed = JSON.parse(storageKeyValue);
+      setStorageKeyValue(JSON.stringify(parsed, null, 2));
+      toast.success('JSON formatted');
+    } catch {
+      toast.error('Value is not valid JSON');
+    }
+  };
+
+  const filteredStorageKeys = useMemo(() => {
+    if (!storageSearchQuery.trim()) return storageKeys;
+    const q = storageSearchQuery.toLowerCase().trim();
+    return storageKeys.filter(item =>
+      item.key.toLowerCase().includes(q) || String(item.value).toLowerCase().includes(q)
+    );
+  }, [storageKeys, storageSearchQuery]);
+
+  const filteredPages = useMemo(() => {
+    if (!pageSearchQuery.trim()) return pages;
+    const q = pageSearchQuery.toLowerCase().trim();
+    return pages.filter(p =>
+      p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q)
+    );
+  }, [pages, pageSearchQuery]);
 
   // ---------------------------------------------------------------------------
   // NON-PRO UPGRADE CTA SCREEN
@@ -279,28 +341,39 @@ export default function ProStudioPage() {
           <div className="flex overflow-x-auto space-x-1 border-t border-slate-100 py-1.5 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
             {[
               { key: 'overview', label: 'Overview', icon: <Layers size={14} /> },
-              { key: 'pages', label: `Pages (${pages.length})`, icon: <FileText size={14} /> },
-              { key: 'routes', label: `Routes (${routes.length})`, icon: <Globe size={14} /> },
-              { key: 'functions', label: `Functions (${functions.length})`, icon: <Code size={14} /> },
-              { key: 'imports', label: `Project Imports (${importedProjects.length})`, icon: <FolderUp size={14} /> },
+              { key: 'pages', label: 'Pages', count: pages.length, icon: <FileText size={14} /> },
+              { key: 'routes', label: 'Routes', count: routes.length, icon: <Globe size={14} /> },
+              { key: 'functions', label: 'Functions', count: functions.length, icon: <Code size={14} /> },
+              { key: 'imports', label: 'Project Imports', count: importedProjects.length, icon: <FolderUp size={14} /> },
               { key: 'templates', label: 'Templates', icon: <Layers size={14} /> },
-              { key: 'storage', label: 'Data & Storage', icon: <Database size={14} /> },
+              { key: 'storage', label: 'Data & Storage', count: storageKeys.length, icon: <Database size={14} /> },
               { key: 'auth', label: 'Authentication', icon: <Shield size={14} /> },
               { key: 'ai_builder', label: 'AI Builder', icon: <Sparkles size={14} /> },
               { key: 'publish', label: 'Deploy & Publish', icon: <Send size={14} /> },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setTab(tab.key as TabKey)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.key
-                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
+            ].map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setTab(tab.key as TabKey)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                    isActive
+                      ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {typeof tab.count === 'number' && (
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive ? 'bg-slate-800 text-slate-200' : 'bg-slate-200/70 text-slate-600'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -516,12 +589,34 @@ export default function ProStudioPage() {
                 <h2 className="text-lg font-bold text-slate-900">Pages</h2>
                 <p className="text-xs text-slate-500">Manage multi-page structure, authentication requirements, and home page.</p>
               </div>
-              <button
-                onClick={() => setCreatePageModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs"
-              >
-                <Plus size={14} /> Create Page
-              </button>
+
+              <div className="flex items-center gap-2.5">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search pages..."
+                    value={pageSearchQuery}
+                    onChange={(e) => setPageSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-44 sm:w-56"
+                  />
+                  {pageSearchQuery && (
+                    <button
+                      onClick={() => setPageSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setCreatePageModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors"
+                >
+                  <Plus size={14} /> Create Page
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
@@ -536,14 +631,14 @@ export default function ProStudioPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pages.length === 0 ? (
+                  {filteredPages.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                        No pages created yet. Apply a Pro template or create your first page.
+                        {pageSearchQuery ? 'No pages match your search.' : 'No pages created yet. Apply a Pro template or create your first page.'}
                       </td>
                     </tr>
                   ) : (
-                    pages.map((p) => (
+                    filteredPages.map((p) => (
                       <tr
                         key={p.id}
                         onClick={() => setActiveEditorPageId(p.id)}
@@ -588,9 +683,9 @@ export default function ProStudioPage() {
                               e.stopPropagation();
                               setActiveEditorPageId(p.id);
                             }}
-                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-semibold transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-semibold shadow-xs transition-colors"
                           >
-                            Open Editor
+                            <Edit3 size={11} /> Open Editor
                           </button>
                           {!Boolean(p.is_homepage) && (
                             <button
@@ -1066,13 +1161,98 @@ export default function ProStudioPage() {
         {/* ================================================================= */}
         {activeTab === 'storage' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Tenant KV Storage</h2>
-                <p className="text-xs text-slate-500">Key-value state managed by your Fera Functions via <code className="text-indigo-600">ferasetu.storage.*</code>.</p>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Database size={18} className="text-indigo-600" />
+                  Tenant Key-Value Storage
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Global, tenant-isolated KV storage accessible by your Fera Functions and site via <code className="text-indigo-600 font-mono bg-indigo-50 px-1 py-0.5 rounded">ferasetu.storage.*</code>.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search keys or values..."
+                    value={storageSearchQuery}
+                    onChange={(e) => setStorageSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48 sm:w-60"
+                  />
+                  {storageSearchQuery && (
+                    <button
+                      onClick={() => setStorageSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setStorageKeyName('');
+                    setStorageKeyValue('');
+                    setStorageModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                >
+                  <Plus size={14} /> Add Storage Key
+                </button>
               </div>
             </div>
 
+            {/* Storage Quota & Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                  <span>Total Keys</span>
+                  <Key size={16} className="text-indigo-500" />
+                </div>
+                <div className="text-2xl font-bold text-slate-900 mt-2">{storageKeys.length}</div>
+                <div className="text-[11px] text-slate-400 mt-1">Tenant-isolated storage namespace</div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                  <span>Storage Used</span>
+                  <HardDrive size={16} className="text-emerald-500" />
+                </div>
+                <div className="text-2xl font-bold text-slate-900 mt-2">
+                  {((storageKeys.reduce((acc, k) => acc + (k.bytes_size || 0), 0)) / 1024).toFixed(1)} KB
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Limit: {Math.round((quotas?.limits?.max_storage_bytes || 52428800) / (1024 * 1024))} MB
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                  <span>Storage Utilization</span>
+                  <Zap size={16} className="text-amber-500" />
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mt-3 mb-1">
+                  <div
+                    className="h-full bg-indigo-600 rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(
+                        ((storageKeys.reduce((acc, k) => acc + (k.bytes_size || 0), 0) / (quotas?.limits?.max_storage_bytes || 52428800)) * 100),
+                        100
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <div className="text-[11px] text-slate-500 flex justify-between font-medium">
+                  <span>Quota Progress</span>
+                  <span>{storageKeys.length} Keys Active</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Storage Keys Table */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase text-[10px] tracking-wider">
@@ -1081,35 +1261,103 @@ export default function ProStudioPage() {
                     <th className="px-4 py-3">Payload Value</th>
                     <th className="px-4 py-3">Size</th>
                     <th className="px-4 py-3">Last Updated</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {storageKeys.length === 0 ? (
+                  {filteredStorageKeys.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                        No storage keys set yet. Functions can write keys using <code className="text-indigo-600">storage.set(key, val)</code>.
+                      <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Database size={28} className="text-slate-300" />
+                          <p className="font-semibold text-slate-600 text-sm">
+                            {storageSearchQuery ? 'No storage keys match your search' : 'No storage keys set yet'}
+                          </p>
+                          <p className="text-xs text-slate-400 max-w-sm">
+                            Store custom configurations, promotional banners, or session metadata using <code className="text-indigo-600 font-mono">storage.set(key, val)</code>.
+                          </p>
+                          {!storageSearchQuery && (
+                            <button
+                              onClick={() => {
+                                setStorageKeyName('');
+                                setStorageKeyValue('');
+                                setStorageModalOpen(true);
+                              }}
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-100"
+                            >
+                              <Plus size={13} /> Create First Key
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    storageKeys.map((item) => (
-                      <tr key={item.key} className="hover:bg-slate-50/80">
-                        <td className="px-4 py-3 font-mono font-bold text-slate-900">{item.key}</td>
-                        <td className="px-4 py-3 font-mono text-[11px] text-slate-500 max-w-md truncate">
+                    filteredStorageKeys.map((item) => (
+                      <tr key={item.key} className="hover:bg-slate-50/80 transition-colors group">
+                        <td className="px-4 py-3.5 font-mono font-bold text-slate-900 flex items-center gap-2">
+                          <Key size={13} className="text-indigo-500 flex-shrink-0" />
+                          <span className="group-hover:text-indigo-600 transition-colors">{item.key}</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.key);
+                              toast.success("Key copied");
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-700 transition-opacity"
+                            title="Copy key"
+                          >
+                            <Copy size={11} />
+                          </button>
+                        </td>
+                        <td className="px-4 py-3.5 font-mono text-[11px] text-slate-500 max-w-md truncate">
                           {item.value}
                         </td>
-                        <td className="px-4 py-3 font-mono text-[11px]">{item.bytes_size} B</td>
-                        <td className="px-4 py-3 text-[11px] text-slate-400">{new Date(item.updated_at).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3.5 font-mono text-[11px] text-slate-600 font-medium">
+                          {item.bytes_size < 1024 ? `${item.bytes_size} B` : `${(item.bytes_size / 1024).toFixed(1)} KB`}
+                        </td>
+                        <td className="px-4 py-3.5 text-[11px] text-slate-400">
+                          {new Date(item.updated_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3.5 text-right space-x-1.5">
+                          <button
+                            onClick={() => {
+                              setStorageKeyName(item.key);
+                              try {
+                                const parsed = JSON.parse(item.value);
+                                setStorageKeyValue(JSON.stringify(parsed, null, 2));
+                              } catch {
+                                setStorageKeyValue(item.value);
+                              }
+                              setStorageModalOpen(true);
+                            }}
+                            className="p-1.5 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 rounded-md transition-colors"
+                            title="Edit / View Key"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.value);
+                              toast.success("Value copied");
+                            }}
+                            className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-md transition-colors"
+                            title="Copy Value"
+                          >
+                            <Copy size={13} />
+                          </button>
                           <button
                             onClick={async () => {
                               if (confirm(`Delete storage key '${item.key}'?`)) {
-                                await proStudioApi.deleteStorage(item.key);
-                                toast.success("Key deleted");
-                                refetchStorage();
+                                try {
+                                  await proStudioApi.deleteStorage(item.key);
+                                  toast.success("Key deleted");
+                                  refetchStorage();
+                                } catch (err: any) {
+                                  toast.error(err?.response?.data?.error || "Failed to delete key");
+                                }
                               }
                             }}
-                            className="text-rose-600 hover:text-rose-700 p-1"
+                            className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-md transition-colors"
+                            title="Delete Key"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -1778,6 +2026,87 @@ export default function ProStudioPage() {
                 className="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
               >
                 Save Route
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODAL: SET STORAGE KEY */}
+      {/* ================================================================= */}
+      {storageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Database size={16} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Tenant Key-Value Storage</h3>
+                  <p className="text-[11px] text-slate-500">Insert or update a key in your isolated tenant storage.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStorageModalOpen(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4 py-4 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Storage Key Name</label>
+                <input
+                  type="text"
+                  value={storageKeyName}
+                  onChange={(e) => setStorageKeyName(e.target.value)}
+                  placeholder="e.g. app_config or banner_announcement"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-mono text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Unique key identifier. Overwrites existing key if already set.</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-700">Payload Value</label>
+                  <button
+                    type="button"
+                    onClick={handleFormatStorageJson}
+                    className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
+                  >
+                    Prettify JSON
+                  </button>
+                </div>
+                <textarea
+                  rows={8}
+                  value={storageKeyValue}
+                  onChange={(e) => setStorageKeyValue(e.target.value)}
+                  placeholder='{"title": "Spring Sale", "discountPercent": 20}'
+                  className="w-full bg-slate-900 text-slate-100 font-mono text-xs rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Accepts JSON objects, arrays, numbers, or plain text strings.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStorageModalOpen(false)}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingStorage}
+                onClick={handleSaveStorageKey}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors"
+              >
+                {isSavingStorage ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
+                <span>{isSavingStorage ? 'Saving...' : 'Save Storage Key'}</span>
               </button>
             </div>
           </div>

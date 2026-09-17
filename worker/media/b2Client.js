@@ -108,10 +108,11 @@ export class B2Client {
       this.isConfigured = true;
     }
 
-    this.endpoint = endpoint.replace(/^https?:\/\//, '').replace(/\/+$/, '').trim();
-    this.bucketName = bucketName.trim();
-    this.applicationKeyId = applicationKeyId.trim();
-    this.applicationKey = applicationKey.trim();
+    const rawEndpoint = endpoint || 'https://s3.eu-central-003.backblazeb2.com';
+    this.endpoint = String(rawEndpoint).replace(/^https?:\/\//, '').replace(/\/+$/, '').trim();
+    this.bucketName = String(bucketName || 'ferasetu-media-prod').trim();
+    this.applicationKeyId = String(applicationKeyId || '').trim();
+    this.applicationKey = String(applicationKey || '').trim();
     this.region = extractB2Region(this.endpoint, region);
     this.fetcher = fetcher;
   }

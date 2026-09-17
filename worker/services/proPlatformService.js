@@ -35,190 +35,203 @@ export class ProPlatformError extends Error {
 }
 
 let proTablesEnsured = false;
-export async function ensureProTables(env) {
-  if (proTablesEnsured || !env?.DB) return;
-  try {
-    if (typeof env.DB.exec === 'function') {
-      await env.DB.exec(`
-        CREATE TABLE IF NOT EXISTS site_pages (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          slug TEXT NOT NULL,
-          title TEXT NOT NULL,
-          type TEXT NOT NULL DEFAULT 'standard',
-          content TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'draft',
-          parent_id TEXT,
-          is_homepage INTEGER NOT NULL DEFAULT 0,
-          auth_required INTEGER NOT NULL DEFAULT 0,
-          order_index INTEGER NOT NULL DEFAULT 0,
-          seo_title TEXT,
-          seo_description TEXT,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, slug)
-        );
-        CREATE TABLE IF NOT EXISTS site_routes (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          path_pattern TEXT NOT NULL,
-          page_id TEXT NOT NULL,
-          access_level TEXT NOT NULL DEFAULT 'public',
-          function_binding TEXT,
-          status TEXT NOT NULL DEFAULT 'draft',
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, path_pattern)
-        );
-        CREATE TABLE IF NOT EXISTS site_functions (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          name TEXT NOT NULL,
-          description TEXT,
-          definition TEXT NOT NULL,
-          capabilities TEXT NOT NULL DEFAULT '[]',
-          status TEXT NOT NULL DEFAULT 'draft',
-          version INTEGER NOT NULL DEFAULT 1,
-          timeout_ms INTEGER NOT NULL DEFAULT 1500,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, name)
-        );
-        CREATE TABLE IF NOT EXISTS site_function_versions (
-          id TEXT PRIMARY KEY,
-          function_id TEXT NOT NULL,
-          tenant_id TEXT NOT NULL,
-          version INTEGER NOT NULL,
-          name TEXT NOT NULL,
-          definition TEXT NOT NULL,
-          capabilities TEXT NOT NULL DEFAULT '[]',
-          published_at TEXT NOT NULL,
-          published_by TEXT,
-          UNIQUE(function_id, version)
-        );
-        CREATE TABLE IF NOT EXISTS site_navigation (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          menu_location TEXT NOT NULL DEFAULT 'header',
-          items TEXT NOT NULL DEFAULT '[]',
-          status TEXT NOT NULL DEFAULT 'draft',
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, menu_location)
-        );
-        CREATE TABLE IF NOT EXISTS site_deployments (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          version INTEGER NOT NULL,
-          status TEXT NOT NULL DEFAULT 'published',
-          snapshot TEXT NOT NULL,
-          deployed_by TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          UNIQUE(tenant_id, version)
-        );
-        CREATE TABLE IF NOT EXISTS site_quotas (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL UNIQUE,
-          max_pages INTEGER NOT NULL DEFAULT 50,
-          max_routes INTEGER NOT NULL DEFAULT 100,
-          max_functions INTEGER NOT NULL DEFAULT 25,
-          max_function_invocations_monthly INTEGER NOT NULL DEFAULT 50000,
-          function_invocations_used INTEGER NOT NULL DEFAULT 0,
-          max_storage_bytes INTEGER NOT NULL DEFAULT 52428800,
-          storage_used_bytes INTEGER NOT NULL DEFAULT 0,
-          max_published_versions INTEGER NOT NULL DEFAULT 20,
-          max_ai_actions_monthly INTEGER NOT NULL DEFAULT 500,
-          ai_actions_used INTEGER NOT NULL DEFAULT 0,
-          resets_at TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS site_storage (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          key TEXT NOT NULL,
-          value TEXT NOT NULL,
-          bytes_size INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, key)
-        );
-        CREATE TABLE IF NOT EXISTS site_execution_logs (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          function_name TEXT,
-          event_type TEXT NOT NULL DEFAULT 'info',
-          details TEXT,
-          duration_ms INTEGER NOT NULL DEFAULT 0,
-          status_code INTEGER NOT NULL DEFAULT 200,
-          created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS site_imported_projects (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          project_name TEXT NOT NULL,
-          framework TEXT NOT NULL,
-          current_version_id TEXT,
-          status TEXT NOT NULL DEFAULT 'analyzed',
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, project_name)
-        );
-        CREATE TABLE IF NOT EXISTS site_import_versions (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL,
-          version_number INTEGER NOT NULL,
-          project_fingerprint TEXT NOT NULL,
-          manifest_b2_key TEXT NOT NULL,
-          source_archive_b2_key TEXT NOT NULL,
-          import_status TEXT NOT NULL DEFAULT 'SNAPSHOT_PENDING',
-          created_at TEXT NOT NULL,
-          UNIQUE(project_id, version_number)
-        );
-        CREATE TABLE IF NOT EXISTS site_source_files (
-          id TEXT PRIMARY KEY,
-          version_id TEXT NOT NULL,
-          source_path TEXT NOT NULL,
-          file_hash TEXT NOT NULL,
-          file_size INTEGER NOT NULL,
-          file_type TEXT NOT NULL,
-          relevant_metadata TEXT,
-          UNIQUE(version_id, source_path)
-        );
-        CREATE TABLE IF NOT EXISTS site_source_mappings (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL,
-          version_id TEXT NOT NULL,
-          source_path TEXT NOT NULL,
-          resource_type TEXT NOT NULL,
-          resource_id TEXT,
-          deterministic_identity TEXT NOT NULL,
-          source_hash TEXT NOT NULL,
-          studio_hash TEXT,
-          mapping_status TEXT NOT NULL DEFAULT 'active',
-          metadata TEXT,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          UNIQUE(project_id, version_id, source_path, resource_type)
-        );
-        CREATE TABLE IF NOT EXISTS site_import_changes (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL,
-          from_version_id TEXT NOT NULL,
-          to_version_id TEXT NOT NULL,
-          source_path TEXT NOT NULL,
-          change_type TEXT NOT NULL,
-          conflict_status TEXT NOT NULL,
-          resolution TEXT,
-          created_at TEXT NOT NULL
-        );
-      `);
-    }
-    proTablesEnsured = true;
+export async function ensureProTables(env, force = false) {
+  if ((proTablesEnsured && !force) || !env?.DB) return;
 
-  } catch (err) {
-    console.warn("[ensureProTables] note:", err?.message);
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS site_pages (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      title TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'standard',
+      content TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      parent_id TEXT,
+      is_homepage INTEGER NOT NULL DEFAULT 0,
+      auth_required INTEGER NOT NULL DEFAULT 0,
+      order_index INTEGER NOT NULL DEFAULT 0,
+      seo_title TEXT,
+      seo_description TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(tenant_id, slug)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_pages_tenant ON site_pages(tenant_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_site_pages_tenant_status ON site_pages(tenant_id, status)`,
+    `CREATE TABLE IF NOT EXISTS site_routes (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      path_pattern TEXT NOT NULL,
+      page_id TEXT NOT NULL,
+      access_level TEXT NOT NULL DEFAULT 'public',
+      function_binding TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(tenant_id, path_pattern)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_routes_tenant ON site_routes(tenant_id)`,
+    `CREATE TABLE IF NOT EXISTS site_functions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      definition TEXT NOT NULL,
+      capabilities TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'draft',
+      version INTEGER NOT NULL DEFAULT 1,
+      timeout_ms INTEGER NOT NULL DEFAULT 1500,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(tenant_id, name)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_functions_tenant ON site_functions(tenant_id)`,
+    `CREATE TABLE IF NOT EXISTS site_function_versions (
+      id TEXT PRIMARY KEY,
+      function_id TEXT NOT NULL,
+      tenant_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      definition TEXT NOT NULL,
+      capabilities TEXT NOT NULL DEFAULT '[]',
+      published_at TEXT NOT NULL,
+      published_by TEXT,
+      UNIQUE(function_id, version)
+    )`,
+    `CREATE TABLE IF NOT EXISTS site_navigation (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      menu_location TEXT NOT NULL DEFAULT 'header',
+      items TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(tenant_id, menu_location)
+    )`,
+    `CREATE TABLE IF NOT EXISTS site_deployments (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'published',
+      snapshot TEXT NOT NULL,
+      deployed_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(tenant_id, version)
+    )`,
+    `CREATE TABLE IF NOT EXISTS site_quotas (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL UNIQUE,
+      max_pages INTEGER NOT NULL DEFAULT 50,
+      max_routes INTEGER NOT NULL DEFAULT 100,
+      max_functions INTEGER NOT NULL DEFAULT 25,
+      max_function_invocations_monthly INTEGER NOT NULL DEFAULT 50000,
+      function_invocations_used INTEGER NOT NULL DEFAULT 0,
+      max_storage_bytes INTEGER NOT NULL DEFAULT 52428800,
+      storage_used_bytes INTEGER NOT NULL DEFAULT 0,
+      max_published_versions INTEGER NOT NULL DEFAULT 20,
+      max_ai_actions_monthly INTEGER NOT NULL DEFAULT 500,
+      ai_actions_used INTEGER NOT NULL DEFAULT 0,
+      resets_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS site_storage (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      bytes_size INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(tenant_id, key)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_storage_tenant ON site_storage(tenant_id)`,
+    `CREATE TABLE IF NOT EXISTS site_execution_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      function_name TEXT,
+      event_type TEXT NOT NULL DEFAULT 'info',
+      details TEXT,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      status_code INTEGER NOT NULL DEFAULT 200,
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS site_imported_projects (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      project_name TEXT NOT NULL,
+      framework TEXT NOT NULL DEFAULT 'react',
+      current_version_id TEXT,
+      status TEXT NOT NULL DEFAULT 'analyzed',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(tenant_id, project_name)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_imported_projects_tenant ON site_imported_projects(tenant_id)`,
+    `CREATE TABLE IF NOT EXISTS site_import_versions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      project_fingerprint TEXT NOT NULL,
+      manifest_b2_key TEXT NOT NULL,
+      source_archive_b2_key TEXT NOT NULL,
+      import_status TEXT NOT NULL DEFAULT 'SNAPSHOT_PENDING',
+      created_at TEXT NOT NULL,
+      UNIQUE(project_id, version_number)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_import_versions_project ON site_import_versions(project_id)`,
+    `CREATE TABLE IF NOT EXISTS site_source_files (
+      id TEXT PRIMARY KEY,
+      version_id TEXT NOT NULL,
+      source_path TEXT NOT NULL,
+      file_hash TEXT NOT NULL,
+      file_size INTEGER NOT NULL DEFAULT 0,
+      file_type TEXT NOT NULL DEFAULT 'text',
+      relevant_metadata TEXT,
+      UNIQUE(version_id, source_path)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_source_files_version ON site_source_files(version_id)`,
+    `CREATE TABLE IF NOT EXISTS site_source_mappings (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      version_id TEXT NOT NULL,
+      source_path TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT,
+      deterministic_identity TEXT NOT NULL,
+      source_hash TEXT NOT NULL,
+      studio_hash TEXT,
+      mapping_status TEXT NOT NULL DEFAULT 'active',
+      metadata TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(project_id, version_id, source_path, resource_type)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_source_mappings_proj_ver ON site_source_mappings(project_id, version_id)`,
+    `CREATE TABLE IF NOT EXISTS site_import_changes (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      from_version_id TEXT NOT NULL,
+      to_version_id TEXT NOT NULL,
+      source_path TEXT NOT NULL,
+      change_type TEXT NOT NULL DEFAULT 'modified',
+      conflict_status TEXT NOT NULL DEFAULT 'TRUE_CONFLICT',
+      resolution TEXT,
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_site_import_changes_project ON site_import_changes(project_id)`
+  ];
+
+  for (const sql of tables) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch (sqlErr) {
+      // Non-fatal notice if index or table already exists
+    }
   }
+
+  proTablesEnsured = true;
 }
 
 // -----------------------------------------------------------------------------
@@ -1106,12 +1119,17 @@ function safeParseJson(jsonStr, fallback = {}) {
  * Exclusively uses Backblaze B2 (never Cloudflare R2).
  */
 export function getProB2Client(env) {
+  const endpoint = env?.B2_ENDPOINT || 'https://s3.eu-central-003.backblazeb2.com';
+  const bucketName = env?.B2_BUCKET || env?.B2_BUCKET_NAME || env?.MEDIA_BUCKET_NAME || 'ferasetu-media-prod';
+  const applicationKeyId = env?.B2_APPLICATION_KEY_ID || env?.B2_KEY_ID || '';
+  const applicationKey = env?.B2_APPLICATION_KEY || env?.B2_APP_KEY || env?.B2_SECRET_KEY || env?.B2_KEY || '';
+  const region = env?.B2_REGION || 'eu-central-003';
   return new B2Client({
-    endpoint: env?.B2_ENDPOINT,
-    bucketName: env?.B2_BUCKET || env?.B2_BUCKET_NAME || env?.MEDIA_BUCKET_NAME || 'ferasetu-media-prod',
-    applicationKeyId: env?.B2_APPLICATION_KEY_ID || env?.B2_KEY_ID || '',
-    applicationKey: env?.B2_APPLICATION_KEY || env?.B2_KEY || '',
-    explicitRegion: env?.B2_REGION,
+    endpoint,
+    bucketName,
+    applicationKeyId,
+    applicationKey,
+    explicitRegion: region,
     fetcher: env?.b2Fetcher || (typeof fetch !== 'undefined' ? fetch : null),
   });
 }
@@ -1430,28 +1448,52 @@ export async function executeProjectImport(tenantId, payload, env) {
     });
   }
 
-  // D. Persist Source Files metadata in D1
-  for (const f of files) {
-    const fileId = `sfile_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
-    await env.DB.prepare(`
-      INSERT OR REPLACE INTO site_source_files (id, version_id, source_path, file_hash, file_size, file_type, relevant_metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      fileId, versionId, f.path, f.hash, f.size, f.isBinary ? 'binary' : 'text',
-      JSON.stringify({ isBinary: f.isBinary })
-    ).run();
+  // D. Persist Source Files metadata in D1 (batch-optimized)
+  if (files.length > 0) {
+    const fileStmts = files.map(f => {
+      const fileId = `sfile_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+      return env.DB.prepare(`
+        INSERT OR REPLACE INTO site_source_files (id, version_id, source_path, file_hash, file_size, file_type, relevant_metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        fileId, versionId, f.path, f.hash, f.size, f.isBinary ? 'binary' : 'text',
+        JSON.stringify({ isBinary: f.isBinary })
+      );
+    });
+
+    if (typeof env.DB.batch === 'function') {
+      for (let i = 0; i < fileStmts.length; i += 50) {
+        await env.DB.batch(fileStmts.slice(i, i + 50));
+      }
+    } else {
+      for (const stmt of fileStmts) {
+        await stmt.run();
+      }
+    }
   }
 
-  // E. Persist Source Mappings in D1
-  for (const sm of sourceMappings) {
-    await env.DB.prepare(`
-      INSERT OR REPLACE INTO site_source_mappings (id, project_id, version_id, source_path, resource_type, resource_id, deterministic_identity, source_hash, studio_hash, mapping_status, metadata, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
-    `).bind(
-      sm.id, sm.project_id, sm.version_id, sm.source_path, sm.resource_type,
-      sm.resource_id, sm.deterministic_identity, sm.source_hash, sm.studio_hash,
-      sm.metadata, now, now
-    ).run();
+  // E. Persist Source Mappings in D1 (batch-optimized)
+  if (sourceMappings.length > 0) {
+    const smStmts = sourceMappings.map(sm => {
+      return env.DB.prepare(`
+        INSERT OR REPLACE INTO site_source_mappings (id, project_id, version_id, source_path, resource_type, resource_id, deterministic_identity, source_hash, studio_hash, mapping_status, metadata, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+      `).bind(
+        sm.id, sm.project_id, sm.version_id, sm.source_path, sm.resource_type,
+        sm.resource_id, sm.deterministic_identity, sm.source_hash, sm.studio_hash,
+        sm.metadata, now, now
+      );
+    });
+
+    if (typeof env.DB.batch === 'function') {
+      for (let i = 0; i < smStmts.length; i += 50) {
+        await env.DB.batch(smStmts.slice(i, i + 50));
+      }
+    } else {
+      for (const stmt of smStmts) {
+        await stmt.run();
+      }
+    }
   }
 
   // 8. State: COMMITTED
@@ -1693,14 +1735,34 @@ export async function applyReimportUpdates(tenantId, payload, env) {
  */
 export async function listImportedProjects(tenantId, env) {
   if (!env?.DB) return [];
-  const res = await env.DB.prepare(`
-    SELECT p.*, v.version_number, v.import_status
-    FROM site_imported_projects p
-    LEFT JOIN site_import_versions v ON v.id = p.current_version_id
-    WHERE p.tenant_id = ?
-    ORDER BY p.updated_at DESC
-  `).bind(tenantId).all();
-  return res.results || [];
+  try {
+    const res = await env.DB.prepare(`
+      SELECT p.*, v.version_number, v.import_status
+      FROM site_imported_projects p
+      LEFT JOIN site_import_versions v ON v.id = p.current_version_id
+      WHERE p.tenant_id = ?
+      ORDER BY p.updated_at DESC
+    `).bind(tenantId).all();
+    return res.results || [];
+  } catch (err) {
+    if (err?.message && err.message.includes('no such table')) {
+      await ensureProTables(env, true);
+      try {
+        const retryRes = await env.DB.prepare(`
+          SELECT p.*, v.version_number, v.import_status
+          FROM site_imported_projects p
+          LEFT JOIN site_import_versions v ON v.id = p.current_version_id
+          WHERE p.tenant_id = ?
+          ORDER BY p.updated_at DESC
+        `).bind(tenantId).all();
+        return retryRes.results || [];
+      } catch {
+        return [];
+      }
+    }
+    console.warn('[listImportedProjects] query note:', err?.message);
+    return [];
+  }
 }
 
 /**
@@ -1708,24 +1770,29 @@ export async function listImportedProjects(tenantId, env) {
  */
 export async function getImportedProject(tenantId, projectId, env) {
   if (!env?.DB) return null;
-  const project = await env.DB.prepare(
-    "SELECT * FROM site_imported_projects WHERE tenant_id = ? AND id = ?"
-  ).bind(tenantId, projectId).first();
-  if (!project) return null;
+  try {
+    const project = await env.DB.prepare(
+      "SELECT * FROM site_imported_projects WHERE tenant_id = ? AND id = ?"
+    ).bind(tenantId, projectId).first();
+    if (!project) return null;
 
-  const versionsRes = await env.DB.prepare(
-    "SELECT * FROM site_import_versions WHERE project_id = ? ORDER BY version_number DESC"
-  ).bind(projectId).all();
+    const versionsRes = await env.DB.prepare(
+      "SELECT * FROM site_import_versions WHERE project_id = ? ORDER BY version_number DESC"
+    ).bind(projectId).all();
 
-  const mappingsRes = await env.DB.prepare(
-    "SELECT * FROM site_source_mappings WHERE project_id = ? AND version_id = ?"
-  ).bind(projectId, project.current_version_id).all();
+    const mappingsRes = await env.DB.prepare(
+      "SELECT * FROM site_source_mappings WHERE project_id = ? AND version_id = ?"
+    ).bind(projectId, project.current_version_id).all();
 
-  return {
-    ...project,
-    versions: versionsRes.results || [],
-    mappings: mappingsRes.results || [],
-  };
+    return {
+      ...project,
+      versions: versionsRes.results || [],
+      mappings: mappingsRes.results || [],
+    };
+  } catch (err) {
+    console.warn('[getImportedProject] query note:', err?.message);
+    return null;
+  }
 }
 
 // Re-export page model, AST converter, and template adapter functions
