@@ -11,6 +11,9 @@ import { B2Client } from '../media/b2Client.js';
 import { extractZipArchive } from '../pro/projectZipParser.js';
 import { analyzeProject, computeSha256Hex, ANALYZER_VERSION } from '../pro/projectAnalyzer.js';
 import { computeProjectReimportDiff, getCanonicalStudioRepresentation, evaluateThreeWayMerge } from '../pro/projectDiffEngine.js';
+import { createBlankPageDocument, validatePageDocument, migratePageDocument } from '../pro/pageModel.js';
+import { parseReactJsxToDocument, parseHtmlToDocument, classifyPageSource } from '../pro/pageAstConverter.js';
+import { convertTemplatePageToDocument } from '../pro/pageTemplateAdapter.js';
 
 export const DEFAULT_PRO_QUOTAS = {
   max_pages: 50,
@@ -354,7 +357,30 @@ export async function createPage(tenantId, data, env) {
   }
   const title = String(data.title || "Untitled Page").trim();
   const type = ['standard', 'auth_login', 'auth_signup', 'auth_account', 'protected', 'custom'].includes(data.type) ? data.type : 'standard';
-  const content = typeof data.content === 'object' ? JSON.stringify(data.content) : (data.content || '[]');
+  
+  let pageContentObj = data.content;
+  if (!pageContentObj || pageContentObj === '[]' || (typeof pageContentObj === 'object' && Array.isArray(pageContentObj.sections) && pageContentObj.sections.length === 0)) {
+    pageContentObj = createBlankPageDocument(title);
+  } else if (typeof pageContentObj === 'string' && pageContentObj.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(pageContentObj);
+      if (parsed.schemaVersion === 1) {
+        const val = validatePageDocument(parsed);
+        if (!val.valid) {
+          throw new ProPlatformError(`Invalid page document: ${val.errors.join(', ')}`, "INVALID_PAGE_DOCUMENT");
+        }
+      }
+    } catch (e) {
+      if (e instanceof ProPlatformError) throw e;
+    }
+  } else if (typeof pageContentObj === 'object' && pageContentObj.schemaVersion === 1) {
+    const val = validatePageDocument(pageContentObj);
+    if (!val.valid) {
+      throw new ProPlatformError(`Invalid page document: ${val.errors.join(', ')}`, "INVALID_PAGE_DOCUMENT");
+    }
+  }
+  
+  const content = typeof pageContentObj === 'object' ? JSON.stringify(pageContentObj) : String(pageContentObj);
   const isHomepage = Boolean(data.is_homepage) ? 1 : 0;
   const authRequired = Boolean(data.auth_required || type === 'protected' || type === 'auth_account') ? 1 : 0;
   const parentId = data.parent_id || null;
@@ -396,6 +422,16 @@ export async function createPage(tenantId, data, env) {
 export async function updatePage(tenantId, pageId, data, env) {
   const existing = await getPage(tenantId, pageId, env);
   if (!existing) throw new ProPlatformError("Page not found", "NOT_FOUND");
+
+  if (data.content !== undefined) {
+    const parsed = typeof data.content === 'string' ? safeParseJson(data.content, null) : data.content;
+    if (parsed && typeof parsed === 'object' && parsed.schemaVersion === 1) {
+      const val = validatePageDocument(parsed);
+      if (!val.valid) {
+        throw new ProPlatformError(`Invalid page document: ${val.errors.join(', ')}`, "INVALID_PAGE_DOCUMENT");
+      }
+    }
+  }
 
   const title = data.title !== undefined ? String(data.title).trim() : existing.title;
   const slug = data.slug !== undefined ? sanitizeSlug(data.slug) : existing.slug;
@@ -786,6 +822,17 @@ export async function validateSite(tenantId, env) {
         if (requiredCap && !fn.capabilities.includes(requiredCap)) {
           warnings.push(`Function '${fn.name}' uses operation '${op}' but capability '${requiredCap}' is undeclared.`);
         }
+      }
+    }
+  }
+
+  // 4. Page document structure validation
+  for (const p of pages) {
+    const parsed = typeof p.content === 'string' ? safeParseJson(p.content, null) : p.content;
+    if (parsed && typeof parsed === 'object' && parsed.schemaVersion === 1) {
+      const val = validatePageDocument(parsed);
+      if (!val.valid) {
+        errors.push(`Page '${p.title}' (/${p.slug}) has validation errors: ${val.errors.join('; ')}`);
       }
     }
   }
@@ -1680,3 +1727,14 @@ export async function getImportedProject(tenantId, projectId, env) {
     mappings: mappingsRes.results || [],
   };
 }
+
+// Re-export page model, AST converter, and template adapter functions
+export {
+  validatePageDocument,
+  createBlankPageDocument,
+  migratePageDocument,
+  parseReactJsxToDocument,
+  parseHtmlToDocument,
+  classifyPageSource,
+  convertTemplatePageToDocument,
+};

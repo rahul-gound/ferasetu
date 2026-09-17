@@ -12,6 +12,8 @@ import { proStudioApi, type ProPage, type ProRoute, type ProFunction, type ProTe
 import { useAuth } from '../contexts/AuthContext';
 import { parseAIPromptToActions } from '../../../worker/ai/proBuilderActions.js';
 import ProjectImportModal from '../components/pro/ProjectImportModal';
+import { ProPageEditor } from '../components/pro/editor/ProPageEditor';
+import { CreatePageModal } from '../components/pro/editor/CreatePageModal';
 
 type TabKey = 'overview' | 'pages' | 'routes' | 'functions' | 'templates' | 'storage' | 'auth' | 'ai_builder' | 'publish' | 'imports';
 
@@ -92,6 +94,8 @@ export default function ProStudioPage() {
 
   const [pageModalOpen, setPageModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<Partial<ProPage> | null>(null);
+  const [activeEditorPageId, setActiveEditorPageId] = useState<string | null>(null);
+  const [createPageModalOpen, setCreatePageModalOpen] = useState(false);
 
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Partial<ProRoute> | null>(null);
@@ -190,6 +194,22 @@ export default function ProStudioPage() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // FULL PAGE EDITOR VIEW
+  // ---------------------------------------------------------------------------
+  if (activeEditorPageId) {
+    return (
+      <ProPageEditor
+        pageId={activeEditorPageId}
+        onBack={() => {
+          setActiveEditorPageId(null);
+          refetchPages();
+        }}
+        onPageUpdated={() => refetchPages()}
+      />
     );
   }
 
@@ -497,17 +517,7 @@ export default function ProStudioPage() {
                 <p className="text-xs text-slate-500">Manage multi-page structure, authentication requirements, and home page.</p>
               </div>
               <button
-                onClick={() => {
-                  setEditingPage({
-                    title: '',
-                    slug: '',
-                    type: 'standard',
-                    auth_required: 0,
-                    is_homepage: 0,
-                    content: { sections: [] },
-                  });
-                  setPageModalOpen(true);
-                }}
+                onClick={() => setCreatePageModalOpen(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs"
               >
                 <Plus size={14} /> Create Page
@@ -534,9 +544,13 @@ export default function ProStudioPage() {
                     </tr>
                   ) : (
                     pages.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={p.id}
+                        onClick={() => setActiveEditorPageId(p.id)}
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                      >
                         <td className="px-4 py-3.5">
-                          <div className="font-semibold text-slate-900 flex items-center gap-2">
+                          <div className="font-semibold text-slate-900 flex items-center gap-2 group-hover:text-indigo-600 transition-colors">
                             {p.title}
                             {Boolean(p.is_homepage) && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -567,10 +581,22 @@ export default function ProStudioPage() {
                             {p.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-right space-x-1">
+                        <td className="px-4 py-3.5 text-right space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveEditorPageId(p.id);
+                            }}
+                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-semibold transition-colors"
+                          >
+                            Open Editor
+                          </button>
                           {!Boolean(p.is_homepage) && (
                             <button
-                              onClick={async () => {
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
                                 try {
                                   await proStudioApi.setHomepage(p.id);
                                   toast.success(`Set ${p.title} as homepage`);
@@ -586,16 +612,21 @@ export default function ProStudioPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => {
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setEditingPage(p);
                               setPageModalOpen(true);
                             }}
-                            className="p-1.5 hover:bg-slate-100 text-indigo-600 rounded-md text-[11px] font-medium"
+                            className="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md"
+                            title="Page Settings"
                           >
-                            Edit
+                            <Settings size={13} />
                           </button>
                           <button
-                            onClick={async () => {
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               try {
                                 await proStudioApi.duplicatePage(p.id);
                                 toast.success("Page duplicated");
@@ -610,7 +641,9 @@ export default function ProStudioPage() {
                             <Copy size={13} />
                           </button>
                           <button
-                            onClick={async () => {
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               if (confirm(`Delete page '${p.title}'?`)) {
                                 try {
                                   await proStudioApi.deletePage(p.id);
@@ -1531,6 +1564,22 @@ export default function ProStudioPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODAL: RICH CREATE PAGE (Blank, Template, React, HTML) */}
+      {/* ================================================================= */}
+      {createPageModalOpen && (
+        <CreatePageModal
+          currentPagesCount={pages.length}
+          maxPagesQuota={quotas?.limits?.max_pages || 50}
+          onClose={() => setCreatePageModalOpen(false)}
+          onPageCreated={(p) => {
+            setCreatePageModalOpen(false);
+            refetchPages();
+            setActiveEditorPageId(p.id);
+          }}
+        />
       )}
 
       {/* ================================================================= */}

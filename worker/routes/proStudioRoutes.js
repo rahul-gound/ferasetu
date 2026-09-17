@@ -203,6 +203,31 @@ export async function handleProStudioRoutes(request, env) {
       }
     }
 
+    if (path === "/api/pro/pages/validate" && method === "POST") {
+      const body = await readBody(request);
+      const val = proService.validatePageDocument(body.document || body);
+      return jsonResponse(val);
+    }
+
+    if (path === "/api/pro/pages/parse-code" && method === "POST") {
+      const body = await readBody(request);
+      const code = body.code || "";
+      const language = body.language || "jsx";
+      const title = body.title || "Imported Page";
+      const doc = language === 'html'
+        ? proService.parseHtmlToDocument(code, title)
+        : proService.parseReactJsxToDocument(code, title);
+      return jsonResponse(doc);
+    }
+
+    if (path === "/api/pro/pages/template" && method === "POST") {
+      const body = await readBody(request);
+      const templateKey = body.template || body.templateKey || "studio";
+      const pageSlug = body.slug || body.pageSlug || "home";
+      const doc = proService.convertTemplatePageToDocument(templateKey, pageSlug);
+      return jsonResponse(doc);
+    }
+
     if (path.startsWith("/api/pro/pages/")) {
       const pageId = decodeURIComponent(path.slice("/api/pro/pages/".length));
 
