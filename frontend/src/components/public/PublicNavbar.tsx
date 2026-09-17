@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useMarket } from '../../contexts/MarketContext';
 import LanguageSelector from '../LanguageSelector';
-import MarketSelector from '../marketing/MarketSelector';
 
 export default function PublicNavbar() {
   const { user, login, register, logout, isLoading } = useAuth();
@@ -66,7 +65,6 @@ export default function PublicNavbar() {
 
           <div className='flex items-center gap-3'>
             <div className='hidden items-center gap-2 md:flex'>
-              <MarketSelector variant='light' />
               <LanguageSelector variant='light' />
             </div>
 
@@ -154,11 +152,8 @@ export default function PublicNavbar() {
             </div>
 
             <div className='mt-8 flex flex-col gap-4 border-t border-slate-100 pt-6'>
-              <div className='flex items-center gap-2'>
-                <MarketSelector variant='light' />
-                <div className='flex-1'>
-                  <LanguageSelector variant='light' />
-                </div>
+              <div className='w-full'>
+                <LanguageSelector variant='light' />
               </div>
               {isLoading ? (
                 <div className='h-12 w-full rounded-2xl bg-slate-100 animate-pulse' />
