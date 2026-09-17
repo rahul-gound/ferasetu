@@ -185,7 +185,7 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
   const [showCart, setShowCart] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
-  const [orderComplete, setOrderComplete] = useState<{ id: string; invoice: string; deliveryCode: string; paymentOtp: string } | null>(null);
+  const [orderComplete, setOrderComplete] = useState<{ id: string; invoice: string; deliveryCode: string; paymentOtp?: string } | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -247,6 +247,7 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
     
     setIsOrdering(true);
     try {
+      const idempotencyKey = `ord_idem_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const res = await axios.post(`${API}/orders/create`, {
         customerName: formData.name,
         customerEmail: formData.email,
@@ -256,13 +257,17 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
         paymentMethod: formData.paymentMethod,
         shopId: shopId,
         items: cart.map(item => ({ productId: item.id, quantity: item.quantity }))
+      }, {
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        }
       });
       
+      const ord = res.data?.order || res.data;
       setOrderComplete({
-        id: res.data.order.id,
-        invoice: res.data.invoiceNumber,
-        deliveryCode: res.data.order.deliveryCode,
-        paymentOtp: res.data.order.paymentOtp
+        id: ord.id || res.data.id,
+        invoice: ord.invoice_number || res.data.invoiceNumber || 'N/A',
+        deliveryCode: ord.delivery_code || ord.deliveryCode || res.data.deliveryCode || 'N/A',
       });
       setCart([]); // Clear cart
     } catch (err) {
@@ -426,12 +431,14 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
                 
                 <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '20px', marginBottom: '32px', textAlign: 'left' }}>
                   <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px' }}>
-                    {formData.deliveryType === 'delivery' ? 'Security Code for Delivery' : 'OTP for Pickup'}
+                    Delivery Security Code
                   </div>
                   <div style={{ fontSize: '32px', fontWeight: 900, color: accentColor, letterSpacing: '3px' }}>
-                    {formData.deliveryType === 'delivery' ? orderComplete.deliveryCode : orderComplete.paymentOtp}
+                    {orderComplete.deliveryCode}
                   </div>
-                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>Please show this code to the {formData.deliveryType === 'delivery' ? 'delivery partner' : 'shopkeeper'}.</p>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>
+                    A secret verification OTP has been emailed to your address. Show your delivery security code to the delivery partner or shopkeeper upon order handoff.
+                  </p>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

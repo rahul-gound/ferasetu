@@ -10,6 +10,9 @@ import {
   Truck,
   CheckCircle2,
   AlertCircle,
+  ShieldCheck,
+  Clock,
+  Mail,
 } from 'lucide-react';
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, sanitizeText } from '../utilities/formatting';
@@ -112,40 +115,85 @@ export default function CartDrawer() {
           </button>
         </div>
 
-        {/* Order Success State */}
+        {/* Order Confirmed State */}
         {orderSuccess ? (
-          <div className="flex-1 p-6 flex flex-col items-center justify-center text-center overflow-y-auto">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-              <CheckCircle2 size={36} />
+          <div className="flex-1 p-5 sm:p-6 flex flex-col items-center justify-start text-center overflow-y-auto">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 mt-2 shadow-inner">
+              <CheckCircle2 size={38} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-1">Order Placed Successfully!</h3>
-            <p className="text-xs text-slate-500 mb-6">
-              Your order has been recorded in the merchant&apos;s system.
+            <h3 className="text-xl font-black text-slate-900 mb-1 tracking-tight">Order Confirmed!</h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Thank you! Your order has been securely placed with the store.
             </p>
 
-            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-4 text-left mb-6 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Order ID:</span>
+            {/* Expected Next Step / Status Banner */}
+            <div className="w-full bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 mb-3 text-left flex items-start gap-2.5">
+              <Clock size={16} className="text-amber-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
+                  Status: Pending Merchant Confirmation
+                </div>
+                <div className="text-[11px] text-amber-700 leading-snug">
+                  The merchant has received your order and will prepare it shortly.
+                </div>
+              </div>
+            </div>
+
+            {/* OTP Security Notification Banner */}
+            <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-3.5 mb-4 text-left flex items-start gap-2.5">
+              <ShieldCheck size={18} className="text-blue-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="text-xs font-bold text-blue-900 mb-0.5">
+                  Order Verification OTP Sent
+                </div>
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  {orderSuccess.customerEmail && !orderSuccess.customerEmail.includes('@customer.ferasetu.local') ? (
+                    <>
+                      A secret verification OTP has been emailed to <span className="font-semibold">{orderSuccess.customerEmail}</span>.
+                    </>
+                  ) : (
+                    <>
+                      A secret verification OTP has been emailed to your order contact address.
+                    </>
+                  )}{' '}
+                  Please keep this OTP confidential and share it with the merchant or delivery executive <span className="font-semibold">ONLY</span> upon receiving your items.
+                </p>
+                {orderSuccess.emailStatus === 'QUOTA_EXHAUSTED' && (
+                  <p className="text-[10px] text-amber-700 mt-1 font-medium">
+                    (Notice: Direct merchant verification active. Your order is confirmed.)
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Order Summary Card */}
+            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-left mb-5 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <span className="text-slate-500 font-medium">Order ID</span>
                 <span className="font-mono font-bold text-slate-900">{orderSuccess.id}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Invoice Number:</span>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <span className="text-slate-500 font-medium">Invoice Number</span>
                 <span className="font-mono font-bold text-slate-900">{orderSuccess.invoice}</span>
               </div>
               {orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Delivery Security Code:</span>
-                  <span className="font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Delivery Security Code</span>
+                  <span className="font-mono font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded border border-emerald-200">
                     {orderSuccess.deliveryCode}
                   </span>
                 </div>
               )}
-              {orderSuccess.paymentOtp && orderSuccess.paymentOtp !== 'N/A' && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Payment Verification OTP:</span>
-                  <span className="font-mono font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
-                    {orderSuccess.paymentOtp}
-                  </span>
+              {typeof orderSuccess.total === 'number' && (
+                <div className="flex justify-between items-center pt-1 font-bold text-slate-900 text-sm">
+                  <span>Total Amount</span>
+                  <span>{formatPrice(orderSuccess.total)}</span>
+                </div>
+              )}
+              {orderSuccess.deliveryAddress && (
+                <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-600">
+                  <span className="font-semibold text-slate-700">Delivery Address: </span>
+                  {orderSuccess.deliveryAddress}
                 </div>
               )}
             </div>
@@ -157,7 +205,7 @@ export default function CartDrawer() {
                 setCheckoutStep('cart');
                 closeCart();
               }}
-              className="w-full py-3 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-black transition-colors"
+              className="w-full py-3 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-black transition-colors shadow-sm"
             >
               Continue Shopping
             </button>

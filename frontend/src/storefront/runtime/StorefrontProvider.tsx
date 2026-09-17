@@ -357,20 +357,42 @@ export function StorefrontProvider({
           })),
         };
 
+        const idempotencyKey = `ord_idem_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        const headers = {
+          ...getCustomerHeaders(),
+          'Idempotency-Key': idempotencyKey,
+        };
+
         const res = await axios.post(`${API}/orders/create`, payload, {
           withCredentials: true,
-          headers: getCustomerHeaders(),
+          headers,
         });
         const data = res.data;
+        const ord = data.order || data;
 
         setOrderSuccess({
-          id: data.order?.id || data.id,
-          invoice: data.invoiceNumber || data.invoice || 'N/A',
-          deliveryCode: data.order?.deliveryCode || data.deliveryCode || 'N/A',
-          paymentOtp: data.order?.paymentOtp || data.paymentOtp || 'N/A',
+          id: ord.id || data.id,
+          invoice: ord.invoice_number || ord.invoice || data.invoiceNumber || data.invoice || 'N/A',
+          deliveryCode: ord.delivery_code || ord.deliveryCode || 'N/A',
+          customerName: ord.customer_name || formData.customerName,
+          customerEmail: ord.customer_email || formData.customerEmail,
+          customerPhone: ord.customer_phone || formData.customerPhone,
+          total: ord.total,
+          subtotal: ord.subtotal,
+          deliveryFee: ord.delivery_fee,
+          deliveryAddress: ord.delivery_address || formData.deliveryAddress,
+          deliveryType: ord.delivery_type || formData.deliveryType,
+          items: Array.isArray(ord.items)
+            ? ord.items
+            : typeof ord.items === 'string'
+            ? JSON.parse(ord.items || '[]')
+            : [],
+          emailStatus: ord.email_status,
+          emailSent: Boolean(ord.email_sent),
         });
 
         clearCart();
+        setIsCartOpen(true);
         return true;
       } catch (err: any) {
         console.error('Failed to submit order:', err);
@@ -382,7 +404,7 @@ export function StorefrontProvider({
         setIsSubmittingOrder(false);
       }
     },
-    [cart, shopId, shopName, customer, clearCart]
+    [cart, shopId, shopName, customer, clearCart, setIsCartOpen]
   );
 
   // WhatsApp helpers

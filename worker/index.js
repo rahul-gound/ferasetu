@@ -123,7 +123,7 @@ function getCorsHeaders(request) {
   const origin = request ? request.headers?.get("Origin") : null;
   const allowedOrigin = isOriginAllowed(origin) ? origin : "https://ferasetu.com";
   const reqHeaders = request ? request.headers?.get("Access-Control-Request-Headers") : null;
-  const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Cache-Control, Pragma";
+  const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Idempotency-Key, X-Order-Idempotency, Cache-Control, Pragma";
   const allowedHeaders = reqHeaders ? `${baseHeaders}, ${reqHeaders}` : baseHeaders;
 
   return {
@@ -409,6 +409,13 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
                 "SELECT * FROM shops WHERE organization_id = ? ORDER BY created_at ASC"
               ).bind(organization.id).first();
             }
+          }
+          if (!organization) {
+            organization = {
+              id: legacyUser.id,
+              name: legacyUser.business_name || legacyUser.name || 'Store',
+              store_slug: legacyUser.subdomain || legacyUser.id
+            };
           }
         }
       }
@@ -2867,6 +2874,35 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL
       );
     `);
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS shop_email_quotas (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT UNIQUE NOT NULL,
+        user_id TEXT,
+        daily_limit INTEGER NOT NULL DEFAULT 100,
+        emails_sent_today INTEGER NOT NULL DEFAULT 0,
+        extra_quota_balance INTEGER NOT NULL DEFAULT 0,
+        last_reset_date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS email_logs (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        order_id TEXT,
+        recipient_email TEXT NOT NULL,
+        email_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        failure_reason TEXT,
+        consumed_source TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_shop_email_quotas_org ON shop_email_quotas(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_logs_org ON email_logs(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_logs_order ON email_logs(order_id);`);
 
     // 13. Safe Column Additions for Existing Tables
     await safeAddColumn('users', "market TEXT DEFAULT 'IN'");
@@ -2936,8 +2972,15 @@ async function ensureTables(db) {
     await safeAddColumn('orders', 'delivery_code TEXT');
     await safeAddColumn('orders', 'delivery_code_hash TEXT');
     await safeAddColumn('orders', 'payment_otp_hash TEXT');
+    await safeAddColumn('orders', 'otp_expires_at TEXT');
+    await safeAddColumn('orders', 'otp_attempts INTEGER DEFAULT 0');
+    await safeAddColumn('orders', 'otp_used_at TEXT');
+    await safeAddColumn('orders', 'idempotency_key TEXT');
+    await safeAddColumn('orders', 'email_sent INTEGER DEFAULT 0');
+    await safeAddColumn('orders', 'email_status TEXT');
     await safeAddColumn('orders', 'created_at TEXT');
     await safeAddColumn('orders', 'updated_at TEXT');
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders(idempotency_key);`);
 
     // Websites table schema migrations
     await safeAddColumn('websites', 'user_id TEXT');
@@ -3604,19 +3647,19 @@ export async function transitionSubscription({
     sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(newId).first();
   }
 
-  const effectiveOrgId = organizationId || sub.organization_id || null;
-  let nextPlan = sub.plan;
-  let nextStatus = sub.status;
+  const effectiveOrgId = organizationId || sub?.organization_id || null;
+  let nextPlan = sub?.plan || 'free';
+  let nextStatus = sub?.status || 'free';
   // Rule: trial_used = 1 is immutable. Normal code can never reset it to 0.
-  let nextTrialUsed = Boolean(sub.trial_used) ? 1 : 0;
-  let nextTrialStartedAt = sub.trial_started_at;
-  let nextTrialEndsAt = sub.trial_ends_at;
-  let nextPeriodStart = sub.current_period_start;
-  let nextPeriodEnd = sub.current_period_end;
-  let nextCancelAtEnd = sub.cancel_at_period_end;
-  let nextProvider = provider || sub.payment_provider;
-  let nextOrderId = providerOrderId || sub.provider_order_id;
-  let nextPaymentId = providerPaymentId || sub.provider_payment_id;
+  let nextTrialUsed = Boolean(sub?.trial_used) ? 1 : 0;
+  let nextTrialStartedAt = sub?.trial_started_at || null;
+  let nextTrialEndsAt = sub?.trial_ends_at || null;
+  let nextPeriodStart = sub?.current_period_start || null;
+  let nextPeriodEnd = sub?.current_period_end || null;
+  let nextCancelAtEnd = sub?.cancel_at_period_end || 0;
+  let nextProvider = provider || sub?.payment_provider || null;
+  let nextOrderId = providerOrderId || sub?.provider_order_id || null;
+  let nextPaymentId = providerPaymentId || sub?.provider_payment_id || null;
 
   let existingMeta = {};
   try {
@@ -3873,6 +3916,19 @@ export async function handleSuccessfulCashfreePayment(paymentContext) {
       type: 'extra_storage',
       gbAdded: gb,
       message: `Added ${gb}GB storage successfully`
+    };
+  }
+
+  const isEmailQuota = txMeta.type === 'email_quota';
+  if (isEmailQuota) {
+    const emailsToAdd = Number(txMeta.emails || 10000);
+    const targetOrgId = tx.organization_id || tx.user_id;
+    await incrementExtraEmailQuota(env.DB, targetOrgId, emailsToAdd);
+    return {
+      success: true,
+      type: 'email_quota',
+      quotaAdded: emailsToAdd,
+      message: `Added ${emailsToAdd.toLocaleString()} emails to extra quota balance successfully`
     };
   }
 
@@ -5481,6 +5537,7 @@ async function updateProduct(id, request, env) {
     } catch {}
   }
 
+  const resultProduct = updated || existing;
   const formattedProduct = {
     ...resultProduct,
     cost_price: resultProduct.cost_price != null ? Number(resultProduct.cost_price) : null,
@@ -5530,6 +5587,503 @@ async function deleteProduct(id, request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// Email Quota & Dispatch Service
+// ---------------------------------------------------------------------------
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function resolveMerchantPlanDailyEmailLimit(plan) {
+  const p = String(plan || 'free').toLowerCase().trim();
+  if (p === 'pro' || p === 'plan3' || p === 'scale') {
+    return 1000;
+  }
+  if (p === 'business' || p === 'growth' || p === 'plan2') {
+    return 500;
+  }
+  // Plan 1 / Starter / Free
+  return 100;
+}
+
+export async function checkAndConsumeEmailQuota(db, orgId, userId = null) {
+  if (!db || !orgId) {
+    return { allowed: false, reason: 'INVALID_CONFIG' };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date().toISOString();
+
+  // 1. Authoritative subscription lookup for plan
+  let planTier = 'free';
+  try {
+    const sub = await db.prepare(
+      "SELECT plan, status FROM subscriptions WHERE organization_id = ? OR user_id = ? ORDER BY created_at DESC"
+    ).bind(orgId, userId || orgId).first();
+    if (sub && (sub.status === 'active' || sub.status === 'trial')) {
+      planTier = sub.plan || 'free';
+    }
+  } catch (err) {
+    console.warn("[checkAndConsumeEmailQuota] Subscription lookup note:", err?.message);
+  }
+
+  const dailyLimit = resolveMerchantPlanDailyEmailLimit(planTier);
+
+  // 2. Fetch or initialize quota row
+  let quota = null;
+  try {
+    quota = await db.prepare(
+      "SELECT * FROM shop_email_quotas WHERE organization_id = ?"
+    ).bind(orgId).first();
+  } catch (err) {
+    console.warn("[checkAndConsumeEmailQuota] Quota fetch note:", err?.message);
+  }
+
+  if (!quota) {
+    const quotaId = `seq_${crypto.randomUUID()}`;
+    try {
+      await db.prepare(`
+        INSERT INTO shop_email_quotas (
+          id, organization_id, user_id, daily_limit, emails_sent_today,
+          extra_quota_balance, last_reset_date, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)
+      `).bind(quotaId, orgId, userId || orgId, dailyLimit, today, now, now).run();
+
+      quota = {
+        id: quotaId,
+        organization_id: orgId,
+        user_id: userId || orgId,
+        daily_limit: dailyLimit,
+        emails_sent_today: 0,
+        extra_quota_balance: 0,
+        last_reset_date: today
+      };
+    } catch (insertErr) {
+      console.warn("[checkAndConsumeEmailQuota] Quota insert note:", insertErr?.message);
+      try {
+        quota = await db.prepare("SELECT * FROM shop_email_quotas WHERE organization_id = ?").bind(orgId).first();
+      } catch {}
+    }
+  }
+
+  if (!quota) {
+    return { allowed: true, source: 'daily', dailyLimit, sentToday: 1, remainingDaily: dailyLimit - 1, extraQuota: 0 };
+  }
+
+  // 3. Reset daily counter if calendar day changed (UTC)
+  let sentToday = Number(quota.emails_sent_today || 0);
+  let extraQuota = Number(quota.extra_quota_balance || 0);
+
+  if (quota.last_reset_date !== today) {
+    sentToday = 0;
+    try {
+      await db.prepare(`
+        UPDATE shop_email_quotas
+        SET emails_sent_today = 0, last_reset_date = ?, daily_limit = ?, updated_at = ?
+        WHERE organization_id = ?
+      `).bind(today, dailyLimit, now, orgId).run();
+    } catch (resetErr) {
+      console.warn("[checkAndConsumeEmailQuota] Reset note:", resetErr?.message);
+    }
+  }
+
+  // 4. Check daily limit
+  if (sentToday < dailyLimit) {
+    try {
+      await db.prepare(`
+        UPDATE shop_email_quotas
+        SET emails_sent_today = emails_sent_today + 1, updated_at = ?
+        WHERE organization_id = ?
+      `).bind(now, orgId).run();
+    } catch (updErr) {
+      console.warn("[checkAndConsumeEmailQuota] Sent count update note:", updErr?.message);
+    }
+    return {
+      allowed: true,
+      source: 'daily',
+      dailyLimit,
+      sentToday: sentToday + 1,
+      remainingDaily: Math.max(0, dailyLimit - (sentToday + 1)),
+      extraQuota
+    };
+  }
+
+  // 5. Draw from purchased extra quota if daily is exhausted
+  if (extraQuota > 0) {
+    try {
+      await db.prepare(`
+        UPDATE shop_email_quotas
+        SET extra_quota_balance = MAX(0, extra_quota_balance - 1), updated_at = ?
+        WHERE organization_id = ?
+      `).bind(now, orgId).run();
+    } catch (extraErr) {
+      console.warn("[checkAndConsumeEmailQuota] Extra quota deduction note:", extraErr?.message);
+    }
+    return {
+      allowed: true,
+      source: 'extra',
+      dailyLimit,
+      sentToday,
+      remainingDaily: 0,
+      extraQuota: extraQuota - 1
+    };
+  }
+
+  // 6. Quota exhausted
+  return {
+    allowed: false,
+    reason: 'QUOTA_EXHAUSTED',
+    dailyLimit,
+    sentToday,
+    remainingDaily: 0,
+    extraQuota: 0
+  };
+}
+
+export async function incrementExtraEmailQuota(db, orgId, emailsToAdd) {
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
+  const toAdd = Math.max(0, Math.trunc(Number(emailsToAdd || 10000)));
+
+  try {
+    const existing = await db.prepare("SELECT id FROM shop_email_quotas WHERE organization_id = ?").bind(orgId).first();
+    if (existing) {
+      await db.prepare(`
+        UPDATE shop_email_quotas
+        SET extra_quota_balance = extra_quota_balance + ?, updated_at = ?
+        WHERE organization_id = ?
+      `).bind(toAdd, now, orgId).run();
+    } else {
+      const quotaId = `seq_${crypto.randomUUID()}`;
+      await db.prepare(`
+        INSERT INTO shop_email_quotas (
+          id, organization_id, user_id, daily_limit, emails_sent_today,
+          extra_quota_balance, last_reset_date, created_at, updated_at
+        ) VALUES (?, ?, ?, 100, 0, ?, ?, ?, ?)
+      `).bind(quotaId, orgId, orgId, toAdd, today, now, now).run();
+    }
+    return true;
+  } catch (err) {
+    console.error("[incrementExtraEmailQuota] Error:", err?.message);
+    return false;
+  }
+}
+
+export async function sendCustomerOrderOtpEmail(env, {
+  recipientEmail,
+  customerName,
+  shopName,
+  orderId,
+  invoiceNumber,
+  otp,
+  total,
+  deliveryType,
+  items = []
+}) {
+  if (!recipientEmail || typeof recipientEmail !== 'string') {
+    return { success: false, reason: 'INVALID_EMAIL' };
+  }
+
+  const cleanEmail = recipientEmail.trim().toLowerCase();
+  if (cleanEmail.endsWith('@customer.ferasetu.local') || !cleanEmail.includes('@')) {
+    return { success: false, reason: 'PLACEHOLDER_EMAIL' };
+  }
+
+  const brandName = shopName || 'FeraSetu Store';
+  const subject = `Order Verification Code: ${otp} • ${brandName}`;
+
+  const itemListHtml = items.map(item => `
+    <tr>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 14px;">
+        ${escapeHtml(item.name || item.title || 'Product')}${item.variant_title ? ` <span style="font-size: 11px; color: #64748b;">(${escapeHtml(item.variant_title)})</span>` : ''}
+      </td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b; font-size: 14px;">
+        x${item.quantity || 1}
+      </td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 700; color: #0f172a; font-size: 14px;">
+        ₹${((item.total || (item.price * (item.quantity || 1))) || 0).toLocaleString('en-IN')}
+      </td>
+    </tr>
+  `).join('');
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+  <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+    <div style="background: #0f172a; color: #ffffff; padding: 24px; text-align: center;">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">${escapeHtml(brandName)}</h1>
+      <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">Order Confirmation &amp; Verification</p>
+    </div>
+
+    <div style="padding: 32px 24px;">
+      <p style="font-size: 15px; color: #334155; margin-top: 0;">
+        Hello <strong>${escapeHtml(customerName || 'Customer')}</strong>,
+      </p>
+      <p style="font-size: 14px; color: #64748b; line-height: 1.5;">
+        Thank you for your order! Please use the single-use verification code below to confirm receipt upon ${deliveryType === 'pickup' ? 'pickup at store' : 'delivery'}.
+      </p>
+
+      <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+        <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; color: #64748b; margin-bottom: 8px;">
+          Your Order Verification Code
+        </div>
+        <div style="font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #0f172a; font-family: monospace;">
+          ${otp}
+        </div>
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: #ef4444; font-weight: 600;">
+          Valid for 15 minutes • Single-use only
+        </p>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">
+          Order ID: <strong>${escapeHtml(orderId)}</strong>
+        </div>
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+          Invoice: <strong>${escapeHtml(invoiceNumber)}</strong>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+          <tbody>
+            ${itemListHtml}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 2px solid #0f172a; text-align: right; font-size: 16px; font-weight: 900; color: #0f172a;">
+          Total: ₹${Number(total || 0).toLocaleString('en-IN')}
+        </div>
+      </div>
+
+      <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 0;">
+        Never share this OTP over phone or with anyone except the authorized delivery partner or store manager at the time of order handover.
+      </p>
+    </div>
+
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #94a3b8;">
+      Powered by FeraSetu • Digitizing Commerce
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const brevoKey = env?.BREVO_API_KEY || env?.SMTP_API_KEY;
+  if (brevoKey) {
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": brevoKey,
+        },
+        body: JSON.stringify({
+          to: [{ email: cleanEmail, name: customerName || undefined }],
+          subject,
+          htmlContent,
+          sender: { email: "noreply@ferasetu.com", name: brandName },
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[sendCustomerOrderOtpEmail] Brevo API error:", res.status, errText);
+        return { success: false, reason: `Mailer HTTP ${res.status}: ${errText}` };
+      }
+      return { success: true, method: 'brevo' };
+    } catch (sendErr) {
+      console.error("[sendCustomerOrderOtpEmail] Network error:", sendErr?.message);
+      return { success: false, reason: sendErr?.message || 'Network error' };
+    }
+  }
+
+  console.log(`[sendCustomerOrderOtpEmail] Simulated OTP email send to ${cleanEmail}`);
+  return { success: true, method: 'simulated' };
+}
+
+async function handlePaymentEmailQuotaPurchase(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+  const body = await readJsonBody(request);
+
+  let orgId = null;
+  try {
+    const mem = await env.DB.prepare(
+      "SELECT organization_id FROM organization_members WHERE user_id = ? ORDER BY created_at ASC"
+    ).bind(me.$id).first();
+    orgId = mem?.organization_id || me.$id;
+  } catch {
+    orgId = me.$id;
+  }
+
+  const quantity = Math.max(1, Math.trunc(Number(body.quantity || 1)));
+  const emails = quantity * 10000;
+  // $1 per 10,000 emails -> INR 85 per pack
+  const amount = quantity * 85;
+
+  const transactionId = crypto.randomUUID();
+  const purchaseId = `eqp_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+
+  const cf = getCashfreeCredentials(env);
+  if (!cf.isValid) {
+    const requestId = crypto.randomUUID();
+    console.warn(`[handlePaymentEmailQuotaPurchase] Cashfree credentials missing. Req: ${requestId}`);
+    throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503, {
+      code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+      request_id: requestId
+    });
+  }
+
+  const cfBaseUrl = cf.baseUrl;
+  const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
+  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
+  const requestId = crypto.randomUUID();
+
+  let cfOrderRes;
+  try {
+    cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
+      method: 'POST',
+      headers: {
+        'x-client-id': cf.appId,
+        'x-client-secret': cf.secretKey,
+        'x-api-version': '2023-08-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        order_id: transactionId,
+        order_amount: amount,
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+          customer_email: user?.email || 'merchant@ferasetu.com',
+          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+        },
+        order_meta: {
+          return_url: `${requestOrigin}/dashboard/settings?order_id=${transactionId}&type=email_quota`,
+        },
+        order_note: `FeraSetu ${emails.toLocaleString()} Email Quota Pack`,
+      }),
+    });
+  } catch (netErr) {
+    console.error(`[handlePaymentEmailQuotaPurchase] Cashfree connection error: ${netErr?.message}`);
+    throw new HttpError("Unable to connect to Cashfree payment gateway. Please try again later.", 502, {
+      error_classification: 'cashfree_upstream_error',
+      request_id: requestId
+    });
+  }
+
+  if (!cfOrderRes.ok) {
+    const errText = await cfOrderRes.text();
+    const classification = classifyCashfreeError(cfOrderRes.status, errText);
+    console.error(`Cashfree email quota order creation failed: status=${cfOrderRes.status}`);
+    let detail = 'Payment gateway error';
+    try {
+      const parsed = JSON.parse(errText);
+      detail = parsed.message || detail;
+    } catch {}
+    throw new HttpError(`Cashfree payment error: ${detail}`, cfOrderRes.status >= 500 ? 502 : 400, {
+      error_classification: classification,
+      request_id: requestId
+    });
+  }
+
+  let cfOrder;
+  try {
+    cfOrder = await cfOrderRes.json();
+  } catch {
+    throw new HttpError("Invalid response received from Cashfree gateway", 502);
+  }
+
+  if (!cfOrder || typeof cfOrder.payment_session_id !== 'string' || !cfOrder.payment_session_id.trim()) {
+    throw new HttpError("Cashfree order created without valid payment session", 502);
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+     VALUES (?, ?, ?, 'cashfree', ?, ?, 'INR', 'pending', 'addon', 'one_time', ?, ?, ?)`
+  ).bind(
+    transactionId,
+    me.$id,
+    orgId,
+    cfOrder.order_id || transactionId,
+    amount,
+    JSON.stringify({
+      type: 'email_quota',
+      emails,
+      quantity,
+      purchaseId,
+      cf_order_id: cfOrder.cf_order_id,
+      cf_payment_session_id: cfOrder.payment_session_id
+    }),
+    now,
+    now
+  ).run();
+
+  return json({
+    success: true,
+    payment_session_id: cfOrder.payment_session_id,
+    order_id: cfOrder.order_id || transactionId,
+    amount,
+    currency: 'INR',
+    emails,
+    emailsAdded: emails,
+    cashfreeEnv: cf.cashfreeEnv
+  }, 201, {}, request);
+}
+
+async function handleGetEmailQuota(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const orgId = ctx.organizationId;
+  const today = new Date().toISOString().slice(0, 10);
+
+  let planTier = 'free';
+  try {
+    const sub = await env.DB.prepare(
+      "SELECT plan, status FROM subscriptions WHERE organization_id = ? OR user_id = ? ORDER BY created_at DESC"
+    ).bind(orgId, ctx.userId || orgId).first();
+    if (sub && (sub.status === 'active' || sub.status === 'trial')) {
+      planTier = sub.plan || 'free';
+    }
+  } catch {}
+
+  const dailyLimit = resolveMerchantPlanDailyEmailLimit(planTier);
+
+  let quota = null;
+  try {
+    quota = await env.DB.prepare(
+      "SELECT * FROM shop_email_quotas WHERE organization_id = ?"
+    ).bind(orgId).first();
+  } catch {}
+
+  let sentToday = Number(quota?.emails_sent_today || 0);
+  let extraQuota = Number(quota?.extra_quota_balance || 0);
+
+  if (quota && quota.last_reset_date !== today) {
+    sentToday = 0;
+  }
+
+  return json({
+    success: true,
+    plan: planTier,
+    daily_limit: dailyLimit,
+    dailyLimit: dailyLimit,
+    emails_sent_today: sentToday,
+    usedToday: sentToday,
+    emails_remaining_today: Math.max(0, dailyLimit - sentToday),
+    remainingDaily: Math.max(0, dailyLimit - sentToday),
+    extra_quota_balance: extraQuota,
+    extraQuota: extraQuota,
+    total_emails_available: Math.max(0, dailyLimit - sentToday) + extraQuota,
+    last_reset_date: quota?.last_reset_date || today
+  }, 200, {}, request);
+}
+
+// ---------------------------------------------------------------------------
 // Storefront & Order Handlers
 // ---------------------------------------------------------------------------
 async function handlePublicCreateOrder(request, env) {
@@ -5559,11 +6113,66 @@ async function handlePublicCreateOrder(request, env) {
   const storeShopId = tenant.shopId || tenant.shop?.id || orgId;
   const storeSlug = tenant.organization?.store_slug || tenant.shop?.store_slug || 'store';
 
+  // 1. Idempotency Check: prevent duplicate orders on network retry or double submit
+  const idempotencyKey = (
+    request.headers.get("idempotency-key") ||
+    request.headers.get("x-order-idempotency") ||
+    body.idempotency_key ||
+    body.idempotencyKey ||
+    null
+  );
+
+  if (idempotencyKey) {
+    try {
+      const existingOrder = await env.DB.prepare(
+        "SELECT * FROM orders WHERE idempotency_key = ? AND (organization_id = ? OR shop_id = ?) LIMIT 1"
+      ).bind(idempotencyKey, orgId, storeShopId).first();
+
+      if (existingOrder) {
+        let existingItems = [];
+        try {
+          existingItems = JSON.parse(existingOrder.items);
+        } catch {}
+        return json({
+          success: true,
+          order: {
+            id: existingOrder.id,
+            total: Number(existingOrder.total || 0),
+            subtotal: Number(existingOrder.subtotal || 0),
+            deliveryFee: Number(existingOrder.delivery_fee || 0),
+            deliveryCode: existingOrder.delivery_code,
+            status: existingOrder.status,
+            payment_status: existingOrder.payment_status,
+            delivery_type: existingOrder.delivery_type,
+            delivery_address: existingOrder.delivery_address || null,
+            customer_name: existingOrder.customer_name,
+            customer_phone: existingOrder.customer_phone,
+            customer_email: existingOrder.customer_email || null,
+            items: existingItems,
+            created_at: existingOrder.created_at
+          },
+          invoiceNumber: existingOrder.invoice_number,
+          emailSent: Boolean(existingOrder.email_sent),
+          emailStatus: existingOrder.email_status || 'SENT',
+          emailMessage: "Order already confirmed.",
+          alreadyCreated: true
+        }, 200, {}, request);
+      }
+    } catch (idemErr) {
+      console.warn("Idempotency check note:", idemErr?.message);
+    }
+  }
+
   let subtotalMinor = 0;
   const resolvedItems = [];
   const orderItemsToInsert = [];
   const deliveryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate secure 6-digit OTP and SHA-256 hash (never store or return plaintext OTP)
   const paymentOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const textBuffer = new TextEncoder().encode(paymentOtp);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", textBuffer);
+  const paymentOtpHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
   const orderId = crypto.randomUUID();
 
@@ -5652,7 +6261,6 @@ async function handlePublicCreateOrder(request, env) {
     });
 
     // Slice A Minimal Inventory Contract:
-    // If tracked (is_inventory_tracked !== 0): check available quantity and decrement atomically
     if (priceInfo.product.is_inventory_tracked !== 0) {
       try {
         const invRow = await env.DB.prepare(
@@ -5666,7 +6274,6 @@ async function handlePublicCreateOrder(request, env) {
         }
       } catch {}
 
-      // Decrement cached aggregate stock on products table
       const availableStock = Math.max(
         Number(priceInfo.product.stock) || 0,
         Number(priceInfo.product.stock_quantity) || 0
@@ -5720,19 +6327,21 @@ async function handlePublicCreateOrder(request, env) {
   // P0 Correction 15: Store-scoped, collision-safe invoice number
   const invoiceNumber = `INV-${storeSlug.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-  // Insert order scoped to organization_id and shop_id with integer minor units
+  // Insert order with SHA-256 OTP hash, expiration, attempt counter, and idempotency key
   await env.DB.prepare(
     `INSERT INTO orders (
-      id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at,
+      id, user_id, organization_id, customer_name, customer_email, customer_phone, items, total, status, created_at,
       shop_id, customer_id, delivery_address, delivery_type, subtotal, delivery_fee,
       subtotal_minor, delivery_fee_minor, total_minor, currency,
-      payment_status, invoice_number, delivery_code, delivery_code_hash, payment_otp_hash, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      payment_status, invoice_number, delivery_code, delivery_code_hash, payment_otp_hash,
+      otp_expires_at, otp_attempts, otp_used_at, idempotency_key, email_sent, email_status, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     orderId,
     orgId,
     orgId,
     customerName,
+    customerEmail || null,
     customerPhone.trim(),
     JSON.stringify(resolvedItems),
     total,
@@ -5752,7 +6361,13 @@ async function handlePublicCreateOrder(request, env) {
     invoiceNumber,
     deliveryCode,
     deliveryCode,
-    paymentOtp,
+    paymentOtpHash,
+    otpExpiresAt,
+    0,
+    null,
+    idempotencyKey || null,
+    0,
+    'PENDING',
     now
   ).run();
 
@@ -5774,7 +6389,6 @@ async function handlePublicCreateOrder(request, env) {
       console.warn("Order item insert notice:", oiErr?.message);
     }
   }
-
 
   // P0 Correction 13 & 14: Comprehensive invoice record with 21 columns
   const invoiceId = `inv_${crypto.randomUUID()}`;
@@ -5804,15 +6418,104 @@ async function handlePublicCreateOrder(request, env) {
     console.warn("Invoice creation note:", invErr?.message);
   }
 
+  // Quota validation & Customer Email OTP Dispatch
+  let emailSent = false;
+  let emailStatus = 'NO_EMAIL';
+  let emailMessage = 'No customer email provided.';
+
+  if (customerEmail && !customerEmail.endsWith('@customer.ferasetu.local') && customerEmail.includes('@')) {
+    const quotaRes = await checkAndConsumeEmailQuota(env.DB, orgId);
+    if (quotaRes.allowed) {
+      try {
+        const sendRes = await sendCustomerOrderOtpEmail(env, {
+          recipientEmail: customerEmail,
+          customerName,
+          shopName: tenant.organization?.name || tenant.shop?.name || storeSlug,
+          orderId,
+          invoiceNumber,
+          otp: paymentOtp,
+          total,
+          deliveryType,
+          items: resolvedItems
+        });
+
+        if (sendRes.success) {
+          emailSent = true;
+          emailStatus = 'SENT';
+          emailMessage = 'Order confirmation OTP sent to customer email.';
+          try {
+            await env.DB.prepare(
+              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
+               VALUES (?, ?, ?, ?, 'order_otp', 'sent', ?, ?)`
+            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, quotaRes.source || 'daily', now).run();
+          } catch {}
+        } else {
+          emailSent = false;
+          emailStatus = 'FAILED';
+          emailMessage = 'Could not deliver confirmation email.';
+          try {
+            await env.DB.prepare(
+              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+               VALUES (?, ?, ?, ?, 'order_otp', 'failed_network', ?, ?, ?)`
+            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes.reason || 'Send failed', quotaRes.source || 'daily', now).run();
+          } catch {}
+        }
+      } catch (sendErr) {
+        emailSent = false;
+        emailStatus = 'FAILED';
+        emailMessage = 'Could not deliver confirmation email.';
+        try {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_otp', 'failed_network', ?, ?, ?)`
+          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendErr?.message || 'Exception', quotaRes.source || 'daily', now).run();
+        } catch {}
+      }
+    } else {
+      // Quota exhausted: order STILL succeeds! Record failure reason in email_logs
+      emailSent = false;
+      emailStatus = 'QUOTA_EXHAUSTED';
+      emailMessage = 'Store daily email quota reached. Order confirmed without email.';
+      try {
+        await env.DB.prepare(
+          `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+           VALUES (?, ?, ?, ?, 'order_otp', 'failed_quota_exhausted', 'Daily store email quota exhausted', 'none', ?)`
+        ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, now).run();
+      } catch {}
+    }
+
+    try {
+      await env.DB.prepare(
+        "UPDATE orders SET email_sent = ?, email_status = ? WHERE id = ?"
+      ).bind(emailSent ? 1 : 0, emailStatus, orderId).run();
+    } catch {}
+  }
+
+  // Authoritative, secure response (NEVER return plaintext OTP)
   return json({
     success: true,
     order: {
       id: orderId,
       total,
+      subtotal,
+      deliveryFee,
       deliveryCode,
-      paymentOtp
+      status: paymentMethod === 'online' ? 'confirmed' : 'pending',
+      payment_status: paymentMethod === 'online' ? 'paid' : 'unpaid',
+      delivery_type: deliveryType,
+      delivery_address: deliveryAddress || null,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      customer_email: customerEmail || null,
+      items: resolvedItems,
+      email_status: emailStatus,
+      email_sent: emailSent,
+      created_at: now
     },
-    invoiceNumber
+    invoiceNumber,
+    emailSent,
+    emailStatus,
+    emailMessage
   }, 201, {}, request);
 }
 
@@ -6332,32 +7035,49 @@ async function verifyOrderOtp(orderId, request, env) {
     throw new HttpError("Order not found", 404);
   }
 
+  if (order.otp_used_at) {
+    throw new HttpError("OTP has already been used", 400);
+  }
+
+  if (order.otp_expires_at && new Date(order.otp_expires_at).getTime() < Date.now()) {
+    throw new HttpError("OTP has expired", 400);
+  }
+
+  if ((order.otp_attempts ?? 0) >= 5) {
+    throw new HttpError("Maximum OTP verification attempts exceeded. Please contact support.", 429);
+  }
+
   // Validate OTP against this exact order record
   let isValidOtp = false;
-  if (order.delivery_code && order.delivery_code.toUpperCase() === otp.toUpperCase()) {
-    isValidOtp = true;
-  } else if (order.payment_otp && String(order.payment_otp) === otp) {
-    isValidOtp = true;
-  } else if (order.payment_otp_hash) {
+  if (order.payment_otp_hash) {
     const textBuffer = new TextEncoder().encode(otp);
     const hashBuffer = await crypto.subtle.digest("SHA-256", textBuffer);
     const hashed = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-    if (order.payment_otp_hash === hashed || order.payment_otp_hash === otp) {
+    if (order.payment_otp_hash === hashed) {
       isValidOtp = true;
     }
-  } else if (order.notes && order.notes.includes(otp)) {
+  }
+  if (!isValidOtp && order.delivery_code && order.delivery_code.toUpperCase() === otp.toUpperCase()) {
     isValidOtp = true;
-  } else if (otp === "123456") {
+  }
+  if (!isValidOtp && order.payment_otp && String(order.payment_otp) === otp) {
     isValidOtp = true;
   }
 
   if (!isValidOtp) {
+    const attempts = (order.otp_attempts || 0) + 1;
+    await env.DB.prepare(
+      "UPDATE orders SET otp_attempts = ? WHERE id = ? AND organization_id = ?"
+    ).bind(attempts, orderId, ctx.organizationId).run();
+    if (attempts >= 5) {
+      throw new HttpError("Maximum OTP verification attempts exceeded. Please contact support.", 429);
+    }
     throw new HttpError("Invalid OTP", 400);
   }
 
   const now = new Date().toISOString();
   const updateRes = await env.DB.prepare(
-    "UPDATE orders SET status = 'delivered', updated_at = ? WHERE id = ? AND organization_id = ?"
+    "UPDATE orders SET status = 'delivered', otp_used_at = CURRENT_TIMESTAMP, updated_at = ? WHERE id = ? AND organization_id = ?"
   ).bind(now, orderId, ctx.organizationId).run();
 
   const changes = updateRes?.meta?.changes ?? 0;
@@ -6365,13 +7085,13 @@ async function verifyOrderOtp(orderId, request, env) {
     throw new HttpError("Order update failed or already delivered", 409);
   }
 
-
   return json({
     success: true,
     message: "OTP verified and order marked delivered",
     order: {
       ...order,
       status: 'delivered',
+      otp_used_at: now,
       updated_at: now
     }
   }, 200, {}, request);
@@ -7618,6 +8338,8 @@ async function route(request, env) {
         "POST /api/payment/cancel-subscription",
         "POST /api/payment/resume-subscription",
         "GET  /api/payment/history",
+        "POST /api/payment/email-quota/purchase",
+        "GET  /api/email-quota",
         "GET  /api/products",
         "POST /api/products",
         "GET  /api/products/:id",
@@ -7709,6 +8431,12 @@ async function route(request, env) {
   }
   if (path === "/api/payment/history" && method === "GET") {
     return handlePaymentHistory(request, env);
+  }
+  if (path === "/api/payment/email-quota/purchase" && method === "POST") {
+    return handlePaymentEmailQuotaPurchase(request, env);
+  }
+  if (path === "/api/email-quota" && method === "GET") {
+    return handleGetEmailQuota(request, env);
   }
 
   // Subscription & Entitlements

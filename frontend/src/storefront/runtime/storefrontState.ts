@@ -13,7 +13,18 @@ export interface OrderSuccessData {
   id: string;
   invoice: string;
   deliveryCode: string;
-  paymentOtp: string;
+  paymentOtp?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  total?: number;
+  subtotal?: number;
+  deliveryFee?: number;
+  deliveryAddress?: string;
+  deliveryType?: 'pickup' | 'delivery';
+  items?: Array<{ name: string; quantity: number; price: number }>;
+  emailStatus?: string;
+  emailSent?: boolean;
 }
 
 export interface CheckoutFormData {
