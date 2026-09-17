@@ -8292,6 +8292,7 @@ async function getPublicShop(shopName, request, env) {
     },
     website: {
       ...website,
+      is_published: (proSite && Array.isArray(proSite.pages) && proSite.pages.length > 0) ? 1 : (website?.is_published ? 1 : 0),
       config,
       sections,
       theme: parsedTheme || website.template || 'market'

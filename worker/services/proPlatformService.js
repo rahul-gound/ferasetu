@@ -1099,6 +1099,12 @@ export async function publishSite(tenantId, deployedBy = "merchant", env) {
   await env.DB.prepare("UPDATE site_routes SET status = 'published' WHERE tenant_id = ?").bind(tenantId).run();
   await env.DB.prepare("UPDATE site_functions SET status = 'published' WHERE tenant_id = ?").bind(tenantId).run();
 
+  try {
+    await env.DB.prepare("UPDATE websites SET is_published = 1, updated_at = ? WHERE organization_id = ? OR user_id = ?").bind(now, tenantId, tenantId).run();
+  } catch (syncWebErr) {
+    console.warn("Could not sync websites.is_published on Pro publish:", syncWebErr?.message);
+  }
+
   // Record audit log
   recordExecutionLog(tenantId, {
     event_type: "publish",

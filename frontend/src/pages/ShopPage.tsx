@@ -75,7 +75,13 @@ export default function ShopPage() {
 
   // Build structured data and SEO metadata from shop data
   const seoData = useMemo(() => {
-    if (!data || !data.website.is_published) return null;
+    const hasProSite = Boolean(
+      (data as any)?.pro_site &&
+      Array.isArray((data as any).pro_site.pages) &&
+      (data as any).pro_site.pages.length > 0
+    );
+    const isPublished = Boolean(data?.website?.is_published || hasProSite);
+    if (!data || !isPublished) return null;
 
     const shop = data.shop;
     const firstProductImage = data.products?.[0]?.image_url;
@@ -163,7 +169,16 @@ export default function ShopPage() {
     );
   }
 
-  if (!data.website.is_published) {
+  // Store is considered published if either the Website Builder site is published
+  // OR the Pro Studio multi-page site has an active published deployment with pages.
+  const hasProSite = Boolean(
+    (data as any)?.pro_site &&
+    Array.isArray((data as any).pro_site.pages) &&
+    (data as any).pro_site.pages.length > 0
+  );
+  const isPublished = Boolean(data.website.is_published || hasProSite);
+
+  if (!isPublished) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center',
