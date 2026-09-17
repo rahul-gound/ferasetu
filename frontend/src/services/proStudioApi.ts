@@ -355,6 +355,144 @@ export const proStudioApi = {
     const res = await api.get<ImportedProject & { versions: any[]; mappings: any[] }>(`/api/pro/import/projects/${encodeURIComponent(projectId)}`);
     return res.data;
   },
+
+  // Data & Storage
+  testDataSource: async (payload: {
+    type: 'database' | 'storage';
+    provider: string;
+    connectionStrategy?: string;
+    credentials: Record<string, any>;
+  }) => {
+    const res = await api.post<{
+      success: boolean;
+      connected: boolean;
+      provider: string;
+      capabilities: Record<string, any>;
+      details: any;
+      maskedMetadata: Record<string, any>;
+    }>('/api/pro/data-sources/test', payload);
+    return res.data;
+  },
+
+  createDataSource: async (payload: {
+    name: string;
+    type: 'database' | 'storage';
+    provider: string;
+    connectionStrategy?: string;
+    credentials: Record<string, any>;
+    policy?: {
+      schedule?: string;
+      retention_days?: number;
+      enable_object_lock?: boolean;
+      selected_tables?: string[];
+      selected_prefixes?: string[];
+    };
+  }) => {
+    const res = await api.post<ProDataSource>('/api/pro/data-sources', payload);
+    return res.data;
+  },
+
+  getDataSources: async () => {
+    const res = await api.get<ProDataSource[]>('/api/pro/data-sources');
+    return res.data;
+  },
+
+  getDataSource: async (id: string) => {
+    const res = await api.get<ProDataSource>(`/api/pro/data-sources/${encodeURIComponent(id)}`);
+    return res.data;
+  },
+
+  deleteDataSource: async (id: string) => {
+    const res = await api.delete<{ success: boolean }>(`/api/pro/data-sources/${encodeURIComponent(id)}`);
+    return res.data;
+  },
+
+  inspectDataSource: async (id: string) => {
+    const res = await api.post<any>(`/api/pro/data-sources/${encodeURIComponent(id)}/inspect`);
+    return res.data;
+  },
+
+  triggerBackup: async (payload: {
+    dataSourceId: string;
+    snapshotType?: 'manual' | 'scheduled';
+    idempotencyKey?: string;
+  }) => {
+    const res = await api.post<{
+      operation_id: string;
+      snapshot_id: string;
+      status: string;
+      message: string;
+    }>('/api/pro/backups', payload);
+    return res.data;
+  },
+
+  getBackups: async (params?: { dataSourceId?: string }) => {
+    const res = await api.get<ProBackupSnapshot[]>('/api/pro/backups', { params });
+    return res.data;
+  },
+
+  getBackup: async (id: string) => {
+    const res = await api.get<ProBackupSnapshot>(`/api/pro/backups/${encodeURIComponent(id)}`);
+    return res.data;
+  },
+
+  getBackupItems: async (id: string) => {
+    const res = await api.get<ProBackupItem[]>(`/api/pro/backups/${encodeURIComponent(id)}/items`);
+    return res.data;
+  },
+
+  getOperation: async (id: string) => {
+    const res = await api.get<ProOperation>(`/api/pro/operations/${encodeURIComponent(id)}`);
+    return res.data;
+  },
+
+  previewRestore: async (payload: {
+    snapshotId: string;
+    dataSourceId: string;
+    mode?: 'as_new' | 'selected' | 'replace_existing';
+  }) => {
+    const res = await api.post<ProRestorePreview>('/api/pro/restores/preview', payload);
+    return res.data;
+  },
+
+  executeRestore: async (payload: {
+    snapshotId: string;
+    dataSourceId: string;
+    mode?: 'as_new' | 'selected' | 'replace_existing';
+    explicitConfirmation?: boolean;
+    confirmDataSourceName?: string;
+    selectedTables?: string[];
+  }) => {
+    const res = await api.post<{
+      operation_id: string;
+      status: string;
+      message: string;
+    }>('/api/pro/restores', payload);
+    return res.data;
+  },
+
+  createExport: async (payload: {
+    snapshotId: string;
+    dataSourceId: string;
+    format?: 'sql' | 'json' | 'zip';
+  }) => {
+    const res = await api.post<{
+      operation_id: string;
+      status: string;
+      format: string;
+    }>('/api/pro/exports', payload);
+    return res.data;
+  },
+
+  getExport: async (id: string) => {
+    const res = await api.get<any>(`/api/pro/exports/${encodeURIComponent(id)}`);
+    return res.data;
+  },
+
+  runRetentionCleanup: async () => {
+    const res = await api.post<{ deletedCount: number; lockedCount: number }>('/api/pro/retention/cleanup');
+    return res.data;
+  },
 };
 
 // =============================================================================
@@ -490,3 +628,114 @@ export interface ImportedProject {
   version_number?: number;
   import_status?: string;
 }
+
+// -----------------------------------------------------------------------------
+// Data & Storage TypeScript Types
+// -----------------------------------------------------------------------------
+
+export interface ProDataSource {
+  id: string;
+  tenant_id: string;
+  type: 'database' | 'storage';
+  provider: string;
+  name: string;
+  connection_strategy: string;
+  status: 'connected' | 'error' | 'unverified';
+  capabilities: {
+    schemaInspection?: boolean;
+    tableBackup?: boolean;
+    databaseBackup?: boolean;
+    restore?: boolean;
+    restoreAsNewSchema?: boolean;
+    restoreWithPrefix?: boolean;
+    objectLock?: boolean;
+    streamingExport?: boolean;
+  };
+  metadata: {
+    host?: string;
+    port?: number;
+    database?: string;
+    username?: string;
+    bucket?: string;
+    region?: string;
+  };
+  policy?: {
+    schedule: 'manual' | 'daily' | 'weekly' | 'monthly';
+    retention_days: number;
+    enable_object_lock: boolean;
+    selected_tables?: string[];
+    selected_prefixes?: string[];
+    last_run_at?: string;
+    next_run_at?: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProBackupSnapshot {
+  id: string;
+  tenant_id: string;
+  data_source_id: string;
+  snapshot_number: number;
+  snapshot_type: 'manual' | 'scheduled' | 'safety';
+  status: 'REQUESTED' | 'INSPECTING' | 'SNAPSHOT_PENDING' | 'EXPORTING' | 'SCANNING' | 'UPLOADING' | 'COPYING' | 'VERIFYING' | 'COMMITTED' | 'FAILED' | 'INTEGRITY_FAILED';
+  schema_fingerprint?: string;
+  content_fingerprint?: string;
+  size_bytes: number;
+  item_count: number;
+  table_count: number;
+  b2_manifest_key?: string;
+  b2_root_prefix: string;
+  manifest_summary?: any;
+  object_lock_mode?: string;
+  object_lock_until?: string;
+  error_message?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface ProBackupItem {
+  id: string;
+  snapshot_id: string;
+  source_path: string;
+  item_type: 'table' | 'object' | 'schema';
+  size_bytes: number;
+  content_hash: string;
+  b2_object_key?: string;
+  metadata?: any;
+  created_at: string;
+}
+
+export interface ProOperation {
+  id: string;
+  tenant_id: string;
+  data_source_id: string;
+  snapshot_id?: string;
+  operation_type: string;
+  status: string;
+  current_step: string;
+  progress_percent: number;
+  details?: any;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProRestoreConflict {
+  type: string;
+  table?: string;
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  existingRows?: number;
+  foreignKey?: string;
+  sequence?: string;
+}
+
+export interface ProRestorePreview {
+  conflictCount: number;
+  hasCriticalConflicts: boolean;
+  recommendedMode: 'as_new' | 'selected' | 'replace_existing';
+  conflicts: ProRestoreConflict[];
+  dependencySafe: boolean;
+}
+

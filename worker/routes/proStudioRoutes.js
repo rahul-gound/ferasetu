@@ -6,6 +6,7 @@
 
 import { requireProAccess, ProAccessError } from '../middleware/proAuth.js';
 import * as proService from '../services/proPlatformService.js';
+import * as dataStorageService from '../services/proDataStorageService.js';
 import { PRO_TEMPLATES, installProTemplate } from '../templates/proTemplates.js';
 
 const ALLOWED_ORIGINS = [
@@ -523,6 +524,131 @@ export async function handleProStudioRoutes(request, env) {
           return errorResponse(new Error("Project not found"), 404);
         }
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // DATA & STORAGE (External Data Sources, Snapshots, Restores, Exports)
+    // -------------------------------------------------------------------------
+    if (path === "/api/pro/data-sources/test" && method === "POST") {
+      const body = await readBody(request);
+      const res = await dataStorageService.testDataSourceConnection(tenantId, body, env);
+      return jsonResponse(res);
+    }
+
+    if (path === "/api/pro/data-sources") {
+      if (method === "GET") {
+        const sources = await dataStorageService.listDataSources(tenantId, env);
+        return jsonResponse(sources);
+      }
+      if (method === "POST") {
+        const body = await readBody(request);
+        const created = await dataStorageService.createDataSource(tenantId, body, env);
+        return jsonResponse(created, 201);
+      }
+    }
+
+    if (path.startsWith("/api/pro/data-sources/")) {
+      const sourceId = decodeURIComponent(path.slice("/api/pro/data-sources/".length));
+      if (sourceId.endsWith("/inspect") && method === "POST") {
+        const realId = sourceId.replace("/inspect", "");
+        const inspection = await dataStorageService.inspectDataSource(tenantId, realId, env);
+        return jsonResponse(inspection);
+      }
+      if (method === "GET") {
+        const source = await dataStorageService.getDataSource(tenantId, sourceId, env);
+        if (!source) return errorResponse(new Error("Data source not found"), 404);
+        return jsonResponse(source);
+      }
+      if (method === "DELETE") {
+        const deleted = await dataStorageService.deleteDataSource(tenantId, sourceId, env);
+        return jsonResponse({ success: deleted });
+      }
+    }
+
+    if (path === "/api/pro/backups") {
+      if (method === "GET") {
+        const urlObj = new URL(request.url);
+        const dataSourceId = urlObj.searchParams.get("dataSourceId");
+        const list = await dataStorageService.listBackups(tenantId, { dataSourceId }, env);
+        return jsonResponse(list);
+      }
+      if (method === "POST") {
+        const body = await readBody(request);
+        const result = await dataStorageService.triggerBackup(tenantId, body, env);
+        return jsonResponse(result, 202);
+      }
+    }
+
+    if (path.startsWith("/api/pro/backups/")) {
+      const snapId = decodeURIComponent(path.slice("/api/pro/backups/".length));
+      if (snapId.endsWith("/items") && method === "GET") {
+        const realId = snapId.replace("/items", "");
+        const items = await dataStorageService.getBackupItems(tenantId, realId, env);
+        return jsonResponse(items);
+      }
+      if (method === "GET") {
+        const snap = await dataStorageService.getBackup(tenantId, snapId, env);
+        if (!snap) return errorResponse(new Error("Snapshot not found"), 404);
+        return jsonResponse(snap);
+      }
+    }
+
+    if (path.startsWith("/api/pro/operations/")) {
+      const opId = decodeURIComponent(path.slice("/api/pro/operations/".length));
+      if (method === "GET") {
+        const op = await dataStorageService.getBackupOperation(tenantId, opId, env);
+        if (!op) return errorResponse(new Error("Operation not found"), 404);
+        return jsonResponse(op);
+      }
+    }
+
+    if (path === "/api/pro/restores/preview" && method === "POST") {
+      const body = await readBody(request);
+      const preview = await dataStorageService.previewRestore(tenantId, body, env);
+      return jsonResponse(preview);
+    }
+
+    if (path === "/api/pro/restores") {
+      if (method === "POST") {
+        const body = await readBody(request);
+        const result = await dataStorageService.executeRestore(tenantId, body, env);
+        return jsonResponse(result, 202);
+      }
+    }
+
+    if (path.startsWith("/api/pro/restores/")) {
+      const opId = decodeURIComponent(path.slice("/api/pro/restores/".length));
+      if (method === "GET") {
+        const op = await env.DB.prepare("SELECT * FROM site_restore_operations WHERE tenant_id = ? AND id = ?")
+          .bind(tenantId, opId).first();
+        if (!op) return errorResponse(new Error("Restore operation not found"), 404);
+        return jsonResponse(op);
+      }
+    }
+
+    if (path === "/api/pro/exports" && method === "POST") {
+      const body = await readBody(request);
+      const result = await dataStorageService.createExport(tenantId, body, env);
+      return jsonResponse(result, 202);
+    }
+
+    if (path.startsWith("/api/pro/exports/")) {
+      const exportId = decodeURIComponent(path.slice("/api/pro/exports/".length));
+      if (method === "GET") {
+        const exp = await dataStorageService.getExport(tenantId, exportId, env);
+        if (!exp) return errorResponse(new Error("Export not found"), 404);
+        return jsonResponse(exp);
+      }
+    }
+
+    if (path === "/api/pro/retention/cleanup" && method === "POST") {
+      const cleanupRes = await dataStorageService.cleanupExpiredSnapshots(tenantId, env);
+      return jsonResponse(cleanupRes);
+    }
+
+    if (path === "/api/pro/schedules/run" && method === "POST") {
+      const schedRes = await dataStorageService.runScheduledBackups(env);
+      return jsonResponse(schedRes);
     }
 
     return errorResponse(new Error(`Endpoint not found: ${method} ${path}`), 404);

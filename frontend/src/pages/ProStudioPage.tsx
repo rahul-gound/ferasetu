@@ -7,14 +7,28 @@ import {
   Trash2, Copy, CheckCircle2, AlertCircle, ArrowUpRight, Play,
   Lock, RefreshCw, Send, Check, ExternalLink, Settings, Database,
   Cpu, HardDrive, Key, Code, HelpCircle, AlertTriangle, Eye, Server, Zap, FolderUp,
-  Search, Edit3, X, Save
+  Search, Edit3, X, Save, RotateCcw
 } from 'lucide-react';
-import { proStudioApi, type ProPage, type ProRoute, type ProFunction, type ProTemplate, type ImportedProject } from '../services/proStudioApi';
+import {
+  proStudioApi,
+  type ProPage,
+  type ProRoute,
+  type ProFunction,
+  type ProTemplate,
+  type ImportedProject,
+  type ProDataSource,
+  type ProBackupSnapshot
+} from '../services/proStudioApi';
 import { useAuth } from '../contexts/AuthContext';
 import { parseAIPromptToActions } from '../../../worker/ai/proBuilderActions.js';
 import ProjectImportModal from '../components/pro/ProjectImportModal';
 import { ProPageEditor } from '../components/pro/editor/ProPageEditor';
 import { CreatePageModal } from '../components/pro/editor/CreatePageModal';
+import StorageOverviewTab from '../components/pro/storage/StorageOverviewTab';
+import DataSourcesTab from '../components/pro/storage/DataSourcesTab';
+import BackupsTab from '../components/pro/storage/BackupsTab';
+import RestoreCenterTab from '../components/pro/storage/RestoreCenterTab';
+import AddDataSourceWizardModal from '../components/pro/storage/AddDataSourceWizardModal';
 
 type TabKey = 'overview' | 'pages' | 'routes' | 'functions' | 'templates' | 'storage' | 'auth' | 'ai_builder' | 'publish' | 'imports';
 
@@ -77,6 +91,24 @@ export default function ProStudioPage() {
     enabled: !isProRequired && Boolean(overviewData),
   });
 
+  const { data: dataSources = [], refetch: refetchDataSources } = useQuery({
+    queryKey: ['pro-data-sources'],
+    queryFn: proStudioApi.getDataSources,
+    enabled: !isProRequired && Boolean(overviewData),
+  });
+
+  const { data: snapshots = [], refetch: refetchSnapshots } = useQuery({
+    queryKey: ['pro-backup-snapshots'],
+    queryFn: proStudioApi.getSnapshots,
+    enabled: !isProRequired && Boolean(overviewData),
+  });
+
+  const refetchStorageAll = () => {
+    refetchStorage();
+    refetchDataSources();
+    refetchSnapshots();
+  };
+
   const { data: logs = [], refetch: refetchLogs } = useQuery({
     queryKey: ['pro-logs'],
     queryFn: proStudioApi.getLogs,
@@ -124,7 +156,11 @@ export default function ProStudioPage() {
   const [installingTemplateId, setInstallingTemplateId] = useState<string | null>(null);
   const [pageSearchQuery, setPageSearchQuery] = useState('');
 
-  // Storage modal state
+  // Storage tab & modal state
+  const [storageSubTab, setStorageSubTab] = useState<'overview' | 'sources' | 'backups' | 'restore' | 'kv'>('overview');
+  const [isAddSourceWizardOpen, setIsAddSourceWizardOpen] = useState(false);
+  const [preSelectedRestoreSnapshot, setPreSelectedRestoreSnapshot] = useState<ProBackupSnapshot | null>(null);
+
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [storageKeyName, setStorageKeyName] = useState('');
   const [storageKeyValue, setStorageKeyValue] = useState('');
@@ -346,7 +382,7 @@ export default function ProStudioPage() {
               { key: 'functions', label: 'Functions', count: functions.length, icon: <Code size={14} /> },
               { key: 'imports', label: 'Project Imports', count: importedProjects.length, icon: <FolderUp size={14} /> },
               { key: 'templates', label: 'Templates', icon: <Layers size={14} /> },
-              { key: 'storage', label: 'Data & Storage', count: storageKeys.length, icon: <Database size={14} /> },
+              { key: 'storage', label: 'Data & Storage', count: dataSources.length + storageKeys.length, icon: <Database size={14} /> },
               { key: 'auth', label: 'Authentication', icon: <Shield size={14} /> },
               { key: 'ai_builder', label: 'AI Builder', icon: <Sparkles size={14} /> },
               { key: 'publish', label: 'Deploy & Publish', icon: <Send size={14} /> },
@@ -1161,7 +1197,87 @@ export default function ProStudioPage() {
         {/* ================================================================= */}
         {activeTab === 'storage' && (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Storage Sub-Navigation */}
+            <div className="bg-white border border-slate-200 rounded-xl p-1 flex flex-wrap gap-1 shadow-xs">
+              {[
+                { key: 'overview', label: 'Storage Overview', icon: <Database size={14} /> },
+                { key: 'sources', label: 'Data Sources', count: dataSources.length, icon: <Server size={14} /> },
+                { key: 'backups', label: 'Backups & Snapshots', count: snapshots.length, icon: <HardDrive size={14} /> },
+                { key: 'restore', label: 'Restore Center', icon: <RotateCcw size={14} /> },
+                { key: 'kv', label: 'KV Storage (Internal)', count: storageKeys.length, icon: <Key size={14} /> },
+              ].map((sub) => {
+                const isActive = storageSubTab === sub.key;
+                return (
+                  <button
+                    key={sub.key}
+                    onClick={() => setStorageSubTab(sub.key as any)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    {sub.icon}
+                    <span>{sub.label}</span>
+                    {typeof sub.count === 'number' && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        isActive ? 'bg-slate-800 text-slate-200' : 'bg-slate-200/70 text-slate-600'
+                      }`}>
+                        {sub.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sub-tab 1: Storage Overview */}
+            {storageSubTab === 'overview' && (
+              <StorageOverviewTab
+                dataSources={dataSources}
+                snapshots={snapshots}
+                onOpenWizard={() => setIsAddSourceWizardOpen(true)}
+                onNavigateToTab={(tab) => setStorageSubTab(tab as any)}
+                onRefresh={refetchStorageAll}
+              />
+            )}
+
+            {/* Sub-tab 2: Data Sources */}
+            {storageSubTab === 'sources' && (
+              <DataSourcesTab
+                dataSources={dataSources}
+                onRefresh={refetchStorageAll}
+                onOpenWizard={() => setIsAddSourceWizardOpen(true)}
+              />
+            )}
+
+            {/* Sub-tab 3: Backups & Snapshots */}
+            {storageSubTab === 'backups' && (
+              <BackupsTab
+                snapshots={snapshots}
+                dataSources={dataSources}
+                onRefresh={refetchStorageAll}
+                onInitiateRestore={(snapshot) => {
+                  setPreSelectedRestoreSnapshot(snapshot);
+                  setStorageSubTab('restore');
+                }}
+              />
+            )}
+
+            {/* Sub-tab 4: Restore Center */}
+            {storageSubTab === 'restore' && (
+              <RestoreCenterTab
+                snapshots={snapshots}
+                dataSources={dataSources}
+                preSelectedSnapshot={preSelectedRestoreSnapshot}
+                onRefresh={refetchStorageAll}
+              />
+            )}
+
+            {/* Sub-tab 5: KV Storage (Internal) */}
+            {storageSubTab === 'kv' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Database size={18} className="text-indigo-600" />
@@ -1368,6 +1484,8 @@ export default function ProStudioPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
           </div>
         )}
 
@@ -2130,6 +2248,18 @@ export default function ProStudioPage() {
           refetchProjects();
         }}
         existingProjectId={selectedReimportProjectId}
+      />
+
+      {/* ================================================================= */}
+      {/* MODAL: ADD DATA SOURCE WIZARD */}
+      {/* ================================================================= */}
+      <AddDataSourceWizardModal
+        isOpen={isAddSourceWizardOpen}
+        onClose={() => setIsAddSourceWizardOpen(false)}
+        onSuccess={() => {
+          setIsAddSourceWizardOpen(false);
+          refetchStorageAll();
+        }}
       />
 
     </div>

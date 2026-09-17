@@ -141,6 +141,14 @@ export function createProMockD1() {
     site_source_files: [],
     site_source_mappings: [],
     site_import_changes: [],
+    site_data_sources: [],
+    site_data_source_credentials: [],
+    site_backup_policies: [],
+    site_backup_snapshots: [],
+    site_backup_items: [],
+    site_backup_operations: [],
+    site_restore_operations: [],
+    site_export_operations: [],
   };
 
   const db = {
@@ -302,6 +310,62 @@ export function createProMockD1() {
             return row ? { ...row } : null;
           }
 
+          // Data & Storage first() handlers
+          if (s.includes('select count(*) as count from site_data_sources where tenant_id = ?')) {
+            const count = tables.site_data_sources.filter(x => x.tenant_id === this._params[0]).length;
+            return { count };
+          }
+          if (s.includes('from site_data_sources') && s.includes('tenant_id = ?') && (s.includes('id = ?') || s.includes('s.id = ?'))) {
+            const row = tables.site_data_sources.find(x => x.tenant_id === this._params[0] && x.id === this._params[1]);
+            if (!row) return null;
+            const pol = tables.site_backup_policies.find(p => p.data_source_id === row.id) || {};
+            return { ...row, ...pol, id: row.id, tenant_id: row.tenant_id };
+          }
+          if (s.includes('from site_data_sources where tenant_id = ? and name = ?')) {
+            const row = tables.site_data_sources.find(x => x.tenant_id === this._params[0] && x.name === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_data_source_credentials where id = ?')) {
+            const row = tables.site_data_source_credentials.find(x => x.id === this._params[0]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('select count(*) as count from site_backup_snapshots where data_source_id = ?')) {
+            const count = tables.site_backup_snapshots.filter(x => x.data_source_id === this._params[0]).length;
+            return { count };
+          }
+          if (s.includes('from site_backup_snapshots where tenant_id = ? and id = ?')) {
+            const row = tables.site_backup_snapshots.find(x => x.tenant_id === this._params[0] && x.id === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_backup_snapshots where id = ?')) {
+            const row = tables.site_backup_snapshots.find(x => x.id === this._params[0]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_backup_operations where tenant_id = ? and data_source_id = ? and status in')) {
+            const row = tables.site_backup_operations.find(x =>
+              x.tenant_id === this._params[0] &&
+              x.data_source_id === this._params[1] &&
+              ['REQUESTED', 'INSPECTING', 'SCANNING', 'EXPORTING', 'UPLOADING', 'COPYING', 'VERIFYING'].includes(x.status)
+            );
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_backup_operations where tenant_id = ? and idempotency_key = ?')) {
+            const row = tables.site_backup_operations.find(x => x.tenant_id === this._params[0] && x.idempotency_key === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_backup_operations where tenant_id = ? and id = ?')) {
+            const row = tables.site_backup_operations.find(x => x.tenant_id === this._params[0] && x.id === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_restore_operations where tenant_id = ? and id = ?')) {
+            const row = tables.site_restore_operations.find(x => x.tenant_id === this._params[0] && x.id === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_export_operations where tenant_id = ? and id = ?')) {
+            const row = tables.site_export_operations.find(x => x.tenant_id === this._params[0] && x.id === this._params[1]);
+            return row ? { ...row } : null;
+          }
+
           return null;
         },
         async all() {
@@ -411,6 +475,42 @@ export function createProMockD1() {
           }
           if (s.includes('from site_import_changes where version_id = ?')) {
             const results = tables.site_import_changes.filter(x => x.version_id === this._params[0]);
+            return { results };
+          }
+
+          // Data & Storage all() handlers
+          if (s.includes('from site_data_sources s') && s.includes('join site_backup_policies p')) {
+            const results = tables.site_data_sources
+              .filter(x => x.tenant_id === this._params[0])
+              .map(s => {
+                const pol = tables.site_backup_policies.find(p => p.data_source_id === s.id) || {};
+                return { ...s, ...pol, id: s.id, tenant_id: s.tenant_id };
+              });
+            return { results };
+          }
+          if (s.includes('from site_data_sources where tenant_id = ?')) {
+            const results = tables.site_data_sources.filter(x => x.tenant_id === this._params[0]);
+            return { results };
+          }
+          if (s.includes('from site_backup_snapshots where tenant_id = ? and data_source_id = ?')) {
+            const results = tables.site_backup_snapshots.filter(x => x.tenant_id === this._params[0] && x.data_source_id === this._params[1]);
+            return { results };
+          }
+          if (s.includes('from site_backup_snapshots where tenant_id = ?')) {
+            const results = tables.site_backup_snapshots.filter(x => x.tenant_id === this._params[0]);
+            return { results };
+          }
+          if (s.includes('from site_backup_items where snapshot_id = ?')) {
+            const results = tables.site_backup_items.filter(x => x.snapshot_id === this._params[0]);
+            return { results };
+          }
+          if (s.includes('from site_backup_policies p join site_data_sources s on s.id = p.data_source_id')) {
+            const results = tables.site_backup_policies
+              .filter(p => p.is_active && p.schedule !== 'manual')
+              .map(p => {
+                const src = tables.site_data_sources.find(s => s.id === p.data_source_id);
+                return { ...p, tenant_id: src?.tenant_id };
+              });
             return { results };
           }
 
@@ -702,6 +802,133 @@ export function createProMockD1() {
           if (s.includes('insert into site_import_changes')) {
             const [id, project_id, version_id, source_path, resource_type, resource_id, change_type, resolution, diff_hunks, resolved_content, created_at] = this._params;
             tables.site_import_changes.push({ id, project_id, version_id, source_path, resource_type, resource_id, change_type, resolution, diff_hunks, resolved_content, created_at });
+            return { success: true };
+          }
+
+          // Data & Storage run() handlers
+          if (s.includes('insert into site_data_sources')) {
+            const [id, tenant_id, type, provider, name, connection_strategy, cred_ref, caps, meta, created_at, updated_at] = this._params;
+            tables.site_data_sources.push({
+              id, tenant_id, type, provider, name, connection_strategy, status: 'connected',
+              credential_reference: cred_ref, capabilities: caps, metadata: meta, created_at, updated_at
+            });
+            return { success: true };
+          }
+          if (s.includes('delete from site_data_sources where id = ?')) {
+            tables.site_data_sources = tables.site_data_sources.filter(x => x.id !== this._params[0]);
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_data_source_credentials')) {
+            const [id, tenant_id, key_version, envelope_version, encrypted_envelope, created_at, updated_at] = this._params;
+            tables.site_data_source_credentials.push({ id, tenant_id, key_version, envelope_version, encrypted_envelope, created_at, updated_at });
+            return { success: true };
+          }
+          if (s.includes('delete from site_data_source_credentials where id = ?')) {
+            tables.site_data_source_credentials = tables.site_data_source_credentials.filter(x => x.id !== this._params[0]);
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_backup_policies')) {
+            const [id, tenant_id, data_source_id, schedule, retention_days, enable_object_lock, selected_tables, selected_prefixes, created_at, updated_at] = this._params;
+            tables.site_backup_policies.push({
+              id, tenant_id, data_source_id, schedule, retention_days, enable_object_lock, selected_tables, selected_prefixes, is_active: 1, created_at, updated_at
+            });
+            return { success: true };
+          }
+          if (s.includes('delete from site_backup_policies where data_source_id = ?')) {
+            tables.site_backup_policies = tables.site_backup_policies.filter(x => x.data_source_id !== this._params[0]);
+            return { success: true };
+          }
+          if (s.includes('update site_backup_policies set last_run_at =')) {
+            const [next_run_at, id] = this._params;
+            const pol = tables.site_backup_policies.find(p => p.id === id);
+            if (pol) {
+              pol.last_run_at = new Date().toISOString();
+              pol.next_run_at = next_run_at;
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_backup_snapshots')) {
+            const [id, tenant_id, data_source_id, snapshot_number, snapshot_type, b2_root_prefix, created_at] = this._params;
+            tables.site_backup_snapshots.push({
+              id, tenant_id, data_source_id, snapshot_number, snapshot_type, status: 'REQUESTED', b2_root_prefix, created_at
+            });
+            return { success: true };
+          }
+          if (s.includes('update site_backup_snapshots set')) {
+            const id = this._params[this._params.length - 1];
+            const snap = tables.site_backup_snapshots.find(x => x.id === id);
+            if (snap) {
+              snap.status = this._params[0] || snap.status;
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_backup_items')) {
+            const [id, snapshot_id, source_path, item_type, size_bytes, content_hash, b2_object_key, metadata, created_at] = this._params;
+            tables.site_backup_items.push({
+              id, snapshot_id, source_path, item_type, size_bytes, content_hash, b2_object_key, metadata, created_at
+            });
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_backup_operations')) {
+            const [id, tenant_id, data_source_id, snapshot_id, idempotency_key, created_at, updated_at] = this._params;
+            tables.site_backup_operations.push({
+              id, tenant_id, data_source_id, snapshot_id, operation_type: 'backup', status: 'REQUESTED',
+              current_step: 'init', progress_percent: 0, idempotency_key, created_at, updated_at
+            });
+            return { success: true };
+          }
+          if (s.includes('update site_backup_operations set')) {
+            const id = this._params[this._params.length - 1];
+            const op = tables.site_backup_operations.find(x => x.id === id);
+            if (op) {
+              op.status = this._params[0] || op.status;
+              op.current_step = this._params[1] || op.current_step;
+              op.progress_percent = this._params[2] !== undefined ? this._params[2] : op.progress_percent;
+              if (this._params[3]) op.details = this._params[3];
+              if (this._params[4]) op.error_message = this._params[4];
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_restore_operations')) {
+            const [id, tenant_id, snapshot_id, data_source_id, mode, created_at, updated_at] = this._params;
+            tables.site_restore_operations.push({
+              id, tenant_id, snapshot_id, data_source_id, mode, status: 'REQUESTED', current_step: 'init', progress_percent: 0, created_at, updated_at
+            });
+            return { success: true };
+          }
+          if (s.includes('update site_restore_operations set')) {
+            const id = this._params[this._params.length - 1];
+            const op = tables.site_restore_operations.find(x => x.id === id);
+            if (op) {
+              op.status = this._params[0] || op.status;
+              op.current_step = this._params[1] || op.current_step;
+              op.progress_percent = this._params[2] !== undefined ? this._params[2] : op.progress_percent;
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_export_operations')) {
+            const [id, tenant_id, snapshot_id, data_source_id, format, created_at] = this._params;
+            tables.site_export_operations.push({
+              id, tenant_id, snapshot_id, data_source_id, format, status: 'REQUESTED', created_at
+            });
+            return { success: true };
+          }
+          if (s.includes('update site_export_operations set')) {
+            const id = this._params[this._params.length - 1];
+            const op = tables.site_export_operations.find(x => x.id === id);
+            if (op) {
+              op.status = this._params[0] || op.status;
+              if (this._params[1]) op.b2_export_key = this._params[1];
+              if (this._params[2]) op.download_url = this._params[2];
+              if (this._params[3]) op.size_bytes = this._params[3];
+            }
             return { success: true };
           }
 
