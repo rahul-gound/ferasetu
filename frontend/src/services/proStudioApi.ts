@@ -275,4 +275,218 @@ export const proStudioApi = {
     const res = await api.get<Array<{ id: string; function_name?: string; event_type: string; details: string; duration_ms: number; status_code: number; created_at: string }>>('/api/pro/logs');
     return res.data;
   },
+
+  // Project Import & Deterministic Analysis
+  analyzeProject: async (data: FormData | { files: any[] }) => {
+    const res = await api.post<{
+      success: boolean;
+      report: ProjectConversionReport;
+      files_count: number;
+    }>('/api/pro/import/analyze', data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
+    return res.data;
+  },
+
+  executeProjectImport: async (data: FormData | any) => {
+    const res = await api.post<{
+      success: boolean;
+      project_id: string;
+      version_id: string;
+      version_number: number;
+      import_status: string;
+      b2_snapshot?: { manifest_key: string; archive_key: string };
+      resources: {
+        pages_count: number;
+        routes_count: number;
+        functions_count: number;
+        files_count: number;
+        mappings_count: number;
+      };
+    }>('/api/pro/import/execute', data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
+    return res.data;
+  },
+
+  getReimportDiff: async (projectId: string, data: FormData | any) => {
+    const body = data instanceof FormData ? data : { projectId, ...data };
+    if (data instanceof FormData && !data.has('projectId')) {
+      data.append('projectId', projectId);
+    }
+    const res = await api.post<{
+      success: boolean;
+      project_id: string;
+      diff: ProjectReimportDiffReport;
+    }>('/api/pro/import/reimport-diff', body, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
+    return res.data;
+  },
+
+  applyReimportUpdates: async (payload: {
+    projectId: string;
+    resolutions: Array<{
+      source_path: string;
+      resource_type: string;
+      resource_id?: string;
+      resolution: 'keep_external' | 'keep_studio' | 'manual_merge';
+      resolved_content?: string;
+    }>;
+    newFiles?: any[];
+  }) => {
+    const res = await api.post<{
+      success: boolean;
+      project_id: string;
+      version_id: string;
+      version_number: number;
+      applied_count: number;
+      skipped_count: number;
+    }>('/api/pro/import/reimport-apply', payload);
+    return res.data;
+  },
+
+  getImportedProjects: async () => {
+    const res = await api.get<ImportedProject[]>('/api/pro/import/projects');
+    return res.data;
+  },
+
+  getImportedProject: async (projectId: string) => {
+    const res = await api.get<ImportedProject & { versions: any[]; mappings: any[] }>(`/api/pro/import/projects/${encodeURIComponent(projectId)}`);
+    return res.data;
+  },
 };
+
+// =============================================================================
+// Project Import Types
+// =============================================================================
+
+export interface ProjectFramework {
+  type: 'react_vite' | 'react' | 'express' | 'static_html' | 'generic_ts_js';
+  name: string;
+  description: string;
+}
+
+export interface ProjectCandidatePage {
+  title: string;
+  slug: string;
+  type: string;
+  is_homepage: number;
+  auth_required: number;
+  confidence: 'high' | 'medium' | 'low';
+  content: any;
+  deterministic_identity: string;
+  source_path: string;
+  source_hash: string;
+  dependencies: string[];
+}
+
+export interface ProjectCandidateRoute {
+  path_pattern: string;
+  page_slug?: string;
+  target_component?: string;
+  access_level: 'public' | 'authenticated' | 'merchant_admin';
+  function_binding?: string | null;
+  is_dynamic: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  deterministic_identity: string;
+  source_path: string;
+  source_hash: string;
+  dependencies: string[];
+}
+
+export interface ProjectCandidateFunction {
+  name: string;
+  description?: string;
+  routePath?: string;
+  method?: string;
+  code: string;
+  capabilities: string[];
+  confidence: 'high' | 'medium' | 'low';
+  requiresReview?: boolean;
+  deterministic_identity: string;
+  source_path: string;
+  source_hash: string;
+}
+
+export interface ProjectConversionReport {
+  analyzer_version: string;
+  project_fingerprint: string;
+  framework: ProjectFramework;
+  summary: {
+    pages_count: number;
+    routes_count: number;
+    functions_count: number;
+    components_count: number;
+    assets_count: number;
+    env_vars_count: number;
+    warnings_count: number;
+    unsupported_count: number;
+  };
+  resources: {
+    pages: ProjectCandidatePage[];
+    routes: ProjectCandidateRoute[];
+    functions: ProjectCandidateFunction[];
+    components: Array<{ name: string; title: string; confidence: string; source_path: string }>;
+    assets: Array<{ path: string; size: number; hash: string; type: string }>;
+  };
+  envVars: string[];
+  warnings: string[];
+  unsupported: Array<{ package: string; reason: string; version?: string }>;
+  quotaImpact: {
+    pages: { detected: number; limit: number; exceeded: boolean; allowedCount: number };
+    routes: { detected: number; limit: number; exceeded: boolean; allowedCount: number };
+    functions: { detected: number; limit: number; exceeded: boolean; allowedCount: number };
+    hasExceededQuota: boolean;
+  };
+}
+
+export interface ProjectDiffHunk {
+  type: 'unchanged' | 'added' | 'removed';
+  line: string;
+  oldLineNumber?: number | null;
+  newLineNumber?: number | null;
+}
+
+export interface ProjectChangeItem {
+  source_path: string;
+  resource_type: string;
+  resource_id?: string;
+  change_type: 'unchanged' | 'added' | 'modified' | 'deleted' | 'rename_candidate';
+  conflict_status: 'UNCHANGED' | 'EXTERNAL_ONLY_CHANGE' | 'STUDIO_ONLY_CHANGE' | 'SAME_FINAL_STATE' | 'TRUE_CONFLICT' | 'NO_CONFLICT';
+  is_conflict: boolean;
+  can_auto_apply: boolean;
+  summary: string;
+  diff: ProjectDiffHunk[];
+  base_content?: string;
+  studio_content?: string;
+  external_content?: string;
+  old_source_path?: string;
+}
+
+export interface ProjectReimportDiffReport {
+  summary: {
+    total_resources: number;
+    unchanged_count: number;
+    added_count: number;
+    modified_count: number;
+    deleted_count: number;
+    conflict_count: number;
+    rename_candidate_count: number;
+    has_conflicts: boolean;
+  };
+  changes: ProjectChangeItem[];
+}
+
+export interface ImportedProject {
+  id: string;
+  tenant_id: string;
+  project_name: string;
+  framework: string;
+  current_version_id?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  version_number?: number;
+  import_status?: string;
+}

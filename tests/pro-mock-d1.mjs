@@ -136,6 +136,11 @@ export function createProMockD1() {
     site_storage: [],
     site_execution_logs: [],
     customer_sessions: [],
+    site_imported_projects: [],
+    site_import_versions: [],
+    site_source_files: [],
+    site_source_mappings: [],
+    site_import_changes: [],
   };
 
   const db = {
@@ -259,6 +264,44 @@ export function createProMockD1() {
             return row ? { ...row } : null;
           }
 
+          // Project imports
+          if (s.includes('from site_imported_projects where tenant_id = ? and (project_name = ? or name = ?)')) {
+            const row = tables.site_imported_projects.find(x => x.tenant_id === this._params[0] && (x.project_name === this._params[1] || x.name === this._params[1]));
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_imported_projects where tenant_id = ? and project_name = ?')) {
+            const row = tables.site_imported_projects.find(x => x.tenant_id === this._params[0] && (x.project_name === this._params[1] || x.name === this._params[1]));
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_imported_projects where tenant_id = ? and name = ?')) {
+            const row = tables.site_imported_projects.find(x => x.tenant_id === this._params[0] && (x.name === this._params[1] || x.project_name === this._params[1]));
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_imported_projects where tenant_id = ? and id = ?')) {
+            const row = tables.site_imported_projects.find(x => x.tenant_id === this._params[0] && x.id === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_imported_projects where id = ?')) {
+            const row = tables.site_imported_projects.find(x => x.id === this._params[0]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('select max(version_number) as max_v from site_import_versions where project_id = ?')) {
+            const vers = tables.site_import_versions.filter(x => x.project_id === this._params[0]).map(x => x.version_number || 0);
+            return { max_v: vers.length ? Math.max(...vers) : 0 };
+          }
+          if (s.includes('from site_import_versions where id = ? and project_fingerprint = ? and import_status = \'committed\'')) {
+            const row = tables.site_import_versions.find(x => x.id === this._params[0] && x.project_fingerprint === this._params[1] && x.import_status === 'COMMITTED');
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_import_versions where id = ?')) {
+            const row = tables.site_import_versions.find(x => x.id === this._params[0]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from site_source_mappings where project_id = ? and deterministic_identity = ?')) {
+            const row = tables.site_source_mappings.find(x => x.project_id === this._params[0] && x.deterministic_identity === this._params[1]);
+            return row ? { ...row } : null;
+          }
+
           return null;
         },
         async all() {
@@ -326,6 +369,48 @@ export function createProMockD1() {
           // Orders
           if (s.includes('from orders where (organization_id = ? or user_id = ?)')) {
             const results = tables.orders.filter(x => (x.organization_id === this._params[0] || x.user_id === this._params[1]));
+            return { results };
+          }
+
+          // Project Imports
+          if (s.includes('from site_imported_projects p left join site_import_versions v on v.id = p.latest_version_id where p.tenant_id = ?')) {
+            const results = tables.site_imported_projects
+              .filter(x => x.tenant_id === this._params[0])
+              .map(p => {
+                const v = tables.site_import_versions.find(ver => ver.id === p.latest_version_id);
+                return {
+                  ...p,
+                  latest_version_number: v?.version_number || 1,
+                  latest_snapshot_b2_key: v?.snapshot_b2_key || null,
+                };
+              })
+              .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+            return { results };
+          }
+          if (s.includes('from site_imported_projects where tenant_id = ?')) {
+            const results = tables.site_imported_projects.filter(x => x.tenant_id === this._params[0]);
+            return { results };
+          }
+          if (s.includes('from site_import_versions where project_id = ?')) {
+            const results = tables.site_import_versions
+              .filter(x => x.project_id === this._params[0])
+              .sort((a, b) => (a.version_number || 0) - (b.version_number || 0));
+            return { results };
+          }
+          if (s.includes('from site_source_mappings where project_id = ? and version_id = ?')) {
+            const results = tables.site_source_mappings.filter(x => x.project_id === this._params[0] && x.version_id === this._params[1]);
+            return { results };
+          }
+          if (s.includes('from site_source_mappings where project_id = ?')) {
+            const results = tables.site_source_mappings.filter(x => x.project_id === this._params[0]);
+            return { results };
+          }
+          if (s.includes('from site_source_files where version_id = ?')) {
+            const results = tables.site_source_files.filter(x => x.version_id === this._params[0]);
+            return { results };
+          }
+          if (s.includes('from site_import_changes where version_id = ?')) {
+            const results = tables.site_import_changes.filter(x => x.version_id === this._params[0]);
             return { results };
           }
 
@@ -503,6 +588,17 @@ export function createProMockD1() {
             return { success: true };
           }
 
+          if (s.includes('update site_quotas set max_pages = ? where tenant_id = ?')) {
+            let q = tables.site_quotas.find(x => x.tenant_id === this._params[1]);
+            if (!q) {
+              q = { tenant_id: this._params[1], max_pages: Number(this._params[0]), max_routes: 50, max_functions: 30 };
+              tables.site_quotas.push(q);
+            } else {
+              q.max_pages = Number(this._params[0]);
+            }
+            return { success: true };
+          }
+
           if (s.includes('update site_quotas set function_invocations_used = function_invocations_used + 1')) {
             const q = tables.site_quotas.find(x => x.tenant_id === this._params[1]);
             if (q) q.function_invocations_used = (q.function_invocations_used || 0) + 1;
@@ -532,9 +628,93 @@ export function createProMockD1() {
             return { success: true };
           }
 
+          // Project Imports Run Handlers
+          if (s.includes('insert into site_imported_projects')) {
+            const [id, tenant_id, project_name, framework, now1, now2] = this._params;
+            const existingIdx = tables.site_imported_projects.findIndex(x => x.id === id || (x.tenant_id === tenant_id && (x.project_name === project_name || x.name === project_name)));
+            const rec = { id, tenant_id, project_name, name: project_name, framework, current_version_id: null, status: 'analyzed', created_at: now1, updated_at: now2 };
+            if (existingIdx >= 0) tables.site_imported_projects[existingIdx] = rec;
+            else tables.site_imported_projects.push(rec);
+            return { success: true };
+          }
+
+          if (s.includes('update site_imported_projects set current_version_id = ?')) {
+            const [current_version_id, updated_at, id] = this._params;
+            const p = tables.site_imported_projects.find(x => x.id === id);
+            if (p) {
+              p.current_version_id = current_version_id;
+              p.status = 'committed';
+              p.updated_at = updated_at;
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_import_versions')) {
+            const [id, project_id, version_number, project_fingerprint, manifest_b2_key, source_archive_b2_key, created_at] = this._params;
+            tables.site_import_versions.push({
+              id, project_id, version_number, project_fingerprint, manifest_b2_key, source_archive_b2_key, import_status: 'SNAPSHOT_PENDING', created_at
+            });
+            return { success: true };
+          }
+
+          if (s.includes('update site_import_versions set import_status =')) {
+            const statusMatch = s.match(/import_status\s*=\s*'([^']+)'/i);
+            const status = statusMatch ? statusMatch[1].toUpperCase() : this._params[0];
+            const id = statusMatch ? this._params[0] : this._params[1];
+            const v = tables.site_import_versions.find(x => x.id === id);
+            if (v) {
+              v.import_status = status;
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_source_files') || s.includes('insert or replace into site_source_files')) {
+            const [id, version_id, source_path, file_hash, file_size, file_type, relevant_metadata] = this._params;
+            tables.site_source_files.push({ id, version_id, source_path, path: source_path, file_hash, file_size, file_type, relevant_metadata });
+            return { success: true };
+          }
+
+          if (s.includes('insert or replace into site_source_mappings') || s.includes('insert into site_source_mappings')) {
+            const [id, project_id, version_id, source_path, resource_type, resource_id, deterministic_identity, source_hash, studio_hash, metadata, now1, now2] = this._params;
+            const existingIdx = tables.site_source_mappings.findIndex(x => x.project_id === project_id && (x.deterministic_identity === deterministic_identity || (x.source_path === source_path && x.resource_type === resource_type)));
+            const mapping = {
+              id: existingIdx >= 0 ? tables.site_source_mappings[existingIdx].id : id,
+              project_id, version_id, source_path, resource_type, resource_id, deterministic_identity, source_hash, studio_hash,
+              mapping_status: 'active', metadata, created_at: now1, updated_at: now2
+            };
+            if (existingIdx >= 0) tables.site_source_mappings[existingIdx] = mapping;
+            else tables.site_source_mappings.push(mapping);
+            return { success: true };
+          }
+
+          if (s.includes('update site_source_mappings set source_hash = ?')) {
+            const [source_hash, studio_hash, version_id, updated_at, id] = this._params;
+            const m = tables.site_source_mappings.find(x => x.id === id);
+            if (m) {
+              m.source_hash = source_hash;
+              m.studio_hash = studio_hash;
+              m.version_id = version_id;
+              m.updated_at = updated_at;
+            }
+            return { success: true };
+          }
+
+          if (s.includes('insert into site_import_changes')) {
+            const [id, project_id, version_id, source_path, resource_type, resource_id, change_type, resolution, diff_hunks, resolved_content, created_at] = this._params;
+            tables.site_import_changes.push({ id, project_id, version_id, source_path, resource_type, resource_id, change_type, resolution, diff_hunks, resolved_content, created_at });
+            return { success: true };
+          }
+
           return { success: true };
         },
       };
+    },
+    async batch(statements) {
+      const results = [];
+      for (const stmt of statements) {
+        results.push(await stmt.run());
+      }
+      return results;
     },
     async exec() {
       return Promise.resolve();

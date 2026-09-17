@@ -6,13 +6,14 @@ import {
   Sparkles, Globe, Terminal, Shield, FileText, Layers, Plus,
   Trash2, Copy, CheckCircle2, AlertCircle, ArrowUpRight, Play,
   Lock, RefreshCw, Send, Check, ExternalLink, Settings, Database,
-  Cpu, HardDrive, Key, Code, HelpCircle, AlertTriangle, Eye, Server, Zap
+  Cpu, HardDrive, Key, Code, HelpCircle, AlertTriangle, Eye, Server, Zap, FolderUp
 } from 'lucide-react';
-import { proStudioApi, type ProPage, type ProRoute, type ProFunction, type ProTemplate } from '../services/proStudioApi';
+import { proStudioApi, type ProPage, type ProRoute, type ProFunction, type ProTemplate, type ImportedProject } from '../services/proStudioApi';
 import { useAuth } from '../contexts/AuthContext';
 import { parseAIPromptToActions } from '../../../worker/ai/proBuilderActions.js';
+import ProjectImportModal from '../components/pro/ProjectImportModal';
 
-type TabKey = 'overview' | 'pages' | 'routes' | 'functions' | 'templates' | 'storage' | 'auth' | 'ai_builder' | 'publish';
+type TabKey = 'overview' | 'pages' | 'routes' | 'functions' | 'templates' | 'storage' | 'auth' | 'ai_builder' | 'publish' | 'imports';
 
 export default function ProStudioPage() {
   const { user } = useAuth();
@@ -79,7 +80,16 @@ export default function ProStudioPage() {
     enabled: !isProRequired && Boolean(overviewData),
   });
 
+  const { data: importedProjects = [], refetch: refetchProjects } = useQuery({
+    queryKey: ['pro-imported-projects'],
+    queryFn: proStudioApi.getImportedProjects,
+    enabled: !isProRequired && Boolean(overviewData),
+  });
+
   // Modals & form state
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [selectedReimportProjectId, setSelectedReimportProjectId] = useState<string | null>(null);
+
   const [pageModalOpen, setPageModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<Partial<ProPage> | null>(null);
 
@@ -222,6 +232,15 @@ export default function ProStudioPage() {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={() => {
+                  setSelectedReimportProjectId(null);
+                  setImportModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition-colors"
+              >
+                <FolderUp size={14} className="text-slate-600" /> Import Project
+              </button>
+              <button
                 onClick={() => setTab('ai_builder')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
               >
@@ -243,6 +262,7 @@ export default function ProStudioPage() {
               { key: 'pages', label: `Pages (${pages.length})`, icon: <FileText size={14} /> },
               { key: 'routes', label: `Routes (${routes.length})`, icon: <Globe size={14} /> },
               { key: 'functions', label: `Functions (${functions.length})`, icon: <Code size={14} /> },
+              { key: 'imports', label: `Project Imports (${importedProjects.length})`, icon: <FolderUp size={14} /> },
               { key: 'templates', label: 'Templates', icon: <Layers size={14} /> },
               { key: 'storage', label: 'Data & Storage', icon: <Database size={14} /> },
               { key: 'auth', label: 'Authentication', icon: <Shield size={14} /> },
@@ -1312,6 +1332,109 @@ export default function ProStudioPage() {
           </div>
         )}
 
+        {/* ================================================================= */}
+        {/* TAB 10: PROJECT IMPORTS */}
+        {/* ================================================================= */}
+        {activeTab === 'imports' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">Project Imports & Deterministic Analysis</h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    AST-First Engine
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                  Import entire React, Vite, Express, or Static codebases into Pro Studio resources with zero AI and 100% deterministic mapping. Full project snapshots are stored in Backblaze B2, while metadata and routes are tracked in D1.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedReimportProjectId(null);
+                  setImportModalOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs shrink-0"
+              >
+                <FolderUp size={15} /> Import Project ZIP
+              </button>
+            </div>
+
+            {importedProjects.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+                  <FolderUp size={24} />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">No imported projects yet</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-6">
+                  Upload a ZIP archive of your React, Vite, Express, or Static website. The deterministic analyzer will parse pages, routes, functions, and assets automatically.
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedReimportProjectId(null);
+                    setImportModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs"
+                >
+                  <FolderUp size={14} /> Upload Project Archive
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {importedProjects.map((proj) => (
+                  <div key={proj.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase">
+                          {proj.framework || 'unknown'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          v{proj.latest_version_number || 1}
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-slate-900 truncate" title={proj.name}>
+                        {proj.name}
+                      </h3>
+                      <p className="text-xs text-slate-500 truncate mt-0.5 font-mono" title={proj.original_path || ''}>
+                        {proj.original_path || 'Archive upload'}
+                      </p>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase font-medium">B2 Storage</span>
+                          <span className="font-semibold text-slate-700">
+                            {proj.latest_snapshot_b2_key ? 'Stored in B2' : 'Pending'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase font-medium">Last Import</span>
+                          <span className="font-semibold text-slate-700">
+                            {proj.updated_at ? new Date(proj.updated_at).toLocaleDateString() : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedReimportProjectId(proj.id);
+                          setImportModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors"
+                      >
+                        <RefreshCw size={12} /> Sync / Re-import
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ================================================================= */}
@@ -1611,6 +1734,25 @@ export default function ProStudioPage() {
           </div>
         </div>
       )}
+
+      {/* ================================================================= */}
+      {/* MODAL: PROJECT IMPORT & DETERMINISTIC ANALYSIS */}
+      {/* ================================================================= */}
+      <ProjectImportModal
+        isOpen={importModalOpen}
+        onClose={() => {
+          setImportModalOpen(false);
+          setSelectedReimportProjectId(null);
+        }}
+        onImportSuccess={() => {
+          refetchOverview();
+          refetchPages();
+          refetchRoutes();
+          refetchFunctions();
+          refetchProjects();
+        }}
+        existingProjectId={selectedReimportProjectId}
+      />
 
     </div>
   );

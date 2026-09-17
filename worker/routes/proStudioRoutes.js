@@ -414,6 +414,83 @@ export async function handleProStudioRoutes(request, env) {
       return jsonResponse(logs);
     }
 
+    // -------------------------------------------------------------------------
+    // PROJECT IMPORT & DETERMINISTIC ANALYSIS
+    // -------------------------------------------------------------------------
+    if (path === "/api/pro/import/analyze" && method === "POST") {
+      const contentType = request.headers?.get("Content-Type") || "";
+      let payload;
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const file = formData.get("file");
+        if (!file) throw new Error("No file uploaded in form data.");
+        payload = await file.arrayBuffer();
+      } else if (contentType.includes("application/zip") || contentType.includes("application/octet-stream")) {
+        payload = await request.arrayBuffer();
+      } else {
+        payload = await readBody(request);
+      }
+      const result = await proService.analyzeUploadedProject(tenantId, payload, {}, env);
+      return jsonResponse(result);
+    }
+
+    if (path === "/api/pro/import/execute" && method === "POST") {
+      const contentType = request.headers?.get("Content-Type") || "";
+      let payload;
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const file = formData.get("file");
+        const projectName = formData.get("projectName") || formData.get("project_name") || "Imported Project";
+        const selectionRaw = formData.get("selection");
+        const selection = selectionRaw ? JSON.parse(selectionRaw) : {};
+        const rawZipBuffer = file ? await file.arrayBuffer() : null;
+        payload = { projectName, rawZipBuffer, selection };
+      } else {
+        payload = await readBody(request);
+      }
+      const result = await proService.executeProjectImport(tenantId, payload, env);
+      return jsonResponse(result, 201);
+    }
+
+    if (path === "/api/pro/import/reimport-diff" && method === "POST") {
+      const contentType = request.headers?.get("Content-Type") || "";
+      let projectId;
+      let newFilesPayload;
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        projectId = formData.get("projectId") || formData.get("project_id");
+        const file = formData.get("file");
+        newFilesPayload = file ? await file.arrayBuffer() : null;
+      } else {
+        const body = await readBody(request);
+        projectId = body.projectId || body.project_id;
+        newFilesPayload = body;
+      }
+      if (!projectId) throw new Error("Missing projectId parameter.");
+      const result = await proService.computeReimportDiffForTenant(tenantId, projectId, newFilesPayload, env);
+      return jsonResponse(result);
+    }
+
+    if (path === "/api/pro/import/reimport-apply" && method === "POST") {
+      const body = await readBody(request);
+      const result = await proService.applyReimportUpdates(tenantId, body, env);
+      return jsonResponse(result);
+    }
+
+    if (path === "/api/pro/import/projects" && method === "GET") {
+      const projects = await proService.listImportedProjects(tenantId, env);
+      return jsonResponse(projects);
+    }
+
+    if (path.startsWith("/api/pro/import/projects/")) {
+      const projectId = decodeURIComponent(path.slice("/api/pro/import/projects/".length));
+      if (method === "GET") {
+        const project = await proService.getImportedProject(tenantId, projectId, env);
+        if (!project) return errorResponse(new Error("Project not found"), 404);
+        return jsonResponse(project);
+      }
+    }
+
     return errorResponse(new Error(`Endpoint not found: ${method} ${path}`), 404);
   } catch (err) {
     return errorResponse(err, err.status || 500);

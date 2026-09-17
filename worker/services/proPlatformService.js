@@ -7,6 +7,10 @@
 
 import { parseFeraFunction, extractOperationsFromAST, executeFeraAST, OPERATION_CAPABILITIES } from '../sandbox/feraRuntime.js';
 import { createFeraSDK } from '../sandbox/feraSdk.js';
+import { B2Client } from '../media/b2Client.js';
+import { extractZipArchive } from '../pro/projectZipParser.js';
+import { analyzeProject, computeSha256Hex, ANALYZER_VERSION } from '../pro/projectAnalyzer.js';
+import { computeProjectReimportDiff, getCanonicalStudioRepresentation, evaluateThreeWayMerge } from '../pro/projectDiffEngine.js';
 
 export const DEFAULT_PRO_QUOTAS = {
   max_pages: 50,
@@ -146,9 +150,69 @@ export async function ensureProTables(env) {
           status_code INTEGER NOT NULL DEFAULT 200,
           created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS site_imported_projects (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          project_name TEXT NOT NULL,
+          framework TEXT NOT NULL,
+          current_version_id TEXT,
+          status TEXT NOT NULL DEFAULT 'analyzed',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(tenant_id, project_name)
+        );
+        CREATE TABLE IF NOT EXISTS site_import_versions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          version_number INTEGER NOT NULL,
+          project_fingerprint TEXT NOT NULL,
+          manifest_b2_key TEXT NOT NULL,
+          source_archive_b2_key TEXT NOT NULL,
+          import_status TEXT NOT NULL DEFAULT 'SNAPSHOT_PENDING',
+          created_at TEXT NOT NULL,
+          UNIQUE(project_id, version_number)
+        );
+        CREATE TABLE IF NOT EXISTS site_source_files (
+          id TEXT PRIMARY KEY,
+          version_id TEXT NOT NULL,
+          source_path TEXT NOT NULL,
+          file_hash TEXT NOT NULL,
+          file_size INTEGER NOT NULL,
+          file_type TEXT NOT NULL,
+          relevant_metadata TEXT,
+          UNIQUE(version_id, source_path)
+        );
+        CREATE TABLE IF NOT EXISTS site_source_mappings (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          version_id TEXT NOT NULL,
+          source_path TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          resource_id TEXT,
+          deterministic_identity TEXT NOT NULL,
+          source_hash TEXT NOT NULL,
+          studio_hash TEXT,
+          mapping_status TEXT NOT NULL DEFAULT 'active',
+          metadata TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(project_id, version_id, source_path, resource_type)
+        );
+        CREATE TABLE IF NOT EXISTS site_import_changes (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          from_version_id TEXT NOT NULL,
+          to_version_id TEXT NOT NULL,
+          source_path TEXT NOT NULL,
+          change_type TEXT NOT NULL,
+          conflict_status TEXT NOT NULL,
+          resolution TEXT,
+          created_at TEXT NOT NULL
+        );
       `);
     }
     proTablesEnsured = true;
+
   } catch (err) {
     console.warn("[ensureProTables] note:", err?.message);
   }
@@ -984,4 +1048,635 @@ function safeParseJson(jsonStr, fallback = {}) {
   } catch {
     return fallback;
   }
+}
+
+// -----------------------------------------------------------------------------
+// 7. Project Import & Deterministic Analysis Service Layer
+// -----------------------------------------------------------------------------
+
+/**
+ * Instantiates Backblaze B2 client from environment.
+ * Exclusively uses Backblaze B2 (never Cloudflare R2).
+ */
+export function getProB2Client(env) {
+  return new B2Client({
+    endpoint: env?.B2_ENDPOINT,
+    bucketName: env?.B2_BUCKET || env?.B2_BUCKET_NAME || env?.MEDIA_BUCKET_NAME || 'ferasetu-media-prod',
+    applicationKeyId: env?.B2_APPLICATION_KEY_ID || env?.B2_KEY_ID || '',
+    applicationKey: env?.B2_APPLICATION_KEY || env?.B2_KEY || '',
+    explicitRegion: env?.B2_REGION,
+    fetcher: env?.b2Fetcher || (typeof fetch !== 'undefined' ? fetch : null),
+  });
+}
+
+/**
+ * Analyzes an uploaded project (raw ZIP buffer or file bundle) deterministically.
+ */
+export async function analyzeUploadedProject(tenantId, input, options = {}, env) {
+  let files = [];
+
+  if (input instanceof ArrayBuffer || input instanceof Uint8Array) {
+    const extracted = await extractZipArchive(input);
+    files = extracted.files;
+  } else if (Array.isArray(input)) {
+    files = input;
+  } else if (Array.isArray(input?.files)) {
+    files = input.files;
+  } else {
+    throw new ProPlatformError("Invalid input format. Expected ZIP archive or file bundle.", "INVALID_INPUT");
+  }
+
+  // Fetch current live quotas for tenant
+  const quotas = await getSiteQuotas(tenantId, env);
+
+  // Execute deterministic AST-first analysis
+  const report = await analyzeProject(files, { quotas });
+
+  return {
+    success: true,
+    report,
+    files_count: files.length,
+  };
+}
+
+/**
+ * Executes a reviewed project import.
+ * Enforces transaction state machine:
+ * ANALYZED -> SNAPSHOT_PENDING -> SNAPSHOT_READY -> IMPORTING -> COMMITTED
+ */
+export async function executeProjectImport(tenantId, payload, env) {
+  if (!env?.DB) throw new ProPlatformError("Database unavailable", "DATABASE_UNAVAILABLE");
+
+  const projectName = String(payload.projectName || payload.project_name || payload.name || "Imported Project").trim();
+  let files = payload.files || payload.rawFiles || [];
+
+  // If raw ZIP buffer provided, extract files
+  if ((!files || files.length === 0) && payload.rawZipBuffer) {
+    const extracted = await extractZipArchive(payload.rawZipBuffer);
+    files = extracted.files;
+  }
+
+  if (files.length === 0) {
+    throw new ProPlatformError("Cannot import empty project. No files provided.", "EMPTY_PROJECT");
+  }
+
+  // 1. Quota Governance Check
+  const quotas = await getSiteQuotas(tenantId, env);
+  const limits = quotas.limits;
+  const usage = quotas.usage;
+
+  const selection = payload.selection || {};
+  let selectedPages = Array.isArray(selection.pages) ? selection.pages : [];
+  let selectedRoutes = Array.isArray(selection.routes) ? selection.routes : [];
+  let selectedFunctions = Array.isArray(selection.functions) ? selection.functions : [];
+
+  if (Array.isArray(payload.selectedResourceIdentities) && payload.resources) {
+    const idSet = new Set(payload.selectedResourceIdentities);
+    selectedPages = (payload.resources.pages || []).filter(p => idSet.has(p.deterministic_identity));
+    selectedRoutes = (payload.resources.routes || []).filter(r => idSet.has(r.deterministic_identity));
+    selectedFunctions = (payload.resources.functions || []).filter(f => idSet.has(f.deterministic_identity));
+  } else if (selectedPages.length === 0 && selectedRoutes.length === 0 && selectedFunctions.length === 0 && payload.resources) {
+    selectedPages = payload.resources.pages || [];
+    selectedRoutes = payload.resources.routes || [];
+    selectedFunctions = payload.resources.functions || [];
+  }
+
+  if ((usage.pages_count + selectedPages.length) > limits.max_pages) {
+    throw new ProPlatformError(
+      `Pages quota exceeded (${usage.pages_count + selectedPages.length} total requested, plan limit: ${limits.max_pages}). No partial import was committed.`,
+      "QUOTA_EXCEEDED",
+      { resource: 'pages', requested: selectedPages.length, limit: limits.max_pages }
+    );
+  }
+
+  if ((usage.routes_count + selectedRoutes.length) > limits.max_routes) {
+    throw new ProPlatformError(
+      `Routes quota exceeded (${usage.routes_count + selectedRoutes.length} total requested, plan limit: ${limits.max_routes}). No partial import was committed.`,
+      "QUOTA_EXCEEDED",
+      { resource: 'routes', requested: selectedRoutes.length, limit: limits.max_routes }
+    );
+  }
+
+  if ((usage.functions_count + selectedFunctions.length) > limits.max_functions) {
+    throw new ProPlatformError(
+      `Functions quota exceeded (${usage.functions_count + selectedFunctions.length} total requested, plan limit: ${limits.max_functions}). No partial import was committed.`,
+      "QUOTA_EXCEEDED",
+      { resource: 'functions', requested: selectedFunctions.length, limit: limits.max_functions }
+    );
+  }
+
+  // 2. Dependency-aware resource resolution (Adjustment 5)
+  // Ensure any selected route's target page is included so routes never orphan
+  const finalPagesToCreate = [...selectedPages];
+  for (const r of selectedRoutes) {
+    const referencedSlug = r.page_slug || r.target_component;
+    if (referencedSlug && !finalPagesToCreate.some(p => p.slug === referencedSlug || p.title === referencedSlug)) {
+      // Find candidate from analyzed resources if available
+      const candidatePage = (payload.candidatePages || []).find(p => p.slug === referencedSlug || p.title === referencedSlug);
+      if (candidatePage) {
+        finalPagesToCreate.push(candidatePage);
+      }
+    }
+  }
+
+  // 3. Compute Project Fingerprint
+  const sortedHashes = files.map(f => `${f.path}:${f.hash}`).sort().join('\n');
+  const projectFingerprint = await computeSha256Hex(sortedHashes);
+
+  // 4. Idempotency Check (FIX 11)
+  let existingProject = await env.DB.prepare(
+    "SELECT * FROM site_imported_projects WHERE tenant_id = ? AND project_name = ?"
+  ).bind(tenantId, projectName).first();
+
+  if (existingProject && existingProject.current_version_id) {
+    const existingVersion = await env.DB.prepare(
+      "SELECT * FROM site_import_versions WHERE id = ? AND project_fingerprint = ? AND import_status = 'COMMITTED'"
+    ).bind(existingProject.current_version_id, projectFingerprint).first();
+
+    if (existingVersion) {
+      // Identical project version already committed — return idempotent response
+      const existingMappings = await env.DB.prepare(
+        "SELECT * FROM site_source_mappings WHERE project_id = ? AND version_id = ?"
+      ).bind(existingProject.id, existingVersion.id).all();
+
+      return {
+        success: true,
+        is_idempotent: true,
+        project_id: existingProject.id,
+        version_number: existingVersion.version_number,
+        import_status: 'COMMITTED',
+        resources: {
+          pages_count: existingMappings.results?.filter(m => m.resource_type === 'page').length || 0,
+          routes_count: existingMappings.results?.filter(m => m.resource_type === 'route').length || 0,
+          functions_count: existingMappings.results?.filter(m => m.resource_type === 'function').length || 0,
+        },
+      };
+    }
+  }
+
+  // 5. State: SNAPSHOT_PENDING
+  const projectId = existingProject ? existingProject.id : `proj_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+  const now = new Date().toISOString();
+
+  if (!existingProject) {
+    await env.DB.prepare(`
+      INSERT INTO site_imported_projects (id, tenant_id, project_name, framework, current_version_id, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, NULL, 'analyzed', ?, ?)
+    `).bind(projectId, tenantId, projectName, payload.framework?.type || 'react', now, now).run();
+    existingProject = await env.DB.prepare("SELECT * FROM site_imported_projects WHERE id = ?").bind(projectId).first();
+  }
+
+  // Determine next version number
+  const lastVerRow = await env.DB.prepare(
+    "SELECT MAX(version_number) as max_v FROM site_import_versions WHERE project_id = ?"
+  ).bind(projectId).first();
+  const nextVersionNumber = (lastVerRow?.max_v || 0) + 1;
+  const versionId = `iver_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+
+  const manifestKey = `ferasetu-pro/projects/${tenantId}/${projectId}/v${nextVersionNumber}/manifest.json`;
+  const archiveKey = `ferasetu-pro/projects/${tenantId}/${projectId}/v${nextVersionNumber}/source.zip`;
+
+  await env.DB.prepare(`
+    INSERT INTO site_import_versions (id, project_id, version_number, project_fingerprint, manifest_b2_key, source_archive_b2_key, import_status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'SNAPSHOT_PENDING', ?)
+  `).bind(versionId, projectId, nextVersionNumber, projectFingerprint, manifestKey, archiveKey, now).run();
+
+  // 6. State: SNAPSHOT_READY (Upload manifest to Backblaze B2)
+  const b2Client = getProB2Client(env);
+  const manifestData = {
+    projectId,
+    versionNumber: nextVersionNumber,
+    projectFingerprint,
+    framework: payload.framework,
+    files: files.map(f => ({ path: f.path, size: f.size, hash: f.hash, isBinary: f.isBinary })),
+    created_at: now,
+  };
+
+  try {
+    if (env?.B2_APPLICATION_KEY_ID || env?.B2_KEY_ID || env?.b2Fetcher) {
+      await b2Client.putObject(manifestKey, JSON.stringify(manifestData, null, 2), {
+        contentType: 'application/json',
+      });
+
+      // If raw ZIP buffer available, also store source.zip
+      if (payload.rawZipBuffer) {
+        await b2Client.putObject(archiveKey, payload.rawZipBuffer, {
+          contentType: 'application/zip',
+        });
+      }
+    }
+
+    await env.DB.prepare(
+      "UPDATE site_import_versions SET import_status = 'SNAPSHOT_READY' WHERE id = ?"
+    ).bind(versionId).run();
+  } catch (b2Err) {
+    // Failure handling (FIX 14): Mark version failed, do NOT commit any Studio resources
+    await env.DB.prepare(
+      "UPDATE site_import_versions SET import_status = 'FAILED' WHERE id = ?"
+    ).bind(versionId).run();
+
+    throw new ProPlatformError(
+      "B2 snapshot upload failed (B2 upload failed). No Pro Studio resources were committed. [Retry]",
+      "B2_UPLOAD_FAILED",
+      { originalError: b2Err?.message }
+    );
+  }
+
+  // 7. State: IMPORTING
+  await env.DB.prepare(
+    "UPDATE site_import_versions SET import_status = 'IMPORTING' WHERE id = ?"
+  ).bind(versionId).run();
+
+  const createdPages = [];
+  const createdRoutes = [];
+  const createdFunctions = [];
+  const sourceMappings = [];
+
+  // A. Create Pages in D1
+  for (const p of finalPagesToCreate) {
+    const page = await createPage(tenantId, {
+      title: p.title,
+      slug: p.slug,
+      type: p.type || 'standard',
+      content: p.content,
+      is_homepage: p.is_homepage === 1,
+      auth_required: p.auth_required === 1,
+      seo_title: p.seo_title,
+      seo_description: p.seo_description,
+    }, env);
+    createdPages.push(page);
+
+    const canonicalB = getCanonicalStudioRepresentation('page', page);
+    const studioHash = await computeSha256Hex(canonicalB);
+
+    sourceMappings.push({
+      id: `smap_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
+      project_id: projectId,
+      version_id: versionId,
+      source_path: p.source_path || `src/pages/${p.slug}.tsx`,
+      resource_type: 'page',
+      resource_id: page.id,
+      deterministic_identity: p.deterministic_identity || (await computeSha256Hex(p.slug)),
+      source_hash: p.source_hash || '',
+      studio_hash: studioHash,
+      metadata: JSON.stringify({ slug: page.slug, title: page.title }),
+    });
+  }
+
+  // B. Create Routes in D1
+  for (const r of selectedRoutes) {
+    // Map route to newly created page ID
+    const matchingPage = createdPages.find(p => p.slug === r.page_slug || p.title === r.target_component);
+    const pageId = matchingPage ? matchingPage.id : (createdPages[0]?.id || null);
+
+    if (pageId) {
+      const route = await createRoute(tenantId, {
+        path_pattern: r.path_pattern,
+        page_id: pageId,
+        access_level: r.access_level || 'public',
+        function_binding: r.function_binding || null,
+      }, env);
+      createdRoutes.push(route);
+
+      const canonicalB = getCanonicalStudioRepresentation('route', route);
+      const studioHash = await computeSha256Hex(canonicalB);
+
+      sourceMappings.push({
+        id: `smap_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
+        project_id: projectId,
+        version_id: versionId,
+        source_path: r.source_path || 'src/router.tsx',
+        resource_type: 'route',
+        resource_id: route.id,
+        deterministic_identity: r.deterministic_identity || (await computeSha256Hex(r.path_pattern)),
+        source_hash: r.source_hash || '',
+        studio_hash: studioHash,
+        metadata: JSON.stringify({ path_pattern: route.path_pattern, page_id: pageId }),
+      });
+    }
+  }
+
+  // C. Create Functions in D1
+  for (const fn of selectedFunctions) {
+    const createdFn = await createFunction(tenantId, {
+      name: fn.name,
+      description: fn.description || 'Imported function',
+      code: fn.code,
+      capabilities: fn.capabilities || [],
+    }, env);
+    createdFunctions.push(createdFn);
+
+    const canonicalB = getCanonicalStudioRepresentation('function', createdFn);
+    const studioHash = await computeSha256Hex(canonicalB);
+
+    sourceMappings.push({
+      id: `smap_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`,
+      project_id: projectId,
+      version_id: versionId,
+      source_path: fn.source_path || `src/api/${fn.name}.js`,
+      resource_type: 'function',
+      resource_id: createdFn.id,
+      deterministic_identity: fn.deterministic_identity || (await computeSha256Hex(fn.name)),
+      source_hash: fn.source_hash || '',
+      studio_hash: studioHash,
+      metadata: JSON.stringify({ name: createdFn.name }),
+    });
+  }
+
+  // D. Persist Source Files metadata in D1
+  for (const f of files) {
+    const fileId = `sfile_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO site_source_files (id, version_id, source_path, file_hash, file_size, file_type, relevant_metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      fileId, versionId, f.path, f.hash, f.size, f.isBinary ? 'binary' : 'text',
+      JSON.stringify({ isBinary: f.isBinary })
+    ).run();
+  }
+
+  // E. Persist Source Mappings in D1
+  for (const sm of sourceMappings) {
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO site_source_mappings (id, project_id, version_id, source_path, resource_type, resource_id, deterministic_identity, source_hash, studio_hash, mapping_status, metadata, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+    `).bind(
+      sm.id, sm.project_id, sm.version_id, sm.source_path, sm.resource_type,
+      sm.resource_id, sm.deterministic_identity, sm.source_hash, sm.studio_hash,
+      sm.metadata, now, now
+    ).run();
+  }
+
+  // 8. State: COMMITTED
+  await env.DB.prepare(
+    "UPDATE site_import_versions SET import_status = 'COMMITTED' WHERE id = ?"
+  ).bind(versionId).run();
+
+  await env.DB.prepare(
+    "UPDATE site_imported_projects SET current_version_id = ?, status = 'committed', updated_at = ? WHERE id = ?"
+  ).bind(versionId, now, projectId).run();
+
+  // Record audit execution log
+  recordExecutionLog(tenantId, {
+    event_type: "project_import",
+    details: JSON.stringify({
+      projectId,
+      versionNumber: nextVersionNumber,
+      pagesCreated: createdPages.length,
+      routesCreated: createdRoutes.length,
+      functionsCreated: createdFunctions.length,
+    }),
+    status_code: 200,
+  }, env).catch(() => {});
+
+  return {
+    success: true,
+    project_id: projectId,
+    version_id: versionId,
+    version_number: nextVersionNumber,
+    import_status: 'COMMITTED',
+    b2_snapshot: {
+      manifest_key: manifestKey,
+      archive_key: archiveKey,
+    },
+    resources: {
+      pages_count: createdPages.length,
+      routes_count: createdRoutes.length,
+      functions_count: createdFunctions.length,
+      files_count: files.length,
+      mappings_count: sourceMappings.length,
+    },
+  };
+}
+
+/**
+ * Computes 3-way re-import diff between original base snapshot, live Studio state, and new upload.
+ */
+export async function computeReimportDiffForTenant(tenantId, projectId, newFilesOrZip, env) {
+  if (!env?.DB) throw new ProPlatformError("Database unavailable", "DATABASE_UNAVAILABLE");
+
+  let newFiles = [];
+  if (newFilesOrZip instanceof ArrayBuffer || newFilesOrZip instanceof Uint8Array) {
+    const extracted = await extractZipArchive(newFilesOrZip);
+    newFiles = extracted.files;
+  } else if (Array.isArray(newFilesOrZip)) {
+    newFiles = newFilesOrZip;
+  } else if (Array.isArray(newFilesOrZip?.files)) {
+    newFiles = newFilesOrZip.files;
+  }
+
+  const project = await env.DB.prepare(
+    "SELECT * FROM site_imported_projects WHERE tenant_id = ? AND id = ?"
+  ).bind(tenantId, projectId).first();
+
+  if (!project || !project.current_version_id) {
+    throw new ProPlatformError("Imported project or version not found", "NOT_FOUND");
+  }
+
+  // Fetch current version mappings
+  const mappingsRes = await env.DB.prepare(
+    "SELECT * FROM site_source_mappings WHERE project_id = ? AND version_id = ?"
+  ).bind(projectId, project.current_version_id).all();
+  const mappings = mappingsRes.results || [];
+
+  // Fetch base source files
+  const filesRes = await env.DB.prepare(
+    "SELECT * FROM site_source_files WHERE version_id = ?"
+  ).bind(project.current_version_id).all();
+  const baseFiles = filesRes.results || [];
+
+  const baseFileContents = new Map();
+  for (const bf of baseFiles) {
+    baseFileContents.set(bf.source_path, bf.file_hash); // or content if cached
+  }
+
+  // Fetch live Studio resources
+  const pages = await listPages(tenantId, env);
+  const routes = await listRoutes(tenantId, env);
+  const functions = await listFunctions(tenantId, env);
+
+  const diffReport = computeProjectReimportDiff(
+    mappings,
+    newFiles,
+    { pages, routes, functions },
+    baseFileContents
+  );
+
+  return {
+    success: true,
+    project_id: projectId,
+    current_version_id: project.current_version_id,
+    diff: diffReport,
+  };
+}
+
+/**
+ * Applies reviewed re-import updates and conflict resolutions to live Studio resources.
+ */
+export async function applyReimportUpdates(tenantId, payload, env) {
+  if (!env?.DB) throw new ProPlatformError("Database unavailable", "DATABASE_UNAVAILABLE");
+
+  const projectId = payload.projectId || payload.project_id;
+  const resolutions = Array.isArray(payload.resolutions)
+    ? payload.resolutions
+    : (Array.isArray(payload.decisions) ? payload.decisions : []);
+  let newFiles = payload.newFiles || payload.files || [];
+
+  if ((!newFiles || newFiles.length === 0) && payload.rawZipBuffer) {
+    const extracted = await extractZipArchive(payload.rawZipBuffer);
+    newFiles = extracted.files;
+  }
+
+  const newFileMap = new Map(newFiles.map(f => [f.path, f]));
+
+  const project = await env.DB.prepare(
+    "SELECT * FROM site_imported_projects WHERE tenant_id = ? AND id = ?"
+  ).bind(tenantId, projectId).first();
+
+  if (!project) throw new ProPlatformError("Project not found", "NOT_FOUND");
+
+  const fromVersionId = project.current_version_id;
+  const now = new Date().toISOString();
+
+  // Create new version for updates
+  const lastVerRow = await env.DB.prepare(
+    "SELECT MAX(version_number) as max_v FROM site_import_versions WHERE project_id = ?"
+  ).bind(projectId).first();
+  const nextVerNumber = (lastVerRow?.max_v || 0) + 1;
+  const toVersionId = `iver_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+
+  const sortedHashes = newFiles.map(f => `${f.path}:${f.hash}`).sort().join('\n');
+  const projectFingerprint = await computeSha256Hex(sortedHashes);
+
+  const manifestKey = `ferasetu-pro/projects/${tenantId}/${projectId}/v${nextVerNumber}/manifest.json`;
+  const archiveKey = `ferasetu-pro/projects/${tenantId}/${projectId}/v${nextVerNumber}/source.zip`;
+
+  await env.DB.prepare(`
+    INSERT INTO site_import_versions (id, project_id, version_number, project_fingerprint, manifest_b2_key, source_archive_b2_key, import_status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'IMPORTING', ?)
+  `).bind(toVersionId, projectId, nextVerNumber, projectFingerprint, manifestKey, archiveKey, now).run();
+
+  let appliedCount = 0;
+  let skippedCount = 0;
+
+  for (const res of resolutions) {
+    const sourcePath = res.source_path;
+    const resolution = res.resolution; // 'keep_external' | 'keep_studio' | 'manual_merge'
+    const newFile = newFileMap.get(sourcePath);
+
+    // Record in site_import_changes
+    const changeId = `ichg_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+    await env.DB.prepare(`
+      INSERT INTO site_import_changes (id, project_id, from_version_id, to_version_id, source_path, change_type, conflict_status, resolution, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      changeId, projectId, fromVersionId, toVersionId, sourcePath,
+      res.change_type || 'modified', res.conflict_status || 'TRUE_CONFLICT', resolution, now
+    ).run();
+
+    if (resolution === 'keep_studio') {
+      skippedCount++;
+      continue;
+    }
+
+    // Determine target content to apply
+    let contentToApply = '';
+    if (resolution === 'manual_merge' && res.resolved_content !== undefined) {
+      contentToApply = res.resolved_content;
+    } else if (newFile) {
+      contentToApply = newFile.content;
+    }
+
+    if (!contentToApply && !res.resource_id) continue;
+
+    // Apply to Page if resource_type is page
+    if (res.resource_type === 'page' && res.resource_id) {
+      try {
+        await updatePage(tenantId, res.resource_id, {
+          content: contentToApply,
+          updated_at: now,
+        }, env);
+        appliedCount++;
+      } catch {}
+    } else if (res.resource_type === 'function' && res.resource_id) {
+      try {
+        await updateFunction(tenantId, res.resource_id, {
+          code: contentToApply,
+        }, env);
+        appliedCount++;
+      } catch {}
+    }
+  }
+
+  // Upload updated manifest to Backblaze B2
+  const b2Client = getProB2Client(env);
+  try {
+    if (env?.B2_APPLICATION_KEY_ID || env?.b2Fetcher) {
+      await b2Client.putObject(manifestKey, JSON.stringify({
+        projectId,
+        versionNumber: nextVerNumber,
+        projectFingerprint,
+        resolutions,
+        updated_at: now,
+      }), { contentType: 'application/json' });
+    }
+  } catch {}
+
+  // Commit version
+  await env.DB.prepare(
+    "UPDATE site_import_versions SET import_status = 'COMMITTED' WHERE id = ?"
+  ).bind(toVersionId).run();
+
+  await env.DB.prepare(
+    "UPDATE site_imported_projects SET current_version_id = ?, status = 'committed', updated_at = ? WHERE id = ?"
+  ).bind(toVersionId, now, projectId).run();
+
+  return {
+    success: true,
+    project_id: projectId,
+    version_id: toVersionId,
+    version_number: nextVerNumber,
+    applied_count: appliedCount,
+    skipped_count: skippedCount,
+  };
+}
+
+/**
+ * Lists all imported projects for tenant.
+ */
+export async function listImportedProjects(tenantId, env) {
+  if (!env?.DB) return [];
+  const res = await env.DB.prepare(`
+    SELECT p.*, v.version_number, v.import_status
+    FROM site_imported_projects p
+    LEFT JOIN site_import_versions v ON v.id = p.current_version_id
+    WHERE p.tenant_id = ?
+    ORDER BY p.updated_at DESC
+  `).bind(tenantId).all();
+  return res.results || [];
+}
+
+/**
+ * Gets imported project details and source mappings.
+ */
+export async function getImportedProject(tenantId, projectId, env) {
+  if (!env?.DB) return null;
+  const project = await env.DB.prepare(
+    "SELECT * FROM site_imported_projects WHERE tenant_id = ? AND id = ?"
+  ).bind(tenantId, projectId).first();
+  if (!project) return null;
+
+  const versionsRes = await env.DB.prepare(
+    "SELECT * FROM site_import_versions WHERE project_id = ? ORDER BY version_number DESC"
+  ).bind(projectId).all();
+
+  const mappingsRes = await env.DB.prepare(
+    "SELECT * FROM site_source_mappings WHERE project_id = ? AND version_id = ?"
+  ).bind(projectId, project.current_version_id).all();
+
+  return {
+    ...project,
+    versions: versionsRes.results || [],
+    mappings: mappingsRes.results || [],
+  };
 }
