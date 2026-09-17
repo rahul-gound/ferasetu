@@ -29,6 +29,7 @@ import DataSourcesTab from '../components/pro/storage/DataSourcesTab';
 import BackupsTab from '../components/pro/storage/BackupsTab';
 import RestoreCenterTab from '../components/pro/storage/RestoreCenterTab';
 import AddDataSourceWizardModal from '../components/pro/storage/AddDataSourceWizardModal';
+import ProjectExplorerTab from '../components/pro/ProjectExplorerTab';
 
 type TabKey = 'overview' | 'pages' | 'routes' | 'functions' | 'templates' | 'storage' | 'auth' | 'ai_builder' | 'publish' | 'imports';
 
@@ -689,7 +690,22 @@ export default function ProStudioPage() {
                               </span>
                             )}
                           </div>
-                          <div className="font-mono text-[11px] text-slate-400 mt-0.5">/{p.slug}</div>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            <span className="font-mono text-[11px] text-slate-400">/{p.slug}</span>
+                            {p.import_mapping && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTab('imports');
+                                }}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors"
+                                title={`Imported from ${p.import_mapping.source_path}`}
+                              >
+                                <FolderUp size={10} /> {p.import_mapping.source_path}
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className="capitalize px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
@@ -775,14 +791,21 @@ export default function ProStudioPage() {
                             type="button"
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (confirm(`Delete page '${p.title}'?`)) {
-                                try {
+                              try {
+                                const depCheck = await proStudioApi.checkDependencies('page', p.id);
+                                let confirmMsg = `Delete page '${p.title}'?`;
+                                if (depCheck.hasDependencies) {
+                                  const depList = depCheck.dependencies.map(d => d.label).join('\n• ');
+                                  confirmMsg = `WARNING: Page '${p.title}' has active dependencies:\n• ${depList}\n\nDeleting it will unbind or remove these routes. Do you want to proceed?`;
+                                }
+                                if (confirm(confirmMsg)) {
                                   await proStudioApi.deletePage(p.id);
                                   toast.success("Page deleted");
                                   refetchPages();
-                                } catch (err: any) {
-                                  toast.error(err?.response?.data?.error || "Failed to delete");
+                                  refetchRoutes();
                                 }
+                              } catch (err: any) {
+                                toast.error(err?.response?.data?.error || "Failed to delete");
                               }
                             }}
                             className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-md"
@@ -846,16 +869,40 @@ export default function ProStudioPage() {
                   ) : (
                     routes.map((r) => (
                       <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3.5 font-mono font-semibold text-slate-900">
-                          {r.path_pattern}
-                          {r.path_pattern.includes(':') && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              Dynamic
-                            </span>
+                        <td className="px-4 py-3.5">
+                          <div className="font-mono font-semibold text-slate-900 flex items-center gap-2">
+                            <span>{r.path_pattern}</span>
+                            {r.path_pattern.includes(':') && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                Dynamic
+                              </span>
+                            )}
+                          </div>
+                          {r.import_mapping && (
+                            <button
+                              type="button"
+                              onClick={() => setTab('imports')}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 mt-1 transition-colors"
+                              title={`Imported from ${r.import_mapping.source_path}`}
+                            >
+                              <FolderUp size={10} /> {r.import_mapping.source_path}
+                            </button>
                           )}
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className="font-medium text-slate-800">{r.page_title || r.page_id}</span>
+                          {r.page_id ? (
+                            <button
+                              type="button"
+                              onClick={() => setActiveEditorPageId(r.page_id)}
+                              className="font-medium text-slate-800 hover:text-indigo-600 underline-offset-2 hover:underline inline-flex items-center gap-1"
+                              title="Open mapped page in editor"
+                            >
+                              <FileText size={12} className="text-slate-400" />
+                              <span>{r.page_title || r.page_id}</span>
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 italic">Unbound</span>
+                          )}
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`px-2 py-1 rounded-md text-[10px] font-semibold uppercase ${
@@ -951,13 +998,32 @@ export default function ProStudioPage() {
                     <div key={fn.id} className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:border-slate-300 transition-all">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-mono text-sm font-bold text-slate-900">{fn.name}()</h3>
                             <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
                               v{fn.version}
                             </span>
+                            {fn.import_mapping && (
+                              <button
+                                type="button"
+                                onClick={() => setTab('imports')}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors"
+                                title={`Imported from ${fn.import_mapping.source_path}`}
+                              >
+                                <FolderUp size={10} /> {fn.import_mapping.source_path}
+                              </button>
+                            )}
                           </div>
                           <p className="text-xs text-slate-500 mt-1">{fn.description || "No description provided."}</p>
+                          {fn.bound_routes && fn.bound_routes.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] text-slate-500">
+                              <Globe size={11} className="text-emerald-600 flex-shrink-0" />
+                              <span>Bound to:</span>
+                              {fn.bound_routes.map(r => (
+                                <span key={r} className="font-mono bg-slate-100 px-1 py-0.5 rounded text-[10px] text-slate-700">{r}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -979,17 +1045,24 @@ export default function ProStudioPage() {
                           </button>
                           <button
                             onClick={async () => {
-                              if (confirm(`Delete function '${fn.name}'?`)) {
-                                try {
+                              try {
+                                const depCheck = await proStudioApi.checkDependencies('function', fn.id);
+                                let confirmMsg = `Delete function '${fn.name}'?`;
+                                if (depCheck.hasDependencies) {
+                                  const depList = depCheck.dependencies.map(d => d.label).join('\n• ');
+                                  confirmMsg = `WARNING: Function '${fn.name}' is bound to active routes:\n• ${depList}\n\nDeleting it will remove the binding. Do you want to proceed?`;
+                                }
+                                if (confirm(confirmMsg)) {
                                   await proStudioApi.deleteFunction(fn.id);
                                   toast.success("Function deleted");
                                   refetchFunctions();
-                                } catch (err: any) {
-                                  toast.error("Failed to delete function");
                                 }
+                              } catch (err: any) {
+                                toast.error(err?.response?.data?.error || "Failed to delete function");
                               }
                             }}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                            title="Delete Function"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1072,6 +1145,31 @@ export default function ProStudioPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* TAB: PROJECT IMPORTS & RESOURCE EXPLORER */}
+        {/* ================================================================= */}
+        {activeTab === 'imports' && (
+          <ProjectExplorerTab
+            importedProjects={importedProjects}
+            pages={pages}
+            routes={routes}
+            functions={functions}
+            onOpenImportModal={(projectId) => {
+              setSelectedReimportProjectId(projectId || null);
+              setImportModalOpen(true);
+            }}
+            onOpenPageEditor={(pageId) => setActiveEditorPageId(pageId)}
+            onNavigateTab={(tab) => setTab(tab)}
+            onRefresh={() => {
+              refetchOverview();
+              refetchPages();
+              refetchRoutes();
+              refetchFunctions();
+              refetchProjects();
+            }}
+          />
         )}
 
         {/* ================================================================= */}

@@ -461,6 +461,18 @@ export function createProMockD1() {
               .sort((a, b) => (a.version_number || 0) - (b.version_number || 0));
             return { results };
           }
+          if (s.includes('from site_source_mappings') && s.includes('resource_type =')) {
+            let resType = null;
+            if (s.includes("resource_type = 'page'")) resType = 'page';
+            else if (s.includes("resource_type = 'route'")) resType = 'route';
+            else if (s.includes("resource_type = 'function'")) resType = 'function';
+            const results = tables.site_source_mappings.filter(x => !resType || x.resource_type === resType);
+            return { results };
+          }
+          if (s.includes('from site_routes') && s.includes('function_binding is not null')) {
+            const results = tables.site_routes.filter(x => x.tenant_id === this._params[0] && Boolean(x.function_binding));
+            return { results };
+          }
           if (s.includes('from site_source_mappings where project_id = ? and version_id = ?')) {
             const results = tables.site_source_mappings.filter(x => x.project_id === this._params[0] && x.version_id === this._params[1]);
             return { results };

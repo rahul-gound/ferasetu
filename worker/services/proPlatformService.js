@@ -469,9 +469,23 @@ export async function listPages(tenantId, env) {
     ORDER BY order_index ASC, created_at ASC
   `).bind(tenantId).all();
 
+  const mappingsMap = new Map();
+  try {
+    const mappingsRes = await env.DB.prepare(`
+      SELECT m.resource_id, m.source_path, m.version_id, m.project_id, p.name as project_name, m.mapping_status, m.deterministic_identity
+      FROM site_source_mappings m
+      LEFT JOIN site_imported_projects p ON p.id = m.project_id
+      WHERE p.tenant_id = ? AND m.resource_type = 'page'
+    `).bind(tenantId).all();
+    for (const m of (mappingsRes?.results || [])) {
+      if (m.resource_id) mappingsMap.set(m.resource_id, m);
+    }
+  } catch {}
+
   return (res.results || []).map((page) => ({
     ...page,
     content: typeof page.content === 'string' ? safeParseJson(page.content) : page.content,
+    import_mapping: mappingsMap.get(page.id) || null,
   }));
 }
 
@@ -672,7 +686,23 @@ export async function listRoutes(tenantId, env) {
     ORDER BY r.path_pattern ASC
   `).bind(tenantId).all();
 
-  return res.results || [];
+  const mappingsMap = new Map();
+  try {
+    const mappingsRes = await env.DB.prepare(`
+      SELECT m.resource_id, m.source_path, m.version_id, m.project_id, p.name as project_name, m.mapping_status, m.deterministic_identity
+      FROM site_source_mappings m
+      LEFT JOIN site_imported_projects p ON p.id = m.project_id
+      WHERE p.tenant_id = ? AND m.resource_type = 'route'
+    `).bind(tenantId).all();
+    for (const m of (mappingsRes?.results || [])) {
+      if (m.resource_id) mappingsMap.set(m.resource_id, m);
+    }
+  } catch {}
+
+  return (res.results || []).map(r => ({
+    ...r,
+    import_mapping: mappingsMap.get(r.id) || null,
+  }));
 }
 
 export async function createRoute(tenantId, data, env) {
@@ -741,10 +771,37 @@ export async function listFunctions(tenantId, env) {
     ORDER BY name ASC
   `).bind(tenantId).all();
 
-  return (res.results || []).map((fn) => ({
-    ...fn,
-    capabilities: typeof fn.capabilities === 'string' ? safeParseJson(fn.capabilities, []) : fn.capabilities,
-  }));
+  const mappingsMap = new Map();
+  try {
+    const mappingsRes = await env.DB.prepare(`
+      SELECT m.resource_id, m.source_path, m.version_id, m.project_id, p.name as project_name, m.mapping_status, m.deterministic_identity
+      FROM site_source_mappings m
+      LEFT JOIN site_imported_projects p ON p.id = m.project_id
+      WHERE p.tenant_id = ? AND m.resource_type = 'function'
+    `).bind(tenantId).all();
+    for (const m of (mappingsRes?.results || [])) {
+      if (m.resource_id) mappingsMap.set(m.resource_id, m);
+    }
+  } catch {}
+
+  // Fetch bound routes
+  let routes = [];
+  try {
+    const routesRes = await env.DB.prepare(`
+      SELECT id, path_pattern, function_binding FROM site_routes WHERE tenant_id = ? AND function_binding IS NOT NULL
+    `).bind(tenantId).all();
+    routes = routesRes?.results || [];
+  } catch {}
+
+  return (res.results || []).map((fn) => {
+    const bound = routes.filter(r => r.function_binding === fn.name || r.function_binding === fn.id || (typeof r.function_binding === 'string' && r.function_binding.includes(fn.name)));
+    return {
+      ...fn,
+      capabilities: typeof fn.capabilities === 'string' ? safeParseJson(fn.capabilities, []) : fn.capabilities,
+      import_mapping: mappingsMap.get(fn.id) || null,
+      bound_routes: bound.map(r => r.path_pattern),
+    };
+  });
 }
 
 export async function getFunction(tenantId, functionIdOrName, env) {
@@ -1918,15 +1975,55 @@ export async function getImportedProject(tenantId, projectId, env) {
       "SELECT * FROM site_source_mappings WHERE project_id = ? AND version_id = ?"
     ).bind(projectId, project.current_version_id).all();
 
+    let files = [];
+    try {
+      const filesRes = await env.DB.prepare(
+        "SELECT * FROM site_source_files WHERE version_id = ? ORDER BY source_path ASC"
+      ).bind(project.current_version_id).all();
+      files = filesRes.results || [];
+    } catch {}
+
     return {
       ...project,
       versions: versionsRes.results || [],
       mappings: mappingsRes.results || [],
+      files,
     };
   } catch (err) {
     console.warn('[getImportedProject] query note:', err?.message);
     return null;
   }
+}
+
+/**
+ * Checks resource dependencies before deletion to prevent broken resource graphs.
+ */
+export async function checkResourceDependencies(tenantId, resourceType, resourceId, env) {
+  if (!env?.DB) return { hasDependencies: false, dependencies: [] };
+  const dependencies = [];
+
+  if (resourceType === 'page') {
+    const routesRes = await env.DB.prepare(
+      "SELECT id, path_pattern FROM site_routes WHERE tenant_id = ? AND page_id = ?"
+    ).bind(tenantId, resourceId).all().catch(() => ({ results: [] }));
+    for (const r of (routesRes?.results || [])) {
+      dependencies.push({ type: 'route', id: r.id, label: `Route: ${r.path_pattern}` });
+    }
+  } else if (resourceType === 'function') {
+    const fn = await getFunction(tenantId, resourceId, env);
+    const fnName = fn ? fn.name : resourceId;
+    const routesRes = await env.DB.prepare(
+      "SELECT id, path_pattern FROM site_routes WHERE tenant_id = ? AND (function_binding = ? OR function_binding LIKE ?)"
+    ).bind(tenantId, fnName, `%${fnName}%`).all().catch(() => ({ results: [] }));
+    for (const r of (routesRes?.results || [])) {
+      dependencies.push({ type: 'route', id: r.id, label: `Route: ${r.path_pattern}` });
+    }
+  }
+
+  return {
+    hasDependencies: dependencies.length > 0,
+    dependencies,
+  };
 }
 
 // Re-export page model, AST converter, and template adapter functions

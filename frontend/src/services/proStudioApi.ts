@@ -48,6 +48,14 @@ export interface ProPage {
   order_index: number;
   seo_title?: string | null;
   seo_description?: string | null;
+  import_mapping?: {
+    source_path: string;
+    project_id: string;
+    project_name?: string;
+    version_id: string;
+    version_number?: number;
+    mapping_status?: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +70,14 @@ export interface ProRoute {
   access_level: 'public' | 'authenticated' | 'merchant_admin';
   function_binding?: string | null;
   status: 'draft' | 'published';
+  import_mapping?: {
+    source_path: string;
+    project_id: string;
+    project_name?: string;
+    version_id: string;
+    version_number?: number;
+    mapping_status?: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,6 +92,15 @@ export interface ProFunction {
   status: 'draft' | 'published';
   version: number;
   timeout_ms: number;
+  import_mapping?: {
+    source_path: string;
+    project_id: string;
+    project_name?: string;
+    version_id: string;
+    version_number?: number;
+    mapping_status?: string;
+  } | null;
+  bound_routes?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -352,7 +377,14 @@ export const proStudioApi = {
   },
 
   getImportedProject: async (projectId: string) => {
-    const res = await api.get<ImportedProject & { versions: any[]; mappings: any[] }>(`/api/pro/import/projects/${encodeURIComponent(projectId)}`);
+    const res = await api.get<ImportedProject & { versions: any[]; mappings: any[]; files?: any[] }>(`/api/pro/import/projects/${encodeURIComponent(projectId)}`);
+    return res.data;
+  },
+
+  checkDependencies: async (type: 'page' | 'function', id: string) => {
+    const res = await api.get<{ hasDependencies: boolean; dependencies: Array<{ type: string; id: string; label: string }> }>(
+      `/api/pro/dependencies?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`
+    );
     return res.data;
   },
 

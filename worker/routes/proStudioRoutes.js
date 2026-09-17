@@ -526,6 +526,13 @@ export async function handleProStudioRoutes(request, env) {
       }
     }
 
+    if (path === "/api/pro/dependencies" && method === "GET") {
+      const type = url.searchParams.get("type") || "page";
+      const id = url.searchParams.get("id") || "";
+      const deps = await proService.checkResourceDependencies(tenantId, type, id, env);
+      return jsonResponse(deps);
+    }
+
     // -------------------------------------------------------------------------
     // DATA & STORAGE (External Data Sources, Snapshots, Restores, Exports)
     // -------------------------------------------------------------------------
