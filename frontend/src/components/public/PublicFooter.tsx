@@ -23,8 +23,10 @@ export default function PublicFooter() {
               <img
                 src="/logo-official.png"
                 alt="FeraSetu"
+                width="297"
+                height="128"
                 loading="lazy"
-                className="h-10 sm:h-11 w-auto object-contain opacity-95"
+                className="h-9 sm:h-10 w-auto max-w-[150px] object-contain opacity-95"
               />
             </Link>
             <p className="text-sm text-slate-500 font-medium max-w-xs leading-relaxed mb-4">

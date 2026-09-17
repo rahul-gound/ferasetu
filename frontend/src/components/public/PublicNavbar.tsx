@@ -37,7 +37,7 @@ export default function PublicNavbar() {
         aria-label={t('nav.primary')}
         className='sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70'
       >
-        <div className='mx-auto flex h-20 max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-6'>
+        <div className='mx-auto flex h-16 sm:h-20 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6'>
           <Link
             to={getLocalizedLink('/')}
             className='group flex shrink-0 items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
@@ -46,8 +46,10 @@ export default function PublicNavbar() {
             <img
               src='/logo-official.png'
               alt='FeraSetu'
+              width='297'
+              height='128'
               fetchPriority='high'
-              className='h-13 sm:h-14 md:h-15 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]'
+              className='h-9 sm:h-11 md:h-12 w-auto max-w-[140px] sm:max-w-[175px] md:max-w-[210px] object-contain transition-transform duration-200 group-hover:scale-[1.02]'
             />
           </Link>
 
@@ -125,8 +127,14 @@ export default function PublicNavbar() {
 
       {mobileMenuOpen && (
         <div className='fixed inset-0 z-[70] flex flex-col bg-white md:hidden'>
-          <div className='flex h-20 items-center justify-between border-b border-slate-200 px-5'>
-            <img src='/logo-official.png' alt='FeraSetu' className='h-12 w-auto object-contain' />
+          <div className='flex h-16 sm:h-20 items-center justify-between border-b border-slate-200 px-5'>
+            <img
+              src='/logo-official.png'
+              alt='FeraSetu'
+              width='297'
+              height='128'
+              className='h-9 sm:h-10 w-auto max-w-[150px] object-contain'
+            />
             <button
               type='button'
               onClick={() => setMobileMenuOpen(false)}
