@@ -48,6 +48,7 @@ const AdminMeetingsPage = lazy(() => import('./pages/AdminMeetingsPage'));
 const AdminOrdersPage = lazy(() => import('./pages/AdminOrdersPage'));
 const AdminTicketsPage = lazy(() => import('./pages/AdminTicketsPage'));
 const AdminErrorLogsPage = lazy(() => import('./pages/AdminErrorLogsPage'));
+const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'));
 const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
@@ -226,6 +227,7 @@ function AppRoutes() {
               <Route path="meetings" element={<AdminMeetingsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="tickets" element={<AdminTicketsPage />} />
+              <Route path="feedback" element={<AdminFeedbackPage />} />
               <Route path="errors" element={<AdminErrorLogsPage />} />
               <Route path="system" element={<AdminSystemPage />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

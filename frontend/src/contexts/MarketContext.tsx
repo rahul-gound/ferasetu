@@ -46,7 +46,7 @@ const MarketContext = createContext<MarketContextType | undefined>(undefined);
 const MARKET_STORAGE_KEY = 'fera_market';
 
 export function MarketProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading, authStatus } = useAuth();
   const [serverSub, setServerSub] = useState<any>(null);
 
   const [market, setMarketState] = useState<Market>(() => {
@@ -57,7 +57,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   });
 
   const refreshSubscription = useCallback(async () => {
-    if (!user) {
+    if (!user || isLoading || authStatus !== 'authenticated') {
       setServerSub(null);
       return;
     }
@@ -69,11 +69,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     } catch {
       // Fall back gracefully if network unavailable
     }
-  }, [user]);
+  }, [user, isLoading, authStatus]);
 
   useEffect(() => {
-    refreshSubscription();
-  }, [user, refreshSubscription]);
+    if (user && !isLoading && authStatus === 'authenticated') {
+      refreshSubscription();
+    }
+  }, [user, isLoading, authStatus, refreshSubscription]);
 
   // Sync if authenticated user's account has a specified market
   useEffect(() => {

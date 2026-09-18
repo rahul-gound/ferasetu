@@ -160,7 +160,7 @@ router.get('/users', (req: Request, res: Response) => {
   const params = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
 
   const users = db.prepare(`
-    SELECT id, email, name, business_name, plan, is_blocked, is_verified, created_at,
+    SELECT id, email, name, business_name, plan, is_blocked, is_verified, plan_expires_at, created_at,
     (SELECT COUNT(*) FROM products WHERE user_id = users.id) as product_count,
     (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as order_count
     FROM users
@@ -169,9 +169,160 @@ router.get('/users', (req: Request, res: Response) => {
     LIMIT ? OFFSET ?
   `).all(...params, limit, offset);
 
+  // Enrich with subscription status
+  for (const user of (users as any[])) {
+    try {
+      const sub = db.prepare('SELECT * FROM subscriptions WHERE user_id = ?').get(user.id) as any;
+      if (sub) {
+        user.subscription_status = sub.status || 'free';
+        user.subscription_expires_at = sub.current_period_end || user.plan_expires_at || null;
+        user.subscription_plan = sub.plan || user.plan || 'free';
+        user.payment_provider = sub.payment_provider || null;
+      } else {
+        user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
+        user.subscription_expires_at = user.plan_expires_at || null;
+        user.subscription_plan = user.plan || 'free';
+      }
+    } catch {
+      user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
+      user.subscription_expires_at = user.plan_expires_at || null;
+      user.subscription_plan = user.plan || 'free';
+    }
+  }
+
   const total = db.prepare(`SELECT COUNT(*) as count FROM users ${searchQuery}`).get(...params) as any;
 
   res.json({ users, total: total.count, page, limit });
+});
+
+// Update user subscription & plan
+router.patch('/users/:id/subscription', (req: AdminRequest, res: Response) => {
+  const { plan, status, expires_at } = req.body;
+  const db = getDatabase();
+  const userId = req.params.id;
+  const targetPlan = plan || 'free';
+  const targetStatus = status || (targetPlan === 'free' ? 'free' : 'active');
+  const targetExpiresAt = expires_at || null;
+
+  db.prepare(`
+    UPDATE users SET plan = ?, plan_expires_at = ?, updated_at = datetime('now') WHERE id = ?
+  `).run(targetPlan, targetExpiresAt, userId);
+
+  try {
+    db.prepare(`
+      INSERT INTO subscriptions (id, user_id, plan, status, current_period_end, updated_at, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      ON CONFLICT(user_id) DO UPDATE SET
+        plan = excluded.plan,
+        status = excluded.status,
+        current_period_end = excluded.current_period_end,
+        updated_at = datetime('now')
+    `).run(uuidv4(), userId, targetPlan, targetStatus, targetExpiresAt);
+  } catch (subErr) {
+    console.warn('Could not update subscriptions table in SQLite:', subErr);
+  }
+
+  writeAuditLog(req, 'user.update_subscription', 'user', userId, { plan: targetPlan, status: targetStatus, expires_at: targetExpiresAt });
+  res.json({ success: true, plan: targetPlan, status: targetStatus, expires_at: targetExpiresAt });
+});
+
+// List shops / websites
+router.get('/shops', (req: Request, res: Response) => {
+  try {
+    const db = getDatabase();
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
+    const totalRow = db.prepare('SELECT COUNT(*) as total FROM users').get() as any;
+    const total = totalRow?.total || 0;
+
+    let shopsList: any[] = [];
+    try {
+      shopsList = db.prepare(`
+        SELECT 
+          COALESCE(w.id, 'shop_' || u.id) as id,
+          COALESCE(u.business_name, w.name, u.name, 'My Shop') as shop_name,
+          COALESCE(u.subdomain, 'store') as subdomain,
+          COALESCE(u.custom_domain, CASE WHEN u.subdomain IS NOT NULL THEN u.subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
+          u.name as owner_name,
+          u.email as owner_email,
+          COALESCE(w.created_at, u.created_at) as created_at,
+          (SELECT COUNT(*) FROM products p WHERE p.user_id = u.id) as product_count,
+          w.template,
+          w.is_published
+        FROM users u
+        LEFT JOIN websites w ON w.user_id = u.id
+        ORDER BY u.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(limit, offset);
+    } catch {
+      shopsList = db.prepare(`
+        SELECT 
+          'shop_' || id as id,
+          COALESCE(business_name, name, 'My Shop') as shop_name,
+          COALESCE(subdomain, 'store') as subdomain,
+          COALESCE(custom_domain, CASE WHEN subdomain IS NOT NULL THEN subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
+          name as owner_name,
+          email as owner_email,
+          created_at,
+          0 as product_count
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(limit, offset);
+    }
+
+    res.json({ shops: shopsList || [], total, page, limit });
+  } catch (err: any) {
+    console.error('Error fetching admin shops:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List merchant feedback & surveys
+router.get('/feedback', (req: Request, res: Response) => {
+  try {
+    const db = getDatabase();
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = (page - 1) * limit;
+
+    let total = 0;
+    try {
+      const countRow = db.prepare('SELECT COUNT(*) as total FROM survey_submissions').get() as any;
+      total = countRow?.total || 0;
+    } catch {}
+
+    let feedbackList: any[] = [];
+    try {
+      feedbackList = db.prepare(`
+        SELECT 
+          s.id,
+          s.user_id,
+          COALESCE(u.name, 'Shopkeeper') as user_name,
+          COALESCE(u.email, s.contact, 'No email') as user_email,
+          COALESCE(u.business_name, 'Shop') as business_name,
+          u.phone as user_phone,
+          s.answers_json,
+          s.feedback,
+          s.contact,
+          s.ai_summary_json,
+          s.created_at
+        FROM survey_submissions s
+        LEFT JOIN users u ON s.user_id = u.id
+        ORDER BY s.created_at DESC
+        LIMIT ? OFFSET ?
+      `).all(limit, offset);
+    } catch {
+      feedbackList = [];
+    }
+
+    res.json({ feedback: feedbackList || [], total, page, limit });
+  } catch (err: any) {
+    console.error('Error fetching feedback:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Update user status (block/unblock)

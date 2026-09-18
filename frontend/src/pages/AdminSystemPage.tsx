@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, Database, Mail, Bot, ToggleRight, 
-  Terminal, Zap, Cpu, Plus
+  Terminal, Zap, Cpu, Plus, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -27,7 +27,7 @@ export default function AdminSystemPage() {
         axios.get(`${API}/admin/ai-usage`, { headers })
       ]);
       setStats(statsRes.data);
-      setFlags(flagsRes.data.flags);
+      setFlags(flagsRes.data?.flags || flagsRes.data?.featureFlags || []);
       setAiUsage(aiRes.data);
     } catch (err) {
       toast.error('Failed to sync system data');
@@ -50,6 +50,21 @@ export default function AdminSystemPage() {
       fetchData();
     } catch (err) {
       toast.error('Failed to update flag');
+    }
+  };
+
+  const handleCreateFlag = async (flagData: { flag_key: string; description: string; is_enabled: boolean }) => {
+    try {
+      await axios.post(`${API}/admin/feature-flags`, flagData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Flag ${flagData.flag_key} created successfully`);
+      await fetchData();
+      return true;
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Failed to create flag';
+      toast.error(msg);
+      return false;
     }
   };
 
@@ -81,7 +96,7 @@ export default function AdminSystemPage() {
 
         {/* Tab Content */}
         {activeTab === 'health' && <HealthTab stats={stats} loading={loading} />}
-        {activeTab === 'flags' && <FlagsTab flags={flags} onToggle={toggleFlag} loading={loading} />}
+        {activeTab === 'flags' && <FlagsTab flags={flags} onToggle={toggleFlag} onCreateFlag={handleCreateFlag} loading={loading} />}
         {activeTab === 'ai' && <AiTab usage={aiUsage} loading={loading} />}
       </div>
     </AdminLayout>
@@ -151,7 +166,34 @@ function HealthTab({ stats, loading }: any) {
   );
 }
 
-function FlagsTab({ flags, onToggle }: any) {
+function FlagsTab({ flags, onToggle, onCreateFlag, loading }: any) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [flagKey, setFlagKey] = useState('');
+  const [description, setDescription] = useState('');
+  const [isEnabled, setIsEnabled] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!flagKey.trim()) {
+      toast.error('Flag key is required');
+      return;
+    }
+    setSubmitting(true);
+    const success = await onCreateFlag({
+      flag_key: flagKey.trim().toUpperCase(),
+      description: description.trim(),
+      is_enabled: isEnabled,
+    });
+    setSubmitting(false);
+    if (success) {
+      setIsModalOpen(false);
+      setFlagKey('');
+      setDescription('');
+      setIsEnabled(true);
+    }
+  };
+
   return (
     <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
@@ -159,39 +201,141 @@ function FlagsTab({ flags, onToggle }: any) {
           <h3 className="text-lg font-black text-slate-900">System Feature Toggles</h3>
           <p className="text-sm font-bold text-slate-400">Enable or disable modules platform-wide</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all cursor-pointer shadow-sm active:scale-95"
+        >
           <Plus size={16} /> New Flag
         </button>
       </div>
-      <div className="divide-y divide-slate-100">
-        {flags.map((flag: any) => (
-          <div key={flag.id} className="p-8 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-            <div className="flex items-start gap-5">
-              <div className={`p-3 rounded-2xl ${flag.is_enabled ? 'bg-orange-50 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
-                <Zap size={24} />
+
+      {loading ? (
+        <div className="p-12 text-center text-slate-400 font-bold animate-pulse">
+          Loading system feature flags...
+        </div>
+      ) : flags.length === 0 ? (
+        <div className="p-12 text-center text-slate-400">
+          <Zap size={36} className="mx-auto mb-3 opacity-30 text-orange-500" />
+          <p className="text-sm font-bold text-slate-700">No feature flags registered yet</p>
+          <p className="text-xs text-slate-400 mt-1">Click "New Flag" to define your first toggle.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {flags.map((flag: any) => (
+            <div key={flag.id || flag.flag_key} className="p-8 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+              <div className="flex items-start gap-5">
+                <div className={`p-3 rounded-2xl ${flag.is_enabled ? 'bg-orange-50 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
+                  <Zap size={24} />
+                </div>
+                <div>
+                  <div className="font-black text-slate-900 mb-1">{flag.flag_key}</div>
+                  <div className="text-sm font-medium text-slate-500 max-w-md">{flag.description || 'System feature toggle'}</div>
+                </div>
               </div>
-              <div>
-                <div className="font-black text-slate-900 mb-1">{flag.flag_key}</div>
-                <div className="text-sm font-medium text-slate-500 max-w-md">{flag.description}</div>
-              </div>
+              <button 
+                onClick={() => onToggle(flag)}
+                className={`
+                  relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer
+                  ${flag.is_enabled ? 'bg-orange-500' : 'bg-slate-200'}
+                `}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${flag.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
             </div>
-            <button 
-              onClick={() => onToggle(flag)}
-              className={`
-                relative inline-flex h-7 w-12 items-center rounded-full transition-colors
-                ${flag.is_enabled ? 'bg-orange-500' : 'bg-slate-200'}
-              `}
-            >
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${flag.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
+          ))}
+        </div>
+      )}
+
+      {/* New Flag Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
+                  <Zap size={16} />
+                </div>
+                <h3 className="text-base font-black text-slate-900">Create Feature Flag</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  Flag Key *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. COMMISSION_CALCULATOR_V2"
+                  value={flagKey}
+                  onChange={(e) => setFlagKey(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-orange-500 focus:bg-white transition-all uppercase"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Unique uppercase identifier used in code</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  placeholder="Briefly describe what this feature toggle controls..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-orange-500 focus:bg-white transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Enable Immediately</div>
+                  <div className="text-[10px] text-slate-400">Activate this flag across the platform</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEnabled(!isEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${isEnabled ? 'bg-orange-500' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-md shadow-orange-500/20"
+                >
+                  {submitting ? 'Creating...' : 'Save Flag'}
+                </button>
+              </div>
+            </form>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AiTab({ usage }: any) {
+function AiTab({ usage, loading }: any) {
+  const logs = Array.isArray(usage?.logs) ? usage.logs : (Array.isArray(usage?.usage) ? usage.usage : (Array.isArray(usage) ? usage : []));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-6">
@@ -210,17 +354,31 @@ function AiTab({ usage }: any) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {usage?.logs?.map((log: any) => (
-                  <tr key={log.id} className="text-sm font-medium text-slate-700">
-                    <td className="p-6">
-                      <div className="font-black text-slate-900">{log.business_name || 'Partner'}</div>
-                      <div className="text-xs text-slate-400">{log.email}</div>
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400 font-bold animate-pulse">
+                      Loading AI usage logs...
                     </td>
-                    <td className="p-6"><span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase">{log.model}</span></td>
-                    <td className="p-6">{log.prompt_tokens + log.completion_tokens}</td>
-                    <td className="p-6 text-emerald-600 font-black">{log.credits_used || 0}</td>
                   </tr>
-                ))}
+                ) : logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">
+                      No AI operations recorded yet
+                    </td>
+                  </tr>
+                ) : (
+                  logs.map((log: any, idx: number) => (
+                    <tr key={log.id || idx} className="text-sm font-medium text-slate-700">
+                      <td className="p-6">
+                        <div className="font-black text-slate-900">{log.business_name || log.user_name || 'Partner'}</div>
+                        <div className="text-xs text-slate-400">{log.email || '—'}</div>
+                      </td>
+                      <td className="p-6"><span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase">{log.model || 'sarvam'}</span></td>
+                      <td className="p-6">{(log.prompt_tokens || 0) + (log.completion_tokens || 0)}</td>
+                      <td className="p-6 text-emerald-600 font-black">{log.credits_used || 0}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

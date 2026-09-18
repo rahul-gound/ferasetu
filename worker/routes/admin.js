@@ -292,16 +292,37 @@ export async function handleAdminRoutes(request, env) {
 
       const { results } = await env.DB.prepare(query).bind(...params).all();
       
-      // Enrich with counts
+      // Enrich with counts and subscription data
       for (const user of (results || [])) {
         try {
           user.shopsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM websites WHERE user_id = ?").bind(user.id).first("count")) || 0;
           user.ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders WHERE user_id = ?").bind(user.id).first("count")) || 0;
           user.productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products WHERE user_id = ?").bind(user.id).first("count")) || 0;
+
+          try {
+            const sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(user.id).first();
+            if (sub) {
+              user.subscription_status = sub.status || 'free';
+              user.subscription_expires_at = sub.current_period_end || user.plan_expires_at || null;
+              user.subscription_plan = sub.plan || user.plan || 'free';
+              user.payment_provider = sub.payment_provider || null;
+            } else {
+              user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
+              user.subscription_expires_at = user.plan_expires_at || null;
+              user.subscription_plan = user.plan || 'free';
+            }
+          } catch {
+            user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
+            user.subscription_expires_at = user.plan_expires_at || null;
+            user.subscription_plan = user.plan || 'free';
+          }
         } catch {
           user.shopsCount = 0;
           user.ordersCount = 0;
           user.productsCount = 0;
+          user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
+          user.subscription_expires_at = user.plan_expires_at || null;
+          user.subscription_plan = user.plan || 'free';
         }
       }
       
@@ -324,7 +345,39 @@ export async function handleAdminRoutes(request, env) {
       return json({ success: true });
     }
 
-    // USER PLAN
+    // USER PLAN & SUBSCRIPTION
+    const userSubMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/subscription$/);
+    if (userSubMatch && method === "PATCH") {
+      const userId = userSubMatch[1];
+      const body = await readJsonBody(request);
+      const plan = body.plan || 'free';
+      const status = body.status || (plan === 'free' ? 'free' : 'active');
+      const expiresAt = body.expires_at || null;
+      const now = new Date().toISOString();
+
+      await env.DB.prepare(
+        "UPDATE users SET plan = ?, plan_expires_at = ?, updated_at = ? WHERE id = ?"
+      ).bind(plan, expiresAt, now, userId).run();
+
+      try {
+        await env.DB.prepare(`
+          INSERT INTO subscriptions (id, user_id, plan, status, current_period_end, updated_at, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(user_id) DO UPDATE SET
+            plan = excluded.plan,
+            status = excluded.status,
+            current_period_end = excluded.current_period_end,
+            updated_at = excluded.updated_at
+        `).bind(crypto.randomUUID(), userId, plan, status, expiresAt, now, now).run();
+      } catch (subErr) {
+        console.warn("Could not upsert subscriptions table:", subErr);
+      }
+
+      await logAdminAction(env, adminEmail, "UPDATE_USER_SUBSCRIPTION", "users", userId, { plan, status, expiresAt });
+      return json({ success: true, plan, status, expires_at: expiresAt });
+    }
+
+    // USER PLAN (Legacy / Shortcut)
     const userPlanMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/plan$/);
     if (userPlanMatch && method === "PATCH") {
       const userId = userPlanMatch[1];
@@ -333,6 +386,19 @@ export async function handleAdminRoutes(request, env) {
       if (!body.plan) throw new HttpError("plan is required", 400);
 
       await env.DB.prepare("UPDATE users SET plan = ? WHERE id = ?").bind(body.plan, userId).run();
+      try {
+        const now = new Date().toISOString();
+        const status = body.plan === 'free' ? 'free' : 'active';
+        await env.DB.prepare(`
+          INSERT INTO subscriptions (id, user_id, plan, status, updated_at, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(user_id) DO UPDATE SET
+            plan = excluded.plan,
+            status = excluded.status,
+            updated_at = excluded.updated_at
+        `).bind(crypto.randomUUID(), userId, body.plan, status, now, now).run();
+      } catch {}
+
       await logAdminAction(env, adminEmail, "UPDATE_USER_PLAN", "users", userId, { plan: body.plan });
       
       return json({ success: true });
@@ -349,7 +415,7 @@ export async function handleAdminRoutes(request, env) {
       return json({ success: true });
     }
 
-    // SHOPS (Websites)
+    // SHOPS (Websites & Stores)
     if (path === "/api/admin/shops" && method === "GET") {
       const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
       const limit = Math.max(1, parseInt(url.searchParams.get("limit") || "10", 10));
@@ -358,33 +424,57 @@ export async function handleAdminRoutes(request, env) {
       let total = 0;
       try {
         const totalRow = await env.DB.prepare(
-          "SELECT COUNT(*) as total FROM websites w JOIN users u ON w.user_id = u.id"
+          "SELECT COUNT(*) as total FROM users"
         ).first();
         total = totalRow?.total || 0;
       } catch (err) {
         console.warn("Could not count shops:", err);
       }
 
-      const { results } = await env.DB.prepare(`
-        SELECT 
-          w.id,
-          COALESCE(w.shop_name, w.name, u.business_name, u.name, 'My Shop') as shop_name,
-          COALESCE(w.subdomain, u.subdomain, 'store') as subdomain,
-          u.hostname as hostname,
-          u.name as owner_name,
-          u.email as owner_email,
-          w.created_at,
-          (SELECT COUNT(*) FROM products p WHERE p.user_id = w.user_id) as product_count,
-          w.*,
-          u.email as user_email,
-          u.name as user_name
-        FROM websites w 
-        JOIN users u ON w.user_id = u.id 
-        ORDER BY w.created_at DESC
-        LIMIT ? OFFSET ?
-      `).bind(limit, offset).all();
+      let shopsList = [];
+      try {
+        const { results } = await env.DB.prepare(`
+          SELECT 
+            COALESCE(w.id, 'shop_' || u.id) as id,
+            COALESCE(u.business_name, w.name, u.name, 'My Shop') as shop_name,
+            COALESCE(u.subdomain, 'store') as subdomain,
+            COALESCE(u.custom_domain, CASE WHEN u.subdomain IS NOT NULL THEN u.subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
+            u.name as owner_name,
+            u.email as owner_email,
+            COALESCE(w.created_at, u.created_at) as created_at,
+            (SELECT COUNT(*) FROM products p WHERE p.user_id = u.id) as product_count,
+            w.template,
+            w.is_published
+          FROM users u 
+          LEFT JOIN websites w ON w.user_id = u.id 
+          ORDER BY u.created_at DESC
+          LIMIT ? OFFSET ?
+        `).bind(limit, offset).all();
+        shopsList = results || [];
+      } catch (shopErr) {
+        console.warn("Could not query shops with websites join:", shopErr);
+        try {
+          const { results } = await env.DB.prepare(`
+            SELECT 
+              'shop_' || id as id,
+              COALESCE(business_name, name, 'My Shop') as shop_name,
+              COALESCE(subdomain, 'store') as subdomain,
+              COALESCE(custom_domain, CASE WHEN subdomain IS NOT NULL THEN subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
+              name as owner_name,
+              email as owner_email,
+              created_at,
+              0 as product_count
+            FROM users
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+          `).bind(limit, offset).all();
+          shopsList = results || [];
+        } catch (fbErr) {
+          console.error("Shops fallback query error:", fbErr);
+        }
+      }
 
-      return json({ shops: results || [], total, page, limit });
+      return json({ shops: shopsList, total, page, limit });
     }
 
     // ORDERS
@@ -475,27 +565,156 @@ export async function handleAdminRoutes(request, env) {
 
     // FEATURE FLAGS
     if (path === "/api/admin/feature-flags" && method === "GET") {
-      const { results } = await env.DB.prepare("SELECT * FROM feature_flags").all();
-      return json({ featureFlags: results });
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS feature_flags (
+            id TEXT PRIMARY KEY,
+            flag_key TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_enabled INTEGER NOT NULL DEFAULT 0,
+            rules_json TEXT,
+            updated_at TEXT NOT NULL
+          )
+        `).run();
+        const { results } = await env.DB.prepare("SELECT * FROM feature_flags ORDER BY updated_at DESC").all();
+        return json({ flags: results || [], featureFlags: results || [] });
+      } catch (err) {
+        console.warn("Could not read feature_flags:", err);
+        return json({ flags: [], featureFlags: [] });
+      }
     }
     
     if (path === "/api/admin/feature-flags" && method === "POST") {
       const body = await readJsonBody(request);
       if (!body.flag_key) throw new HttpError("flag_key is required", 400);
       
-      const id = crypto.randomUUID();
-      await env.DB.prepare("INSERT INTO feature_flags (id, flag_key, description, is_enabled, updated_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(id, body.flag_key, body.description || "", body.is_enabled ? 1 : 0, new Date().toISOString())
-        .run();
-        
-      await logAdminAction(env, adminEmail, "CREATE_FEATURE_FLAG", "feature_flags", body.flag_key);
-      return json({ success: true });
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS feature_flags (
+            id TEXT PRIMARY KEY,
+            flag_key TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_enabled INTEGER NOT NULL DEFAULT 0,
+            rules_json TEXT,
+            updated_at TEXT NOT NULL
+          )
+        `).run();
+
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await env.DB.prepare(`
+          INSERT INTO feature_flags (id, flag_key, description, is_enabled, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(flag_key) DO UPDATE SET
+            is_enabled = excluded.is_enabled,
+            description = COALESCE(excluded.description, feature_flags.description),
+            updated_at = excluded.updated_at
+        `).bind(id, String(body.flag_key).trim(), body.description || "", body.is_enabled ? 1 : 0, now).run();
+          
+        await logAdminAction(env, adminEmail, "UPSERT_FEATURE_FLAG", "feature_flags", body.flag_key);
+        return json({ success: true, flag_key: body.flag_key, is_enabled: Boolean(body.is_enabled) });
+      } catch (err) {
+        console.error("Failed to save feature flag:", err);
+        throw new HttpError("Failed to save feature flag: " + (err.message || err), 500);
+      }
     }
 
     // AI USAGE
     if (path === "/api/admin/ai-usage" && method === "GET") {
-      const { results } = await env.DB.prepare("SELECT * FROM ai_usage_logs ORDER BY created_at DESC LIMIT 500").all();
-      return json({ usage: results });
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ai_usage_logs (
+            id TEXT PRIMARY KEY,
+            user_id TEXT,
+            model TEXT,
+            prompt_tokens INTEGER DEFAULT 0,
+            completion_tokens INTEGER DEFAULT 0,
+            cost REAL DEFAULT 0,
+            credits_used INTEGER DEFAULT 0,
+            usage_type TEXT,
+            created_at TEXT NOT NULL
+          )
+        `).run();
+
+        let logs = [];
+        try {
+          const { results } = await env.DB.prepare(`
+            SELECT l.*, u.name as user_name, u.email, u.business_name
+            FROM ai_usage_logs l
+            LEFT JOIN users u ON l.user_id = u.id
+            ORDER BY l.created_at DESC LIMIT 500
+          `).all();
+          logs = results || [];
+        } catch {
+          const { results } = await env.DB.prepare("SELECT * FROM ai_usage_logs ORDER BY created_at DESC LIMIT 500").all();
+          logs = results || [];
+        }
+
+        return json({ usage: logs, logs });
+      } catch (err) {
+        console.warn("Could not query ai_usage_logs:", err);
+        return json({ usage: [], logs: [] });
+      }
+    }
+
+    // MERCHANT FEEDBACK & SURVEYS
+    if (path === "/api/admin/feedback" && method === "GET") {
+      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+      const limit = Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10));
+      const offset = (page - 1) * limit;
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS survey_submissions (
+            id TEXT PRIMARY KEY,
+            user_id TEXT,
+            answers_json TEXT,
+            feedback TEXT,
+            contact TEXT,
+            ai_summary_json TEXT,
+            created_at TEXT NOT NULL
+          )
+        `).run();
+
+        let total = 0;
+        try {
+          const countRow = await env.DB.prepare("SELECT COUNT(*) as total FROM survey_submissions").first();
+          total = countRow?.total || 0;
+        } catch {}
+
+        let feedbackList = [];
+        try {
+          const { results } = await env.DB.prepare(`
+            SELECT 
+              s.id,
+              s.user_id,
+              COALESCE(u.name, 'Shopkeeper') as user_name,
+              COALESCE(u.email, s.contact, 'No email') as user_email,
+              COALESCE(u.business_name, 'Shop') as business_name,
+              u.phone as user_phone,
+              s.answers_json,
+              s.feedback,
+              s.contact,
+              s.ai_summary_json,
+              s.created_at
+            FROM survey_submissions s
+            LEFT JOIN users u ON s.user_id = u.id
+            ORDER BY s.created_at DESC
+            LIMIT ? OFFSET ?
+          `).bind(limit, offset).all();
+          feedbackList = results || [];
+        } catch {
+          const { results } = await env.DB.prepare(`
+            SELECT * FROM survey_submissions ORDER BY created_at DESC LIMIT ? OFFSET ?
+          `).bind(limit, offset).all();
+          feedbackList = results || [];
+        }
+
+        return json({ feedback: feedbackList, total, page, limit });
+      } catch (err) {
+        console.warn("Could not load feedback:", err);
+        return json({ feedback: [], total: 0, page, limit });
+      }
     }
 
     // MEETINGS

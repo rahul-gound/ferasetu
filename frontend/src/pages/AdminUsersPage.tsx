@@ -3,12 +3,28 @@ import axios from 'axios';
 import { 
   Search, ShieldAlert, ShieldCheck, UserCog, 
   Trash2, ChevronLeft, ChevronRight,
-  Package, ShoppingCart
+  Package, ShoppingCart, CreditCard, Calendar,
+  Clock, X, Check, Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
 
 const API = import.meta.env.VITE_API_URL || '/api';
+
+const CANONICAL_PLANS = [
+  { id: 'free', name: 'Free', price: '₹0', interval: 'forever', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+  { id: 'starter', name: 'Starter', price: '₹1', interval: 'mo', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { id: 'business', name: 'Business', price: '₹399', interval: 'mo', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { id: 'pro', name: 'Pro', price: '₹999', interval: 'mo', badge: 'bg-amber-50 text-amber-800 border-amber-200' },
+];
+
+function getPlanInfo(plan: string) {
+  const p = (plan || 'free').toLowerCase();
+  if (p === 'pro' || p === 'premium' || p === 'scale' || p === 'enterprise') return CANONICAL_PLANS[3];
+  if (p === 'business' || p === 'growth' || p === 'standard') return CANONICAL_PLANS[2];
+  if (p === 'starter' || p === 'basic') return CANONICAL_PLANS[1];
+  return CANONICAL_PLANS[0];
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -16,6 +32,11 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editingSubUser, setEditingSubUser] = useState<any>(null);
+  const [subPlan, setSubPlan] = useState('free');
+  const [subStatus, setSubStatus] = useState('active');
+  const [subExpiresAt, setSubExpiresAt] = useState('');
+  const [subSaving, setSubSaving] = useState(false);
   const token = localStorage.getItem('admin_token');
 
   const fetchUsers = async () => {
@@ -37,6 +58,55 @@ export default function AdminUsersPage() {
   useEffect(() => {
     fetchUsers();
   }, [page, search]);
+
+  const openSubModal = (user: any) => {
+    setEditingSubUser(user);
+    setSubPlan(user.subscription_plan || user.plan || 'free');
+    setSubStatus(user.subscription_status || (user.plan === 'free' ? 'free' : 'active'));
+    setSubExpiresAt(user.subscription_expires_at ? user.subscription_expires_at.slice(0, 10) : '');
+  };
+
+  const handleSaveSubscription = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSubUser) return;
+    setSubSaving(true);
+    try {
+      await axios.patch(`${API}/admin/users/${editingSubUser.id}/subscription`, {
+        plan: subPlan,
+        status: subStatus,
+        expires_at: subExpiresAt ? new Date(subExpiresAt).toISOString() : null,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Subscription updated for ${editingSubUser.name}`);
+      setUsers(users.map(u => u.id === editingSubUser.id ? {
+        ...u,
+        plan: subPlan,
+        subscription_plan: subPlan,
+        subscription_status: subStatus,
+        subscription_expires_at: subExpiresAt ? new Date(subExpiresAt).toISOString() : null
+      } : u));
+      setEditingSubUser(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update subscription');
+    } finally {
+      setSubSaving(false);
+    }
+  };
+
+  const setExtensionDays = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setSubExpiresAt(d.toISOString().slice(0, 10));
+    setSubStatus('active');
+  };
+
+  const setExtensionLifetime = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 50);
+    setSubExpiresAt(d.toISOString().slice(0, 10));
+    setSubStatus('active');
+  };
 
   const handleUpdatePlan = async (id: string, plan: string) => {
     try {
@@ -127,7 +197,7 @@ export default function AdminUsersPage() {
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Partner Details</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Business</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Subscription & Plan</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Activity</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Control</th>
                 </tr>
@@ -135,77 +205,96 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
-                ) : users.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold group-hover:bg-orange-100 group-hover:text-orange-600 transition-colors">
-                          {user.name[0]}
+                ) : users.map((user) => {
+                  const planInfo = getPlanInfo(user.subscription_plan || user.plan);
+                  return (
+                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold group-hover:bg-orange-100 group-hover:text-orange-600 transition-colors">
+                            {user.name ? user.name[0] : 'P'}
+                          </div>
+                          <div>
+                            <div className="font-black text-slate-900 leading-none mb-1">{user.name}</div>
+                            <div className="text-xs font-bold text-slate-400">{user.email}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-black text-slate-900 leading-none mb-1">{user.name}</div>
-                          <div className="text-xs font-bold text-slate-400">{user.email}</div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="font-bold text-slate-700">{user.business_name || '—'}</div>
+                        <div className="flex items-center gap-3 mt-1 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                          <span className="flex items-center gap-1"><Package size={12} /> {user.product_count || 0}</span>
+                          <span className="flex items-center gap-1"><ShoppingCart size={12} /> {user.order_count || 0}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="font-bold text-slate-700">{user.business_name || '—'}</div>
-                      <div className="flex items-center gap-3 mt-1 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                        <span className="flex items-center gap-1"><Package size={12} /> {user.product_count}</span>
-                        <span className="flex items-center gap-1"><ShoppingCart size={12} /> {user.order_count}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <select 
-                        value={user.plan} 
-                        onChange={(e) => handleUpdatePlan(user.id, e.target.value)}
-                        className={`
-                          px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border outline-none cursor-pointer
-                          ${user.plan === 'pro' || user.plan === 'premium' 
-                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
-                            : user.plan === 'free' 
-                              ? 'bg-slate-100 text-slate-600 border-slate-200' 
-                              : 'bg-blue-100 text-blue-700 border-blue-200'}
-                        `}
-                      >
-                        {['free', 'trial', 'basic', 'standard', 'pro', 'premium'].map(p => (
-                          <option key={p} value={p}>{p.toUpperCase()}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="text-xs font-bold text-slate-600">Joined</div>
-                      <div className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-tighter">
-                        {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleImpersonate(user.id)}
-                          className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                          title="Impersonate"
+                      </td>
+                      <td className="px-6 py-5">
+                        <div 
+                          onClick={() => openSubModal(user)}
+                          className="cursor-pointer group/sub flex flex-col gap-1 items-start"
+                          title="Click to edit subscription & pricing"
                         >
-                          <UserCog size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleToggleBlock(user.id, user.is_blocked)}
-                          className={`p-2.5 rounded-xl transition-all ${user.is_blocked ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50 hover:bg-orange-100'}`}
-                          title={user.is_blocked ? 'Unblock' : 'Block'}
-                        >
-                          {user.is_blocked ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteUser(user.id, user.name)}
-                          className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                          title="Delete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <div className="flex items-center gap-1.5">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${planInfo.badge}`}>
+                              {planInfo.name}
+                            </span>
+                            <span className="text-[10px] font-black text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200">
+                              {planInfo.price}/{planInfo.interval}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold mt-0.5">
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${user.subscription_status === 'active' ? 'bg-emerald-500' : user.subscription_status === 'trial' ? 'bg-blue-500 animate-pulse' : user.subscription_status === 'expired' ? 'bg-rose-500' : 'bg-slate-400'}`} />
+                            <span className={`capitalize ${user.subscription_status === 'active' ? 'text-emerald-700' : user.subscription_status === 'trial' ? 'text-blue-700' : user.subscription_status === 'expired' ? 'text-rose-700' : 'text-slate-500'}`}>
+                              {user.subscription_status || (user.plan === 'free' ? 'free' : 'active')}
+                            </span>
+                            {user.subscription_expires_at && (
+                              <span className="text-slate-400 font-medium">
+                                • {new Date(user.subscription_expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="text-xs font-bold text-slate-600">Joined</div>
+                        <div className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-tighter">
+                          {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button 
+                            onClick={() => openSubModal(user)}
+                            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all cursor-pointer"
+                            title="Manage Subscription & Pricing"
+                          >
+                            <CreditCard size={17} />
+                          </button>
+                          <button 
+                            onClick={() => handleImpersonate(user.id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
+                            title="Impersonate"
+                          >
+                            <UserCog size={17} />
+                          </button>
+                          <button 
+                            onClick={() => handleToggleBlock(user.id, user.is_blocked)}
+                            className={`p-2 rounded-xl transition-all cursor-pointer ${user.is_blocked ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50 hover:bg-orange-100'}`}
+                            title={user.is_blocked ? 'Unblock' : 'Block'}
+                          >
+                            {user.is_blocked ? <ShieldCheck size={17} /> : <ShieldAlert size={17} />}
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteUser(user.id, user.name)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -247,6 +336,158 @@ export default function AdminUsersPage() {
             </div>
           </div>
         </div>
+
+        {/* Edit Subscription Modal */}
+        {editingSubUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-inner">
+                    <CreditCard size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">Manage Subscription</h3>
+                    <p className="text-xs text-slate-500">{editingSubUser.name} &bull; {editingSubUser.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditingSubUser(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSubscription} className="p-6 space-y-5">
+                {/* Plan Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Pricing Tier
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {CANONICAL_PLANS.map((plan) => (
+                      <button
+                        type="button"
+                        key={plan.id}
+                        onClick={() => setSubPlan(plan.id)}
+                        className={`
+                          p-3 rounded-2xl border text-left flex flex-col transition-all
+                          ${subPlan === plan.id
+                            ? 'border-orange-500 bg-orange-50/50 ring-2 ring-orange-500/20'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-black text-slate-900">{plan.name}</span>
+                          <span className="text-xs font-black text-orange-600">{plan.price}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium">/{plan.interval}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Subscription Status
+                  </label>
+                  <select
+                    value={subStatus}
+                    onChange={(e) => setSubStatus(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                  >
+                    <option value="active">Active (Paid / Operational)</option>
+                    <option value="trial">Trial Period</option>
+                    <option value="free">Free Forever</option>
+                    <option value="expired">Expired / Past Due</option>
+                    <option value="canceled">Canceled</option>
+                  </select>
+                </div>
+
+                {/* Expiry Date */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Expiration / Renewal Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={subExpiresAt}
+                      onChange={(e) => setSubExpiresAt(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                    />
+                    <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+
+                  {/* Quick Expiry Shortcuts */}
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setExtensionDays(30)}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                    >
+                      +30 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExtensionDays(90)}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                    >
+                      +90 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExtensionDays(365)}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                    >
+                      +1 Year
+                    </button>
+                    <button
+                      type="button"
+                      onClick={setExtensionLifetime}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles size={11} /> Lifetime
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSubExpiresAt('')}
+                      className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors ml-auto"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSubUser(null)}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={subSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-black rounded-xl shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50"
+                  >
+                    {subSaving ? (
+                      'Saving...'
+                    ) : (
+                      <>
+                        <Check size={14} /> Update Subscription
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

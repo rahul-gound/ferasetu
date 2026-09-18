@@ -535,6 +535,16 @@ export function getD1SchemaStatements(): string[] {
       rules_json TEXT,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS survey_submissions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      answers_json TEXT,
+      feedback TEXT,
+      contact TEXT,
+      ai_summary_json TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS tenant_feature_flags (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,

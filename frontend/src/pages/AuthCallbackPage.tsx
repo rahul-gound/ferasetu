@@ -55,10 +55,16 @@ export default function AuthCallbackPage() {
     if (!isLoading) {
       if (user) {
         callbackLog('AUTH_CALLBACK_SUCCESS', `session established for ${user.email} — redirecting to dashboard`);
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch {}
         navigate('/dashboard', { replace: true });
       } else if (!errorHandledRef.current) {
         errorHandledRef.current = true;
         callbackLog('AUTH_CALLBACK_FAILURE', 'WorkOS returned no user after code exchange');
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch {}
         toast.error('Authentication session could not be established. Please sign in again.');
         navigate('/login', { replace: true });
       }

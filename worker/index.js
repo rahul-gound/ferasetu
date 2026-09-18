@@ -5226,7 +5226,32 @@ async function handleVoiceTextToSpeech(request, env) {
 }
 
 async function handleGetSubscription(request, env) {
-  const me = await getAuthenticatedUser(request, env);
+  let me = null;
+  try {
+    me = await getAuthenticatedUser(request, env);
+  } catch {
+    // Unauthenticated guest or token refreshing
+  }
+
+  if (!me) {
+    const market = resolveAuthoritativeMarket({ request }) || 'IN';
+    return json({
+      plan: 'free',
+      status: 'free',
+      trialUsed: false,
+      trialEligible: true,
+      trialStartedAt: null,
+      trialEndsAt: null,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      paymentProvider: null,
+      providerOrderId: null,
+      subscription: null,
+      unauthenticated: true
+    }, 200, {}, request);
+  }
+
   const user = await env.DB.prepare("SELECT market, state, city FROM users WHERE id = ?").bind(me.$id).first();
   const market = user?.market || resolveAuthoritativeMarket({ state: user?.state, city: user?.city, request }) || 'IN';
   const sub = await getAuthoritativeSubscription(me.$id, env);
