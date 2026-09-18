@@ -198,14 +198,22 @@ export default function ShopPage() {
     );
   }
 
-  // Store is considered published if either the Website Builder site is published
-  // OR the Pro Studio multi-page site has an active published deployment with pages.
+  // Store is considered open and published if:
+  // 1. Pro Studio multi-page site has an active published deployment with pages, OR
+  // 2. The website is marked published (default), OR
+  // 3. The store has active products in its catalog.
+  // It is ONLY considered unannounced/closed if explicitly placed into maintenance mode without products.
   const hasProSite = Boolean(
     (data as any)?.pro_site &&
     Array.isArray((data as any).pro_site.pages) &&
     (data as any).pro_site.pages.length > 0
   );
-  const isPublished = Boolean(data.website.is_published || hasProSite);
+  const hasProducts = Array.isArray(data.products) && data.products.length > 0;
+  const isExplicitlyClosed = Boolean(
+    data.website?.is_published === 0 &&
+    ((data.website?.config as any)?.maintenance_mode || (data.website?.config as any)?.is_closed)
+  );
+  const isPublished = (!isExplicitlyClosed) || hasProSite || hasProducts;
 
   if (!isPublished) {
     return (

@@ -173,8 +173,8 @@ router.post('/',
     } else {
       const id = uuidv4();
       db.prepare(`
-        INSERT INTO websites (id, user_id, name, template, config, theme, sections)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO websites (id, user_id, name, template, config, theme, sections, is_published)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
       `).run(id, req.user!.id, name, template, JSON.stringify(config), JSON.stringify(theme), JSON.stringify(sections));
     }
 
@@ -214,8 +214,8 @@ router.post('/generate',
         `).run(req.body.businessName, req.body.businessType, JSON.stringify(config), JSON.stringify(sections), req.user!.id);
       } else {
         db.prepare(`
-          INSERT INTO websites (id, user_id, name, template, config, sections)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO websites (id, user_id, name, template, config, sections, is_published)
+          VALUES (?, ?, ?, ?, ?, ?, 1)
         `).run(uuidv4(), req.user!.id, req.body.businessName, req.body.businessType, JSON.stringify(config), JSON.stringify(sections));
       }
 

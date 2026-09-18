@@ -1264,7 +1264,12 @@ remoteApi.interceptors.request.use(async (config) => {
     }
   }
   if (config.headers && !config.headers.Authorization) {
-    const token = await getWorkOSToken();
+    let token = await getWorkOSToken();
+    if (!token && typeof window !== 'undefined') {
+      try {
+        token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('admin_token');
+      } catch {}
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../models/database';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { getUserById } from '../services/authService';
+import { processReferralInDb } from './referrals';
 
 const router = Router();
 
@@ -253,6 +254,12 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
       const fields = Object.keys(updates).map((k) => `${k} = ?`).join(', ');
       const values = Object.values(updates);
       db.prepare(`UPDATE users SET ${fields}, updated_at = datetime('now') WHERE id = ?`).run(...values, req.user!.id);
+    }
+
+    // Process referral code if provided
+    const referralCode = req.body.referral_code || req.body.ref_code || req.body.ref;
+    if (referralCode && typeof referralCode === 'string') {
+      processReferralInDb(db, referralCode, req.user!.id);
     }
 
     const updated = getUserById(req.user!.id);

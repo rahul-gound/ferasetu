@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Gift, Users, CheckCircle2, Trophy, Copy, Check, 
-  Share2, Store, Clock, Sparkles
+  Share2, Store, Clock, Sparkles, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 import SEO from '../components/SEO';
 
 interface ReferralRecord {
@@ -22,8 +23,42 @@ export default function ReferEarnPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [serverStats, setServerStats] = useState<{
+    totalReferred: number;
+    successfulStores: number;
+    totalRewardsWon: number;
+    referralCode?: string;
+  } | null>(null);
 
-  const referralCode = (user?.subdomain || user?.business_name || user?.name || 'my-store')
+  useEffect(() => {
+    let active = true;
+    async function fetchReferrals() {
+      try {
+        setLoading(true);
+        const { data } = await api.get('/referrals');
+        if (!active) return;
+        if (data) {
+          setReferrals(data.referrals || []);
+          setServerStats({
+            totalReferred: data.totalReferred ?? (data.referrals?.length || 0),
+            successfulStores: data.successfulStores ?? (data.referrals?.filter((r: any) => r.status === 'completed').length || 0),
+            totalRewardsWon: data.totalRewardsWon ?? ((data.referrals?.filter((r: any) => r.status === 'completed').length || 0) * 200),
+            referralCode: data.referralCode,
+          });
+        }
+      } catch (err) {
+        console.warn('Could not fetch referrals:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    fetchReferrals();
+    return () => { active = false; };
+  }, []);
+
+  const referralCode = serverStats?.referralCode || (user?.subdomain || user?.business_name || user?.name || 'my-store')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-');
   const referralUrl = `https://ferasetu.com/ref/${referralCode}`;
@@ -42,11 +77,9 @@ export default function ReferEarnPage() {
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  // Real referrals list (empty by default for new merchants)
-  const referrals: ReferralRecord[] = [];
-  const totalReferred = referrals.length;
-  const successfulStores = referrals.filter(r => r.status === 'completed').length;
-  const totalRewardsWon = successfulStores * 200;
+  const totalReferred = serverStats?.totalReferred ?? referrals.length;
+  const successfulStores = serverStats?.successfulStores ?? referrals.filter(r => r.status === 'completed').length;
+  const totalRewardsWon = serverStats?.totalRewardsWon ?? (successfulStores * 200);
 
   return (
     <div className="pb-12 max-w-[1380px] mx-auto space-y-6">
@@ -224,7 +257,12 @@ export default function ReferEarnPage() {
           </div>
         </div>
 
-        {referrals.length > 0 ? (
+        {loading ? (
+          <div className="py-12 text-center flex flex-col items-center justify-center text-slate-400 gap-2">
+            <Loader2 className="w-6 h-6 animate-spin text-[#0052FF]" />
+            <span className="text-xs font-semibold">Loading referrals...</span>
+          </div>
+        ) : referrals.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>

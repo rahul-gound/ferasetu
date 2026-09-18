@@ -155,11 +155,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         <img
           src="/logo-official.png"
           alt="FeraSetu"
-          className="h-8 w-auto object-contain mb-1 self-start"
+          className="h-10 w-auto object-contain self-start"
         />
-        <span className="text-[10px] font-semibold text-[#667085] tracking-wide">
-          Your Business. Our Bridge.
-        </span>
       </div>
 
       {/* Grouped Navigation */}

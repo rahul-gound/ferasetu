@@ -214,7 +214,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('[AuthContext] Failed to parse pending registration:', e);
         }
 
-        if (data.needs_init || pendingRegistration) {
+        const storedReferralCode = localStorage.getItem('fera_referral_code');
+        if (data.needs_init || pendingRegistration || storedReferralCode) {
           const payload: Record<string, any> = {
             name: pendingRegistration?.name || (workosUser.firstName && workosUser.lastName
               ? `${workosUser.firstName} ${workosUser.lastName}`
@@ -225,9 +226,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (pendingRegistration?.business_name) payload.business_name = pendingRegistration.business_name;
           if (pendingRegistration?.subdomain) payload.subdomain = pendingRegistration.subdomain;
           if (pendingRegistration?.phone) payload.phone = pendingRegistration.phone;
+          if (storedReferralCode) {
+            payload.referral_code = storedReferralCode;
+          }
 
-          const { data: updateData } = await api.put('/users/me', payload);
-          currentProfile = updateData.user;
+          try {
+            const { data: updateData } = await api.put('/users/me', payload);
+            if (storedReferralCode) {
+              localStorage.removeItem('fera_referral_code');
+            }
+            if (updateData?.user) {
+              currentProfile = updateData.user;
+            }
+          } catch (putErr) {
+            console.warn('[AuthContext] Failed to save profile/referral:', putErr);
+          }
         }
 
         if (mounted) {
@@ -252,8 +265,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (mounted) {
           setProfileError(`Profile bootstrap failed (${status ?? 'network'}): ${message}`);
-          // Fall back to a minimal WorkOS-derived profile so the user isn't
-          // stuck on a loading screen just because the backend is slow.
+          // If the backend returns 401, credentials are fundamentally invalid or expired.
+          // Do NOT create a synthetic profile that bypasses ProtectedRoute and causes cascading 401s.
+          if (status === 401) {
+            authLog('AUTH_SESSION_EXPIRED', 'Backend 401 on /users/me — session expired or invalid signature');
+            setProfile(null);
+            localStorage.removeItem('fera_user');
+            initialLoadDoneRef.current = true;
+            return;
+          }
+
+          // Fall back to a minimal WorkOS-derived profile only on transient network or 5xx issues
           setProfile({
             id: workosUser.id || workosUser.email,
             email: workosUser.email,

@@ -28,6 +28,7 @@ import usersRoutes from './routes/users';
 import geoRoutes from './routes/geo';
 import brandingRoutes from './routes/branding';
 import customerAuthRoutes from './routes/customerAuth';
+import referralRoutes from './routes/referrals';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -252,6 +253,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/branding', brandingRoutes);
 app.use('/api/storefront/customer', customerAuthRoutes);
+app.use('/api/referrals', referralRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

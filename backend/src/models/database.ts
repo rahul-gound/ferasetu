@@ -545,6 +545,18 @@ export function getD1SchemaStatements(): string[] {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS referrals (
+      id TEXT PRIMARY KEY,
+      referrer_id TEXT NOT NULL,
+      referee_id TEXT NOT NULL UNIQUE,
+      referral_code TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'completed',
+      reward_credits INTEGER NOT NULL DEFAULT 200,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (referee_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
     `CREATE TABLE IF NOT EXISTS tenant_feature_flags (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
