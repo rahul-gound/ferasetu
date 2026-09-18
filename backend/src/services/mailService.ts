@@ -175,3 +175,138 @@ export async function sendOnboardingEmail(email: string, name: string) {
     console.error(`Failed to send onboarding email to ${email}:`, error.message);
   }
 }
+
+export async function sendInvoiceEmail(email: string, invoiceData: { invoiceNumber: string; storeName: string; totalFormatted: string; orderId: string }): Promise<void> {
+  const html = `
+    <div style="${BASE_STYLE}">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: ${BRAND_COLOR}; margin: 0; font-size: 24px; font-weight: 900;">${invoiceData.storeName || BRAND_NAME}</h1>
+        <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Tax Invoice ${invoiceData.invoiceNumber}</p>
+      </div>
+      <div style="background: #fff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <h2 style="font-size: 20px; font-weight: 800; color: #1e293b; margin-top: 0;">Your Invoice is Ready 🧾</h2>
+        <p style="font-size: 15px; color: #475569;">Thank you for your order. Here is your official invoice summary.</p>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: #64748b; font-size: 14px;">Invoice Number:</span>
+            <span style="font-weight: 700; color: #1e293b; font-size: 14px;">${invoiceData.invoiceNumber}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: #64748b; font-size: 14px;">Order ID:</span>
+            <span style="font-weight: 600; color: #1e293b; font-size: 14px;">#${invoiceData.orderId.slice(0, 10).toUpperCase()}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 10px;">
+            <span style="font-weight: 800; color: #1e293b; font-size: 16px;">Total Amount:</span>
+            <span style="font-weight: 900; color: ${BRAND_COLOR}; font-size: 18px;">${invoiceData.totalFormatted}</span>
+          </div>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8;">You can view and download the full PDF invoice anytime from your order tracking screen.</p>
+      </div>
+      <div style="${FOOTER_STYLE}">
+        <p>Powered by FeraSetu</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const sender = getFromAddress();
+    await sendEmailViaBrevo(email, `Invoice ${invoiceData.invoiceNumber} for Order #${invoiceData.orderId.slice(0, 8).toUpperCase()}`, html, sender.email, sender.name);
+  } catch (err: any) {
+    console.warn(`[mailService] Could not send invoice email to ${email}:`, err.message);
+  }
+}
+
+export async function sendOrderCancellationEmail(email: string, data: { orderId: string; storeName: string; reason?: string; isRefundable?: boolean }): Promise<void> {
+  const html = `
+    <div style="${BASE_STYLE}">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: #dc2626; margin: 0; font-size: 24px; font-weight: 900;">Order Cancelled</h1>
+        <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">${data.storeName}</p>
+      </div>
+      <div style="background: #fff; border: 1px solid #fee2e2; border-radius: 16px; padding: 32px;">
+        <h2 style="font-size: 18px; font-weight: 800; color: #991b1b; margin-top: 0;">Order #${data.orderId.slice(0, 10).toUpperCase()} has been cancelled</h2>
+        ${data.reason ? `<p style="font-size: 14px; color: #475569;"><b>Reason:</b> ${data.reason}</p>` : ''}
+        <p style="font-size: 14px; color: #475569;">
+          ${data.isRefundable
+            ? 'Any eligible refund has been scheduled and will be processed back to your payment method.'
+            : 'No payment was collected for this order.'}
+        </p>
+      </div>
+      <div style="${FOOTER_STYLE}">
+        <p>Powered by FeraSetu</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const sender = getFromAddress();
+    await sendEmailViaBrevo(email, `Order #${data.orderId.slice(0, 8).toUpperCase()} Cancelled`, html, sender.email, sender.name);
+  } catch (err: any) {
+    console.warn(`[mailService] Could not send cancellation email to ${email}:`, err.message);
+  }
+}
+
+export async function sendRefundEmail(email: string, data: { refundNumber: string; orderId: string; amountFormatted: string; method: string; isCompleted: boolean }): Promise<void> {
+  const title = data.isCompleted ? 'Refund Completed' : 'Refund Initiated';
+  const html = `
+    <div style="${BASE_STYLE}">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: ${BRAND_COLOR}; margin: 0; font-size: 24px; font-weight: 900;">${title}</h1>
+      </div>
+      <div style="background: #fff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 32px;">
+        <h2 style="font-size: 18px; font-weight: 800; color: #1e293b; margin-top: 0;">${title} for Order #${data.orderId.slice(0, 10).toUpperCase()}</h2>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">Refund Number: <b>${data.refundNumber}</b></p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">Method: <b>${data.method}</b></p>
+          <p style="margin: 0; font-size: 16px; font-weight: 900; color: #1e293b;">Amount: <span style="color: ${BRAND_COLOR};">${data.amountFormatted}</span></p>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">
+          ${data.isCompleted
+            ? 'The refund transaction has completed.'
+            : 'Your refund is currently being processed. Depending on your bank or provider, funds usually appear within 5-7 business days.'}
+        </p>
+      </div>
+      <div style="${FOOTER_STYLE}">
+        <p>Powered by FeraSetu</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const sender = getFromAddress();
+    await sendEmailViaBrevo(email, `${title}: ${data.amountFormatted} for Order #${data.orderId.slice(0, 8).toUpperCase()}`, html, sender.email, sender.name);
+  } catch (err: any) {
+    console.warn(`[mailService] Could not send refund email to ${email}:`, err.message);
+  }
+}
+
+export async function sendCreditNoteEmail(email: string, data: { creditNoteNumber: string; orderId: string; amountFormatted: string; storeName: string }): Promise<void> {
+  const html = `
+    <div style="${BASE_STYLE}">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: ${BRAND_COLOR}; margin: 0; font-size: 24px; font-weight: 900;">${data.storeName}</h1>
+        <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Credit Note ${data.creditNoteNumber}</p>
+      </div>
+      <div style="background: #fff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 32px;">
+        <h2 style="font-size: 18px; font-weight: 800; color: #1e293b; margin-top: 0;">Credit Note Issued 📄</h2>
+        <p style="font-size: 14px; color: #475569;">A credit note has been issued for your returned goods or price adjustment on Order #${data.orderId.slice(0, 10).toUpperCase()}.</p>
+        <div style="background: #fff7ed; border-radius: 12px; padding: 18px; margin: 20px 0; border: 1px solid #fed7aa;">
+          <p style="margin: 0 0 6px 0; font-size: 13px; color: #9a3412;">Credit Note Reference: <b>${data.creditNoteNumber}</b></p>
+          <p style="margin: 0; font-size: 16px; font-weight: 900; color: #9a3412;">Total Credit: ${data.amountFormatted}</p>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8;">You can download your official Credit Note PDF from your store account.</p>
+      </div>
+      <div style="${FOOTER_STYLE}">
+        <p>Powered by FeraSetu</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const sender = getFromAddress();
+    await sendEmailViaBrevo(email, `Credit Note ${data.creditNoteNumber} from ${data.storeName}`, html, sender.email, sender.name);
+  } catch (err: any) {
+    console.warn(`[mailService] Could not send credit note email to ${email}:`, err.message);
+  }
+}
+

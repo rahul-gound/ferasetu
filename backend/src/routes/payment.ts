@@ -5,6 +5,8 @@ import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { getDatabase } from '../models/database';
+import { recordFinancialAudit } from '../services/auditService';
+import { addMinor, subMinor } from '../utils/money';
 import { BETA_MODE, isBetaFreePlan, getEffectivePlanAmount } from '../config/beta';
 import {
   resolvePricingRegion,
@@ -47,6 +49,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const RAZORPAY_API_BASE = 'https://api.razorpay.com/v1';
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || '';
 
 function isPaidPlan(planId: string): boolean {
   return (PLAN_CONFIG[planId]?.amount ?? 0) > 0 && !isBetaFreePlan(planId);
@@ -163,9 +166,179 @@ function verifyCashfreeWebhookSignature({
   }
 }
 
+function verifyRazorpayWebhookSignature({
+  signature,
+  rawBody,
+  secretKey,
+}: {
+  signature: string;
+  rawBody: string;
+  secretKey: string;
+}): boolean {
+  if (!signature || !secretKey) return false;
+  try {
+    const expected = crypto
+      .createHmac('sha256', secretKey)
+      .update(rawBody)
+      .digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf-8');
+    const sigBuf = Buffer.from(signature, 'utf-8');
+    if (expectedBuf.length !== sigBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, sigBuf);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Authoritatively reconcile a refund event from Cashfree or Razorpay webhooks.
+ * Updates the refunds table and atomically adjusts order balances and audit logs.
+ */
+function reconcileRefundEvent({
+  provider,
+  providerRefundId,
+  refundNumber,
+  orderId,
+  status,
+  errorMessage,
+}: {
+  provider: 'cashfree' | 'razorpay';
+  providerRefundId?: string;
+  refundNumber?: string;
+  orderId?: string;
+  status: string;
+  errorMessage?: string;
+}): void {
+  const db = getDatabase();
+  let refund: any = null;
+
+  if (providerRefundId) {
+    refund = db.prepare('SELECT * FROM refunds WHERE provider_refund_id = ?').get(providerRefundId);
+  }
+  if (!refund && refundNumber) {
+    refund = db.prepare('SELECT * FROM refunds WHERE refund_number = ? OR id = ?').get(refundNumber, refundNumber);
+  }
+  if (!refund && orderId) {
+    refund = db.prepare(`
+      SELECT * FROM refunds
+      WHERE order_id = ? AND provider = ? AND status IN ('processing', 'pending')
+      ORDER BY created_at DESC LIMIT 1
+    `).get(orderId, provider);
+  }
+
+  if (!refund) {
+    console.warn(`[webhook] No matching refund found: provider=${provider}, id=${providerRefundId}, ref=${refundNumber}`);
+    return;
+  }
+
+  const isSuccess = status === 'SUCCESS' || status === 'processed' || status === 'COMPLETED';
+  const isFailed = status === 'FAILED' || status === 'failed' || status === 'REJECTED';
+
+  if (isSuccess) {
+    if (refund.status === 'completed') return;
+
+    db.prepare(`
+      UPDATE refunds SET
+        status = 'completed',
+        provider_refund_id = COALESCE(?, provider_refund_id),
+        completed_at = datetime('now'),
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).run(providerRefundId || null, refund.id);
+
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(refund.order_id) as any;
+    if (order) {
+      const sumRow = db.prepare(`
+        SELECT COALESCE(SUM(amount_minor), 0) as total_refunded
+        FROM refunds
+        WHERE order_id = ? AND status IN ('completed', 'processing')
+      `).get(order.id) as { total_refunded: number };
+
+      const totalRefunded = Math.round(Number(sumRow?.total_refunded) || 0);
+      const paidMinor = Math.round(Number(order.amount_paid_minor) || 0);
+      const remainingRefundable = Math.max(0, subMinor(paidMinor, totalRefunded));
+
+      db.prepare(`
+        UPDATE orders SET
+          refunded_amount_minor = ?,
+          refundable_amount_minor = ?,
+          updated_at = datetime('now')
+        WHERE id = ?
+      `).run(totalRefunded, remainingRefundable, order.id);
+
+      recordFinancialAudit({
+        userId: refund.user_id,
+        orderId: order.id,
+        invoiceId: refund.invoice_id,
+        refundId: refund.id,
+        eventType: 'refund_completed',
+        actorType: 'webhook',
+        actorId: provider,
+        currency: refund.currency || 'INR',
+        amountMinor: refund.amount_minor,
+        metadata: {
+          provider,
+          providerRefundId,
+          refundNumber: refund.refund_number,
+          webhookStatus: status,
+        },
+      });
+    }
+  } else if (isFailed) {
+    if (refund.status === 'failed') return;
+
+    db.prepare(`
+      UPDATE refunds SET
+        status = 'failed',
+        error_message = ?,
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).run(errorMessage || 'Provider reported refund failed', refund.id);
+
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(refund.order_id) as any;
+    if (order) {
+      const sumRow = db.prepare(`
+        SELECT COALESCE(SUM(amount_minor), 0) as total_refunded
+        FROM refunds
+        WHERE order_id = ? AND status IN ('completed', 'processing')
+      `).get(order.id) as { total_refunded: number };
+
+      const totalRefunded = Math.round(Number(sumRow?.total_refunded) || 0);
+      const paidMinor = Math.round(Number(order.amount_paid_minor) || 0);
+      const remainingRefundable = Math.max(0, subMinor(paidMinor, totalRefunded));
+
+      db.prepare(`
+        UPDATE orders SET
+          refunded_amount_minor = ?,
+          refundable_amount_minor = ?,
+          updated_at = datetime('now')
+        WHERE id = ?
+      `).run(totalRefunded, remainingRefundable, order.id);
+
+      recordFinancialAudit({
+        userId: refund.user_id,
+        orderId: order.id,
+        invoiceId: refund.invoice_id,
+        refundId: refund.id,
+        eventType: 'refund_failed',
+        actorType: 'webhook',
+        actorId: provider,
+        currency: refund.currency || 'INR',
+        amountMinor: refund.amount_minor,
+        metadata: {
+          provider,
+          providerRefundId,
+          refundNumber: refund.refund_number,
+          error: errorMessage,
+        },
+      });
+    }
+  }
+}
+
 /**
  * @route   POST /api/payment/webhook
- * @desc    Cashfree webhook for real-time payment confirmation and plan escalation
+ * @desc    Cashfree webhook for real-time payment and refund reconciliation
  * @access  Public (verified via Cashfree HMAC-SHA256 signature)
  */
 router.post('/webhook', async (req: any, res: Response): Promise<void> => {
@@ -195,6 +368,28 @@ router.post('/webhook', async (req: any, res: Response): Promise<void> => {
 
   try {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const db = getDatabase();
+
+    // 1. Check for Cashfree Refund Webhooks
+    const refundData = payload?.data?.refund;
+    const eventType = payload?.type || payload?.event;
+    if (refundData || eventType === 'REFUND_STATUS_WEBHOOK') {
+      const ref = refundData || payload?.data;
+      if (ref) {
+        reconcileRefundEvent({
+          provider: 'cashfree',
+          providerRefundId: ref.cf_refund_id || ref.refund_id,
+          refundNumber: ref.refund_id,
+          orderId: ref.order_id,
+          status: ref.refund_status,
+          errorMessage: ref.status_description,
+        });
+        res.json({ success: true, message: 'Cashfree refund webhook processed' });
+        return;
+      }
+    }
+
+    // 2. Check for Cashfree Order / Payment Webhooks
     const orderData = payload?.data?.order;
     const paymentData = payload?.data?.payment;
     const orderId = orderData?.order_id || payload?.orderId;
@@ -207,7 +402,7 @@ router.post('/webhook', async (req: any, res: Response): Promise<void> => {
     }
 
     if (paymentStatus === 'SUCCESS' || paymentStatus === 'PAID') {
-      const db = getDatabase();
+      // Check if this corresponds to a subscription/credit transaction
       const transaction = db.prepare(`
         SELECT * FROM transactions
         WHERE (provider_order_id = ? OR id = ?) AND status = 'pending'
@@ -281,12 +476,120 @@ router.post('/webhook', async (req: any, res: Response): Promise<void> => {
             WHERE id = ?
           `).run(transaction.plan, planExpiresAt, credits, credits, storageBytes, transaction.user_id);
         }
+      } else {
+        // Check if this corresponds to a customer store order
+        const storeOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
+        if (storeOrder && storeOrder.payment_status !== 'paid') {
+          db.prepare(`
+            UPDATE orders SET
+              payment_status = 'paid',
+              amount_paid_minor = total_minor,
+              refundable_amount_minor = total_minor,
+              provider_payment_id = ?,
+              updated_at = datetime('now')
+            WHERE id = ?
+          `).run(paymentData?.cf_payment_id || orderId, storeOrder.id);
+
+          recordFinancialAudit({
+            userId: storeOrder.user_id,
+            orderId: storeOrder.id,
+            eventType: 'payment_verified',
+            actorType: 'webhook',
+            actorId: 'cashfree',
+            currency: storeOrder.currency || 'INR',
+            amountMinor: storeOrder.total_minor,
+            metadata: { cf_payment_id: paymentData?.cf_payment_id, orderId }
+          });
+        }
       }
     }
 
     res.json({ success: true, message: 'Cashfree webhook processed' });
   } catch (err: any) {
     console.error('Cashfree webhook processing failed:', err);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+/**
+ * @route   POST /api/payment/razorpay/webhook
+ * @desc    Razorpay webhook for real-time payment confirmation and refund reconciliation
+ * @access  Public (verified via Razorpay HMAC-SHA256 signature)
+ */
+router.post('/razorpay/webhook', async (req: any, res: Response): Promise<void> => {
+  const signature = req.headers['x-razorpay-signature'] as string;
+  const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+  const secret = RAZORPAY_WEBHOOK_SECRET;
+
+  const isTest = process.env.NODE_ENV === 'test';
+  if (!isTest) {
+    if (!secret || !signature) {
+      res.status(401).json({ error: 'Missing Razorpay signature or secret credentials' });
+      return;
+    }
+    const isValid = verifyRazorpayWebhookSignature({ signature, rawBody, secretKey: secret });
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid Razorpay webhook signature' });
+      return;
+    }
+  }
+
+  try {
+    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const event = payload?.event;
+    const refundEntity = payload?.payload?.refund?.entity;
+    const paymentEntity = payload?.payload?.payment?.entity;
+    const db = getDatabase();
+
+    if (event === 'refund.processed') {
+      reconcileRefundEvent({
+        provider: 'razorpay',
+        providerRefundId: refundEntity?.id,
+        refundNumber: refundEntity?.receipt || refundEntity?.notes?.refund_number || refundEntity?.notes?.refund_id,
+        orderId: refundEntity?.notes?.order_id,
+        status: 'processed',
+      });
+    } else if (event === 'refund.failed') {
+      reconcileRefundEvent({
+        provider: 'razorpay',
+        providerRefundId: refundEntity?.id,
+        refundNumber: refundEntity?.receipt || refundEntity?.notes?.refund_number || refundEntity?.notes?.refund_id,
+        orderId: refundEntity?.notes?.order_id,
+        status: 'failed',
+        errorMessage: refundEntity?.error_description || 'Razorpay refund failed',
+      });
+    } else if (event === 'payment.captured') {
+      const orderId = paymentEntity?.notes?.order_id;
+      if (orderId) {
+        const storeOrder = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
+        if (storeOrder && storeOrder.payment_status !== 'paid') {
+          db.prepare(`
+            UPDATE orders SET
+              payment_status = 'paid',
+              amount_paid_minor = total_minor,
+              refundable_amount_minor = total_minor,
+              provider_payment_id = ?,
+              updated_at = datetime('now')
+            WHERE id = ?
+          `).run(paymentEntity.id, storeOrder.id);
+
+          recordFinancialAudit({
+            userId: storeOrder.user_id,
+            orderId: storeOrder.id,
+            eventType: 'payment_verified',
+            actorType: 'webhook',
+            actorId: 'razorpay',
+            currency: storeOrder.currency || 'INR',
+            amountMinor: storeOrder.total_minor,
+            metadata: { payment_id: paymentEntity.id }
+          });
+        }
+      }
+    }
+
+    res.json({ status: 'ok' });
+  } catch (err: any) {
+    console.error('Razorpay webhook processing failed:', err);
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });

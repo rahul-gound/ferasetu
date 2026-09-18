@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, LayoutDashboard, LifeBuoy,
   ShoppingBag, Store, Bell, Calendar,
-  Menu, LogOut, ChevronRight, Zap, Terminal
+  Menu, LogOut, ChevronRight, Zap, Terminal, Bug
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SEO from '../SEO';
@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'meetings', path: '/admin/meetings', icon: <Calendar size={20} />, label: 'Consultations' },
     { id: 'orders', path: '/admin/orders', icon: <ShoppingBag size={20} />, label: 'Global Orders' },
     { id: 'tickets', path: '/admin/tickets', icon: <LifeBuoy size={20} />, label: 'Support Desk' },
+    { id: 'errors', path: '/admin/errors', icon: <Bug size={20} />, label: 'Error Tickets' },
     { id: 'system', path: '/admin/system', icon: <Terminal size={20} />, label: 'System Controls' },
   ];
 

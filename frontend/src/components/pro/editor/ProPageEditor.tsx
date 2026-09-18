@@ -86,18 +86,25 @@ export const ProPageEditor: React.FC<ProPageEditorProps> = ({
         if (!mounted) return;
         setPageMeta(page);
 
-        // Parse content: check if structured JSON document or raw code/HTML
+        // Parse content: check if structured JSON document, template definition, or raw code/HTML
         let doc: PageDocument;
-        if (page.content && typeof page.content === 'object' && page.content.schemaVersion) {
-          doc = page.content as PageDocument;
-        } else if (page.content && typeof page.content === 'string' && page.content.startsWith('{')) {
+        let raw = page.content;
+        if (typeof raw === 'string') {
           try {
-            doc = JSON.parse(page.content);
+            raw = JSON.parse(raw);
           } catch {
-            doc = migratePageDocument(page.content);
+            raw = { title: page.title };
           }
+        }
+
+        if (raw && raw.schemaVersion === 1 && Array.isArray(raw.nodes) && raw.nodes.length > 0) {
+          doc = raw as PageDocument;
         } else {
-          doc = migratePageDocument(page.content);
+          doc = migratePageDocument(raw);
+        }
+
+        if (!doc || !Array.isArray(doc.nodes)) {
+          doc = createBlankPageDocument();
         }
 
         doc.title = page.title || doc.title;

@@ -72,8 +72,75 @@ router.post('/login', adminLoginLimiter, async (req: Request, res: Response): Pr
   res.json({ success: true, token });
 });
 
+// Public error intake endpoint (called by frontend ErrorBoundary)
+router.post('/error-logs', (req: Request, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const { error_message, error_name, stack, component_stack, url, user_agent, network_log, user_id } = req.body;
+    const id = (req.body.id as string) || `err_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    const netLogStr = typeof network_log === 'object' ? JSON.stringify(network_log) : (network_log || null);
+
+    db.prepare(`
+      INSERT INTO error_logs (id, error_message, error_name, stack, component_stack, url, user_agent, network_log, user_id, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'))
+    `).run(id, error_message || 'Unknown render error', error_name || 'Error', stack || null, component_stack || null, url || null, user_agent || null, netLogStr, user_id || null);
+
+    res.status(201).json({ success: true, ticket_id: id, message: 'Ticket created for FeraSetu team' });
+  } catch (err: any) {
+    console.error('Error logs intake failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Use adminOnly middleware for all following routes
 router.use(adminOnly);
+
+// --- ERROR LOGS TICKET MANAGEMENT ---
+router.get('/error-logs', (req: AdminRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const { status } = req.query;
+    let query = 'SELECT * FROM error_logs';
+    const params: any[] = [];
+    if (status && status !== 'all') {
+      query += ' WHERE status = ?';
+      params.push(status);
+    }
+    query += ' ORDER BY created_at DESC LIMIT 100';
+    const logs = db.prepare(query).all(...params);
+    res.json({ logs });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/error-logs/:id/resolve', (req: AdminRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const { id } = req.params;
+    const adminEmail = req.admin?.email || ADMIN_EMAIL;
+    db.prepare(`
+      UPDATE error_logs SET status = 'resolved', resolved_by = ?, resolved_at = datetime('now')
+      WHERE id = ?
+    `).run(adminEmail, id);
+    writeAuditLog(req, 'RESOLVE_ERROR_LOG', 'error_logs', id);
+    res.json({ success: true, id, status: 'resolved' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/error-logs/:id', (req: AdminRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const { id } = req.params;
+    db.prepare('DELETE FROM error_logs WHERE id = ?').run(id);
+    writeAuditLog(req, 'DELETE_ERROR_LOG', 'error_logs', id);
+    res.json({ success: true, id });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/me', (req: AdminRequest, res: Response) => {
   res.json({ admin: req.admin });

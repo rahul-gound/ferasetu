@@ -181,7 +181,7 @@ app.use((req, res, next) => {
     return next();
   }
   // Skip CSRF for webhook endpoints
-  if (req.path.startsWith('/api/payment/webhook') || req.path.startsWith('/api/auth/webhook')) {
+  if (req.path.startsWith('/api/payment/webhook') || req.path.startsWith('/api/payment/razorpay/webhook') || req.path.startsWith('/api/auth/webhook')) {
     return next();
   }
   // Skip CSRF for public authentication & session onboarding endpoints
@@ -242,6 +242,9 @@ app.use('/api/website', websiteRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
+app.use('/api/error-logs', adminRoutes);
+app.use('/error-logs', adminRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/survey', surveyRoutes);
 app.use('/api/settings', settingsRoutes);

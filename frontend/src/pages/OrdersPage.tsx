@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
-  Download, Share2, Copy, Check, ExternalLink, Sparkles
+  Download, Share2, Copy, Check, ExternalLink, Sparkles, Mail, Ban, RotateCcw,
+  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight
 } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -12,26 +13,68 @@ import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 interface OrderItem {
-  product_id: string;
-  product_name: string;
+  product_id?: string;
+  productId?: string;
+  product_name?: string;
+  name?: string;
   quantity: number;
   price: number;
+  unitPriceMinor?: number;
+  totalMinor?: number;
 }
 
 interface Order {
   id: string;
   customer_name: string;
   customer_phone: string;
+  customer_email?: string;
   customer_address?: string;
   items: OrderItem[];
   items_count: number;
   total: number;
+  currency?: string;
+  subtotal?: number;
+  delivery_fee?: number;
+  total_minor?: number;
+  subtotal_minor?: number;
+  delivery_fee_minor?: number;
+  amount_paid_minor?: number;
+  refunded_amount_minor?: number;
+  refundable_amount_minor?: number;
   delivery_type: 'delivery' | 'pickup';
   status: string;
   payment_status?: string;
+  payment_method?: string;
+  provider_payment_id?: string;
+  cancellation_status?: string;
+  cancellation_reason?: string;
+  cancelled_at?: string;
+  cancelled_by?: string;
+  return_status?: string;
+  invoice_number?: string;
+  tracking_token?: string;
+  delivery_code?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+async function downloadPdf(url: string, filename: string) {
+  try {
+    const res = await api.get(url, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+    toast.success('Downloaded PDF successfully');
+  } catch (err) {
+    toast.error('Failed to download PDF document');
+  }
 }
 
 const ALL_STATUSES = ['all', 'pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
@@ -251,12 +294,12 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp, merchantNa
           </div>
 
           {/* Action buttons */}
-          <div className="no-print" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="no-print" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {order.payment_status !== 'paid' && (
               <button
                 className="btn btn-secondary"
                 onClick={() => onPaymentUpdate(order.id, 'pay_later')}
-                style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                style={{ flex: 1, minWidth: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
                 <Clock size={16} /> Pay Later
               </button>
@@ -264,9 +307,32 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp, merchantNa
             <button
               className="btn btn-secondary"
               onClick={() => window.print()}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              style={{ flex: 1, minWidth: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
-              <Printer size={16} /> Print Invoice
+              <Printer size={16} /> Print HTML
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => downloadPdf(`/orders/${order.id}/invoice/pdf`, `invoice-${invoiceNum}.pdf`)}
+              style={{ flex: 1, minWidth: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            >
+              <Download size={16} /> Download PDF
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={async () => {
+                const targetEmail = window.prompt('Send invoice to email address:', order.customer_email || '');
+                if (!targetEmail) return;
+                try {
+                  await api.post(`/orders/${order.id}/invoice/send`, { email: targetEmail });
+                  toast.success(`Invoice sent to ${targetEmail}`);
+                } catch (err: any) {
+                  toast.error(err.response?.data?.error || 'Failed to send invoice');
+                }
+              }}
+              style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            >
+              <Mail size={16} /> Send Email
             </button>
           </div>
         </div>
@@ -293,12 +359,37 @@ export default function OrdersPage() {
     },
   });
 
+  const { data: afterSales, refetch: refetchAfterSales } = useQuery({
+    queryKey: ['order-after-sales', selectedOrder?.id],
+    queryFn: async () => {
+      if (!selectedOrder?.id) return null;
+      const res = await api.get(`/orders/${selectedOrder.id}/after-sales`);
+      return res.data;
+    },
+    enabled: !!selectedOrder?.id,
+  });
+
+  // After-sales modals state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundMethod, setRefundMethod] = useState<'original_payment_method' | 'upi' | 'bank_transfer' | 'cash'>('original_payment_method');
+  const [isManualRefund, setIsManualRefund] = useState(false);
+  const [manualReference, setManualReference] = useState('');
+
+  const [showCreditNoteModal, setShowCreditNoteModal] = useState(false);
+  const [creditNoteReason, setCreditNoteReason] = useState('');
+  const [creditNoteAmount, setCreditNoteAmount] = useState('');
+
   const otpMutation = useMutation({
     mutationFn: ({ id, otp }: { id: string; otp: string }) =>
       api.post(`/orders/${id}/verify-otp`, { otp }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      toast.success('OTP Verified! Payment Confirmed.');
+      toast.success('Delivery OTP Verified! Handshake Confirmed.');
       setInvoiceOrder(null);
     },
     onError: (err: any) => {
@@ -310,6 +401,67 @@ export default function OrdersPage() {
     if (!otp.trim()) return toast.error('Please enter OTP');
     otpMutation.mutate({ id, otp });
   };
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/orders/${id}/cancel`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      refetchAfterSales();
+      toast.success('Order cancelled successfully.');
+      setShowCancelModal(false);
+      setCancelReason('');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to cancel order');
+    },
+  });
+
+  const refundOrderMutation = useMutation({
+    mutationFn: (params: {
+      id: string;
+      amountMinor: number;
+      reason: string;
+      refundMethod: string;
+      isManual: boolean;
+      manualReference?: string;
+    }) =>
+      api.post(`/orders/${params.id}/refund`, {
+        amountMinor: params.amountMinor,
+        reason: params.reason,
+        refundMethod: params.refundMethod,
+        isManual: params.isManual,
+        manualReference: params.manualReference,
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      refetchAfterSales();
+      toast.success(res.data?.message || 'Refund processed.');
+      setShowRefundModal(false);
+      setRefundAmount('');
+      setRefundReason('');
+      setManualReference('');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to process refund');
+    },
+  });
+
+  const creditNoteMutation = useMutation({
+    mutationFn: ({ id, reason, items }: { id: string; reason: string; items: any[] }) =>
+      api.post(`/orders/${id}/credit-notes`, { reason, items }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      refetchAfterSales();
+      toast.success('Credit note issued successfully.');
+      setShowCreditNoteModal(false);
+      setCreditNoteReason('');
+      setCreditNoteAmount('');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to issue credit note');
+    },
+  });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -330,6 +482,7 @@ export default function OrdersPage() {
       api.patch(`/orders/${id}/payment`, { payment_status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      refetchAfterSales();
       toast.success('Payment status updated!');
     },
     onError: () => toast.error('Failed to update payment status'),
@@ -740,7 +893,7 @@ export default function OrdersPage() {
           zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
         }}>
           <div style={{
-            background: 'var(--surface)', borderRadius: '16px', width: '100%', maxWidth: '520px',
+            background: 'var(--surface)', borderRadius: '16px', width: '100%', maxWidth: '680px',
             maxHeight: '90vh', overflowY: 'auto',
           }}>
             {/* Modal header */}
@@ -759,12 +912,403 @@ export default function OrdersPage() {
 
             <div style={{ padding: '24px' }}>
               {/* Status */}
-              <div style={{ marginBottom: '20px' }}>
-                <StatusBadge status={selectedOrder.status} />
-                <span style={{ marginLeft: '10px', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <StatusBadge status={selectedOrder.status} />
+                  <PaymentBadge status={selectedOrder.payment_status} />
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                   {new Date(selectedOrder.created_at).toLocaleString('en-IN')}
                 </span>
               </div>
+
+              {/* Cancellation Banner */}
+              {(selectedOrder.status === 'cancelled' || selectedOrder.cancellation_status === 'cancelled') && (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '12px', color: '#991B1B' }}>
+                  <div style={{ fontWeight: 800, marginBottom: '2px' }}>Order Cancelled by {selectedOrder.cancelled_by || 'merchant'}</div>
+                  <div>Reason: {selectedOrder.cancellation_reason || 'Order cancelled'}</div>
+                  {selectedOrder.cancelled_at && (
+                    <div style={{ fontSize: '11px', color: '#B91C1C', marginTop: '4px' }}>
+                      Cancelled on: {new Date(selectedOrder.cancelled_at).toLocaleString('en-IN')}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Financial Breakdown & Balances */}
+              <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Financial Breakdown</span>
+                  <span style={{ fontSize: '12px', color: '#334155' }}>Method: <b>{selectedOrder.payment_method || (selectedOrder.payment_status === 'paid' ? 'Online' : 'Offline/COD')}</b></span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Order Total</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#1E293B' }}>
+                      ₹{(afterSales?.financials?.totalMinor ? afterSales.financials.totalMinor / 100 : selectedOrder.total).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Amount Paid</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#059669' }}>
+                      ₹{((afterSales?.financials?.amountPaidMinor ?? (selectedOrder.payment_status === 'paid' ? (selectedOrder.total * 100) : 0)) / 100).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Refunded</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
+                      ₹{((afterSales?.financials?.refundedAmountMinor || 0) / 100).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Refundable</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#2563EB' }}>
+                      ₹{((afterSales?.financials?.remainingRefundableMinor || 0) / 100).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+
+                {afterSales?.financials?.isUnpaidCod && (
+                  <div style={{ padding: '8px 12px', background: '#FFFBEB', borderRadius: '8px', border: '1px solid #FEF3C7', fontSize: '12px', color: '#92400E', fontWeight: 600 }}>
+                    ℹ️ No payment was collected — no refund is required.
+                  </div>
+                )}
+
+                {afterSales?.refunds?.some((r: any) => r.is_manual) && (
+                  <div style={{ marginTop: '8px', padding: '6px 10px', background: '#EFF6FF', borderRadius: '6px', fontSize: '11px', color: '#1D4ED8', fontWeight: 600, display: 'inline-block' }}>
+                    Refund recorded manually (non-custodial settlement)
+                  </div>
+                )}
+              </div>
+
+              {/* Action Bar */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => downloadPdf(`/orders/${selectedOrder.id}/invoice/pdf`, `invoice-${selectedOrder.invoice_number || selectedOrder.id.slice(-8)}.pdf`)}
+                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                >
+                  <Download size={14} /> Download Invoice (PDF)
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    const targetEmail = window.prompt('Send invoice to email:', selectedOrder.customer_email || '');
+                    if (!targetEmail) return;
+                    try {
+                      await api.post(`/orders/${selectedOrder.id}/invoice/send`, { email: targetEmail });
+                      toast.success(`Invoice sent to ${targetEmail}`);
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.error || 'Failed to send invoice');
+                    }
+                  }}
+                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                >
+                  <Mail size={14} /> Email Invoice
+                </button>
+
+                {selectedOrder.status !== 'cancelled' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #FCA5A5', color: '#DC2626', background: '#FFF', cursor: 'pointer' }}
+                  >
+                    <Ban size={14} /> Cancel Order
+                  </button>
+                )}
+
+                {(afterSales?.financials?.remainingRefundableMinor || 0) > 0 && !afterSales?.financials?.isUnpaidCod && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRefundAmount(((afterSales.financials.remainingRefundableMinor || 0) / 100).toString());
+                      setShowRefundModal(true);
+                    }}
+                    style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #93C5FD', color: '#1D4ED8', background: '#EFF6FF', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    <DollarSign size={14} /> Issue Refund
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowCreditNoteModal(true)}
+                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', color: '#374151', background: '#F9FAFB', cursor: 'pointer' }}
+                >
+                  <FileText size={14} /> Issue Credit Note
+                </button>
+              </div>
+
+              {/* Cancel Order Modal Form */}
+              {showCancelModal && (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: '#991B1B', marginBottom: '8px' }}>
+                    Cancel Order #{selectedOrder.id.slice(-8).toUpperCase()}?
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7F1D1D', marginBottom: '10px' }}>
+                    Cancelling will mark the order as cancelled and notify the customer. Invoices remain permanently archived.
+                  </p>
+                  <textarea
+                    rows={2}
+                    value={cancelReason}
+                    onChange={e => setCancelReason(e.target.value)}
+                    placeholder="Enter reason for cancellation..."
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #FCA5A5', fontSize: '13px', marginBottom: '10px' }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => cancelOrderMutation.mutate({ id: selectedOrder.id, reason: cancelReason || 'Merchant cancelled order' })}
+                      disabled={cancelOrderMutation.isPending}
+                      style={{ flex: 1, padding: '8px', background: '#DC2626', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                    >
+                      {cancelOrderMutation.isPending ? 'Cancelling...' : 'Confirm Order Cancellation'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelModal(false)}
+                      className="btn btn-secondary"
+                      style={{ padding: '8px 14px', fontSize: '13px' }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Issue Refund Modal Form */}
+              {showRefundModal && (
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: '#166534', marginBottom: '10px' }}>
+                    Process Refund for Order #{selectedOrder.id.slice(-8).toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#15803D', marginBottom: '12px' }}>
+                    Maximum remaining refundable balance: <b>₹{((afterSales?.financials?.remainingRefundableMinor || 0) / 100).toLocaleString('en-IN')}</b>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '4px' }}>Refund Amount (INR ₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        max={(afterSales?.financials?.remainingRefundableMinor || 0) / 100}
+                        value={refundAmount}
+                        onChange={e => setRefundAmount(e.target.value)}
+                        placeholder="e.g. 250.00"
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '4px' }}>Refund Method</label>
+                      <select
+                        value={refundMethod}
+                        onChange={e => {
+                          const m = e.target.value as any;
+                          setRefundMethod(m);
+                          setIsManualRefund(m !== 'original_payment_method');
+                        }}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px' }}
+                      >
+                        {selectedOrder.payment_method === 'online' && (
+                          <option value="original_payment_method">Original Payment Gateway (Razorpay/Cashfree)</option>
+                        )}
+                        <option value="upi">Manual UPI (Google Pay, PhonePe, Paytm)</option>
+                        <option value="bank_transfer">Manual Bank Transfer (NEFT/IMPS)</option>
+                        <option value="cash">Manual Cash Handshake</option>
+                      </select>
+                    </div>
+                    {refundMethod !== 'original_payment_method' && (
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '4px' }}>Manual Reference / UTR (Optional)</label>
+                        <input
+                          type="text"
+                          value={manualReference}
+                          onChange={e => setManualReference(e.target.value)}
+                          placeholder="e.g. UPI Ref # or Bank UTR"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px' }}
+                        />
+                        <p style={{ fontSize: '11px', color: '#6B7280', marginTop: '4px' }}>
+                          ⚠️ FeraSetu records this payment adjustment authoritatively. Transfer funds separately via your UPI app or bank account.
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '4px' }}>Reason</label>
+                      <input
+                        type="text"
+                        value={refundReason}
+                        onChange={e => setRefundReason(e.target.value)}
+                        placeholder="e.g. Item defective, customer return, order cancelled"
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const amt = parseFloat(refundAmount);
+                          if (!amt || amt <= 0) return toast.error('Please enter a valid refund amount');
+                          const minor = Math.round(amt * 100);
+                          refundOrderMutation.mutate({
+                            id: selectedOrder.id,
+                            amountMinor: minor,
+                            reason: refundReason || 'Merchant issued refund',
+                            refundMethod,
+                            isManual: refundMethod !== 'original_payment_method',
+                            manualReference,
+                          });
+                        }}
+                        disabled={refundOrderMutation.isPending}
+                        className="btn btn-primary"
+                        style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+                      >
+                        {refundOrderMutation.isPending ? 'Processing...' : 'Confirm & Issue Refund'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowRefundModal(false)}
+                        className="btn btn-secondary"
+                        style={{ padding: '8px 14px', fontSize: '13px' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Issue Credit Note Modal Form */}
+              {showCreditNoteModal && (
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: '#1E293B', marginBottom: '8px' }}>
+                    Issue Credit Note for Original Invoice
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '10px' }}>
+                    Invoices are immutable. Issue a credit note to legally document price reductions, damaged goods, or partial adjustments.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '4px' }}>Reason for Credit Note</label>
+                      <input
+                        type="text"
+                        value={creditNoteReason}
+                        onChange={e => setCreditNoteReason(e.target.value)}
+                        placeholder="e.g. Return of damaged item, goodwill discount"
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const items = (selectedOrder.items || []).map((it: any) => ({
+                            name: it.product_name || it.name,
+                            quantity: it.quantity,
+                            unitPriceMinor: it.unitPriceMinor || Math.round((it.price || 0) * 100),
+                            totalMinor: it.totalMinor || Math.round((it.price || 0) * (it.quantity || 1) * 100),
+                            reason: creditNoteReason,
+                          }));
+                          creditNoteMutation.mutate({
+                            id: selectedOrder.id,
+                            reason: creditNoteReason || 'Goods returned / adjustment',
+                            items,
+                          });
+                        }}
+                        disabled={creditNoteMutation.isPending}
+                        className="btn btn-primary"
+                        style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+                      >
+                        {creditNoteMutation.isPending ? 'Issuing...' : 'Issue Credit Note (Full/Items)'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreditNoteModal(false)}
+                        className="btn btn-secondary"
+                        style={{ padding: '8px 14px', fontSize: '13px' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Refunds History List */}
+              {afterSales?.refunds && afterSales.refunds.length > 0 && (
+                <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
+                  <h3 style={{ fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Refund History ({afterSales.refunds.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {afterSales.refunds.map((ref: any) => (
+                      <div key={ref.id} style={{ background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: '#1E293B' }}>{ref.refund_number}</span>
+                          <span style={{
+                            padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
+                            background: ref.status === 'completed' ? '#DCFCE7' : ref.status === 'failed' ? '#FEE2E2' : '#FEF3C7',
+                            color: ref.status === 'completed' ? '#15803D' : ref.status === 'failed' ? '#B91C1C' : '#B45309'
+                          }}>
+                            {ref.status}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', color: '#64748B' }}>
+                          <span>₹{(ref.amount_minor / 100).toLocaleString('en-IN')} · {ref.refund_method}</span>
+                          <span>{new Date(ref.created_at).toLocaleDateString('en-IN')}</span>
+                        </div>
+                        {ref.manual_reference && (
+                          <div style={{ fontSize: '11px', color: '#2563EB', marginTop: '2px' }}>
+                            Ref: {ref.manual_reference}
+                          </div>
+                        )}
+                        {ref.error_message && (
+                          <div style={{ fontSize: '11px', color: '#DC2626', marginTop: '2px' }}>
+                            Error: {ref.error_message}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Credit Notes History List */}
+              {afterSales?.creditNotes && afterSales.creditNotes.length > 0 && (
+                <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
+                  <h3 style={{ fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Credit Notes ({afterSales.creditNotes.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {afterSales.creditNotes.map((cn: any) => (
+                      <div key={cn.id} style={{ background: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: '#1E293B' }}>{cn.credit_note_number}</span>
+                          <button
+                            type="button"
+                            onClick={() => downloadPdf(`/orders/${selectedOrder.id}/credit-notes/${cn.id}/pdf`, `credit-note-${cn.credit_note_number}.pdf`)}
+                            style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Download size={12} /> PDF
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', color: '#64748B' }}>
+                          <span>Credit: ₹{(cn.total_credit_minor / 100).toLocaleString('en-IN')}</span>
+                          <span>{new Date(cn.issued_at || cn.created_at).toLocaleDateString('en-IN')}</span>
+                        </div>
+                        {cn.reason && (
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                            Reason: {cn.reason}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Customer */}
               <div style={{
@@ -829,7 +1373,7 @@ export default function OrdersPage() {
                     padding: '8px 0', borderBottom: i < selectedOrder.items.length - 1 ? '1px solid var(--border)' : 'none',
                   }}>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{item.product_name}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{item.product_name || item.name}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Qty: {item.quantity} × ₹{item.price.toLocaleString('en-IN')}</div>
                     </div>
                     <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '14px' }}>

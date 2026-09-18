@@ -1,3 +1,14 @@
+// authBridge.ts
+// Shared singleton that bridges WorkOS token retrieval and API 401 handling.
+// Design rules: never log token values — only log event type + URL.
+
+const IS_DEV = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
+function bridgeLog(event: string, detail?: string) {
+  if (!IS_DEV) return;
+  const ts = new Date().toISOString().slice(11, 23);
+  console.log(`[authBridge ${ts}] ${event}${detail ? ` — ${detail}` : ''}`);
+}
+
 type UnauthorizedContext = {
   url: string;
   status: number;
@@ -60,5 +71,8 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
 }
 
 export function notifyUnauthorized(context: UnauthorizedContext) {
+  // API_401 event — no token/code values logged, only URL + status.
+  bridgeLog('API_401', `${context.status} on ${context.url}`);
   unauthorizedHandler?.(context);
 }
+

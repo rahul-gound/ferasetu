@@ -87,51 +87,120 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
                  <p style={{ fontWeight: 600, color: '#0f172a' }}>No orders found for this number.</p>
                  <p style={{ fontSize: '13px', color: '#64748b' }}>Check the number or place a new order.</p>
               </div>
-            ) : orders.map(order => (
-              <div key={order.id} style={{ padding: '20px', borderRadius: '18px', border: '1px solid #f1f5f9', background: '#fcfcfd' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                   <div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>#{order.id.slice(-6).toUpperCase()}</div>
-                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>₹{order.total.toLocaleString('en-IN')}</div>
-                   </div>
-                   <span style={{ 
-                      background: order.status === 'delivered' ? '#f0fdf4' : '#fff7ed', 
-                      color: order.status === 'delivered' ? '#16a34a' : '#c2410c',
-                      padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase'
-                   }}>
-                      {order.status}
-                   </span>
-                </div>
+            ) : orders.map(order => {
+              const isEligibleForCancel = ['pending', 'confirmed'].includes(order.status) && order.cancellation_status !== 'cancelled';
+              const isCancelled = order.status === 'cancelled' || order.cancellation_status === 'cancelled';
 
-                <div style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                   {order.delivery_type === 'delivery' ? (
-                      <div>
-                         <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Delivery Security Code</div>
-                         <div style={{ fontSize: '18px', fontWeight: 900, color: '#FF6B35', letterSpacing: '1px' }}>
-                           {order.delivery_code || (typeof order.notes === 'string' ? order.notes.match(/Code:\s*([A-Z0-9]+)/i)?.[1] : null) || '---'}
-                         </div>
-                      </div>
-                   ) : (
-                      <div>
-                         <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Pick-up OTP</div>
-                         <div style={{ fontSize: '18px', fontWeight: 900, color: '#0f172a', letterSpacing: '1px' }}>
-                           {(typeof order.notes === 'string' ? order.notes.match(/OTP:\s*([0-9]+)/i)?.[1] : null) || order.delivery_code || '---'}
-                         </div>
-                      </div>
-                   )}
+              return (
+                <div key={order.id} style={{ padding: '20px', borderRadius: '18px', border: '1px solid #f1f5f9', background: '#fcfcfd' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                     <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                          {order.invoice_number || `#${order.id.slice(-6).toUpperCase()}`}
+                        </div>
+                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>₹{order.total?.toLocaleString('en-IN')}</div>
+                     </div>
+                     <span style={{ 
+                        background: order.status === 'delivered' ? '#f0fdf4' : isCancelled ? '#fef2f2' : '#fff7ed', 
+                        color: order.status === 'delivered' ? '#16a34a' : isCancelled ? '#dc2626' : '#c2410c',
+                        padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase'
+                     }}>
+                        {order.status}
+                     </span>
+                  </div>
+
+                  {isCancelled && (
+                    <div style={{ padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2', marginBottom: '12px', fontSize: '12px', color: '#b91c1c' }}>
+                      <span style={{ fontWeight: 700 }}>Cancelled:</span> {order.cancellation_reason || 'Order cancelled'}
+                    </div>
+                  )}
+
+                  {order.refunded_amount_minor > 0 && (
+                    <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7', marginBottom: '12px', fontSize: '12px', color: '#15803d', fontWeight: 700 }}>
+                      Refund: ₹{(order.refunded_amount_minor / 100).toLocaleString('en-IN')}
+                    </div>
+                  )}
+
+                  {!isCancelled && order.status !== 'delivered' && (
+                    <div style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '12px' }}>
+                       {order.delivery_type === 'delivery' ? (
+                          <div>
+                             <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Delivery Security Code</div>
+                             <div style={{ fontSize: '18px', fontWeight: 900, color: '#FF6B35', letterSpacing: '1px' }}>
+                               {order.delivery_code || (typeof order.notes === 'string' ? order.notes.match(/Code:\s*([A-Z0-9]+)/i)?.[1] : null) || '---'}
+                             </div>
+                          </div>
+                       ) : (
+                          <div>
+                             <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Pick-up OTP</div>
+                             <div style={{ fontSize: '18px', fontWeight: 900, color: '#0f172a', letterSpacing: '1px' }}>
+                               {(typeof order.notes === 'string' ? order.notes.match(/OTP:\s*([0-9]+)/i)?.[1] : null) || order.delivery_code || '---'}
+                             </div>
+                          </div>
+                       )}
+                    </div>
+                  )}
+                  
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '14px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {order.delivery_type === 'delivery' ? <Truck size={14} /> : <MapPin size={14} />}
+                        {order.delivery_type || 'standard'}
+                     </div>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={14} /> {order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN') : 'Recent'}
+                     </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const token = order.tracking_token || '';
+                        window.open(`${API}/orders/public/${order.id}/invoice/pdf?token=${encodeURIComponent(token)}`, '_blank');
+                      }}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: '10px',
+                        background: '#0f172a', color: '#fff', border: 'none',
+                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                      }}
+                    >
+                      <span>Download Tax Invoice (PDF)</span>
+                    </button>
+
+                    {isEligibleForCancel && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const reason = window.prompt('Please enter the reason for cancellation:');
+                          if (!reason) return;
+                          try {
+                            await axios.post(`${API}/orders/public/${order.id}/cancel`, {
+                              token: order.tracking_token,
+                              reason,
+                            });
+                            alert('Order cancelled successfully.');
+                            // Trigger refresh by re-submitting phone query
+                            const res = await axios.get(`${API}/orders/public/track`, { params: { phone, shopId } });
+                            setOrders(res.data.orders);
+                          } catch (err: any) {
+                            alert(err.response?.data?.error || 'Failed to cancel order');
+                          }
+                        }}
+                        style={{
+                          padding: '8px 12px', borderRadius: '10px',
+                          background: '#fff', color: '#dc2626', border: '1px solid #fca5a5',
+                          fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
-                
-                <div style={{ display: 'flex', gap: '12px', marginTop: '12px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {order.delivery_type === 'delivery' ? <Truck size={14} /> : <MapPin size={14} />}
-                      {order.delivery_type || 'standard'}
-                   </div>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={14} /> {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Recent'}
-                   </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

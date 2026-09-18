@@ -5,7 +5,9 @@ import { Lock, User, ShieldCheck, ArrowRight, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SEO from '../components/SEO';
 
-const API = import.meta.env.VITE_API_URL || '/api';
+const rawApi = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = rawApi.replace(/\/+$/, '');
+const ADMIN_LOGIN_URL = API_BASE.endsWith('/api') ? `${API_BASE}/admin/login` : `${API_BASE}/api/admin/login`;
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -17,7 +19,18 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post(`${API}/admin/login`, { username, password });
+      // First try standard /api/admin/login, then fallback to /admin/login if needed
+      let res;
+      try {
+        res = await axios.post(ADMIN_LOGIN_URL, { username, password });
+      } catch (postErr: any) {
+        if (postErr?.response?.status === 404 || postErr?.response?.status === 401) {
+          const fallbackUrl = `${API_BASE}/admin/login`;
+          res = await axios.post(fallbackUrl, { username, password });
+        } else {
+          throw postErr;
+        }
+      }
       localStorage.setItem('admin_token', res.data.token);
       toast.success('Access Granted. Welcome back, Chief.');
       navigate('/admin/dashboard');

@@ -750,16 +750,255 @@ export function migratePageDocument(rawDoc) {
     };
   }
 
-  // Legacy format: { sections: [...] }
-  if (Array.isArray(rawDoc.sections)) {
-    const nodes = rawDoc.sections.map((sec, idx) => ({
-      id: sec.id || generateNodeId(`sec_${idx}`),
-      type: sec.type === 'hero' ? 'section' : (SMART_COMPONENTS[sec.type] ? sec.type : 'section'),
-      version: 1,
-      props: { ...(sec.props || sec) },
-      children: [],
-    }));
+  // Legacy or Template format: { hero: {...}, sections: [...] }
+  const nodes = [];
 
+  // 1. Hero Block Conversion
+  if (rawDoc.hero) {
+    const hero = rawDoc.hero;
+    const heroChildren = [
+      {
+        id: generateNodeId('hdg_hero'),
+        type: 'heading',
+        version: 1,
+        props: {
+          text: hero.title || 'Welcome',
+          level: 'h1',
+          fontSize: 'text-5xl',
+          fontWeight: 'font-extrabold',
+          color: 'text-slate-900',
+          align: 'text-center',
+        },
+      },
+    ];
+
+    if (hero.subtitle) {
+      heroChildren.push({
+        id: generateNodeId('txt_hero'),
+        type: 'text',
+        version: 1,
+        props: {
+          content: hero.subtitle,
+          fontSize: 'text-lg',
+          color: 'text-slate-600',
+          align: 'text-center',
+        },
+      });
+    }
+
+    if (hero.ctaText) {
+      heroChildren.push({
+        id: generateNodeId('btn_hero'),
+        type: 'button',
+        version: 1,
+        props: {
+          text: hero.ctaText,
+          action: 'navigate',
+          target: hero.ctaLink || '/work',
+          variant: 'primary',
+          size: 'lg',
+        },
+      });
+    }
+
+    nodes.push({
+      id: generateNodeId('sec_hero'),
+      type: 'section',
+      version: 1,
+      props: {
+        paddingY: 'py-20',
+        paddingX: 'px-4',
+        backgroundColor: 'bg-gradient-to-b from-white to-slate-50',
+        maxWidth: 'max-w-7xl',
+      },
+      children: [
+        {
+          id: generateNodeId('cnt_hero'),
+          type: 'container',
+          version: 1,
+          props: {
+            maxWidth: 'max-w-4xl',
+            padding: 'p-4',
+            alignment: 'mx-auto flex flex-col items-center text-center gap-6',
+          },
+          children: heroChildren,
+        },
+      ],
+    });
+  }
+
+  // 2. Sections Array Conversion
+  if (Array.isArray(rawDoc.sections)) {
+    rawDoc.sections.forEach((sec, idx) => {
+      const secType = sec.type || 'generic';
+      const secId = sec.id || generateNodeId(`sec_${idx}`);
+      const cntId = generateNodeId(`cnt_${idx}`);
+
+      if (secType === 'product_grid' || secType === 'curated_work_grid' || secType === 'portfolio_index') {
+        nodes.push({
+          id: secId,
+          type: 'section',
+          version: 1,
+          props: { paddingY: 'py-16', paddingX: 'px-4', maxWidth: 'max-w-7xl' },
+          children: [
+            {
+              id: cntId,
+              type: 'container',
+              version: 1,
+              props: { maxWidth: 'max-w-6xl', padding: 'p-4' },
+              children: [
+                {
+                  id: generateNodeId('hdg_grid'),
+                  type: 'heading',
+                  version: 1,
+                  props: {
+                    text: sec.heading || (secType === 'product_grid' ? 'Featured Collection' : 'Selected Works'),
+                    level: 'h2',
+                    fontSize: 'text-3xl',
+                    fontWeight: 'font-bold',
+                    color: 'text-slate-900',
+                  },
+                },
+                {
+                  id: generateNodeId('grid_comp'),
+                  type: 'product_grid',
+                  version: 1,
+                  props: {
+                    dataSource: sec.bound_function || 'catalog_all',
+                    limit: sec.limit || 6,
+                    colsDesktop: 3,
+                    colsMobile: 1,
+                    showPrice: true,
+                    showAddToCart: true,
+                  },
+                },
+              ],
+            },
+          ],
+        });
+      } else if (secType === 'editorial_manifesto') {
+        nodes.push({
+          id: secId,
+          type: 'section',
+          version: 1,
+          props: { paddingY: 'py-16', paddingX: 'px-4', backgroundColor: 'bg-slate-900', maxWidth: 'max-w-7xl' },
+          children: [
+            {
+              id: cntId,
+              type: 'container',
+              version: 1,
+              props: { maxWidth: 'max-w-4xl', padding: 'p-4', alignment: 'mx-auto' },
+              children: [
+                {
+                  id: generateNodeId('hdg_man'),
+                  type: 'heading',
+                  version: 1,
+                  props: { text: sec.heading || 'Disciplines', level: 'h2', color: 'text-white' },
+                },
+                {
+                  id: generateNodeId('stats_man'),
+                  type: 'stats',
+                  version: 1,
+                  props: {
+                    items: (sec.items || []).map(item => ({ value: '•', label: item })),
+                  },
+                },
+              ],
+            },
+          ],
+        });
+      } else if (secType === 'inquiry_banner') {
+        nodes.push({
+          id: secId,
+          type: 'section',
+          version: 1,
+          props: { paddingY: 'py-16', paddingX: 'px-4', backgroundColor: 'bg-indigo-50', maxWidth: 'max-w-7xl' },
+          children: [
+            {
+              id: cntId,
+              type: 'container',
+              version: 1,
+              props: { maxWidth: 'max-w-3xl', padding: 'p-4', alignment: 'mx-auto text-center' },
+              children: [
+                {
+                  id: generateNodeId('hdg_inq'),
+                  type: 'heading',
+                  version: 1,
+                  props: { text: sec.heading || 'Initiate an Engagement', level: 'h2', align: 'text-center' },
+                },
+                {
+                  id: generateNodeId('btn_inq'),
+                  type: 'button',
+                  version: 1,
+                  props: {
+                    text: sec.buttonText || 'Contact Us',
+                    action: 'navigate',
+                    target: sec.buttonLink || '/contact',
+                    variant: 'primary',
+                    size: 'md',
+                  },
+                },
+              ],
+            },
+          ],
+        });
+      } else if (secType === 'rich_text') {
+        nodes.push({
+          id: secId,
+          type: 'section',
+          version: 1,
+          props: { paddingY: 'py-12', paddingX: 'px-4', maxWidth: 'max-w-7xl' },
+          children: [
+            {
+              id: cntId,
+              type: 'container',
+              version: 1,
+              props: { maxWidth: 'max-w-3xl', padding: 'p-4', alignment: 'mx-auto' },
+              children: [
+                {
+                  id: generateNodeId('hdg_rt'),
+                  type: 'heading',
+                  version: 1,
+                  props: { text: sec.title || 'About', level: 'h2' },
+                },
+                {
+                  id: generateNodeId('txt_rt'),
+                  type: 'text',
+                  version: 1,
+                  props: { content: sec.body || '', fontSize: 'text-base' },
+                },
+              ],
+            },
+          ],
+        });
+      } else {
+        nodes.push({
+          id: secId,
+          type: 'section',
+          version: 1,
+          props: { paddingY: 'py-12', paddingX: 'px-4', maxWidth: 'max-w-7xl' },
+          children: [
+            {
+              id: cntId,
+              type: 'container',
+              version: 1,
+              props: { maxWidth: 'max-w-6xl', padding: 'p-4' },
+              children: [
+                {
+                  id: generateNodeId('hdg_gen'),
+                  type: 'heading',
+                  version: 1,
+                  props: { text: sec.heading || sec.title || `Section ${idx + 1}`, level: 'h3' },
+                },
+              ],
+            },
+          ],
+        });
+      }
+    });
+  }
+
+  if (nodes.length > 0) {
     return {
       schemaVersion: 1,
       state: PAGE_STATES.VISUAL_NATIVE,
@@ -770,7 +1009,7 @@ export function migratePageDocument(rawDoc) {
     };
   }
 
-  // Fallback for string or raw object
+  // Fallback for string or empty object
   return createBlankPageDocument();
 }
 

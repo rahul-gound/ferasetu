@@ -7,6 +7,8 @@
 // 4. Commerce Pro — Premium flagship D2C commerce with wholesale B2B inquiries & customer hub
 // =============================================================================
 
+import { migratePageDocument } from '../pro/pageModel.js';
+
 export const PRO_TEMPLATES = {
   // ---------------------------------------------------------------------------
   // 1. STUDIO (Creative Agency / Showcase)
@@ -788,6 +790,14 @@ export async function installProTemplate(tenantId, templateId, env) {
     const pageId = `page_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
     pageMap[p.slug] = pageId;
 
+    let pageContentStr = JSON.stringify(p.content);
+    try {
+      const pageDoc = migratePageDocument({ ...p.content, title: p.title });
+      if (pageDoc && pageDoc.nodes && pageDoc.nodes.length > 0) {
+        pageContentStr = JSON.stringify(pageDoc);
+      }
+    } catch {}
+
     const now = new Date().toISOString();
     await env.DB.prepare(`
       INSERT INTO site_pages (
@@ -802,7 +812,7 @@ export async function installProTemplate(tenantId, templateId, env) {
         order_index = excluded.order_index,
         updated_at = excluded.updated_at
     `).bind(
-      pageId, tenantId, p.slug, p.title, p.type, JSON.stringify(p.content),
+      pageId, tenantId, p.slug, p.title, p.type, pageContentStr,
       p.is_homepage ? 1 : 0, p.auth_required ? 1 : 0, i, now, now
     ).run();
 

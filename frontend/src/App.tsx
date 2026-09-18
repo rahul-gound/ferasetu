@@ -47,6 +47,7 @@ const AdminShopsPage = lazy(() => import('./pages/AdminShopsPage'));
 const AdminMeetingsPage = lazy(() => import('./pages/AdminMeetingsPage'));
 const AdminOrdersPage = lazy(() => import('./pages/AdminOrdersPage'));
 const AdminTicketsPage = lazy(() => import('./pages/AdminTicketsPage'));
+const AdminErrorLogsPage = lazy(() => import('./pages/AdminErrorLogsPage'));
 const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
@@ -225,6 +226,7 @@ function AppRoutes() {
               <Route path="meetings" element={<AdminMeetingsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="tickets" element={<AdminTicketsPage />} />
+              <Route path="errors" element={<AdminErrorLogsPage />} />
               <Route path="system" element={<AdminSystemPage />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
@@ -247,11 +249,26 @@ function AppRoutes() {
 
 // Inner app content — all providers except Statsig
 function AppContent() {
+  const handleRefreshFailure = ({ signIn }: { signIn: () => Promise<void> }) => {
+    // WorkOS signalled a permanent refresh failure — the refresh token is dead
+    // (e.g. expired, rotated, or the WorkOS session cookie was cleared).
+    // Do NOT automatically call signIn() here — that would be the auto-redirect loop.
+    // Instead, clear the FeraSetu profile cache and let ProtectedRoute redirect to /login.
+    try { localStorage.removeItem('fera_user'); } catch {}
+    if (import.meta.env.DEV) {
+      console.warn('[AUTH] AUTH_REFRESH_FAILURE — WorkOS session expired. Clearing profile. User will be sent to /login.');
+    }
+    // signIn is available if the app wants to offer a "sign in again" CTA.
+    // We expose it on the login page button only — never call it automatically.
+    void signIn; // suppress unused-variable warning
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthKitProvider 
         clientId={import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY'}
         redirectUri={window.location.origin + '/callback'}
+        onRefreshFailure={handleRefreshFailure}
       >
         <AuthProvider>
           <BrowserRouter>
@@ -269,6 +286,7 @@ function AppContent() {
     </QueryClientProvider>
   );
 }
+
 
 export default function App() {
   return (
