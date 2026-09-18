@@ -107,6 +107,32 @@ export function StorefrontProvider({
     checkCustomerSession();
   }, [checkCustomerSession]);
 
+  const trackStoreEvent = useCallback((eventType: string, extraData: Record<string, any> = {}) => {
+    try {
+      let sid = '';
+      try {
+        sid = sessionStorage.getItem('fs_visitor_session') || '';
+        if (!sid) {
+          sid = 'sess_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+          sessionStorage.setItem('fs_visitor_session', sid);
+        }
+      } catch {}
+      axios.post(`${API}/analytics/events`, {
+        event_type: eventType,
+        user_id: shopId,
+        organization_id: shopId,
+        event_data: {
+          shop_id: shopId,
+          shop_name: shopName,
+          session_id: sid,
+          referrer: typeof document !== 'undefined' ? (document.referrer || 'direct') : 'direct',
+          path: typeof window !== 'undefined' ? window.location.pathname : '',
+          ...extraData,
+        }
+      }).catch(() => {});
+    } catch {}
+  }, [shopId, shopName]);
+
   const openCustomerAuth = useCallback((tab: 'login' | 'register' = 'login') => {
     setCustomerAuthInitialTab(tab);
     setIsCustomerAuthOpen(true);
@@ -212,9 +238,16 @@ export function StorefrontProvider({
       const match = products.find((p) => p.id === initialProductId && p.is_active === 1);
       if (match) {
         setSelectedProduct(match);
+        trackStoreEvent('product_click', {
+          product_id: match.id,
+          product_name: match.name,
+          price: match.price,
+          image_url: match.image_url || (match as any).media_key || '',
+          action: 'deep_link'
+        });
       }
     }
-  }, [initialProductId, products]);
+  }, [initialProductId, products, trackStoreEvent]);
 
   // Derive unique categories
   const categories = useMemo(() => {
@@ -268,6 +301,14 @@ export function StorefrontProvider({
     const effectivePrice = variant ? variant.price : (product.sale_price != null && product.sale_price > 0 ? product.sale_price : product.price);
     const itemStock = variant && (variant as any).stock !== undefined ? Number((variant as any).stock) : product.stock_quantity;
 
+    trackStoreEvent('product_click', {
+      product_id: product.id,
+      product_name: product.name,
+      price: effectivePrice,
+      image_url: product.image_url || (product as any).media_key || '',
+      action: 'add_to_cart'
+    });
+
     setCart((prev) => {
       const existing = prev.find((i) => (i.cart_key || (i.variant_id ? `${i.id}__${i.variant_id}` : i.id)) === itemKey);
       if (existing) {
@@ -287,7 +328,7 @@ export function StorefrontProvider({
       }];
     });
     setIsCartOpen(true);
-  }, []);
+  }, [trackStoreEvent]);
 
   const updateCartQuantity = useCallback((itemKey: string, delta: number) => {
     setCart((prev) =>
@@ -324,7 +365,14 @@ export function StorefrontProvider({
 
   const openProductModal = useCallback((product: ShopProduct) => {
     setSelectedProduct(product);
-  }, []);
+    trackStoreEvent('product_click', {
+      product_id: product.id,
+      product_name: product.name,
+      price: product.price,
+      image_url: product.image_url || (product as any).media_key || '',
+      action: 'view_modal'
+    });
+  }, [trackStoreEvent]);
 
   const closeProductModal = useCallback(() => {
     setSelectedProduct(null);
@@ -416,10 +464,17 @@ export function StorefrontProvider({
         return;
       }
       const price = product.sale_price ?? product.price;
+      trackStoreEvent('product_click', {
+        product_id: product.id,
+        product_name: product.name,
+        price,
+        image_url: product.image_url || (product as any).media_key || '',
+        action: 'whatsapp_inquiry'
+      });
       const text = `Namaste ${shopName}!\n\nI am interested in:\n📦 *${product.name}*\n💰 Price: ${activeSymbol}${price.toLocaleString(numberLocale)}\n\nIs this item currently available for delivery?`;
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
     },
-    [shopName, shopPhone, activeSymbol, numberLocale]
+    [shopName, shopPhone, activeSymbol, numberLocale, trackStoreEvent]
   );
 
   const openWhatsAppCartOrder = useCallback(

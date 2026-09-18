@@ -14,7 +14,7 @@ import {
   Package, Coins, ArrowRight, Download, Users, Target,
   Sparkles, Calendar, ChevronDown, CreditCard, Share2,
   Plus, AlertCircle, Copy, ExternalLink, Store, Check,
-  BarChart3, Zap, Globe, MessageSquareText,
+  BarChart3, Zap, Globe, MessageSquareText, Eye, X, Radio
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -62,6 +62,18 @@ interface MostViewedProduct {
   unique_viewers: number;
   price: number;
   image_url?: string;
+  last_clicked_at?: string;
+  location?: string;
+}
+
+interface RecentClickItem {
+  id: string;
+  product_id: string;
+  product_name: string;
+  price: number;
+  image_url?: string;
+  clicked_at: string;
+  location?: string;
 }
 
 interface MostPurchasedProduct {
@@ -102,6 +114,7 @@ interface DashboardData {
   visitors?: VisitorsData;
   most_viewed_products?: MostViewedProduct[];
   most_purchased_products?: MostPurchasedProduct[];
+  recent_clicks?: RecentClickItem[];
 }
 
 // Smooth SVG sparkline — only renders if we have ≥ 2 data points with variance.
@@ -196,6 +209,8 @@ export default function DashboardPage() {
   const { config, subscription, market } = useMarket();
   const [downloading, setDownloading] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [inspectingProduct, setInspectingProduct] = useState<any>(null);
+  const [clicksViewMode, setClicksViewMode] = useState<'top' | 'live'>('top');
   const greeting = useMemo(() => getGreeting(), []);
   const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
 
@@ -733,19 +748,19 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-[#667085]">Store Visitors</p>
               <h3 className="text-xl font-black text-[#152238] tracking-tight mt-0.5">
-                {dashboardData?.visitors?.total_visitors ?? (totalCustomers > 0 ? totalCustomers * 3 + 12 : 0)}
+                {dashboardData?.visitors?.total_visitors || 0}
               </h3>
             </div>
           </div>
           <span className="text-[10px] font-semibold text-[#667085] flex items-center gap-1">
-            {dashboardData?.visitors?.unique_sessions ?? totalCustomers} unique sessions
+            {dashboardData?.visitors?.unique_sessions || 0} unique sessions
           </span>
           <div className="h-8 relative">
             <SparklineOrPlaceholder
               sparkline={revenueSparkline}
               strokeColor="#7C3AED"
               fillColor="#7C3AED"
-              isEmpty={noOrdersYet && !dashboardData?.visitors?.total_visitors}
+              isEmpty={!dashboardData?.visitors?.total_visitors}
             />
           </div>
         </div>
@@ -982,44 +997,127 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Most Viewed Products (4/12) */}
+        {/* Customer Product Clicks (4/12) */}
         <div className="lg:col-span-4 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[300px]">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-[#FF8A00]" />
-              <h2 className="text-sm font-bold text-[#152238]">Most Viewed (What They Saw)</h2>
+              <h2 className="text-sm font-bold text-[#152238]">Product Clicks (What They Saw)</h2>
             </div>
-            <Link to="/products" className="text-[11px] font-semibold text-[#0052FF] hover:underline">Products</Link>
+            {/* View Mode Switcher */}
+            <div className="flex items-center bg-[#F6F8FC] p-0.5 rounded-lg border border-[#E5EAF1]">
+              <button
+                type="button"
+                onClick={() => setClicksViewMode('top')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
+                  clicksViewMode === 'top' ? 'bg-white text-[#0052FF] shadow-xs' : 'text-[#667085] hover:text-[#152238]'
+                }`}
+              >
+                Top
+              </button>
+              <button
+                type="button"
+                onClick={() => setClicksViewMode('live')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+                  clicksViewMode === 'live' ? 'bg-white text-[#16A36A] shadow-xs' : 'text-[#667085] hover:text-[#152238]'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] animate-pulse" />
+                Live
+              </button>
+            </div>
           </div>
-          {dashboardData?.most_viewed_products && dashboardData.most_viewed_products.length > 0 ? (
-            <div className="flex flex-col gap-2.5 flex-1">
-              {dashboardData.most_viewed_products.slice(0, 5).map((prod, idx) => (
-                <div key={prod.id || idx} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-50">
-                  <span className="text-[10px] font-bold text-[#667085] w-4 shrink-0 text-center">{idx + 1}</span>
-                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
-                    {prod.image_url ? (
-                      <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package size={14} className="text-[#667085]" />
-                    )}
+
+          {clicksViewMode === 'top' ? (
+            dashboardData?.most_viewed_products && dashboardData.most_viewed_products.length > 0 ? (
+              <div className="flex flex-col gap-2 flex-1">
+                {dashboardData.most_viewed_products.slice(0, 5).map((prod, idx) => (
+                  <div
+                    key={prod.id || idx}
+                    onClick={() => setInspectingProduct(prod)}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-blue-50/60 border border-transparent hover:border-blue-100 transition-all cursor-pointer group"
+                    title="Click to see product details"
+                  >
+                    <span className="text-[10px] font-bold text-[#667085] w-4 shrink-0 text-center">{idx + 1}</span>
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
+                      {prod.image_url ? (
+                        <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package size={14} className="text-[#667085]" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-semibold text-[#152238] group-hover:text-[#0052FF] transition-colors truncate">{prod.name}</p>
+                      <p className="text-[10px] text-[#667085]">{config.symbol}{Number(prod.price || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="text-right shrink-0 flex items-center gap-2">
+                      <div>
+                        <p className="text-[11px] font-bold text-[#0052FF]">{prod.views} clicks</p>
+                        <p className="text-[9px] text-[#667085]">{prod.unique_viewers || prod.views} shoppers</p>
+                      </div>
+                      <span className="p-1 rounded-md bg-white border border-[#E5EAF1] text-[#667085] group-hover:text-[#0052FF] group-hover:border-blue-200 transition-all shadow-2xs">
+                        <Eye size={12} />
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-[#152238] truncate">{prod.name}</p>
-                    <p className="text-[10px] text-[#667085]">{config.symbol}{Number(prod.price || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[11px] font-bold text-[#0052FF]">{prod.views} views</p>
-                    <p className="text-[9px] text-[#667085]">{prod.unique_viewers || prod.views} unique</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
+                <Package size={24} className="mb-2 opacity-40" />
+                <p className="text-xs font-semibold text-[#152238]">No customer product clicks yet</p>
+                <p className="text-[10px] text-[#667085] mt-0.5 max-w-[200px]">Real customer clicks will appear here as visitors browse your catalog.</p>
+                <a
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-[#0052FF] hover:underline"
+                >
+                  <ExternalLink size={11} /> Open Storefront
+                </a>
+              </div>
+            )
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
-              <Package size={24} className="mb-2 opacity-40" />
-              <p className="text-xs font-semibold text-[#152238]">No product views recorded</p>
-              <p className="text-[10px] text-[#667085] mt-0.5">Customer views will appear here in real-time.</p>
-            </div>
+            dashboardData?.recent_clicks && dashboardData.recent_clicks.length > 0 ? (
+              <div className="flex flex-col gap-2 flex-1">
+                {dashboardData.recent_clicks.slice(0, 5).map((clk, idx) => (
+                  <div
+                    key={clk.id || idx}
+                    onClick={() => setInspectingProduct(clk)}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-emerald-50/60 border border-transparent hover:border-emerald-100 transition-all cursor-pointer group"
+                    title="Click to see product details"
+                  >
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
+                      {clk.image_url ? (
+                        <img src={clk.image_url} alt={clk.product_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package size={14} className="text-[#667085]" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-semibold text-[#152238] group-hover:text-[#16A36A] transition-colors truncate">{clk.product_name}</p>
+                      <p className="text-[10px] text-[#667085]">
+                        {clk.location ? `${clk.location} • ` : ''}{config.symbol}{Number(clk.price || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 flex items-center gap-2">
+                      <span className="text-[10px] font-semibold text-[#16A36A] bg-emerald-50 px-1.5 py-0.5 rounded">
+                        Clicked
+                      </span>
+                      <span className="p-1 rounded-md bg-white border border-[#E5EAF1] text-[#667085] group-hover:text-[#16A36A] group-hover:border-emerald-200 transition-all shadow-2xs">
+                        <Eye size={12} />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
+                <Radio size={24} className="mb-2 opacity-40 text-[#16A36A]" />
+                <p className="text-xs font-semibold text-[#152238]">No live product clicks yet</p>
+                <p className="text-[10px] text-[#667085] mt-0.5 max-w-[200px]">Live click stream updates automatically as shoppers tap on products.</p>
+              </div>
+            )
           )}
         </div>
 
@@ -1032,12 +1130,9 @@ export default function DashboardPage() {
             </div>
             <Link to="/orders" className="text-[11px] font-semibold text-[#0052FF] hover:underline">Orders</Link>
           </div>
-          {(dashboardData?.most_purchased_products && dashboardData.most_purchased_products.length > 0) || topProducts.length > 0 ? (
+          {dashboardData?.most_purchased_products && dashboardData.most_purchased_products.length > 0 ? (
             <div className="flex flex-col gap-2.5 flex-1">
-              {((dashboardData?.most_purchased_products && dashboardData.most_purchased_products.length > 0)
-                ? dashboardData.most_purchased_products
-                : topProducts.map(tp => ({ id: tp.id, name: tp.name, units_sold: tp.sold_count, orders_count: tp.sold_count, revenue: tp.sold_count * tp.price, image_url: tp.image_url }))
-              ).slice(0, 5).map((prod: any, idx: number) => (
+              {dashboardData.most_purchased_products.slice(0, 5).map((prod: any, idx: number) => (
                 <div key={prod.id || idx} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-50">
                   <span className="text-[10px] font-bold text-[#667085] w-4 shrink-0 text-center">{idx + 1}</span>
                   <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
@@ -1052,7 +1147,7 @@ export default function DashboardPage() {
                     <p className="text-[10px] text-[#667085]">{config.symbol}{Number(prod.revenue || 0).toLocaleString()} revenue</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-[11px] font-bold text-[#16A36A]">{prod.units_sold || prod.sold_count || 0} sold</p>
+                    <p className="text-[11px] font-bold text-[#16A36A]">{prod.units_sold || 0} sold</p>
                     <p className="text-[9px] text-[#667085]">{prod.orders_count || 1} orders</p>
                   </div>
                 </div>
@@ -1062,7 +1157,7 @@ export default function DashboardPage() {
             <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
               <ShoppingBag size={24} className="mb-2 opacity-40" />
               <p className="text-xs font-semibold text-[#152238]">No purchases yet</p>
-              <p className="text-[10px] text-[#667085] mt-0.5">Purchased items will appear ranked by units sold.</p>
+              <p className="text-[10px] text-[#667085] mt-0.5">Purchased items will appear ranked by units sold once orders are completed.</p>
             </div>
           )}
         </div>
@@ -1228,6 +1323,104 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Inspecting Clicked Product Modal */}
+      {inspectingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-[#E5EAF1] animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5EAF1] bg-[#F6F8FC]">
+              <div className="flex items-center gap-2">
+                <Eye size={16} className="text-[#0052FF]" />
+                <h3 className="text-sm font-bold text-[#152238]">Inspecting Clicked Product</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectingProduct(null)}
+                className="p-1 rounded-lg text-[#667085] hover:text-[#152238] hover:bg-[#E5EAF1]/60 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="flex gap-4 items-start">
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
+                  {inspectingProduct.image_url ? (
+                    <img
+                      src={inspectingProduct.image_url}
+                      alt={inspectingProduct.name || inspectingProduct.product_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package size={28} className="text-[#667085]" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-[#152238] leading-snug truncate">
+                    {inspectingProduct.name || inspectingProduct.product_name || 'Product'}
+                  </h4>
+                  <p className="text-sm font-black text-[#0052FF] mt-1">
+                    {config.symbol}{Number(inspectingProduct.price || 0).toLocaleString()}
+                  </p>
+                  {inspectingProduct.location && (
+                    <p className="text-[11px] text-[#667085] flex items-center gap-1 mt-1.5">
+                      <Globe size={11} className="text-[#0052FF]" />
+                      Customer from: <span className="font-semibold text-[#152238]">{inspectingProduct.location}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-2 gap-2 bg-[#F6F8FC] p-3 rounded-xl border border-[#E5EAF1]">
+                <div>
+                  <p className="text-[10px] font-bold text-[#667085] uppercase tracking-wider">Total Clicks</p>
+                  <p className="text-sm font-black text-[#152238]">
+                    {inspectingProduct.views ?? (inspectingProduct.action ? 1 : 0)} Clicks
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-[#667085] uppercase tracking-wider">Unique Shoppers</p>
+                  <p className="text-sm font-black text-[#152238]">
+                    {inspectingProduct.unique_viewers ?? 1} Shoppers
+                  </p>
+                </div>
+                {inspectingProduct.timestamp && (
+                  <div className="col-span-2 pt-2 border-t border-[#E5EAF1]/70">
+                    <p className="text-[10px] text-[#667085]">
+                      Last clicked: <span className="font-medium text-[#152238]">{new Date(inspectingProduct.timestamp).toLocaleString()}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 pt-2">
+                {storeUrl && (
+                  <a
+                    href={`${storeUrl}?product=${inspectingProduct.product_id || inspectingProduct.id || ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#0052FF] hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
+                  >
+                    <ExternalLink size={13} />
+                    See on Live Storefront
+                  </a>
+                )}
+                <Link
+                  to={`/products`}
+                  onClick={() => setInspectingProduct(null)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#F6F8FC] hover:bg-[#E5EAF1] text-[#152238] text-xs font-bold rounded-xl border border-[#E5EAF1] transition-colors cursor-pointer"
+                >
+                  Catalog
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

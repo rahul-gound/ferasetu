@@ -9,7 +9,7 @@ const router = Router();
 router.post('/events', (req: AuthenticatedRequest, res: Response): void => {
   try {
     const db = getDatabase();
-    const userId = req.user?.id || req.body.user_id || 'anonymous';
+    const userId = req.user?.id || req.body.user_id || req.body.organization_id || 'anonymous';
     const { event_type, event_data } = req.body;
 
     if (!event_type) {
@@ -18,7 +18,27 @@ router.post('/events', (req: AuthenticatedRequest, res: Response): void => {
     }
 
     const id = (req.body.id as string) || Math.random().toString(36).substring(2, 15);
-    const dataString = typeof event_data === 'object' ? JSON.stringify(event_data) : (event_data || '{}');
+    let parsedData: any = {};
+    if (typeof event_data === 'object' && event_data !== null) {
+      parsedData = { ...event_data };
+    } else if (typeof event_data === 'string') {
+      try { parsedData = JSON.parse(event_data); } catch {}
+    }
+
+    if (!parsedData.city && req.headers['cf-ipcity']) {
+      parsedData.city = req.headers['cf-ipcity'];
+    }
+    if (!parsedData.region && req.headers['cf-region']) {
+      parsedData.region = req.headers['cf-region'];
+    }
+    if (!parsedData.country && req.headers['cf-ipcountry']) {
+      parsedData.country = req.headers['cf-ipcountry'];
+    }
+    if (!parsedData.referrer && req.headers.referer) {
+      parsedData.referrer = req.headers.referer;
+    }
+
+    const dataString = JSON.stringify(parsedData);
 
     db.prepare(`
       INSERT INTO analytics_events (id, user_id, event_type, event_data, created_at)
@@ -36,71 +56,152 @@ router.use(authenticate);
 
 function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 days') {
   let totalVisitors = 0;
-  let uniqueVisitors = 0;
+  const uniqueSessions = new Set<string>();
   const geoCounts: Record<string, number> = {};
   const referrerCounts: Record<string, number> = {};
-  const viewedProductCounts: Record<string, number> = {};
+
+  const productClicksMap: Record<string, {
+    id: string;
+    name: string;
+    views: number;
+    unique_viewers: number;
+    sessions: Set<string>;
+    price: number;
+    image_url?: string;
+    last_clicked_at?: string;
+    location?: string;
+  }> = {};
+
+  const recentClicks: Array<{
+    id: string;
+    product_id: string;
+    product_name: string;
+    price: number;
+    image_url?: string;
+    clicked_at: string;
+    location?: string;
+  }> = [];
 
   try {
+    const userOrOrgIds = [userId];
+    try {
+      const org = db.prepare('SELECT organization_id FROM users WHERE id = ?').get(userId) as any;
+      if (org?.organization_id && !userOrOrgIds.includes(org.organization_id)) {
+        userOrOrgIds.push(org.organization_id);
+      }
+    } catch {}
+    try {
+      const shops = db.prepare('SELECT id, organization_id FROM shops WHERE organization_id = ? OR id = ?').all(userId, userId) as any[];
+      shops.forEach((s: any) => {
+        if (s.id && !userOrOrgIds.includes(s.id)) userOrOrgIds.push(s.id);
+        if (s.organization_id && !userOrOrgIds.includes(s.organization_id)) userOrOrgIds.push(s.organization_id);
+      });
+    } catch {}
+
+    const placeholders = userOrOrgIds.map(() => '?').join(',');
     const eventRows = db.prepare(`
-      SELECT event_type, event_data, created_at FROM analytics_events 
-      WHERE user_id = ? AND created_at >= datetime('now', ?)
-    `).all(userId, timeUnit) as any[];
+      SELECT id, event_type, event_data, created_at FROM analytics_events 
+      WHERE user_id IN (${placeholders}) AND created_at >= datetime('now', ?)
+      ORDER BY created_at DESC
+    `).all(...userOrOrgIds, timeUnit) as any[];
 
     eventRows.forEach((r: any) => {
       let data: any = {};
       try { data = typeof r.event_data === 'string' ? JSON.parse(r.event_data) : (r.event_data || {}); } catch {}
 
+      const city = data.city ? String(data.city).trim() : '';
+      const region = data.region ? String(data.region).trim() : '';
+      const country = data.country ? String(data.country).trim() : '';
+      let locationKey = '';
+      if (city && region) locationKey = `${city}, ${region}`;
+      else if (city && country) locationKey = `${city}, ${country}`;
+      else if (city) locationKey = city;
+      else if (region && country) locationKey = `${region}, ${country}`;
+      else if (country) locationKey = country;
+
       if (r.event_type === 'shop_visit' || r.event_type === 'page_view') {
         totalVisitors++;
-        const city = data.city || 'Mumbai';
-        const region = data.region || 'Maharashtra';
-        const key = `${city}, ${region}`;
-        geoCounts[key] = (geoCounts[key] || 0) + 1;
+        if (data.session_id) uniqueSessions.add(String(data.session_id));
 
-        const ref = data.referrer ? new URL(data.referrer, 'https://ferasetu.com').hostname.replace('www.', '') : 'Direct / Bookmark';
-        referrerCounts[ref] = (referrerCounts[ref] || 0) + 1;
+        if (locationKey) {
+          geoCounts[locationKey] = (geoCounts[locationKey] || 0) + 1;
+        }
+
+        if (data.referrer) {
+          try {
+            const hostname = new URL(data.referrer, 'https://ferasetu.com').hostname.replace(/^www\./, '');
+            referrerCounts[hostname] = (referrerCounts[hostname] || 0) + 1;
+          } catch {
+            referrerCounts['Direct / Link'] = (referrerCounts['Direct / Link'] || 0) + 1;
+          }
+        } else {
+          referrerCounts['Direct'] = (referrerCounts['Direct'] || 0) + 1;
+        }
       }
 
-      if (r.event_type === 'product_view' && data.product_name) {
-        viewedProductCounts[data.product_name] = (viewedProductCounts[data.product_name] || 0) + 1;
+      if ((r.event_type === 'product_view' || r.event_type === 'product_click') && data.product_name) {
+        const prodName = String(data.product_name).trim();
+        const prodId = data.product_id || data.id || prodName;
+        const price = Number(data.price) || 0;
+        const imageUrl = data.image_url || '';
+
+        if (!productClicksMap[prodName]) {
+          productClicksMap[prodName] = {
+            id: prodId,
+            name: prodName,
+            views: 0,
+            unique_viewers: 0,
+            sessions: new Set(),
+            price,
+            image_url: imageUrl,
+            last_clicked_at: r.created_at,
+            location: locationKey || undefined
+          };
+        }
+
+        productClicksMap[prodName].views += 1;
+        if (data.session_id) {
+          productClicksMap[prodName].sessions.add(String(data.session_id));
+        }
+        productClicksMap[prodName].unique_viewers = Math.max(1, productClicksMap[prodName].sessions.size);
+        if (!productClicksMap[prodName].last_clicked_at) {
+          productClicksMap[prodName].last_clicked_at = r.created_at;
+        }
+
+        if (recentClicks.length < 20) {
+          recentClicks.push({
+            id: r.id || `clk_${recentClicks.length}`,
+            product_id: prodId,
+            product_name: prodName,
+            price,
+            image_url: imageUrl,
+            clicked_at: r.created_at,
+            location: locationKey || undefined
+          });
+        }
       }
     });
   } catch (e) {
-    // ignore
+    console.warn("Analytics computation notice:", (e as any)?.message);
   }
 
-  const orderCountRow = db.prepare(`SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND status != 'cancelled'`).get(userId) as any;
-  const orderCount = orderCountRow?.cnt || 0;
-  const products = db.prepare(`SELECT id, name, price FROM products WHERE user_id = ? AND is_active = 1 LIMIT 10`).all(userId) as any[];
-
-  if (totalVisitors === 0) {
-    totalVisitors = Math.max(34, orderCount * 14 + 52);
-    uniqueVisitors = Math.round(totalVisitors * 0.78);
-    geoCounts['Mumbai, Maharashtra'] = Math.round(totalVisitors * 0.42);
-    geoCounts['Delhi, NCR'] = Math.round(totalVisitors * 0.26);
-    geoCounts['Bengaluru, Karnataka'] = Math.round(totalVisitors * 0.18);
-    geoCounts['Pune, Maharashtra'] = Math.max(1, totalVisitors - (geoCounts['Mumbai, Maharashtra'] + geoCounts['Delhi, NCR'] + geoCounts['Bengaluru, Karnataka']));
-    referrerCounts['WhatsApp'] = Math.round(totalVisitors * 0.45);
-    referrerCounts['Direct / Bookmark'] = Math.round(totalVisitors * 0.35);
-    referrerCounts['Instagram'] = Math.round(totalVisitors * 0.20);
-  } else {
-    uniqueVisitors = Math.round(totalVisitors * 0.76);
-  }
-
+  // Real geography only — no synthetic city fallback
   const geography = Object.entries(geoCounts).map(([loc, count]) => ({
     location: loc,
     count,
     percentage: Math.round((count / Math.max(1, totalVisitors)) * 100)
   })).sort((a, b) => b.count - a.count);
 
+  // Real referrers only
   const referrers = Object.entries(referrerCounts).map(([source, count]) => ({
     source,
+    referrer: source,
     count,
     percentage: Math.round((count / Math.max(1, totalVisitors)) * 100)
   })).sort((a, b) => b.count - a.count);
 
-  const itemPurchases: Record<string, { id: string; name: string; units_sold: number; revenue: number; orders_count: number; price: number }> = {};
+  // Real purchases aggregated from orders
+  const itemPurchases: Record<string, { id: string; name: string; units_sold: number; revenue: number; orders_count: number; price: number; image_url?: string }> = {};
   const orders = db.prepare(`SELECT items FROM orders WHERE user_id = ? AND status != 'cancelled'`).all(userId) as any[];
   orders.forEach((o: any) => {
     let items: any[] = [];
@@ -109,7 +210,7 @@ function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 
       const name = it?.name || it?.product_name || 'Item';
       const id = it?.productId || it?.product_id || it?.id || name;
       if (!itemPurchases[name]) {
-        itemPurchases[name] = { id, name, units_sold: 0, revenue: 0, orders_count: 0, price: Number(it?.price || it?.unit_price) || 0 };
+        itemPurchases[name] = { id, name, units_sold: 0, revenue: 0, orders_count: 0, price: Number(it?.price || it?.unit_price) || 0, image_url: it?.image_url || '' };
       }
       const qty = Number(it?.quantity || it?.qty) || 1;
       const total = Number(it?.total) || (qty * itemPurchases[name].price);
@@ -120,50 +221,31 @@ function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 
   });
 
   const mostPurchased = Object.values(itemPurchases).sort((a, b) => b.units_sold - a.units_sold);
-  if (mostPurchased.length === 0 && products.length > 0) {
-    products.slice(0, 5).forEach((p: any, idx: number) => {
-      const units = Math.max(2, 12 - idx * 2);
-      const price = Number(p.price) || 299;
-      mostPurchased.push({
-        id: p.id,
-        name: p.name,
-        units_sold: units,
-        revenue: units * price,
-        orders_count: Math.max(1, 8 - idx),
-        price
-      });
-    });
-  }
 
-  const mostViewed: Array<{ id?: string; name: string; views: number; unique_viewers: number; price?: number; image_url?: string }> = Object.entries(viewedProductCounts).map(([name, views]) => ({
-    name,
-    views,
-    unique_viewers: Math.round(views * 0.8)
+  // Real clicked/viewed products only
+  const mostViewed: Array<{ id?: string; name: string; views: number; unique_viewers: number; price?: number; image_url?: string; last_clicked_at?: string; location?: string }> = Object.values(productClicksMap).map(p => ({
+    id: p.id,
+    name: p.name,
+    views: p.views,
+    unique_viewers: p.unique_viewers,
+    price: p.price,
+    image_url: p.image_url,
+    last_clicked_at: p.last_clicked_at,
+    location: p.location
   })).sort((a, b) => b.views - a.views);
-
-  if (mostViewed.length === 0 && products.length > 0) {
-    products.slice(0, 5).forEach((p: any, idx: number) => {
-      mostViewed.push({
-        id: p.id,
-        name: p.name,
-        views: Math.max(15, 120 - idx * 22),
-        unique_viewers: Math.max(10, 88 - idx * 16),
-        price: Number(p.price) || 0,
-        image_url: p.image_url || ''
-      });
-    });
-  }
 
   return {
     visitors: {
       total_visitors: totalVisitors,
-      unique_visitors: uniqueVisitors,
-      change: 14.8,
+      unique_visitors: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
+      unique_sessions: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
+      change: 0,
       geography,
       referrers
     },
     most_viewed_products: mostViewed,
-    most_purchased_products: mostPurchased
+    most_purchased_products: mostPurchased,
+    recent_clicks: recentClicks
   };
 }
 
@@ -240,6 +322,7 @@ router.get('/dashboard', (req: AuthenticatedRequest, res: Response): void => {
       visitors: trafficInsights.visitors,
       most_viewed_products: trafficInsights.most_viewed_products,
       most_purchased_products: trafficInsights.most_purchased_products,
+      recent_clicks: trafficInsights.recent_clicks,
       top_products: trafficInsights.most_purchased_products.slice(0, 5),
       revenue_chart: revenueChart,
       recent_orders: recentOrders,
@@ -320,6 +403,7 @@ router.get('/sales', (req: AuthenticatedRequest, res: Response): void => {
       visitors: trafficInsights.visitors,
       most_viewed_products: trafficInsights.most_viewed_products,
       most_purchased_products: trafficInsights.most_purchased_products,
+      recent_clicks: trafficInsights.recent_clicks,
     });
   } catch (err: any) {
     console.error('Sales analytics error:', err);

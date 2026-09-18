@@ -73,6 +73,35 @@ export default function ShopPage() {
       .finally(() => setLoading(false));
   }, [shopName]);
 
+  // Track real visitor storefront footfall
+  useEffect(() => {
+    if (data?.shop) {
+      try {
+        let sid = '';
+        try {
+          sid = sessionStorage.getItem('fs_visitor_session') || '';
+          if (!sid) {
+            sid = 'sess_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+            sessionStorage.setItem('fs_visitor_session', sid);
+          }
+        } catch {}
+        const ownerId = (data.shop as any).user_id || (data.shop as any).organization_id || data.shop.id;
+        axios.post(`${API}/analytics/events`, {
+          event_type: 'shop_visit',
+          user_id: ownerId,
+          organization_id: (data.shop as any).organization_id || data.shop.id,
+          event_data: {
+            shop_id: data.shop.id,
+            shop_name: data.shop.name,
+            session_id: sid,
+            referrer: typeof document !== 'undefined' ? (document.referrer || 'direct') : 'direct',
+            path: typeof window !== 'undefined' ? window.location.pathname : '',
+          }
+        }).catch(() => {});
+      } catch {}
+    }
+  }, [data]);
+
   // Build structured data and SEO metadata from shop data
   const seoData = useMemo(() => {
     const hasProSite = Boolean(

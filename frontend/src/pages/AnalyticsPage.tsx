@@ -7,13 +7,15 @@ const OrdersBarChart = lazy(() => import('../components/analytics/AnalyticsChart
 const CategoryPieChart = lazy(() => import('../components/analytics/AnalyticsCharts').then(m => ({ default: m.CategoryPieChart })));
 import { 
   TrendingUp, Lock, Sparkles, ArrowUpRight, ArrowDownRight, 
-  ShoppingBag, DollarSign, Package, CheckCircle, Globe, Users, Eye
+  ShoppingBag, DollarSign, Package, CheckCircle, Globe, Users, Eye,
+  X, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
+import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 interface VisitorLocation {
   location: string;
@@ -123,6 +125,8 @@ export default function AnalyticsPage() {
   const { user } = useAuth();
   const { translate } = useLanguage();
   const [period, setPeriod] = useState('30d');
+  const [inspectingProduct, setInspectingProduct] = useState<any>(null);
+  const storeUrl = getStorefrontUrl(user);
 
   const { data, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', period],
@@ -196,7 +200,7 @@ export default function AnalyticsPage() {
           <>
             <StatCard label="Net Revenue" value={`₹${(summary?.total_revenue || 0).toLocaleString('en-IN')}`} change={summary?.revenue_change} sub="Processed earnings" icon={<DollarSign size={20} />} delay="0s" />
             <StatCard label="Total Orders" value={String(summary?.total_orders || 0)} change={summary?.orders_change} sub="Successful checkouts" icon={<ShoppingBag size={20} />} delay="0.1s" />
-            <StatCard label="Store Visitors" value={String(data?.visitors?.total_visitors || (summary?.total_orders ? summary.total_orders * 3 + 12 : 0))} sub={`${data?.visitors?.unique_sessions || summary?.total_orders || 0} unique sessions`} icon={<Globe size={20} />} delay="0.15s" />
+            <StatCard label="Store Visitors" value={String(data?.visitors?.total_visitors || 0)} sub={`${data?.visitors?.unique_sessions || 0} unique sessions`} icon={<Globe size={20} />} delay="0.15s" />
             <StatCard label="Avg. Order Value" value={`₹${(summary?.avg_order_value || 0).toLocaleString('en-IN')}`} sub="Revenue per customer" icon={<TrendingUp size={20} />} delay="0.2s" />
             <StatCard label="Low Stock" value={String(summary?.low_stock_count || 0)} sub="Products needing attention" icon={<Package size={20} />} delay="0.3s" />
           </>
@@ -364,15 +368,32 @@ export default function AnalyticsPage() {
                 <Eye size={14} /> Most Viewed
               </div>
               {data?.most_viewed_products && data.most_viewed_products.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {data.most_viewed_products.slice(0, 4).map((p, idx) => (
-                    <div key={p.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                      <span style={{ fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
-                        {p.name}
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#0052FF', flexShrink: 0 }}>
-                        {p.views} views
-                      </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {data.most_viewed_products.slice(0, 5).map((p, idx) => (
+                    <div
+                      key={p.id || idx}
+                      onClick={() => setInspectingProduct(p)}
+                      className="flex justify-between items-center text-xs p-2 rounded-lg hover:bg-white hover:shadow-xs transition-all cursor-pointer border border-transparent hover:border-blue-100 group"
+                      title="Click to inspect product and see on storefront"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-md overflow-hidden bg-white border border-[#E2E8F0] flex items-center justify-center shrink-0">
+                          {p.image_url ? (
+                            <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package size={12} className="text-[#64748B]" />
+                          )}
+                        </div>
+                        <span className="font-semibold text-[#1E293B] group-hover:text-[#0052FF] transition-colors truncate max-w-[120px]">
+                          {p.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className="font-bold text-[#0052FF]">
+                          {p.views} views
+                        </span>
+                        <Eye size={12} className="text-[#94A3B8] group-hover:text-[#0052FF]" />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -389,15 +410,32 @@ export default function AnalyticsPage() {
                 <ShoppingBag size={14} /> Most Purchased
               </div>
               {data?.most_purchased_products && data.most_purchased_products.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {data.most_purchased_products.slice(0, 4).map((p, idx) => (
-                    <div key={p.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                      <span style={{ fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
-                        {p.name}
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#10B981', flexShrink: 0 }}>
-                        {p.units_sold} sold
-                      </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {data.most_purchased_products.slice(0, 5).map((p, idx) => (
+                    <div
+                      key={p.id || idx}
+                      onClick={() => setInspectingProduct(p)}
+                      className="flex justify-between items-center text-xs p-2 rounded-lg hover:bg-white hover:shadow-xs transition-all cursor-pointer border border-transparent hover:border-emerald-100 group"
+                      title="Click to inspect product and see on storefront"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-md overflow-hidden bg-white border border-[#E2E8F0] flex items-center justify-center shrink-0">
+                          {p.image_url ? (
+                            <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package size={12} className="text-[#64748B]" />
+                          )}
+                        </div>
+                        <span className="font-semibold text-[#1E293B] group-hover:text-[#10B981] transition-colors truncate max-w-[120px]">
+                          {p.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className="font-bold text-[#10B981]">
+                          {p.units_sold} sold
+                        </span>
+                        <Eye size={12} className="text-[#94A3B8] group-hover:text-[#10B981]" />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -468,6 +506,113 @@ export default function AnalyticsPage() {
            </div>
         )}
       </div>
+
+      {/* Product Inspection Modal */}
+      {inspectingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-[#E2E8F0] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+              <div className="flex items-center gap-2">
+                <Eye size={16} className="text-[#0052FF]" />
+                <h3 className="text-sm font-bold text-[#1E293B]">Customer Product Insights</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectingProduct(null)}
+                className="p-1 rounded-lg text-[#64748B] hover:text-[#1E293B] hover:bg-[#E2E8F0] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="flex gap-4 items-start">
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shrink-0">
+                  {inspectingProduct.image_url ? (
+                    <img
+                      src={inspectingProduct.image_url}
+                      alt={inspectingProduct.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package size={28} className="text-[#64748B]" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-[#1E293B] leading-snug truncate">
+                    {inspectingProduct.name || 'Product'}
+                  </h4>
+                  {inspectingProduct.price !== undefined && (
+                    <p className="text-sm font-black text-[#0052FF] mt-1">
+                      ₹{Number(inspectingProduct.price || 0).toLocaleString('en-IN')}
+                    </p>
+                  )}
+                  {inspectingProduct.revenue !== undefined && (
+                    <p className="text-xs font-semibold text-[#10B981] mt-0.5">
+                      Total Revenue: ₹{Number(inspectingProduct.revenue || 0).toLocaleString('en-IN')}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
+                {inspectingProduct.views !== undefined ? (
+                  <>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Total Views / Clicks</p>
+                      <p className="text-sm font-black text-[#1E293B]">
+                        {inspectingProduct.views} Clicks
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Unique Shoppers</p>
+                      <p className="text-sm font-black text-[#1E293B]">
+                        {inspectingProduct.unique_viewers || inspectingProduct.views} Shoppers
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Units Sold</p>
+                      <p className="text-sm font-black text-[#10B981]">
+                        {inspectingProduct.units_sold} Units
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Orders Count</p>
+                      <p className="text-sm font-black text-[#1E293B]">
+                        {inspectingProduct.orders_count || 1} Orders
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                {storeUrl && (
+                  <a
+                    href={`${storeUrl}?product=${inspectingProduct.id || ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#0052FF] hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                  >
+                    <ExternalLink size={13} />
+                    See on Live Storefront
+                  </a>
+                )}
+                <Link
+                  to="/products"
+                  onClick={() => setInspectingProduct(null)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#F8FAFC] hover:bg-[#E2E8F0] text-[#1E293B] text-xs font-bold rounded-xl border border-[#E2E8F0] transition-colors cursor-pointer"
+                >
+                  Catalog
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }

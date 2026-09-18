@@ -2101,75 +2101,120 @@ async function getAnalyticsDashboard(request, env) {
 
   // 1. Visitor traffic & geography aggregation
   let totalVisitors = 0;
-  let uniqueVisitors = 0;
+  const uniqueSessions = new Set();
   const geoCounts = {};
   const referrerCounts = {};
-  const viewedProductCounts = {};
+  const productClicksMap = {};
+  const recentClicks = [];
 
   try {
     const eventRows = await env.DB.prepare(
-      "SELECT event_type, event_data, created_at FROM analytics_events WHERE (organization_id = ? OR user_id = ?) AND created_at >= datetime('now', '-30 days')"
+      "SELECT id, event_type, event_data, created_at FROM analytics_events WHERE (organization_id = ? OR user_id = ?) AND created_at >= datetime('now', '-30 days') ORDER BY created_at DESC"
     ).bind(ctx.organizationId, ctx.user?.$id || '').all();
 
     (eventRows.results || []).forEach(r => {
       let data = {};
       try { data = typeof r.event_data === 'string' ? JSON.parse(r.event_data) : (r.event_data || {}); } catch {}
 
+      const city = data.city ? String(data.city).trim() : '';
+      const region = data.region ? String(data.region).trim() : '';
+      const country = data.country ? String(data.country).trim() : '';
+      let locationKey = '';
+      if (city && region) locationKey = `${city}, ${region}`;
+      else if (city && country) locationKey = `${city}, ${country}`;
+      else if (city) locationKey = city;
+      else if (region && country) locationKey = `${region}, ${country}`;
+      else if (country) locationKey = country;
+
       if (r.event_type === 'shop_visit' || r.event_type === 'page_view') {
         totalVisitors++;
-        const city = data.city || 'Mumbai';
-        const region = data.region || 'Maharashtra';
-        const key = `${city}, ${region}`;
-        geoCounts[key] = (geoCounts[key] || 0) + 1;
+        if (data.session_id) uniqueSessions.add(String(data.session_id));
 
-        const ref = data.referrer ? new URL(data.referrer, 'https://ferasetu.com').hostname.replace('www.', '') : 'Direct / Bookmark';
-        referrerCounts[ref] = (referrerCounts[ref] || 0) + 1;
+        if (locationKey) {
+          geoCounts[locationKey] = (geoCounts[locationKey] || 0) + 1;
+        }
+
+        if (data.referrer) {
+          try {
+            const hostname = new URL(data.referrer, 'https://ferasetu.com').hostname.replace(/^www\./, '');
+            referrerCounts[hostname] = (referrerCounts[hostname] || 0) + 1;
+          } catch {
+            referrerCounts['Direct / Link'] = (referrerCounts['Direct / Link'] || 0) + 1;
+          }
+        } else {
+          referrerCounts['Direct'] = (referrerCounts['Direct'] || 0) + 1;
+        }
       }
 
-      if (r.event_type === 'product_view' && data.product_name) {
-        viewedProductCounts[data.product_name] = (viewedProductCounts[data.product_name] || 0) + 1;
+      if ((r.event_type === 'product_view' || r.event_type === 'product_click') && data.product_name) {
+        const prodName = String(data.product_name).trim();
+        const prodId = data.product_id || data.id || prodName;
+        const price = Number(data.price) || 0;
+        const imageUrl = data.image_url || '';
+
+        if (!productClicksMap[prodName]) {
+          productClicksMap[prodName] = {
+            id: prodId,
+            name: prodName,
+            views: 0,
+            unique_viewers: 0,
+            sessions: new Set(),
+            price,
+            image_url: imageUrl,
+            last_clicked_at: r.created_at,
+            location: locationKey || undefined
+          };
+        }
+
+        productClicksMap[prodName].views += 1;
+        if (data.session_id) {
+          productClicksMap[prodName].sessions.add(String(data.session_id));
+        }
+        productClicksMap[prodName].unique_viewers = Math.max(1, productClicksMap[prodName].sessions.size);
+        if (!productClicksMap[prodName].last_clicked_at) {
+          productClicksMap[prodName].last_clicked_at = r.created_at;
+        }
+
+        if (recentClicks.length < 20) {
+          recentClicks.push({
+            id: r.id || `clk_${recentClicks.length}`,
+            product_id: prodId,
+            product_name: prodName,
+            price,
+            image_url: imageUrl,
+            clicked_at: r.created_at,
+            location: locationKey || undefined
+          });
+        }
       }
     });
   } catch (e) {
     console.warn("Analytics events query notice:", e?.message);
   }
 
-  // If no store traffic events yet, calculate realistic store baseline based on orders & catalog
-  if (totalVisitors === 0) {
-    const orderCount = orders.length;
-    totalVisitors = Math.max(34, orderCount * 14 + 52);
-    uniqueVisitors = Math.round(totalVisitors * 0.78);
-    geoCounts['Mumbai, Maharashtra'] = Math.round(totalVisitors * 0.42);
-    geoCounts['Delhi, NCR'] = Math.round(totalVisitors * 0.26);
-    geoCounts['Bengaluru, Karnataka'] = Math.round(totalVisitors * 0.18);
-    geoCounts['Pune, Maharashtra'] = Math.max(1, totalVisitors - (geoCounts['Mumbai, Maharashtra'] + geoCounts['Delhi, NCR'] + geoCounts['Bengaluru, Karnataka']));
-    referrerCounts['WhatsApp'] = Math.round(totalVisitors * 0.45);
-    referrerCounts['Direct / Bookmark'] = Math.round(totalVisitors * 0.35);
-    referrerCounts['Instagram'] = Math.round(totalVisitors * 0.20);
-  } else {
-    uniqueVisitors = Math.round(totalVisitors * 0.76);
-  }
-
+  // Real geography only — no synthetic city fallback
   const geography = Object.entries(geoCounts).map(([loc, count]) => ({
     location: loc,
     count,
     percentage: Math.round((count / Math.max(1, totalVisitors)) * 100)
   })).sort((a, b) => b.count - a.count);
 
+  // Real referrers only
   const referrers = Object.entries(referrerCounts).map(([source, count]) => ({
     source,
+    referrer: source,
     count,
     percentage: Math.round((count / Math.max(1, totalVisitors)) * 100)
   })).sort((a, b) => b.count - a.count);
 
-  // Top purchased products aggregation from orders
+  // Real purchases aggregated from orders
   const itemPurchases = {};
   orders.filter(o => o.status !== 'cancelled').forEach(o => {
     (o.items || []).forEach(it => {
       const name = it?.name || it?.product_name || 'Item';
       const id = it?.productId || it?.product_id || it?.id || name;
       if (!itemPurchases[name]) {
-        itemPurchases[name] = { id, name, units_sold: 0, revenue: 0, orders_count: 0, price: Number(it?.price || it?.unit_price) || 0 };
+        itemPurchases[name] = { id, name, units_sold: 0, revenue: 0, orders_count: 0, price: Number(it?.price || it?.unit_price) || 0, image_url: it?.image_url || '' };
       }
       const qty = Number(it?.quantity || it?.qty) || 1;
       const total = Number(it?.total) || (qty * itemPurchases[name].price);
@@ -2180,38 +2225,18 @@ async function getAnalyticsDashboard(request, env) {
   });
 
   const mostPurchased = Object.values(itemPurchases).sort((a, b) => b.units_sold - a.units_sold);
-  if (mostPurchased.length === 0 && products.length > 0) {
-    products.slice(0, 5).forEach((p, idx) => {
-      const units = Math.max(2, 12 - idx * 2);
-      const price = Number(p.price) || 299;
-      mostPurchased.push({
-        id: p.id,
-        name: p.name,
-        units_sold: units,
-        revenue: units * price,
-        orders_count: Math.max(1, 8 - idx),
-        price
-      });
-    });
-  }
 
-  // Top viewed products aggregation
-  const mostViewed = Object.entries(viewedProductCounts).map(([name, views]) => ({
-    name,
-    views,
-    unique_viewers: Math.round(views * 0.8)
+  // Real clicked/viewed products only
+  const mostViewed = Object.values(productClicksMap).map(p => ({
+    id: p.id,
+    name: p.name,
+    views: p.views,
+    unique_viewers: p.unique_viewers,
+    price: p.price,
+    image_url: p.image_url,
+    last_clicked_at: p.last_clicked_at,
+    location: p.location
   })).sort((a, b) => b.views - a.views);
-
-  if (mostViewed.length === 0 && products.length > 0) {
-    products.slice(0, 5).forEach((p, idx) => {
-      mostViewed.push({
-        id: p.id,
-        name: p.name,
-        views: Math.max(15, 120 - idx * 22),
-        unique_viewers: Math.max(10, 88 - idx * 16)
-      });
-    });
-  }
 
   return json({
     stats: {
@@ -2219,25 +2244,27 @@ async function getAnalyticsDashboard(request, env) {
       total_orders: totalOrders,
       total_customers: totalCustomers,
       total_visitors: totalVisitors,
-      unique_visitors: uniqueVisitors,
+      unique_visitors: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
       conversion_rate: conversionRate,
       pending_orders: pendingOrders,
       low_stock_count: lowStockCount,
       revenue_change: 0,
       orders_change: 0,
       customers_change: 0,
-      visitors_change: 14.8,
+      visitors_change: 0,
       conversion_change: 0
     },
     visitors: {
       total_visitors: totalVisitors,
-      unique_visitors: uniqueVisitors,
-      change: 14.8,
+      unique_visitors: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
+      unique_sessions: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
+      change: 0,
       geography,
       referrers
     },
     most_viewed_products: mostViewed,
     most_purchased_products: mostPurchased,
+    recent_clicks: recentClicks,
     revenue_chart: revenueChart,
     recent_orders: orders.slice(0, 5).map(o => ({
       id: o.id,
