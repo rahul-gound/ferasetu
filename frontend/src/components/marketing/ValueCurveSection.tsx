@@ -13,16 +13,16 @@ export default function ValueCurveSection() {
     <section
       id='value-curve'
       aria-labelledby='value-curve-title'
-      className='border-t border-slate-200 bg-white py-20 md:py-24'
+      className='border-t border-slate-100 bg-white py-20 md:py-24'
     >
       <div className='mx-auto max-w-[1200px] px-6'>
         <div className='mx-auto mb-14 max-w-2xl text-center'>
-          <p className='mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700'>
-            The FeraSetu value curve
+          <p className='mb-4 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-orange-700'>
+            ✦ The FeraSetu value curve
           </p>
           <h2
             id='value-curve-title'
-            className='mb-4 text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl'
+            className='mb-4 text-3xl font-extrabold tracking-tight text-blue-950 md:text-4xl'
           >
             A simpler path from offline shop to online business
           </h2>
@@ -37,20 +37,20 @@ export default function ValueCurveSection() {
               key={side.title}
               className={
                 side.title.includes('After')
-                  ? 'rounded-2xl border border-blue-200 bg-blue-50/60 p-7'
+                  ? 'rounded-2xl border border-orange-200 bg-gradient-to-br from-blue-50/60 to-orange-50/40 p-7'
                   : 'rounded-2xl border border-slate-200 bg-slate-50 p-7'
               }
             >
               <div className='mb-5 flex items-center justify-between gap-3'>
                 <div>
-                  <h3 className='text-lg font-bold text-slate-900'>{side.title}</h3>
+                  <h3 className='text-lg font-bold text-blue-950'>{side.title}</h3>
                   <p className='text-sm text-slate-600'>{side.subtitle}</p>
                 </div>
                 <span
                   className={
                     side.title.includes('After')
-                      ? 'flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white'
-                      : 'flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-500'
+                      ? 'flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-md shadow-orange-400/30'
+                      : 'flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-400 border border-slate-200'
                   }
                   aria-hidden='true'
                 >
@@ -83,11 +83,11 @@ export default function ValueCurveSection() {
             <table className='w-full border-collapse bg-white text-left text-sm'>
               <caption className='sr-only'>Qualitative value curve comparison</caption>
               <thead>
-                <tr className='border-b border-slate-200 bg-slate-50'>
-                  <th scope='col' className='px-5 py-4 font-bold text-slate-900'>
+                <tr className='border-b border-slate-200 bg-blue-50/60'>
+                  <th scope='col' className='px-5 py-4 font-bold text-blue-950'>
                     What matters to merchants
                   </th>
-                  <th scope='col' className='px-5 py-4 font-bold text-slate-900'>
+                  <th scope='col' className='px-5 py-4 font-bold text-slate-600'>
                     Traditional setup
                   </th>
                   <th scope='col' className='px-5 py-4 font-bold text-blue-700'>
@@ -97,8 +97,8 @@ export default function ValueCurveSection() {
               </thead>
               <tbody>
                 {VALUE_CURVE_FACTORS.map((row) => (
-                  <tr key={row.factor} className='border-b border-slate-100 last:border-0'>
-                    <th scope='row' className='px-5 py-4 font-semibold text-slate-900'>
+                  <tr key={row.factor} className='border-b border-slate-100 last:border-0 hover:bg-blue-50/30 transition-colors'>
+                    <th scope='row' className='px-5 py-4 font-semibold text-blue-950'>
                       {row.factor}
                     </th>
                     <td className='px-5 py-4 text-slate-600'>{row.traditional}</td>
@@ -111,12 +111,16 @@ export default function ValueCurveSection() {
 
           <div className='grid gap-4'>
             {FOUR_ACTIONS.map((item) => (
-              <article key={item.action} className='rounded-2xl border border-slate-200 bg-white p-5 shadow-sm'>
+              <article key={item.action} className='rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all'>
                 <div className='mb-2 flex items-center gap-3'>
-                  <span className='flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600'>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                    item.action === 'Create' || item.action === 'Raise'
+                      ? 'bg-orange-50 text-orange-500'
+                      : 'bg-blue-50 text-blue-600'
+                  }`}>
                     {ACTION_ICONS[item.action]}
                   </span>
-                  <h3 className='text-sm font-bold uppercase tracking-wide text-slate-900'>{item.action}</h3>
+                  <h3 className='text-sm font-bold uppercase tracking-wide text-blue-950'>{item.action}</h3>
                 </div>
                 <p className='text-sm leading-relaxed text-slate-600'>{item.description}</p>
               </article>

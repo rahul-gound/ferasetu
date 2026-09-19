@@ -3,6 +3,11 @@
  *
  * Answers real shopkeeper objections with factual answers.
  * No invented claims. No marketing fluff.
+ *
+ * Psychology:
+ * - Objection handling (removes buying barriers)
+ * - Transparency builds trust
+ * - Open state uses blue-50 background for positive association
  */
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -64,7 +69,7 @@ interface FAQSectionProps {
 
 export default function FAQSection({
   faqs = LANDING_FAQS,
-  title = 'Questions shopkeepers ask',
+  title = 'Questions merchants ask',
   subtitle = "Honest answers. No marketing language.",
   dark = false,
 }: FAQSectionProps) {
@@ -74,22 +79,22 @@ export default function FAQSection({
 
   return (
     <section
-      className={`py-20 md:py-24 ${dark ? 'bg-slate-900' : 'bg-slate-50 border-t border-slate-200/60'}`}
+      className={`py-20 md:py-24 ${dark ? 'bg-blue-950' : 'bg-blue-50/40 border-t border-blue-100/60'}`}
       aria-label="Frequently asked questions"
     >
       <div className="max-w-[800px] mx-auto px-6">
         <div className="text-center mb-12">
           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 ${
             dark
-              ? 'bg-blue-900/60 border border-blue-700 text-blue-300'
-              : 'bg-blue-50 border border-blue-100 text-blue-700'
+              ? 'bg-blue-800/60 border border-blue-700 text-blue-300'
+              : 'bg-blue-50 border border-blue-200 text-blue-700'
           }`}>
-            FAQ
+            💬 FAQ
           </div>
-          <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight mb-3 ${dark ? 'text-white' : 'text-slate-900'}`}>
+          <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight mb-3 ${dark ? 'text-white' : 'text-blue-950'}`}>
             {title}
           </h2>
-          <p className={`text-base leading-relaxed ${dark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <p className={`text-base leading-relaxed ${dark ? 'text-blue-300' : 'text-slate-600'}`}>
             {subtitle}
           </p>
         </div>
@@ -102,8 +107,8 @@ export default function FAQSection({
                 key={i}
                 className={`rounded-2xl border transition-all duration-200 ${
                   dark
-                    ? isOpen ? 'border-blue-700 bg-slate-800' : 'border-slate-700 bg-slate-800/60'
-                    : isOpen ? 'border-blue-200 bg-white shadow-sm' : 'border-slate-200 bg-white'
+                    ? isOpen ? 'border-blue-600 bg-blue-900/60' : 'border-blue-800 bg-blue-900/40'
+                    : isOpen ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200'
                 }`}
                 role="listitem"
               >
@@ -111,21 +116,21 @@ export default function FAQSection({
                   onClick={() => toggle(i)}
                   aria-expanded={isOpen}
                   className={`w-full text-left px-6 py-5 flex items-start justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-2xl ${
-                    dark ? 'text-white' : 'text-slate-900'
+                    dark ? 'text-white' : 'text-blue-950'
                   }`}
                 >
                   <span className="font-bold text-base leading-snug">{faq.question}</span>
                   <ChevronDown
                     size={18}
                     className={`flex-shrink-0 mt-0.5 transition-transform duration-200 ${
-                      isOpen ? 'rotate-180' : ''
-                    } ${dark ? 'text-slate-400' : 'text-slate-400'}`}
+                      isOpen ? 'rotate-180 text-orange-500' : 'text-slate-400'
+                    }`}
                     aria-hidden="true"
                   />
                 </button>
 
                 {isOpen && (
-                  <div className={`px-6 pb-5 text-sm leading-relaxed font-medium ${dark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <div className={`px-6 pb-5 text-sm leading-relaxed font-medium ${dark ? 'text-blue-200' : 'text-slate-600'}`}>
                     {faq.answer}
                   </div>
                 )}

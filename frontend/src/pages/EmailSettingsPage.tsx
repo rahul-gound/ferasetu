@@ -1,637 +1,883 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
-  Mail, Shield, KeyRound, Send, Save, Eye, EyeOff,
-  CheckCircle2, AlertTriangle, Settings2, Loader2, ChevronDown,
-  Clock, Hash,
+  Mail, ShieldCheck, Server, Globe, CheckCircle2, AlertTriangle,
+  Copy, Check, RefreshCw, Trash2, Plus, Send, Eye, EyeOff,
+  ChevronRight, Info, Lock, ArrowRight
 } from 'lucide-react';
 import api from '../services/api';
 
-interface SmtpSettings {
-  provider: string;
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  sender_name: string;
-  sender_email: string;
-  reply_to_email: string;
-  ssl_enabled: boolean;
-  tls_enabled: boolean;
-  otp_enabled: boolean;
-  otp_length: number;
-  otp_expiry_minutes: number;
-  otp_resend_cooldown: number;
-  otp_max_attempts: number;
-  otp_subject: string;
-  otp_body_template: string;
-  is_active: boolean;
-  has_password: boolean;
-}
-
-interface SmtpDefaults {
-  host: string;
-  port: number;
-  ssl: boolean;
-  tls: boolean;
-}
-
-const PROVIDERS = [
-  { id: 'gmail', name: 'Gmail', desc: 'smtp.gmail.com' },
-  { id: 'sendgrid', name: 'SendGrid', desc: 'smtp.sendgrid.net' },
-  { id: 'mailgun', name: 'Mailgun', desc: 'smtp.mailgun.org' },
-  { id: 'ses', name: 'Amazon SES', desc: 'email-smtp.us-east-1.amazonaws.com' },
-  { id: 'custom', name: 'Custom SMTP', desc: 'Any SMTP server' },
-];
-
-const DEFAULT_TEMPLATE = `Hello {{name}},
-
-Your verification code is:
-
-{{otp}}
-
-This code expires in {{expiry}} minutes.
-
-If you didn't create an account, ignore this email.
-
-— Team FeraSetu`;
-
-function SectionCard({ icon, title, subtitle, children }: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-7 mb-5">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
-          {icon}
-        </div>
-        <div>
-          <h3 className="text-lg font-extrabold text-slate-900 tracking-tight m-0">{title}</h3>
-          {subtitle && <p className="text-sm text-slate-500 mt-0.5 mb-0">{subtitle}</p>}
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
-  return (
-    <label className="block text-sm font-semibold text-slate-900 mb-1.5">
-      {children} {required && <span className="text-red-500">*</span>}
-    </label>
-  );
-}
-
-function TextInput({ value, onChange, placeholder, type = 'text', disabled, className = '' }: {
+interface DnsRecord {
+  type: string;
+  name: string;
   value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-  disabled?: boolean;
-  className?: string;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={`
-        w-full px-3.5 py-2.5 text-sm font-medium rounded-xl border transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50
-        ${disabled 
-          ? 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed' 
-          : 'bg-white border-slate-200 text-slate-900'}
-        ${className}
-      `}
-    />
-  );
+  purpose: string;
+  required: boolean;
 }
 
-function SelectInput({ value, onChange, options, className = '' }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: Array<{ value: string; label: string }>;
-  className?: string;
-}) {
-  return (
-    <div className={`relative ${className}`}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className={`
-          w-full pr-10 py-2.5 px-3.5 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900
-          focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50
-          appearance-none cursor-pointer
-        `}
-      >
-        {options.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-      <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-    </div>
-  );
+interface DomainData {
+  id: string;
+  domain: string;
+  domain_type: 'PLATFORM' | 'FERASETU_MERCHANT' | 'CUSTOM';
+  verification_status: 'PENDING' | 'VERIFYING' | 'VERIFIED' | 'FAILED' | 'SUSPENDED';
+  dkim_status: string;
+  spf_status: string;
+  dmarc_status: string;
+  mail_from_status: string;
+  created_at: string;
 }
 
-function Toggle({ checked, onChange, label, description }: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-3">
-      <div>
-        <div className="text-sm font-semibold text-slate-900">{label}</div>
-        {description && <div className="text-xs text-slate-500 mt-0.5">{description}</div>}
-      </div>
-      <button
-        onClick={() => onChange(!checked)}
-        className={`
-          w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 relative
-          ${checked ? 'bg-primary' : 'bg-slate-200'}
-        `}
-        aria-pressed={checked}
-      >
-        <div className={`
-          w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200
-          ${checked ? 'translate-x-6' : 'translate-x-0'}
-        `} />
-      </button>
-    </div>
-  );
-}
-
-function PasswordInput({ value, onChange, placeholder, showPassword, onToggleShow, hasPassword }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  showPassword: boolean;
-  onToggleShow: () => void;
-  hasPassword: boolean;
-}) {
-  return (
-    <div className="relative">
-      <TextInput
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder || (hasPassword && !value ? '••••••••••••' : 'Enter password')}
-        type={showPassword ? 'text' : 'password'}
-      />
-      <button
-        onClick={onToggleShow}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 transition-colors p-1"
-        type="button"
-      >
-        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-      </button>
-    </div>
-  );
+interface EmailSettingsResponse {
+  activeProvider: 'FERASETU' | 'EXTERNAL_SMTP';
+  defaultIdentity: {
+    id: string;
+    email_address: string;
+    display_name: string;
+    is_default: number;
+  } | null;
+  ferasetuDomain: DomainData | null;
+  customDomain: DomainData | null;
+  externalConnection: {
+    smtp_host: string;
+    smtp_port: number;
+    smtp_username: string;
+    security_mode: string;
+    status: string;
+    has_password: boolean;
+  } | null;
+  quota: {
+    dailyLimit: number;
+    sentToday: number;
+    remainingDaily: number;
+    extraBalance: number;
+  };
 }
 
 export default function EmailSettingsPage() {
   const queryClient = useQueryClient();
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [customDomainInput, setCustomDomainInput] = useState('');
+  const [activeDnsInstructions, setActiveDnsInstructions] = useState<DnsRecord[]>([]);
+  const [activeDomainObj, setActiveDomainObj] = useState<DomainData | null>(null);
+  
+  // Test email state
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testEmailRecipient, setTestEmailRecipient] = useState('');
+
+  // External SMTP state
   const [showPassword, setShowPassword] = useState(false);
-  const [testEmail, setTestEmail] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  const [form, setForm] = useState<SmtpSettings>({
-    provider: 'custom',
-    host: '',
-    port: 587,
-    username: '',
-    password: '',
-    sender_name: '',
-    sender_email: '',
-    reply_to_email: '',
-    ssl_enabled: false,
-    tls_enabled: true,
-    otp_enabled: true,
-    otp_length: 6,
-    otp_expiry_minutes: 10,
-    otp_resend_cooldown: 60,
-    otp_max_attempts: 5,
-    otp_subject: 'Verify your email • FeraSetu',
-    otp_body_template: '',
-    is_active: false,
-    has_password: false,
+  const [externalForm, setExternalForm] = useState({
+    smtp_host: '',
+    smtp_port: 587,
+    smtp_username: '',
+    smtp_password: '',
+    security_mode: 'STARTTLS'
   });
 
-  const { data: settingsData, isLoading } = useQuery({
-    queryKey: ['smtp-settings'],
+  // 1. Fetch Email Settings
+  const { data: settingsData, isLoading } = useQuery<EmailSettingsResponse>({
+    queryKey: ['email-settings'],
     queryFn: async () => {
-      const res = await api.get('/settings/smtp');
+      const res = await api.get('/email/settings');
       return res.data;
-    },
-  });
-
-  useEffect(() => {
-    if (settingsData?.settings) {
-      const s = settingsData.settings;
-      setForm({
-        provider: s.provider || 'custom',
-        host: s.host || '',
-        port: s.port || 587,
-        username: s.username || '',
-        password: '',
-        sender_name: s.sender_name || '',
-        sender_email: s.sender_email || '',
-        reply_to_email: s.reply_to_email || '',
-        ssl_enabled: s.ssl_enabled || false,
-        tls_enabled: s.tls_enabled !== undefined ? s.tls_enabled : true,
-        otp_enabled: s.otp_enabled !== undefined ? s.otp_enabled : true,
-        otp_length: s.otp_length || 6,
-        otp_expiry_minutes: s.otp_expiry_minutes || 10,
-        otp_resend_cooldown: s.otp_resend_cooldown || 60,
-        otp_max_attempts: s.otp_max_attempts || 5,
-        otp_subject: s.otp_subject || 'Verify your email • FeraSetu',
-        otp_body_template: s.otp_body_template || '',
-        is_active: s.is_active || false,
-        has_password: s.has_password || false,
-      });
     }
-  }, [settingsData]);
-
-  const updateField = useCallback(<K extends keyof SmtpSettings>(key: K, value: SmtpSettings[K]) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-    setHasUnsavedChanges(true);
-  }, []);
-
-  const handleProviderChange = useCallback((provider: string) => {
-    const defaults = settingsData?.defaults || { host: '', port: 587, ssl: false, tls: true };
-    setForm(prev => ({
-      ...prev,
-      provider,
-      host: defaults.host || prev.host,
-      port: defaults.port || prev.port,
-      ssl_enabled: defaults.ssl,
-      tls_enabled: defaults.tls,
-    }));
-    setHasUnsavedChanges(true);
-  }, [settingsData]);
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload: Record<string, any> = { ...form };
-      if (!payload.password) delete payload.password;
-      const res = await api.put('/settings/smtp', payload);
-      return res.data;
-    },
-    onSuccess: (data) => {
-      toast.success('SMTP settings saved successfully');
-      setHasUnsavedChanges(false);
-      queryClient.invalidateQueries({ queryKey: ['smtp-settings'] });
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.error || err?.message || 'Failed to save settings');
-    },
   });
 
-  const testMutation = useMutation({
-    mutationFn: async () => {
-      const res = await api.post('/settings/smtp/test', { email: testEmail });
+  // 2. Fetch Recent Email Events
+  const { data: eventsData } = useQuery({
+    queryKey: ['email-events'],
+    queryFn: async () => {
+      const res = await api.get('/email/events');
       return res.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || 'Test email sent successfully');
-      setTestEmail('');
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.error || err?.message || 'Failed to send test email');
-    },
+    }
   });
 
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
+  // Provider switch mutation
+  const switchProviderMutation = useMutation({
+    mutationFn: async (provider: 'FERASETU' | 'EXTERNAL_SMTP') => {
+      if (provider === 'FERASETU') {
+        return (await api.post('/email/provider/ferasetu')).data;
       }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [hasUnsavedChanges]);
+      return null;
+    },
+    onSuccess: () => {
+      toast.success('Email provider updated');
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to switch provider');
+    }
+  });
+
+  // Connect custom domain mutation
+  const connectDomainMutation = useMutation({
+    mutationFn: async (domain: string) => {
+      const res = await api.post('/email/domains', { domain });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Custom domain registered. Please configure DNS records.');
+      setActiveDomainObj(data.domain);
+      setActiveDnsInstructions(data.dnsInstructions || []);
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to register domain');
+    }
+  });
+
+  // Verify DNS records mutation
+  const verifyDomainMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      const res = await api.post(`/email/domains/${domainId}/verify`);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      if (data.domain?.verification_status === 'VERIFIED') {
+        toast.success('Domain verified successfully!');
+      } else {
+        toast.error('DNS propagation still pending. Please check again in a few minutes.');
+      }
+      setActiveDomainObj(data.domain);
+      if (data.dnsInstructions) {
+        setActiveDnsInstructions(data.dnsInstructions);
+      }
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Verification check failed');
+    }
+  });
+
+  // Delete custom domain mutation
+  const deleteDomainMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      const res = await api.delete(`/email/domains/${domainId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Custom domain removed');
+      setShowConnectModal(false);
+      setActiveDomainObj(null);
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete domain');
+    }
+  });
+
+  // Save external SMTP mutation
+  const saveExternalSmtpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/email/provider/external', externalForm);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('External SMTP connected and activated');
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to connect SMTP');
+    }
+  });
+
+  // Test email mutation
+  const sendTestEmailMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/email/test', { to: testEmailRecipient });
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success(`Test email sent to ${testEmailRecipient}`);
+      setShowTestModal(false);
+      setTestEmailRecipient('');
+      queryClient.invalidateQueries({ queryKey: ['email-events'] });
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to send test email');
+    }
+  });
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success('Copied to clipboard');
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleOpenDomainModal = async (domainObj?: DomainData | null) => {
+    if (domainObj) {
+      setActiveDomainObj(domainObj);
+      try {
+        const res = await api.get(`/email/domains/${domainObj.id}`);
+        setActiveDnsInstructions(res.data?.dnsInstructions || []);
+      } catch {
+        setActiveDnsInstructions([]);
+      }
+    } else {
+      setActiveDomainObj(null);
+      setActiveDnsInstructions([]);
+      setCustomDomainInput('');
+    }
+    setShowConnectModal(true);
+  };
 
   if (isLoading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-5">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="animate-pulse bg-white border border-slate-200 rounded-2xl p-7 h-44 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.4s_infinite]" />
-        ))}
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="h-10 w-48 bg-slate-200 animate-pulse rounded-lg" />
+        <div className="h-32 bg-slate-100 animate-pulse rounded-2xl" />
+        <div className="h-64 bg-slate-100 animate-pulse rounded-2xl" />
       </div>
     );
   }
 
+  const activeProvider = settingsData?.activeProvider || 'FERASETU';
+  const customDomain = settingsData?.customDomain;
+  const ferasetuDomain = settingsData?.ferasetuDomain;
+  const defaultSender = settingsData?.defaultIdentity?.email_address || `orders@${ferasetuDomain?.domain || 'store.ferasetu.com'}`;
+  const quota = settingsData?.quota;
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-8">
-        <div className="flex items-center gap-2.5 mb-1.5">
-          <Settings2 size={22} className="text-primary" />
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight m-0">
-            Email (SMTP) Settings
+    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in font-sans">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            <Mail className="text-[#0052FF]" size={28} />
+            Email Settings
           </h1>
+          <p className="text-sm md:text-base text-slate-600 mt-1">
+            Send order, account, notification and business emails from FeraSetu.
+          </p>
         </div>
-        <p className="text-base text-slate-500 leading-relaxed m-0">
-          Configure your SMTP server to send OTP verification emails to your users.
-        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowTestModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#0052FF] bg-[#0052FF]/10 hover:bg-[#0052FF]/15 border border-[#0052FF]/20 rounded-xl transition-all"
+          >
+            <Send size={15} />
+            Send Test Email
+          </button>
+        </div>
       </div>
 
-      {form.is_active && (
-        <div className="flex items-center gap-2.5 p-3 bg-green-50 border border-green-200 rounded-xl mb-5">
-          <CheckCircle2 size={18} className="text-green-600" />
-          <span className="text-sm font-bold text-green-800">
-            Custom SMTP is active — OTP emails are being sent via your configured server
-          </span>
+      {/* Quota & Health Banner */}
+      {quota && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs md:text-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-semibold text-slate-700">Delivery Status:</span>
+            <span className="font-bold text-emerald-700">Active &amp; Protected</span>
+          </div>
+          <div className="text-slate-600">
+            <span className="font-semibold text-slate-700">Daily Plan Limit:</span>{' '}
+            <span className="font-mono font-bold text-slate-900">{quota.dailyLimit}</span> emails/day
+          </div>
+          <div className="text-slate-600 sm:text-right">
+            <span className="font-semibold text-slate-700">Sent Today:</span>{' '}
+            <span className="font-mono font-bold text-[#0052FF]">{quota.sentToday}</span> ({quota.remainingDaily} remaining)
+          </div>
         </div>
       )}
 
-      <SectionCard icon={<Mail size={20} />} title="SMTP Provider" subtitle="Choose your email service provider">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          {PROVIDERS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => handleProviderChange(p.id)}
-              className={`
-                p-3.5 rounded-xl border-2 text-left transition-all duration-200
-                ${form.provider === p.id 
-                  ? 'border-primary bg-primary/5 text-primary' 
-                  : 'border-slate-200 bg-white text-slate-900 hover:border-blue-500/50 hover:bg-primary/5'}
-              `}
-            >
-              <div className={`
-                font-semibold text-sm
-                ${form.provider === p.id ? 'text-primary' : 'text-slate-900'}
-              `}>
-                {p.name}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1 font-mono">
-                {p.desc}
-              </div>
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={<KeyRound size={20} />} title="SMTP Configuration" subtitle="Server connection details">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <FieldLabel>SMTP Host</FieldLabel>
-            <TextInput
-              value={form.host}
-              onChange={v => updateField('host', v)}
-              placeholder={settingsData?.defaults?.host || 'smtp.example.com'}
-            />
-          </div>
-          <div>
-            <FieldLabel>SMTP Port</FieldLabel>
-            <TextInput
-              value={String(form.port)}
-              onChange={v => updateField('port', parseInt(v) || 587)}
-              placeholder="587"
-            />
-          </div>
-          <div>
-            <FieldLabel>Username</FieldLabel>
-            <TextInput
-              value={form.username}
-              onChange={v => updateField('username', v)}
-              placeholder="your-email@gmail.com"
-            />
-          </div>
-          <div>
-            <FieldLabel>Password 
-              {form.has_password && !form.password && (
-                <span className="text-green-600 font-semibold ml-1">(saved)</span>
-              )}
-            </FieldLabel>
-            <PasswordInput
-              value={form.password}
-              onChange={v => updateField('password', v)}
-              placeholder={form.has_password ? '••••••••••••' : 'Enter password'}
-              showPassword={showPassword}
-              onToggleShow={() => setShowPassword(!showPassword)}
-              hasPassword={form.has_password}
-            />
-          </div>
-          <div>
-            <FieldLabel>Sender Name</FieldLabel>
-            <TextInput
-              value={form.sender_name}
-              onChange={v => updateField('sender_name', v)}
-              placeholder="FeraSetu"
-            />
-          </div>
-          <div>
-            <FieldLabel required>Sender Email</FieldLabel>
-            <TextInput
-              value={form.sender_email}
-              onChange={v => updateField('sender_email', v)}
-              placeholder="noreply@yourdomain.com"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <FieldLabel>Reply-To Email (optional)</FieldLabel>
-            <TextInput
-              value={form.reply_to_email}
-              onChange={v => updateField('reply_to_email', v)}
-              placeholder="support@yourdomain.com"
-            />
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={<Shield size={20} />} title="Security" subtitle="Connection encryption settings">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Toggle
-            checked={form.ssl_enabled}
-            onChange={v => updateField('ssl_enabled', v)}
-            label="SSL"
-            description="Encrypt connection on port 465"
-          />
-          <Toggle
-            checked={form.tls_enabled}
-            onChange={v => updateField('tls_enabled', v)}
-            label="TLS"
-            description="Encrypt connection on port 587"
-          />
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={<Hash size={20} />} title="OTP Settings" subtitle="Configure email verification behavior">
+      {/* SECTION 1: Provider Selection */}
+      <div className="space-y-4">
         <div>
-          <Toggle
-            checked={form.otp_enabled}
-            onChange={v => updateField('otp_enabled', v)}
-            label="Enable Email Verification"
-            description="Require OTP during user registration"
-          />
-          <div className={`
-            grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4
-            ${form.otp_enabled ? 'opacity-100 pointer-events-auto' : 'opacity-40 pointer-events-none'}
-          `}>
-            <div>
-              <FieldLabel>OTP Length</FieldLabel>
-              <SelectInput
-                value={String(form.otp_length)}
-                onChange={v => updateField('otp_length', parseInt(v))}
-                options={[
-                  { value: '4', label: '4 digits' },
-                  { value: '5', label: '5 digits' },
-                  { value: '6', label: '6 digits (default)' },
-                  { value: '8', label: '8 digits' },
-                ]}
-              />
-            </div>
-            <div>
-              <FieldLabel>OTP Expiry</FieldLabel>
-              <div className="relative">
-                <TextInput
-                  value={String(form.otp_expiry_minutes)}
-                  onChange={v => updateField('otp_expiry_minutes', parseInt(v) || 10)}
-                  placeholder="10"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">min</span>
-              </div>
-            </div>
-            <div>
-              <FieldLabel>Resend Cooldown</FieldLabel>
-              <div className="relative">
-                <TextInput
-                  value={String(form.otp_resend_cooldown)}
-                  onChange={v => updateField('otp_resend_cooldown', parseInt(v) || 60)}
-                  placeholder="60"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">sec</span>
-              </div>
-            </div>
-            <div>
-              <FieldLabel>Max Attempts</FieldLabel>
-              <TextInput
-                value={String(form.otp_max_attempts)}
-                onChange={v => updateField('otp_max_attempts', parseInt(v) || 5)}
-                placeholder="5"
-              />
-            </div>
-          </div>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Delivery Infrastructure Provider</h2>
+          <p className="text-xs text-slate-500">Select how FeraSetu delivers outgoing transactional emails.</p>
         </div>
-      </SectionCard>
 
-      <SectionCard icon={<Mail size={20} />} title="Email Template" subtitle="Customize the OTP email content">
-        <div>
-          <FieldLabel>Email Subject</FieldLabel>
-          <TextInput
-            value={form.otp_subject}
-            onChange={v => updateField('otp_subject', v)}
-            placeholder="Verify your email • FeraSetu"
-          />
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            <span className="text-xs text-slate-500 self-center">Variables:</span>
-            {['{{name}}', '{{otp}}', '{{email}}', '{{expiry}}', '{{app_name}}'].map(v => (
-              <code key={v} className="text-xs px-2 py-0.5 rounded bg-slate-50 border border-slate-200 text-blue-600 font-mono font-semibold">
-                {v}
-              </code>
-            ))}
-          </div>
-
-          <div className="mt-5">
-            <FieldLabel>Body Template</FieldLabel>
-            <textarea
-              value={form.otp_body_template || DEFAULT_TEMPLATE}
-              onChange={e => updateField('otp_body_template', e.target.value)}
-              rows={12}
-              className="w-full px-3.5 py-3.5 text-sm font-mono bg-white border border-slate-200 rounded-xl text-slate-900 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 leading-relaxed"
-            />
-          </div>
-
-          <div className="mt-4 p-5 bg-slate-50 border border-slate-200 rounded-xl">
-            <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-3">
-              Preview
-            </div>
-            <div className="text-base text-slate-900 leading-relaxed whitespace-pre-wrap font-mono">
-              {(form.otp_body_template || DEFAULT_TEMPLATE)
-                .replace(/\{\{name\}\}/g, 'Rahul')
-                .replace(/\{\{otp\}\}/g, '482901')
-                .replace(/\{\{email\}\}/g, 'rahul@example.com')
-                .replace(/\{\{expiry\}\}/g, String(form.otp_expiry_minutes))
-                .replace(/\{\{app_name\}\}/g, 'FeraSetu')
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* FeraSetu Email Card */}
+          <div
+            onClick={() => {
+              if (activeProvider !== 'FERASETU') {
+                switchProviderMutation.mutate('FERASETU');
               }
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={<Send size={20} />} title="Test SMTP" subtitle="Send a test email to verify your configuration">
-        <div className="flex gap-2.5 items-end">
-          <div className="flex-1">
-            <FieldLabel>Recipient Email</FieldLabel>
-            <TextInput
-              value={testEmail}
-              onChange={setTestEmail}
-              placeholder="test@example.com"
-              type="email"
-            />
-          </div>
-          <button
-            onClick={() => testMutation.mutate()}
-            disabled={testMutation.isPending || !testEmail}
+            }}
             className={`
-              flex items-center gap-2 px-5 py-2.5 rounded-xl border-none bg-slate-900 text-white text-sm font-bold
-              transition-all duration-200 whitespace-nowrap
-              ${testMutation.isPending || !testEmail 
-                ? 'opacity-50 cursor-not-allowed' 
-                : 'cursor-pointer hover:opacity-90'}
+              relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between
+              ${activeProvider === 'FERASETU'
+                ? 'border-[#0052FF] bg-blue-50/40 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'}
             `}
           >
-            {testMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            {testMutation.isPending ? 'Sending...' : 'Send Test'}
-          </button>
-        </div>
-        {testMutation.isSuccess && (
-          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-sm font-semibold text-green-800">
-            <CheckCircle2 size={16} /> Test email sent successfully!
-          </div>
-        )}
-        {testMutation.isError && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm font-semibold text-red-800">
-            <AlertTriangle size={16} /> {testMutation.error?.message || 'Failed to send test email'}
-          </div>
-        )}
-      </SectionCard>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 font-bold text-slate-900 text-base">
+                  <ShieldCheck className="text-[#0052FF]" size={20} />
+                  FeraSetu Email
+                </div>
+                <span className="px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide bg-blue-100 text-[#0052FF] rounded-full">
+                  Recommended
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                FeraSetu handles delivery, authentication, SPF/DKIM alignment, and deliverability infrastructure automatically.
+              </p>
+            </div>
 
-      <div className="sticky bottom-0 py-4 bg-gradient-to-t from-[#F8FAFC]/90 to-transparent flex justify-end gap-3 z-10 mt-8">
-        {hasUnsavedChanges && (
-          <span className="text-sm text-amber-600 font-semibold flex items-center gap-1.5 self-center">
-            <AlertTriangle size={14} /> Unsaved changes
-          </span>
-        )}
-        <button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className={`
-            flex items-center gap-2 px-7 py-3 rounded-xl border-none
-            bg-gradient-to-r from-primary to-secondary text-white text-base font-extrabold
-            shadow-[0_4px_14px_rgba(0,82,255,0.35)] transition-all duration-200
-            ${saveMutation.isPending ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'}
-          `}
-        >
-          {saveMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-          {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-        </button>
+            <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-500">Zero server maintenance</span>
+              {activeProvider === 'FERASETU' ? (
+                <span className="flex items-center gap-1 text-[#0052FF] font-bold">
+                  <CheckCircle2 size={14} /> Active
+                </span>
+              ) : (
+                <span className="text-slate-400">Click to switch</span>
+              )}
+            </div>
+          </div>
+
+          {/* My Own SMTP Card */}
+          <div
+            onClick={() => {
+              if (activeProvider !== 'EXTERNAL_SMTP') {
+                // If external SMTP exists, switch immediately; otherwise let them fill form below
+                if (settingsData?.externalConnection?.has_password) {
+                  switchProviderMutation.mutate('EXTERNAL_SMTP');
+                }
+              }
+            }}
+            className={`
+              relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between
+              ${activeProvider === 'EXTERNAL_SMTP'
+                ? 'border-[#0052FF] bg-blue-50/40 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'}
+            `}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 font-bold text-slate-900 text-base">
+                  <Server className="text-slate-700" size={20} />
+                  My own SMTP
+                </div>
+                <span className="px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide bg-slate-100 text-slate-700 rounded-full">
+                  Advanced
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Use your own external SMTP provider (Gmail, Amazon SES, SendGrid, Brevo, or custom mail relay).
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-500">Custom relay credentials</span>
+              {activeProvider === 'EXTERNAL_SMTP' ? (
+                <span className="flex items-center gap-1 text-[#0052FF] font-bold">
+                  <CheckCircle2 size={14} /> Active
+                </span>
+              ) : (
+                <span className="text-slate-400">Configure below</span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-      `}</style>
+      {/* SECTION 2: Sender Identity (When FeraSetu Email is Selected) */}
+      {activeProvider === 'FERASETU' && (
+        <div className="space-y-4 pt-2">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Sender Identity</h2>
+            <p className="text-xs text-slate-500">
+              Emails sent to your customers will appear from this authenticated address.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Identity A: FeraSetu-Managed Domain */}
+            <div className="p-5 bg-white border border-slate-200 rounded-2xl flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">FeraSetu Domain</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                    <CheckCircle2 size={12} /> Ready
+                  </span>
+                </div>
+                <div className="text-base font-extrabold text-slate-900 font-mono break-all">
+                  orders@{ferasetuDomain?.domain || 'store.ferasetu.com'}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Pre-configured with zero DNS setup required. Powered by FeraSetu deliverability keys.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-600 font-medium">Authentication:</span>
+                <span className="text-xs font-semibold text-emerald-600">DKIM / SPF Verified</span>
+              </div>
+            </div>
+
+            {/* Identity B: Custom Domain */}
+            <div className="p-5 bg-white border border-slate-200 rounded-2xl flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Custom Domain</span>
+                  {customDomain?.verification_status === 'VERIFIED' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                      <CheckCircle2 size={12} /> Verified
+                    </span>
+                  ) : customDomain ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
+                      <AlertTriangle size={12} /> Pending DNS
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400 font-semibold">Not Connected</span>
+                  )}
+                </div>
+
+                {customDomain ? (
+                  <>
+                    <div className="text-base font-extrabold text-slate-900 font-mono break-all">
+                      orders@{customDomain.domain}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      {customDomain.verification_status === 'VERIFIED'
+                        ? 'Authenticated custom domain. Customers see your professional brand.'
+                        : 'DNS setup pending. Click view to see records and verify.'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-base font-extrabold text-slate-400 font-mono">
+                      orders@yourstore.com
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Send from your own domain with custom DKIM and SPF authentication.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                {customDomain ? (
+                  <button
+                    onClick={() => handleOpenDomainModal(customDomain)}
+                    className="text-xs font-bold text-[#0052FF] hover:underline flex items-center gap-1"
+                  >
+                    Manage DNS &amp; Status <ChevronRight size={13} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleOpenDomainModal(null)}
+                    className="text-xs font-bold text-[#0052FF] bg-[#0052FF]/10 hover:bg-[#0052FF]/15 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <Plus size={13} /> Connect Domain
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3: External SMTP Configuration Form (When My own SMTP is active or expanding) */}
+      {activeProvider === 'EXTERNAL_SMTP' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Server className="text-slate-800" size={18} />
+                External SMTP Configuration
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Configure your outbound SMTP credentials. Passwords are encrypted with AES-256-GCM.
+              </p>
+            </div>
+            {settingsData?.externalConnection?.has_password && (
+              <span className="px-2.5 py-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center gap-1">
+                <Lock size={12} /> Credentials Encrypted
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                SMTP Host <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={externalForm.smtp_host || settingsData?.externalConnection?.smtp_host || ''}
+                onChange={(e) => setExternalForm(prev => ({ ...prev, smtp_host: e.target.value }))}
+                placeholder="smtp.gmail.com or smtp.mailgun.org"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Port <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={externalForm.smtp_port || settingsData?.externalConnection?.smtp_port || 587}
+                onChange={(e) => setExternalForm(prev => ({ ...prev, smtp_port: Number(e.target.value) }))}
+                placeholder="587"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Security Mode
+              </label>
+              <select
+                value={externalForm.security_mode || settingsData?.externalConnection?.security_mode || 'STARTTLS'}
+                onChange={(e) => setExternalForm(prev => ({ ...prev, security_mode: e.target.value }))}
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+              >
+                <option value="STARTTLS">STARTTLS (Port 587 recommended)</option>
+                <option value="SSL_TLS">SSL / TLS (Port 465)</option>
+                <option value="NONE">Plain / None (Port 25)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Username <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={externalForm.smtp_username || settingsData?.externalConnection?.smtp_username || ''}
+                onChange={(e) => setExternalForm(prev => ({ ...prev, smtp_username: e.target.value }))}
+                placeholder="username or email"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>Password / App Secret <span className="text-red-500">*</span></span>
+                {settingsData?.externalConnection?.has_password && !externalForm.smtp_password && (
+                  <span className="text-emerald-600 font-semibold lowercase text-[11px]">(saved)</span>
+                )}
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={externalForm.smtp_password}
+                  onChange={(e) => setExternalForm(prev => ({ ...prev, smtp_password: e.target.value }))}
+                  placeholder={settingsData?.externalConnection?.has_password ? '••••••••••••' : 'Enter SMTP password or API key'}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <p className="text-xs text-slate-500">
+              The server will execute a handshake test before updating configuration.
+            </p>
+            <button
+              onClick={() => saveExternalSmtpMutation.mutate()}
+              disabled={saveExternalSmtpMutation.isPending}
+              className="px-5 py-2.5 bg-[#0052FF] text-white font-bold text-sm rounded-xl hover:bg-[#0042cc] transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+            >
+              {saveExternalSmtpMutation.isPending ? <RefreshCw className="animate-spin" size={15} /> : <Check size={15} />}
+              Test &amp; Save Connection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 4: Recent Email Activity */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Recent Delivery Activity</h2>
+            <p className="text-xs text-slate-500">Audit logs of recent outgoing transactional emails.</p>
+          </div>
+          <span className="text-xs font-bold text-slate-500 font-mono">
+            Sender: {defaultSender}
+          </span>
+        </div>
+
+        {eventsData?.events && eventsData.events.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
+                  <th className="pb-2.5">Event</th>
+                  <th className="pb-2.5">Recipient</th>
+                  <th className="pb-2.5">Subject</th>
+                  <th className="pb-2.5">Provider</th>
+                  <th className="pb-2.5 text-right">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {eventsData.events.slice(0, 10).map((ev: any) => (
+                  <tr key={ev.id} className="hover:bg-slate-50/50">
+                    <td className="py-2.5">
+                      <span className={`
+                        inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold
+                        ${ev.event_type === 'DELIVERED' || ev.event_type === 'SENT' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}
+                      `}>
+                        {ev.event_type}
+                      </span>
+                    </td>
+                    <td className="py-2.5 font-mono text-slate-800">{ev.recipient}</td>
+                    <td className="py-2.5 text-slate-600 truncate max-w-xs">{ev.subject || 'Notification'}</td>
+                    <td className="py-2.5">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-bold font-mono">
+                        {ev.provider || 'FERASETU'}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-slate-500 text-right">
+                      {new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-slate-400 text-xs">
+            No outgoing emails sent yet. Place an order or send a test email to view activity.
+          </div>
+        )}
+      </div>
+
+      {/* MODAL 1: Connect Custom Domain & DNS Table */}
+      {showConnectModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 space-y-6 max-h-[90vh] overflow-y-auto animate-scale-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Globe className="text-[#0052FF]" size={20} />
+                  Connect Custom Domain
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Authorize your domain so orders and notifications send directly from your brand.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowConnectModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* If domain not yet submitted */}
+            {!activeDomainObj ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Domain Name
+                  </label>
+                  <input
+                    type="text"
+                    value={customDomainInput}
+                    onChange={(e) => setCustomDomainInput(e.target.value)}
+                    placeholder="example.com or mail.yourstore.com"
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Do not include http:// or https://. Example: <code>yourstore.com</code>
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    onClick={() => setShowConnectModal(false)}
+                    className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => connectDomainMutation.mutate(customDomainInput)}
+                    disabled={!customDomainInput || connectDomainMutation.isPending}
+                    className="px-5 py-2 text-sm font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {connectDomainMutation.isPending && <RefreshCw className="animate-spin" size={14} />}
+                    Continue <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* DNS Records Table and Live Status */
+              <div className="space-y-6">
+                {/* Domain Verification Badges */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                  <div>
+                    <div className="text-slate-500 font-medium">Ownership</div>
+                    <div className="font-bold flex items-center gap-1 mt-0.5">
+                      {activeDomainObj.verification_status === 'VERIFIED' ? (
+                        <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                      ) : (
+                        <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 font-medium">SPF</div>
+                    <div className="font-bold flex items-center gap-1 mt-0.5">
+                      {activeDomainObj.spf_status === 'VERIFIED' ? (
+                        <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                      ) : (
+                        <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 font-medium">DKIM</div>
+                    <div className="font-bold flex items-center gap-1 mt-0.5">
+                      {activeDomainObj.dkim_status === 'VERIFIED' ? (
+                        <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                      ) : (
+                        <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 font-medium">DMARC</div>
+                    <div className="font-bold flex items-center gap-1 mt-0.5">
+                      {activeDomainObj.dmarc_status === 'VERIFIED' ? (
+                        <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                      ) : (
+                        <span className="text-blue-700 flex items-center gap-1"><Info size={13} /> Recommended</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* DNS Instructions */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    Required DNS Records for <code className="text-[#0052FF]">{activeDomainObj.domain}</code>
+                  </h4>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5">Type</th>
+                          <th className="p-2.5">Name</th>
+                          <th className="p-2.5">Value</th>
+                          <th className="p-2.5 text-right">Copy</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-mono">
+                        {activeDnsInstructions.map((rec, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="p-2.5 font-bold text-slate-800">{rec.type}</td>
+                            <td className="p-2.5 text-slate-700 truncate max-w-[120px]" title={rec.name}>{rec.name}</td>
+                            <td className="p-2.5 text-slate-600 truncate max-w-[200px]" title={rec.value}>{rec.value}</td>
+                            <td className="p-2.5 text-right">
+                              <button
+                                onClick={() => copyToClipboard(rec.value, `${idx}_val`)}
+                                className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
+                                title="Copy Value"
+                              >
+                                {copiedKey === `${idx}_val` ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Modal Footer Controls */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <button
+                    onClick={() => deleteDomainMutation.mutate(activeDomainObj.id)}
+                    disabled={deleteDomainMutation.isPending}
+                    className="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                  >
+                    <Trash2 size={14} /> Remove Domain
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowConnectModal(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => verifyDomainMutation.mutate(activeDomainObj.id)}
+                      disabled={verifyDomainMutation.isPending}
+                      className="px-5 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <RefreshCw className={verifyDomainMutation.isPending ? 'animate-spin' : ''} size={14} />
+                      Check Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Send Test Email */}
+      {showTestModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Send className="text-[#0052FF]" size={17} />
+                Send Test Transactional Email
+              </h3>
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Recipient Email Address
+              </label>
+              <input
+                type="email"
+                value={testEmailRecipient}
+                onChange={(e) => setTestEmailRecipient(e.target.value)}
+                placeholder="your-email@example.com"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Will be sent via active provider: <strong className="text-slate-800">{activeProvider}</strong> using sender{' '}
+                <code className="text-[#0052FF]">{defaultSender}</code>
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => sendTestEmailMutation.mutate()}
+                disabled={!testEmailRecipient || sendTestEmailMutation.isPending}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {sendTestEmailMutation.isPending && <RefreshCw className="animate-spin" size={13} />}
+                Send Test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

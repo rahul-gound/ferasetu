@@ -10,10 +10,11 @@ import AdminLayout from '../components/admin/AdminLayout';
 const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function AdminSystemPage() {
-  const [activeTab, setActiveTab] = useState<'health' | 'flags' | 'ai'>('health');
+  const [activeTab, setActiveTab] = useState<'health' | 'flags' | 'ai' | 'email'>('health');
   const [stats, setStats] = useState<any>(null);
   const [flags, setFlags] = useState<any[]>([]);
   const [aiUsage, setAiUsage] = useState<any>(null);
+  const [emailOps, setEmailOps] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const token = localStorage.getItem('admin_token');
 
@@ -21,14 +22,16 @@ export default function AdminSystemPage() {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [statsRes, flagsRes, aiRes] = await Promise.all([
+      const [statsRes, flagsRes, aiRes, emailRes] = await Promise.all([
         axios.get(`${API}/admin/dashboard-stats`, { headers }),
         axios.get(`${API}/admin/feature-flags`, { headers }),
-        axios.get(`${API}/admin/ai-usage`, { headers })
+        axios.get(`${API}/admin/ai-usage`, { headers }),
+        axios.get(`${API}/admin/email-operations`, { headers }).catch(() => ({ data: null }))
       ]);
       setStats(statsRes.data);
       setFlags(flagsRes.data?.flags || flagsRes.data?.featureFlags || []);
       setAiUsage(aiRes.data);
+      setEmailOps(emailRes?.data || null);
     } catch (err) {
       toast.error('Failed to sync system data');
     } finally {
@@ -77,6 +80,7 @@ export default function AdminSystemPage() {
             { id: 'health', label: 'Health & Status', icon: <Activity size={16} /> },
             { id: 'flags', label: 'Feature Flags', icon: <ToggleRight size={16} /> },
             { id: 'ai', label: 'AI Usage Monitor', icon: <Bot size={16} /> },
+            { id: 'email', label: 'Email Operations', icon: <Mail size={16} /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -98,6 +102,7 @@ export default function AdminSystemPage() {
         {activeTab === 'health' && <HealthTab stats={stats} loading={loading} />}
         {activeTab === 'flags' && <FlagsTab flags={flags} onToggle={toggleFlag} onCreateFlag={handleCreateFlag} loading={loading} />}
         {activeTab === 'ai' && <AiTab usage={aiUsage} loading={loading} />}
+        {activeTab === 'email' && <EmailOperationsTab data={emailOps} loading={loading} onRefresh={fetchData} />}
       </div>
     </AdminLayout>
   );
@@ -432,6 +437,176 @@ function MetricItem({ label, value }: any) {
     <div>
       <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</div>
       <div className="text-xl font-black">{value}</div>
+    </div>
+  );
+}
+
+function EmailOperationsTab({ data, loading, onRefresh }: any) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+        {Array(3).fill(0).map((_, i) => <div key={i} className="h-44 bg-white rounded-3xl border border-slate-200" />)}
+      </div>
+    );
+  }
+
+  const platformHealth = data?.platformHealth || { status: 'HEALTHY', domain: 'ferasetu.com', senders: [] };
+  const metrics = data?.metrics || { sent: 0, delivered: 0, bounced: 0, bounceRate: '0.00%', queueStatus: 'ACTIVE' };
+  const failures = data?.verificationFailures || [];
+  const recentFailures = data?.recentFailures || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Top Operations Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Platform Core Status</div>
+          <div className="text-xl font-black text-slate-900 flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${platformHealth.status === 'HEALTHY' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            {platformHealth.status}
+          </div>
+          <div className="text-xs text-slate-500 mt-2 font-mono">{platformHealth.domain} (fs1 DKIM)</div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Bounce Rate</div>
+          <div className="text-xl font-black text-slate-900 font-mono">
+            {metrics.bounceRate}
+          </div>
+          <div className="text-xs text-slate-500 mt-2">{metrics.bounced} bounced / {metrics.sent || 0} sent</div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Queue &amp; MTA Health</div>
+          <div className="text-xl font-black text-emerald-600 flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500" />
+            {metrics.queueStatus}
+          </div>
+          <div className="text-xs text-slate-500 mt-2">Modal Postfix daemon loopback 127.0.0.1:25</div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Custom Domains</div>
+          <div className="text-xl font-black text-slate-900">
+            {data?.domainStats?.verified || 0} / {data?.domainStats?.total || 0}
+          </div>
+          <div className="text-xs text-slate-500 mt-2">{data?.domainStats?.pending || 0} pending DNS verification</div>
+        </div>
+      </div>
+
+      {/* Official Platform Senders Section */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Official Platform Senders</h3>
+            <p className="text-xs text-slate-500">System identities isolated from merchant quotas.</p>
+          </div>
+          <button
+            onClick={onRefresh}
+            className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+          >
+            Refresh Status
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">
+          {platformHealth.senders?.length > 0 ? (
+            platformHealth.senders.map((s: any, idx: number) => (
+              <div key={idx} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-900">{s.email}</div>
+                  <div className="text-[11px] text-slate-500">{s.name}</div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                  ACTIVE
+                </span>
+              </div>
+            ))
+          ) : (
+            ['no-reply@ferasetu.com', 'support@ferasetu.com', 'billing@ferasetu.com'].map((email, idx) => (
+              <div key={idx} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+                <span className="font-bold text-slate-900">{email}</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                  ACTIVE
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Merchant Verification Failures */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+          Merchant Domain Verification Issues
+        </h3>
+        {failures.length > 0 ? (
+          <div className="overflow-x-auto text-xs">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
+                  <th className="pb-2">Domain</th>
+                  <th className="pb-2">Organization</th>
+                  <th className="pb-2">SPF</th>
+                  <th className="pb-2">DKIM</th>
+                  <th className="pb-2">DMARC</th>
+                  <th className="pb-2 text-right">Last Checked</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-mono">
+                {failures.map((f: any) => (
+                  <tr key={f.id}>
+                    <td className="py-2.5 font-bold text-slate-900">{f.domain}</td>
+                    <td className="py-2.5 text-slate-600">{f.organization_id}</td>
+                    <td className="py-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${f.spf_status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {f.spf_status}
+                      </span>
+                    </td>
+                    <td className="py-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${f.dkim_status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {f.dkim_status}
+                      </span>
+                    </td>
+                    <td className="py-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${f.dmarc_status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {f.dmarc_status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-slate-500 text-right">
+                      {f.last_checked_at ? new Date(f.last_checked_at).toLocaleTimeString() : 'Never'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-slate-400 text-xs font-semibold">
+            No domain verification issues detected across active merchants.
+          </div>
+        )}
+      </div>
+
+      {/* Recent Send Failures */}
+      {recentFailures.length > 0 && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 className="text-sm font-black text-rose-700 uppercase tracking-wider">
+            Recent Delivery Failures
+          </h3>
+          <div className="space-y-2 font-mono text-xs">
+            {recentFailures.map((rf: any) => (
+              <div key={rf.id} className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-rose-900">{rf.recipient}</span> —{' '}
+                  <span className="text-rose-700">{rf.provider_status || 'Delivery error'}</span>
+                </div>
+                <div className="text-rose-500 text-[11px]">{new Date(rf.timestamp).toLocaleTimeString()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

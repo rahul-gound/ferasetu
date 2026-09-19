@@ -81,6 +81,8 @@ import {
   migrateLegacyStock,
   backfillHistoricalOrderItems
 } from "./backfills/sliceABackfill.js";
+import { handleEmailRoutes } from "./routes/emailRoutes.js";
+import { EmailService, ensureMerchantEmailProvisioning } from "./services/emailService.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -273,7 +275,7 @@ async function readJsonBody(request) {
 }
 
 // Typed error so route handlers can throw a status + message cleanly.
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(message, status = 400, details) {
     super(message);
     this.status = status;
@@ -644,6 +646,13 @@ export async function requireOrgContext(request, env, minRole = 'staff') {
         throw new HttpError("Your 14-day free trial has concluded. Please upgrade to a paid plan to continue using FeraSetu.", 403, { code: "TRIAL_EXPIRED", expired: true, upgradeUrl: "/upgrade" });
       }
     }
+  }
+
+  // Lazily ensure merchant has FeraSetu default email provisioning
+  try {
+    await ensureMerchantEmailProvisioning(env.DB, orgRow.id, orgRow.store_slug || orgRow.id, orgRow.name);
+  } catch (provErr) {
+    console.warn("Merchant email provisioning note:", provErr?.message);
   }
 
   return {
@@ -3216,6 +3225,117 @@ async function ensureTables(db) {
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_shop_email_quotas_org ON shop_email_quotas(organization_id);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_logs_org ON email_logs(organization_id);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_logs_order ON email_logs(order_id);`);
+
+    // Production Email Architecture Tables
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS email_domains (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT,
+        domain TEXT NOT NULL UNIQUE,
+        domain_type TEXT NOT NULL CHECK(domain_type IN ('PLATFORM', 'FERASETU_MERCHANT', 'CUSTOM')),
+        verification_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(verification_status IN ('PENDING', 'VERIFYING', 'VERIFIED', 'FAILED', 'SUSPENDED')),
+        ownership_verification_method TEXT DEFAULT 'DNS_TXT',
+        verification_token_hash TEXT,
+        dkim_selector TEXT DEFAULT 'fs1',
+        dkim_status TEXT DEFAULT 'PENDING' CHECK(dkim_status IN ('PENDING', 'VERIFIED', 'FAILED')),
+        spf_status TEXT DEFAULT 'PENDING' CHECK(spf_status IN ('PENDING', 'VERIFIED', 'FAILED')),
+        dmarc_status TEXT DEFAULT 'PENDING' CHECK(dmarc_status IN ('PENDING', 'VERIFIED', 'RECOMMENDED_MISSING', 'FAILED')),
+        mail_from_status TEXT DEFAULT 'PENDING' CHECK(mail_from_status IN ('PENDING', 'VERIFIED', 'FAILED')),
+        provider TEXT NOT NULL DEFAULT 'FERASETU' CHECK(provider IN ('FERASETU', 'EXTERNAL')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        verified_at TEXT,
+        last_checked_at TEXT
+      );
+    `);
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS email_identities (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT,
+        domain_id TEXT NOT NULL,
+        local_part TEXT NOT NULL,
+        email_address TEXT NOT NULL UNIQUE,
+        display_name TEXT,
+        identity_type TEXT NOT NULL CHECK(identity_type IN ('PLATFORM', 'MERCHANT', 'CUSTOM')),
+        status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'PENDING', 'DISABLED')),
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS email_provider_connections (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL UNIQUE,
+        provider_type TEXT NOT NULL DEFAULT 'FERASETU' CHECK(provider_type IN ('FERASETU', 'EXTERNAL_SMTP')),
+        smtp_host TEXT,
+        smtp_port INTEGER DEFAULT 587,
+        smtp_username TEXT,
+        encrypted_secret_reference TEXT,
+        security_mode TEXT DEFAULT 'STARTTLS' CHECK(security_mode IN ('STARTTLS', 'SSL_TLS', 'NONE')),
+        status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'ERROR', 'UNTESTED')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS email_messages (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT,
+        sender_identity_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        to_address TEXT NOT NULL,
+        reply_to TEXT,
+        subject TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'QUEUED', 'SENT', 'DELIVERED', 'FAILED', 'BOUNCED')),
+        idempotency_key TEXT,
+        priority TEXT NOT NULL DEFAULT 'NORMAL' CHECK(priority IN ('HIGH', 'NORMAL', 'LOW')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS email_events (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL,
+        merchant_id TEXT,
+        event_type TEXT NOT NULL CHECK(event_type IN ('ACCEPTED', 'QUEUED', 'SENT', 'DELIVERED', 'BOUNCED', 'COMPLAINT', 'FAILED')),
+        provider_status TEXT,
+        recipient TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        metadata TEXT
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_domains_org ON email_domains(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_domains_domain ON email_domains(domain);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_identities_org ON email_identities(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_identities_email ON email_identities(email_address);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_messages_merchant ON email_messages(merchant_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_events_merchant ON email_events(merchant_id);`);
+
+    // Seed platform domain and identities if not present
+    await safeExec(`
+      INSERT OR IGNORE INTO email_domains (
+        id, organization_id, domain, domain_type, verification_status,
+        ownership_verification_method, verification_token_hash, dkim_selector,
+        dkim_status, spf_status, dmarc_status, mail_from_status, provider,
+        created_at, updated_at, verified_at, last_checked_at
+      ) VALUES (
+        'dom_platform_ferasetu', NULL, 'ferasetu.com', 'PLATFORM', 'VERIFIED',
+        'SYSTEM_CORE', 'platform_verified_token', 'fs1',
+        'VERIFIED', 'VERIFIED', 'VERIFIED', 'VERIFIED', 'FERASETU',
+        '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z'
+      );
+    `);
+    await safeExec(`
+      INSERT OR IGNORE INTO email_identities (
+        id, organization_id, domain_id, local_part, email_address,
+        display_name, identity_type, status, is_default, created_at, updated_at
+      ) VALUES 
+        ('ident_platform_noreply', NULL, 'dom_platform_ferasetu', 'no-reply', 'no-reply@ferasetu.com', 'FeraSetu Platform', 'PLATFORM', 'ACTIVE', 1, '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z'),
+        ('ident_platform_support', NULL, 'dom_platform_ferasetu', 'support', 'support@ferasetu.com', 'FeraSetu Support', 'PLATFORM', 'ACTIVE', 0, '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z'),
+        ('ident_platform_billing', NULL, 'dom_platform_ferasetu', 'billing', 'billing@ferasetu.com', 'FeraSetu Billing', 'PLATFORM', 'ACTIVE', 0, '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z');
+    `);
 
     // 13. Safe Column Additions for Existing Tables
     await safeAddColumn('users', "market TEXT DEFAULT 'IN'");
@@ -6157,7 +6277,8 @@ export async function sendCustomerOrderOtpEmail(env, {
   otp,
   total,
   deliveryType,
-  items = []
+  items = [],
+  organizationId = null
 }) {
   if (!recipientEmail || typeof recipientEmail !== 'string') {
     return { success: false, reason: 'INVALID_EMAIL' };
@@ -6168,84 +6289,32 @@ export async function sendCustomerOrderOtpEmail(env, {
     return { success: false, reason: 'PLACEHOLDER_EMAIL' };
   }
 
-  const brandName = shopName || 'FeraSetu Store';
-  const subject = `Order Verification Code: ${otp} • ${brandName}`;
+  // 1. Unified EmailService sending
+  try {
+    const res = await EmailService.send(env, {
+      organizationId,
+      to: cleanEmail,
+      template: 'ORDER_OTP',
+      data: {
+        otp,
+        customerName,
+        brandName: shopName || 'FeraSetu Store',
+        orderId,
+        invoiceNumber,
+        total,
+        deliveryType,
+        items
+      },
+      idempotencyKey: `otp_${orderId}_${otp}`
+    });
+    if (res && res.success) {
+      return { success: true, method: res.provider || 'email-service' };
+    }
+  } catch (esErr) {
+    console.warn("[sendCustomerOrderOtpEmail] EmailService note:", esErr?.message);
+  }
 
-  const itemListHtml = items.map(item => `
-    <tr>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 14px;">
-        ${escapeHtml(item.name || item.title || 'Product')}${item.variant_title ? ` <span style="font-size: 11px; color: #64748b;">(${escapeHtml(item.variant_title)})</span>` : ''}
-      </td>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b; font-size: 14px;">
-        x${item.quantity || 1}
-      </td>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 700; color: #0f172a; font-size: 14px;">
-        ₹${((item.total || (item.price * (item.quantity || 1))) || 0).toLocaleString('en-IN')}
-      </td>
-    </tr>
-  `).join('');
-
-  const htmlContent = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
-  <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
-    <div style="background: #0f172a; color: #ffffff; padding: 24px; text-align: center;">
-      <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">${escapeHtml(brandName)}</h1>
-      <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">Order Confirmation &amp; Verification</p>
-    </div>
-
-    <div style="padding: 32px 24px;">
-      <p style="font-size: 15px; color: #334155; margin-top: 0;">
-        Hello <strong>${escapeHtml(customerName || 'Customer')}</strong>,
-      </p>
-      <p style="font-size: 14px; color: #64748b; line-height: 1.5;">
-        Thank you for your order! Please use the single-use verification code below to confirm receipt upon ${deliveryType === 'pickup' ? 'pickup at store' : 'delivery'}.
-      </p>
-
-      <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
-        <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; color: #64748b; margin-bottom: 8px;">
-          Your Order Verification Code
-        </div>
-        <div style="font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #0f172a; font-family: monospace;">
-          ${otp}
-        </div>
-        <p style="margin: 8px 0 0 0; font-size: 12px; color: #ef4444; font-weight: 600;">
-          Valid for 15 minutes • Single-use only
-        </p>
-      </div>
-
-      <div style="margin-bottom: 24px;">
-        <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">
-          Order ID: <strong>${escapeHtml(orderId)}</strong>
-        </div>
-        <div style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
-          Invoice: <strong>${escapeHtml(invoiceNumber)}</strong>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-          <tbody>
-            ${itemListHtml}
-          </tbody>
-        </table>
-
-        <div style="margin-top: 16px; padding-top: 12px; border-top: 2px solid #0f172a; text-align: right; font-size: 16px; font-weight: 900; color: #0f172a;">
-          Total: ₹${Number(total || 0).toLocaleString('en-IN')}
-        </div>
-      </div>
-
-      <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 0;">
-        Never share this OTP over phone or with anyone except the authorized delivery partner or store manager at the time of order handover.
-      </p>
-    </div>
-
-    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #94a3b8;">
-      Powered by FeraSetu • Digitizing Commerce
-    </div>
-  </div>
-</body>
-</html>`;
-
+  // 2. Legacy fallback to Brevo if configured
   const brevoKey = env?.BREVO_API_KEY || env?.SMTP_API_KEY;
   if (brevoKey) {
     try {
@@ -6257,9 +6326,9 @@ export async function sendCustomerOrderOtpEmail(env, {
         },
         body: JSON.stringify({
           to: [{ email: cleanEmail, name: customerName || undefined }],
-          subject,
-          htmlContent,
-          sender: { email: "noreply@ferasetu.com", name: brandName },
+          subject: `Order Verification Code: ${otp} • ${shopName || 'FeraSetu Store'}`,
+          htmlContent: `<p>Your verification code is <strong>${otp}</strong></p>`,
+          sender: { email: "noreply@ferasetu.com", name: shopName || 'FeraSetu' },
         }),
       });
 
@@ -6809,7 +6878,8 @@ async function handlePublicCreateOrder(request, env) {
           otp: paymentOtp,
           total,
           deliveryType,
-          items: resolvedItems
+          items: resolvedItems,
+          organizationId: orgId
         });
 
         if (sendRes.success) {
@@ -9071,6 +9141,11 @@ async function route(request, env) {
     return getAnalyticsPredict(request, env);
   }
 
+  // Production Email Architecture Endpoints
+  if (path.startsWith("/api/email")) {
+    return handleEmailRoutes(request, env);
+  }
+
   // SMTP Settings
   if (path === "/api/settings/smtp") {
     if (method === "GET") return getSmtpSettings(request, env);
@@ -9299,7 +9374,7 @@ export default {
 
       return await route(request, env);
     } catch (err) {
-      if (err instanceof HttpError) {
+      if (err instanceof HttpError || (err && typeof err.status === 'number')) {
         return errorResponse(err.message, err.status, err.details, request);
       }
       // Unexpected — log for `wrangler tail`, return clear message for diagnostics.

@@ -825,6 +825,109 @@ export async function handleAdminRoutes(request, env) {
       return json({ success: true, id: logId });
     }
 
+    // -------------------------------------------------------------------------
+    // EMAIL OPERATIONS DASHBOARD (Internal Admin Only)
+    // -------------------------------------------------------------------------
+    if (path === "/api/admin/email-operations" && method === "GET") {
+      let platformDomain = null;
+      let platformIdentities = [];
+      let domainStats = { total: 0, verified: 0, pending: 0, failed: 0 };
+      let verificationFailures = [];
+      let eventsStats = { sent: 0, delivered: 0, bounced: 0, complaints: 0, failed: 0 };
+      let recentFailures = [];
+
+      try {
+        platformDomain = await env.DB.prepare(
+          "SELECT * FROM email_domains WHERE domain_type = 'PLATFORM'"
+        ).first();
+
+        const pIdents = await env.DB.prepare(
+          "SELECT * FROM email_identities WHERE identity_type = 'PLATFORM'"
+        ).all();
+        platformIdentities = pIdents.results || [];
+
+        const dStats = await env.DB.prepare(`
+          SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN verification_status = 'VERIFIED' THEN 1 ELSE 0 END) as verified,
+            SUM(CASE WHEN verification_status = 'PENDING' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN verification_status = 'FAILED' THEN 1 ELSE 0 END) as failed
+          FROM email_domains
+          WHERE domain_type = 'CUSTOM'
+        `).first();
+
+        if (dStats) {
+          domainStats = {
+            total: Number(dStats.total || 0),
+            verified: Number(dStats.verified || 0),
+            pending: Number(dStats.pending || 0),
+            failed: Number(dStats.failed || 0)
+          };
+        }
+
+        const failures = await env.DB.prepare(`
+          SELECT id, organization_id, domain, verification_status, dkim_status, spf_status, dmarc_status, last_checked_at
+          FROM email_domains
+          WHERE domain_type = 'CUSTOM' AND verification_status != 'VERIFIED'
+          ORDER BY updated_at DESC
+          LIMIT 20
+        `).all();
+        verificationFailures = failures.results || [];
+
+        const evStats = await env.DB.prepare(`
+          SELECT 
+            SUM(CASE WHEN event_type = 'SENT' THEN 1 ELSE 0 END) as sent,
+            SUM(CASE WHEN event_type = 'DELIVERED' THEN 1 ELSE 0 END) as delivered,
+            SUM(CASE WHEN event_type = 'BOUNCED' THEN 1 ELSE 0 END) as bounced,
+            SUM(CASE WHEN event_type = 'COMPLAINT' THEN 1 ELSE 0 END) as complaints,
+            SUM(CASE WHEN event_type = 'FAILED' THEN 1 ELSE 0 END) as failed
+          FROM email_events
+        `).first();
+
+        if (evStats) {
+          eventsStats = {
+            sent: Number(evStats.sent || 0),
+            delivered: Number(evStats.delivered || 0),
+            bounced: Number(evStats.bounced || 0),
+            complaints: Number(evStats.complaints || 0),
+            failed: Number(evStats.failed || 0)
+          };
+        }
+
+        const recentFails = await env.DB.prepare(`
+          SELECT ee.*, em.subject, em.provider
+          FROM email_events ee
+          JOIN email_messages em ON ee.message_id = em.id
+          WHERE ee.event_type IN ('FAILED', 'BOUNCED')
+          ORDER BY ee.timestamp DESC
+          LIMIT 20
+        `).all();
+        recentFailures = recentFails.results || [];
+      } catch (err) {
+        console.warn("Email operations query warning:", err?.message || err);
+      }
+
+      const totalAttempted = eventsStats.sent + eventsStats.delivered + eventsStats.failed + eventsStats.bounced;
+      const bounceRate = totalAttempted > 0 ? ((eventsStats.bounced / totalAttempted) * 100).toFixed(2) : '0.00';
+
+      return json({
+        platformHealth: {
+          status: platformDomain?.verification_status === 'VERIFIED' ? 'HEALTHY' : 'DEGRADED',
+          domain: platformDomain?.domain || 'ferasetu.com',
+          senders: platformIdentities.map(i => ({ email: i.email_address, name: i.display_name, status: i.status })),
+          dkimSelector: platformDomain?.dkim_selector || 'fs1'
+        },
+        domainStats,
+        verificationFailures,
+        metrics: {
+          ...eventsStats,
+          bounceRate: `${bounceRate}%`,
+          queueStatus: 'ACTIVE'
+        },
+        recentFailures
+      });
+    }
+
     // Fallback for missing admin route
     return json({ error: "Admin route not found" }, 404);
 

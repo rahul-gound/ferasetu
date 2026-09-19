@@ -1,12 +1,15 @@
-﻿/**
+/**
  * ProofSection — Structural, transparent proof replacing fabricated testimonials.
  *
  * Implements:
  * 1. Verified merchant showcase (inspectable real business profiles)
  * 2. Non-custodial direct payment architecture ("We Never Touch Your Money")
  * 3. 100% Data Portability & Exit Guarantee (1-click CSV export, cancel in 1 click)
+ *
+ * Psychology: Social proof (merchant cards), authority (architecture guarantee),
+ *             risk reversal (data portability, no lock-in), trust via specificity.
  */
-import { CheckCircle2, Globe, Percent, MessageSquare, Zap, ShieldCheck, Download, ExternalLink, Lock } from 'lucide-react';
+import { CheckCircle2, Download, ShieldCheck, Lock, MapPin, Tag } from 'lucide-react';
 import { useMarket } from '../../contexts/MarketContext';
 
 const MERCHANT_SHOWCASE = [
@@ -20,6 +23,8 @@ const MERCHANT_SHOWCASE = [
     badge: 'Verified Merchant',
     highlight: '0% marketplace cut',
     desc: 'Switched from marketplace aggregators taking 22% cuts. Now processes 40+ daily orders directly on WhatsApp with zero commission.',
+    accentColor: 'border-blue-200 bg-blue-50/30',
+    highlightColor: 'bg-blue-100 text-blue-700',
   },
   {
     name: 'Kaveri Spices & Organic Herbs',
@@ -31,6 +36,8 @@ const MERCHANT_SHOWCASE = [
     badge: 'Verified Merchant',
     highlight: 'Instant Bank Settlement',
     desc: 'Distributes single-origin cardamom, pepper, and tea. Customer payments deposit instantly without 14-day escrow delays.',
+    accentColor: 'border-orange-200 bg-orange-50/30',
+    highlightColor: 'bg-orange-100 text-orange-700',
   },
   {
     name: 'Apex Artisan Coffee Roasters',
@@ -42,6 +49,8 @@ const MERCHANT_SHOWCASE = [
     badge: 'Verified Merchant',
     highlight: '100% Customer Ownership',
     desc: 'Runs weekly small-batch bean drops. Owns 100% of the customer email and phone list for direct reorders.',
+    accentColor: 'border-blue-200 bg-blue-50/30',
+    highlightColor: 'bg-blue-100 text-blue-700',
   },
 ];
 
@@ -69,7 +78,7 @@ export default function ProofSection({
             <ShieldCheck size={14} className="text-blue-600" />
             Structural Proof & Showcase
           </div>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-4">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-blue-950 tracking-tight mb-4">
             {title}
           </h2>
           <p className="text-base sm:text-lg text-slate-600 leading-relaxed">{subtitle}</p>
@@ -80,21 +89,28 @@ export default function ProofSection({
           {MERCHANT_SHOWCASE.map((store, i) => (
             <div
               key={i}
-              className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 flex flex-col justify-between hover:border-blue-300 hover:shadow-md transition-all duration-200 relative"
+              className={`border rounded-2xl p-6 flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative ${store.accentColor}`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-800 text-[11px] font-bold">
-                    <CheckCircle2 size={12} className="text-emerald-600" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 text-[11px] font-bold">
+                    <CheckCircle2 size={12} className="text-green-600" />
                     {store.badge}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono font-medium">{store.city}</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
+                    <MapPin size={11} />
+                    {store.city}
+                  </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-900 mb-1">{store.name}</h3>
-                <p className="text-xs font-mono text-blue-700 mb-3 flex items-center gap-1">
+                <h3 className="text-lg font-bold text-blue-950 mb-1">{store.name}</h3>
+                <p className="text-xs font-mono text-blue-700 mb-1 flex items-center gap-1">
                   <span>{store.url}</span>
                 </p>
+                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full mb-3 ${store.highlightColor}`}>
+                  <Tag size={9} />
+                  {store.highlight}
+                </span>
 
                 <p className="text-slate-600 text-sm leading-relaxed mb-4">{store.desc}</p>
               </div>
@@ -110,41 +126,43 @@ export default function ProofSection({
         {/* Architectural Trust Pillars (Non-Custodial + Data Portability) */}
         <div className="grid md:grid-cols-2 gap-8">
           {/* Pillar 1: Non-Custodial Direct Payments */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-8 md:p-10 shadow-xl relative overflow-hidden">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold uppercase tracking-wider mb-5">
+          <div className="bg-blue-950 text-white rounded-3xl p-8 md:p-10 shadow-xl relative overflow-hidden">
+            {/* Subtle decorative element */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-400/20 text-orange-300 border border-orange-400/30 text-xs font-bold uppercase tracking-wider mb-5">
               <Lock size={13} />
               Architecture Guarantee
             </div>
             <h3 className="text-2xl font-black mb-3 text-white tracking-tight">
               We Never Touch Your Money
             </h3>
-            <p className="text-slate-300 text-sm leading-relaxed mb-6">
+            <p className="text-blue-200 text-sm leading-relaxed mb-6">
               When a customer places an order, payment settles directly into your bank account through UPI, Cashfree, or Stripe. FeraSetu is a software platform, not a payment escrow or wallet middleman.
             </p>
-            <ul className="space-y-3 text-sm text-slate-200 mb-6">
+            <ul className="space-y-3 text-sm text-blue-100 mb-6">
               <li className="flex items-center gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <CheckCircle2 size={16} className="text-orange-400 shrink-0" />
                 <span>Zero payout hold periods — no waiting 7 to 14 days</span>
               </li>
               <li className="flex items-center gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <CheckCircle2 size={16} className="text-orange-400 shrink-0" />
                 <span>Zero platform withdrawal fees or arbitrary account freezes</span>
               </li>
               <li className="flex items-center gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <CheckCircle2 size={16} className="text-orange-400 shrink-0" />
                 <span>Direct peer-to-peer settlement verified by your bank</span>
               </li>
             </ul>
           </div>
 
           {/* Pillar 2: 100% Data Portability & Exit Guarantee */}
-          <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-8 md:p-10 shadow-sm flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-blue-50 to-orange-50/40 border-2 border-blue-200 rounded-3xl p-8 md:p-10 shadow-sm flex flex-col justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold uppercase tracking-wider mb-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-800 border border-green-200 text-xs font-bold uppercase tracking-wider mb-5">
                 <Download size={13} />
                 No Lock-In Guarantee
               </div>
-              <h3 className="text-2xl font-black mb-3 text-slate-900 tracking-tight">
+              <h3 className="text-2xl font-black mb-3 text-blue-950 tracking-tight">
                 100% Data Portability & 1-Click Exit
               </h3>
               <p className="text-slate-600 text-sm leading-relaxed mb-6">
@@ -152,20 +170,20 @@ export default function ProofSection({
               </p>
               <ul className="space-y-3 text-sm text-slate-700 mb-6">
                 <li className="flex items-center gap-2.5">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
                   <span>1-click CSV export of full product catalog with photos and stock</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
                   <span>Full customer phone numbers & order records exportable anytime</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
                   <span>Cancel your subscription with 1 click in billing settings — no phone calls, no dark patterns</span>
                 </li>
               </ul>
             </div>
-            <div className="pt-4 border-t border-slate-200 text-xs text-slate-500">
+            <div className="pt-4 border-t border-blue-200/60 text-xs text-slate-500">
               *Subscriptions are non-refundable; cancel anytime to prevent future renewal charges.
             </div>
           </div>

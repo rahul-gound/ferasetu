@@ -598,6 +598,116 @@ async function localGet(url: string) {
     }));
   }
 
+  if (path === '/email/settings') {
+    requireAuth();
+    const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
+    const customDomain = storedDomains.find((d: any) => d.domain_type === 'CUSTOM') || null;
+    const activeProvider = localStorage.getItem('fera_local_email_provider') || 'FERASETU';
+    const extConnRaw = localStorage.getItem('fera_local_external_smtp');
+    const extConn = extConnRaw ? JSON.parse(extConnRaw) : null;
+    const user = db.users.find(u => u.id === getCurrentUserId());
+    const slug = user?.subdomain || 'store-1';
+
+    return Promise.resolve(createResponse({
+      activeProvider,
+      defaultIdentity: {
+        id: 'ident_default',
+        email_address: `orders@${slug}.ferasetu.com`,
+        display_name: user?.business_name || user?.name || 'Store',
+        is_default: 1
+      },
+      ferasetuDomain: {
+        id: 'dom_default',
+        domain: `${slug}.ferasetu.com`,
+        domain_type: 'FERASETU_MERCHANT',
+        verification_status: 'VERIFIED'
+      },
+      customDomain,
+      externalConnection: extConn ? { ...extConn, has_password: true, smtp_password: undefined } : null,
+      quota: {
+        dailyLimit: 100,
+        sentToday: 2,
+        remainingDaily: 98,
+        extraBalance: 0
+      }
+    }));
+  }
+
+  if (path === '/email/domains') {
+    requireAuth();
+    const user = db.users.find(u => u.id === getCurrentUserId());
+    const slug = user?.subdomain || 'store-1';
+    const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
+    const defaultDom = {
+      id: 'dom_default',
+      domain: `${slug}.ferasetu.com`,
+      domain_type: 'FERASETU_MERCHANT',
+      verification_status: 'VERIFIED'
+    };
+    return Promise.resolve(createResponse({ domains: [defaultDom, ...storedDomains] }));
+  }
+
+  if (path.startsWith('/email/domains/')) {
+    requireAuth();
+    const id = path.split('/')[3];
+    const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
+    const dom = storedDomains.find((d: any) => d.id === id);
+    if (!dom) throw createHttpError(404, 'Domain not found');
+    return Promise.resolve(createResponse({
+      domain: dom,
+      dnsInstructions: [
+        { type: 'TXT', name: `_ferasetu-challenge.${dom.domain}`, value: `fera-domain-verification=${dom.verification_token_hash || 'local'}`, purpose: 'Domain Ownership Verification', required: true },
+        { type: 'TXT', name: `fs1._domainkey.${dom.domain}`, value: 'v=DKIM1; k=rsa; p=MIIBIjANBgkqhki...', purpose: 'DKIM Authenticated Signing', required: true },
+        { type: 'TXT', name: dom.domain, value: 'v=spf1 include:_spf.ferasetu.com ~all', purpose: 'SPF Sender Authorization', required: true },
+        { type: 'TXT', name: `_dmarc.${dom.domain}`, value: 'v=DMARC1; p=reject; rua=mailto:dmarc-reports@ferasetu.com; aspf=r; adkim=r', purpose: 'DMARC Alignment Policy', required: false },
+        { type: 'CNAME', name: `mail.${dom.domain}`, value: 'mail.ferasetu.com', purpose: 'Custom Mail From', required: false },
+      ]
+    }));
+  }
+
+  if (path === '/email/identities') {
+    requireAuth();
+    const user = db.users.find(u => u.id === getCurrentUserId());
+    const slug = user?.subdomain || 'store-1';
+    return Promise.resolve(createResponse({
+      identities: [
+        {
+          id: 'ident_default',
+          email_address: `orders@${slug}.ferasetu.com`,
+          display_name: user?.business_name || user?.name || 'Store',
+          is_default: 1,
+          domain: `${slug}.ferasetu.com`,
+          status: 'ACTIVE'
+        }
+      ]
+    }));
+  }
+
+  if (path === '/email/provider') {
+    requireAuth();
+    const activeProvider = localStorage.getItem('fera_local_email_provider') || 'FERASETU';
+    const extConnRaw = localStorage.getItem('fera_local_external_smtp');
+    const extConn = extConnRaw ? JSON.parse(extConnRaw) : null;
+    return Promise.resolve(createResponse({
+      provider_type: activeProvider,
+      smtp_host: extConn?.smtp_host || '',
+      smtp_port: extConn?.smtp_port || 587,
+      smtp_username: extConn?.smtp_username || '',
+      security_mode: extConn?.security_mode || 'STARTTLS',
+      status: extConn ? 'ACTIVE' : 'UNTESTED',
+      has_password: !!extConn
+    }));
+  }
+
+  if (path === '/email/events') {
+    requireAuth();
+    return Promise.resolve(createResponse({
+      events: [
+        { id: 'evt_1', message_id: 'msg_1', recipient: 'customer@example.com', event_type: 'DELIVERED', timestamp: new Date().toISOString(), subject: 'Order Confirmation #INV-1001', provider: 'FERASETU' }
+      ]
+    }));
+  }
+
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
@@ -1083,6 +1193,73 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     });
   }
 
+  if (path === '/email/domains') {
+    requireAuth();
+    const domain = String(payload.domain || '').trim().toLowerCase();
+    const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
+    const newDomain = {
+      id: `dom_${Date.now()}`,
+      domain,
+      domain_type: 'CUSTOM',
+      verification_status: 'PENDING',
+      verification_token_hash: `fera_token_${Date.now()}`,
+      dkim_selector: 'fs1',
+      dkim_status: 'PENDING',
+      spf_status: 'PENDING',
+      dmarc_status: 'PENDING',
+      created_at: now(),
+      updated_at: now()
+    };
+    storedDomains.push(newDomain);
+    localStorage.setItem('fera_local_email_domains', JSON.stringify(storedDomains));
+    return Promise.resolve(createResponse({
+      domain: newDomain,
+      dnsInstructions: [
+        { type: 'TXT', name: `_ferasetu-challenge.${domain}`, value: `fera-domain-verification=${newDomain.verification_token_hash}`, purpose: 'Domain Ownership Verification', required: true },
+        { type: 'TXT', name: `fs1._domainkey.${domain}`, value: 'v=DKIM1; k=rsa; p=MIIBIjANBgkqhki...', purpose: 'DKIM Authenticated Signing', required: true },
+        { type: 'TXT', name: domain, value: 'v=spf1 include:_spf.ferasetu.com ~all', purpose: 'SPF Sender Authorization', required: true },
+        { type: 'TXT', name: `_dmarc.${domain}`, value: 'v=DMARC1; p=reject; rua=mailto:dmarc-reports@ferasetu.com; aspf=r; adkim=r', purpose: 'DMARC Alignment Policy', required: false },
+        { type: 'CNAME', name: `mail.${domain}`, value: 'mail.ferasetu.com', purpose: 'Custom Mail From', required: false },
+      ]
+    }, 201));
+  }
+
+  if (path.startsWith('/email/domains/') && (path.endsWith('/verify') || path.endsWith('/check'))) {
+    requireAuth();
+    const id = path.split('/')[3];
+    const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
+    const dom = storedDomains.find((d: any) => d.id === id);
+    if (!dom) throw createHttpError(404, 'Domain not found');
+    dom.verification_status = 'VERIFIED';
+    dom.dkim_status = 'VERIFIED';
+    dom.spf_status = 'VERIFIED';
+    dom.dmarc_status = 'VERIFIED';
+    dom.verified_at = now();
+    localStorage.setItem('fera_local_email_domains', JSON.stringify(storedDomains));
+    return Promise.resolve(createResponse({
+      domain: dom,
+      verification: { verified: true, status: 'VERIFIED', ownershipStatus: 'VERIFIED', dkimStatus: 'VERIFIED', spfStatus: 'VERIFIED', dmarcStatus: 'VERIFIED' }
+    }));
+  }
+
+  if (path === '/email/provider/ferasetu') {
+    requireAuth();
+    localStorage.setItem('fera_local_email_provider', 'FERASETU');
+    return Promise.resolve(createResponse({ success: true, provider: 'FERASETU', message: 'Switched to FeraSetu Email successfully' }));
+  }
+
+  if (path === '/email/provider/external') {
+    requireAuth();
+    localStorage.setItem('fera_local_email_provider', 'EXTERNAL_SMTP');
+    localStorage.setItem('fera_local_external_smtp', JSON.stringify(payload));
+    return Promise.resolve(createResponse({ success: true, provider: 'EXTERNAL_SMTP', message: 'External SMTP configured successfully' }));
+  }
+
+  if (path === '/email/test') {
+    requireAuth();
+    return Promise.resolve(createResponse({ success: true, message: 'Test email dispatched successfully' }));
+  }
+
   throw createHttpError(404, `Unknown POST endpoint: ${path}`);
 }
 
@@ -1225,6 +1402,10 @@ async function localPatch(url: string, payload: Record<string, any>) {
     return Promise.resolve(createResponse(order));
   }
 
+  if (path.startsWith('/email/identities/')) {
+    return Promise.resolve(createResponse({ success: true, message: 'Identity updated' }));
+  }
+
   throw createHttpError(404, `Unknown PATCH endpoint: ${path}`);
 }
 
@@ -1238,6 +1419,20 @@ async function localDelete(url: string) {
     db.products = db.products.filter(p => !(p.id === id && p.user_id === userId));
     saveDb(db);
     return Promise.resolve(createResponse({ success: true }));
+  }
+
+  if (path.startsWith('/email/domains/')) {
+    const id = path.split('/')[3];
+    const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
+    const filtered = storedDomains.filter((d: any) => d.id !== id);
+    localStorage.setItem('fera_local_email_domains', JSON.stringify(filtered));
+    return Promise.resolve(createResponse({ success: true, message: 'Domain deleted' }));
+  }
+
+  if (path === '/email/provider/external') {
+    localStorage.setItem('fera_local_email_provider', 'FERASETU');
+    localStorage.removeItem('fera_local_external_smtp');
+    return Promise.resolve(createResponse({ success: true, message: 'External SMTP removed' }));
   }
 
   throw createHttpError(404, `Unknown DELETE endpoint: ${path}`);
