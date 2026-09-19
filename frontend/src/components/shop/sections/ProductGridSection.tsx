@@ -3,11 +3,13 @@ import axios from 'axios';
 import { 
   ShoppingBag, X, Check, MapPin, Truck, 
   Package, ExternalLink,
-  ShoppingCart, Plus, Minus, ArrowRight
+  ShoppingCart, Plus, Minus, ArrowRight,
+  FileText, Download
 } from 'lucide-react';
 import type { SectionConfig, ShopProduct } from '../../../types/template';
 import DOMPurify from 'isomorphic-dompurify';
 import { resolveMediaUrl } from '../../../utils/media';
+import InvoiceDocumentModal from '../../orders/InvoiceDocumentModal';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -185,7 +187,8 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
   const [showCart, setShowCart] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
-  const [orderComplete, setOrderComplete] = useState<{ id: string; invoice: string; deliveryCode: string; paymentOtp?: string } | null>(null);
+  const [orderComplete, setOrderComplete] = useState<{ id: string; invoice: string; deliveryCode: string; paymentOtp?: string; trackingToken?: string } | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -268,6 +271,7 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
         id: ord.id || res.data.id,
         invoice: ord.invoice_number || res.data.invoiceNumber || 'N/A',
         deliveryCode: ord.delivery_code || ord.deliveryCode || res.data.deliveryCode || 'N/A',
+        trackingToken: ord.trackingToken || ord.tracking_token || res.data.trackingToken,
       });
       setCart([]); // Clear cart
     } catch (err) {
@@ -441,6 +445,54 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
                   </p>
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowInvoiceModal(true)}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '12px',
+                      background: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #bfdbfe',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <FileText size={16} />
+                    <span>View Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const token = orderComplete.trackingToken || '';
+                      window.open(`${API}/orders/public/${orderComplete.id}/invoice/pdf?token=${encodeURIComponent(token)}`, '_blank');
+                    }}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '12px',
+                      background: '#0f172a',
+                      color: '#fff',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <Download size={16} />
+                    <span>Download PDF</span>
+                  </button>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <button
                     onClick={() => {
@@ -519,6 +571,19 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
             )}
           </div>
         </div>
+      )}
+
+      {showInvoiceModal && orderComplete && (
+        <InvoiceDocumentModal
+          order={{
+            id: orderComplete.id,
+            invoice_number: orderComplete.invoice,
+            tracking_token: orderComplete.trackingToken,
+          }}
+          onClose={() => setShowInvoiceModal(false)}
+          isCustomerView={true}
+          trackingToken={orderComplete.trackingToken}
+        />
       )}
     </section>
   );

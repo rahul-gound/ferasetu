@@ -112,30 +112,56 @@ function formatPdfMoney(amountMinor: number | undefined | null, currency: string
 /**
  * Pure vector PDF-1.4 generator for Invoices and Credit Notes.
  * Produces crisp, print-ready A4 documents with no external dependencies.
+ * Fully supports multi-page documents with automatic page breaks and pagination.
  */
 class PdfDocumentBuilder {
-  private pageWidth = 595.28;  // A4 standard width (pt)
-  private pageHeight = 841.89; // A4 standard height (pt)
-  private streamParts: string[] = [];
+  readonly pageWidth = 595.28;  // A4 standard width (pt)
+  readonly pageHeight = 841.89; // A4 standard height (pt)
+  private pages: string[][] = [[]];
+  private currentPageIndex = 0;
 
   constructor() {}
 
+  get pageCount(): number {
+    return this.pages.length;
+  }
+
+  get currentPage(): number {
+    return this.currentPageIndex + 1;
+  }
+
+  setPage(pageIndex: number): void {
+    if (pageIndex >= 0 && pageIndex < this.pages.length) {
+      this.currentPageIndex = pageIndex;
+    }
+  }
+
+  addPage(): number {
+    this.pages.push([]);
+    this.currentPageIndex = this.pages.length - 1;
+    return this.currentPageIndex + 1;
+  }
+
+  private get currentStream(): string[] {
+    return this.pages[this.currentPageIndex];
+  }
+
   addRect(x: number, y: number, w: number, h: number, fillColor?: [number, number, number], strokeColor?: [number, number, number], lineWidth = 1) {
     if (fillColor) {
-      this.streamParts.push(`${fillColor[0]} ${fillColor[1]} ${fillColor[2]} rg`);
+      this.currentStream.push(`${fillColor[0]} ${fillColor[1]} ${fillColor[2]} rg`);
     }
     if (strokeColor) {
-      this.streamParts.push(`${strokeColor[0]} ${strokeColor[1]} ${strokeColor[2]} RG`);
-      this.streamParts.push(`${lineWidth} w`);
+      this.currentStream.push(`${strokeColor[0]} ${strokeColor[1]} ${strokeColor[2]} RG`);
+      this.currentStream.push(`${lineWidth} w`);
     }
     const op = fillColor && strokeColor ? 'B' : fillColor ? 'f' : 'S';
-    this.streamParts.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${op}`);
+    this.currentStream.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${op}`);
   }
 
   addLine(x1: number, y1: number, x2: number, y2: number, strokeColor: [number, number, number] = [0.8, 0.8, 0.8], lineWidth = 1) {
-    this.streamParts.push(`${strokeColor[0]} ${strokeColor[1]} ${strokeColor[2]} RG`);
-    this.streamParts.push(`${lineWidth} w`);
-    this.streamParts.push(`${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+    this.currentStream.push(`${strokeColor[0]} ${strokeColor[1]} ${strokeColor[2]} RG`);
+    this.currentStream.push(`${lineWidth} w`);
+    this.currentStream.push(`${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
   }
 
   addText(
@@ -167,44 +193,45 @@ class PdfDocumentBuilder {
       targetX = x - textWidth / 2;
     }
 
-    this.streamParts.push('BT');
-    this.streamParts.push(`${color[0]} ${color[1]} ${color[2]} rg`);
-    this.streamParts.push(`${font} ${size} Tf`);
-    this.streamParts.push(`1 0 0 1 ${targetX.toFixed(2)} ${y.toFixed(2)} Tm`);
-    this.streamParts.push(`(${escaped}) Tj`);
-    this.streamParts.push('ET');
+    this.currentStream.push('BT');
+    this.currentStream.push(`${color[0]} ${color[1]} ${color[2]} rg`);
+    this.currentStream.push(`${font} ${size} Tf`);
+    this.currentStream.push(`1 0 0 1 ${targetX.toFixed(2)} ${y.toFixed(2)} Tm`);
+    this.currentStream.push(`(${escaped}) Tj`);
+    this.currentStream.push('ET');
   }
 
   build(): Buffer {
-    const contentStream = this.streamParts.join('\n');
-    const streamLength = Buffer.byteLength(contentStream, 'utf-8');
-
-    // Build PDF objects
+    const N = this.pages.length;
     const objects: string[] = [];
 
     // Object 1: Catalog
     objects.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 
-    // Object 2: Pages
-    objects.push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+    // Pages Tree Kids refs: Object 5, 7, 9, ... (odd numbers starting from 5)
+    const pageRefs = Array.from({ length: N }, (_, i) => `${5 + i * 2} 0 R`).join(' ');
+    objects.push(`2 0 obj\n<< /Type /Pages /Kids [${pageRefs}] /Count ${N} >>\nendobj\n`);
 
-    // Object 3: Page
-    objects.push(
-      `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${this.pageWidth} ${this.pageHeight}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n`
-    );
+    // Shared Font Objects: Helvetica & Helvetica-Bold
+    objects.push('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+    objects.push('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n');
 
-    // Object 4: Content Stream
-    objects.push(
-      `4 0 obj\n<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`
-    );
+    // Page and Stream Objects for each page
+    for (let i = 0; i < N; i++) {
+      const pageObjId = 5 + i * 2;
+      const streamObjId = 6 + i * 2;
+      const content = this.pages[i].join('\n');
+      const streamLength = Buffer.byteLength(content, 'utf-8');
 
-    // Object 5: Standard Font Helvetica
-    objects.push('5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+      objects.push(
+        `${pageObjId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${this.pageWidth} ${this.pageHeight}] /Contents ${streamObjId} 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>\nendobj\n`
+      );
+      objects.push(
+        `${streamObjId} 0 obj\n<< /Length ${streamLength} >>\nstream\n${content}\nendstream\nendobj\n`
+      );
+    }
 
-    // Object 6: Standard Font Helvetica-Bold
-    objects.push('6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n');
-
-    // Calculate cross-reference table
+    // Calculate cross-reference table offsets
     let offset = 9; // "%PDF-1.4\n"
     const xrefOffsets: number[] = [0]; // special 0 entry
 
@@ -227,12 +254,43 @@ class PdfDocumentBuilder {
 
 /**
  * Generate a professional, print-friendly A4 Invoice PDF.
+ * Supports multi-page page breaks, repeated continuation headers, and clean currency formatting.
  */
 export function generateInvoicePdf(data: InvoicePdfData): Buffer {
   const doc = new PdfDocumentBuilder();
   const margin = 40;
   const contentWidth = 595.28 - margin * 2;
+  const bottomThreshold = 75; // minimum clearance above bottom margin
   let curY = 841.89 - margin; // 801.89
+
+  // Table Columns
+  const colX = {
+    item: margin + 10,
+    qty: margin + 270,
+    price: margin + 355,
+    total: margin + contentWidth - 10,
+  };
+
+  const drawTableHeader = (y: number): number => {
+    doc.addRect(margin, y - 14, contentWidth, 20, [0.08, 0.25, 0.45]);
+    doc.addText('ITEM DESCRIPTION', colX.item, y - 9, { font: '/F2', size: 8.5, color: [1, 1, 1] });
+    doc.addText('QTY', colX.qty, y - 9, { font: '/F2', size: 8.5, color: [1, 1, 1], align: 'center' });
+    doc.addText('UNIT PRICE', colX.price, y - 9, { font: '/F2', size: 8.5, color: [1, 1, 1], align: 'right' });
+    doc.addText('TOTAL', colX.total, y - 9, { font: '/F2', size: 8.5, color: [1, 1, 1], align: 'right' });
+    return y - 22;
+  };
+
+  const drawContinuationHeader = (): number => {
+    let y = 841.89 - margin;
+    doc.addRect(margin, y, contentWidth, 3, [0.08, 0.25, 0.45]);
+    y -= 18;
+    doc.addText('TAX INVOICE (CONTINUED)', margin, y, { font: '/F2', size: 13, color: [0.08, 0.25, 0.45] });
+    doc.addText(`Invoice: ${data.invoiceNumber}  |  Order #${data.orderId.slice(0, 10).toUpperCase()}`, margin + contentWidth, y, { font: '/F2', size: 9, color: [0.35, 0.4, 0.45], align: 'right' });
+    y -= 12;
+    doc.addLine(margin, y, margin + contentWidth, y, [0.85, 0.88, 0.9]);
+    y -= 14;
+    return drawTableHeader(y);
+  };
 
   // Header Brand Accent Bar
   doc.addRect(margin, curY, contentWidth, 3, [0.08, 0.25, 0.45]); // Dark Navy
@@ -260,6 +318,10 @@ export function generateInvoicePdf(data: InvoicePdfData): Buffer {
   }
   if (data.merchant.phone) {
     doc.addText(`Phone: ${data.merchant.phone}`, margin, storeY, { size: 9, color: [0.35, 0.4, 0.45] });
+    storeY -= 13;
+  }
+  if (data.merchant.email) {
+    doc.addText(`Email: ${data.merchant.email}`, margin, storeY, { size: 9, color: [0.35, 0.4, 0.45] });
     storeY -= 13;
   }
   if (data.merchant.gstin) {
@@ -294,30 +356,23 @@ export function generateInvoicePdf(data: InvoicePdfData): Buffer {
   curY -= 65;
 
   // Table Headers
-  const colX = {
-    item: margin + 10,
-    qty: margin + 280,
-    price: margin + 360,
-    total: margin + contentWidth - 10,
-  };
+  curY = drawTableHeader(curY);
 
-  doc.addRect(margin, curY - 14, contentWidth, 20, [0.1, 0.15, 0.25]);
-  doc.addText('ITEM DESCRIPTION', colX.item, curY - 9, { font: '/F2', size: 8.5, color: [1, 1, 1] });
-  doc.addText('QTY', colX.qty, curY - 9, { font: '/F2', size: 8.5, color: [1, 1, 1], align: 'center' });
-  doc.addText('UNIT PRICE', colX.price, curY - 9, { font: '/F2', size: 8.5, color: [1, 1, 1], align: 'right' });
-  doc.addText('TOTAL', colX.total, curY - 9, { font: '/F2', size: 8.5, color: [1, 1, 1], align: 'right' });
-
-  curY -= 22;
-
-  // Line items
+  // Line items with automatic page break handling
   data.items.forEach((item, idx) => {
+    // Check if new row fits; if not, break page
+    if (curY - 18 < bottomThreshold) {
+      doc.addPage();
+      curY = drawContinuationHeader();
+    }
+
     const isAlt = idx % 2 === 1;
     if (isAlt) {
       doc.addRect(margin, curY - 10, contentWidth, 18, [0.98, 0.98, 0.99]);
     }
 
     const itemLabel = item.name + (item.variant ? ` (${item.variant})` : '');
-    doc.addText(itemLabel.slice(0, 45), colX.item, curY - 5, { font: '/F2', size: 9, color: [0.15, 0.2, 0.25] });
+    doc.addText(itemLabel.slice(0, 42), colX.item, curY - 5, { font: '/F2', size: 9, color: [0.15, 0.2, 0.25] });
     doc.addText(String(item.quantity), colX.qty, curY - 5, { size: 9, color: [0.3, 0.35, 0.4], align: 'center' });
     doc.addText(formatPdfMoney(item.unitPriceMinor, data.currency), colX.price, curY - 5, { size: 9, color: [0.3, 0.35, 0.4], align: 'right' });
     doc.addText(formatPdfMoney(item.totalMinor, data.currency), colX.total, curY - 5, { font: '/F2', size: 9, color: [0.1, 0.15, 0.2], align: 'right' });
@@ -329,12 +384,29 @@ export function generateInvoicePdf(data: InvoicePdfData): Buffer {
   curY -= 10;
 
   // Summary Table (right aligned)
+  const hasTax = Boolean(data.taxMinor && data.taxMinor > 0);
+  const hasDiscount = Boolean(data.discountMinor && data.discountMinor > 0);
+  const summaryHeight = 65 + (hasTax ? 16 : 0) + (hasDiscount ? 16 : 0) + (data.notes ? 40 : 0);
+
+  // If summary box doesn't fit on this page, create a new page
+  if (curY - summaryHeight < bottomThreshold) {
+    doc.addPage();
+    curY = 841.89 - margin - 20;
+    doc.addRect(margin, 841.89 - margin, contentWidth, 3, [0.08, 0.25, 0.45]);
+    doc.addText('TAX INVOICE — SUMMARY', margin, curY, { font: '/F2', size: 12, color: [0.08, 0.25, 0.45] });
+    doc.addText(`Invoice: ${data.invoiceNumber}`, margin + contentWidth, curY, { font: '/F2', size: 9, color: [0.35, 0.4, 0.45], align: 'right' });
+    curY -= 20;
+    doc.addLine(margin, curY, margin + contentWidth, curY, [0.85, 0.88, 0.9]);
+    curY -= 20;
+  }
+
   const summaryBoxWidth = 230;
   const summaryX = margin + contentWidth - summaryBoxWidth;
   const summaryLabelX = summaryX + 10;
   const summaryValX = margin + contentWidth - 10;
 
-  doc.addRect(summaryX, curY - 85, summaryBoxWidth, 92, [0.98, 0.98, 0.99], [0.85, 0.88, 0.92]);
+  const boxRectHeight = 62 + (hasTax ? 16 : 0) + (hasDiscount ? 16 : 0);
+  doc.addRect(summaryX, curY - boxRectHeight, summaryBoxWidth, boxRectHeight + 5, [0.98, 0.98, 0.99], [0.85, 0.88, 0.92]);
 
   doc.addText('Subtotal', summaryLabelX, curY - 12, { size: 9, color: [0.35, 0.4, 0.45] });
   doc.addText(formatPdfMoney(data.subtotalMinor, data.currency), summaryValX, curY - 12, { size: 9, color: [0.2, 0.25, 0.3], align: 'right' });
@@ -343,13 +415,13 @@ export function generateInvoicePdf(data: InvoicePdfData): Buffer {
   doc.addText('Delivery / Shipping', summaryLabelX, curY - 12, { size: 9, color: [0.35, 0.4, 0.45] });
   doc.addText(formatPdfMoney(data.deliveryFeeMinor || 0, data.currency), summaryValX, curY - 12, { size: 9, color: [0.2, 0.25, 0.3], align: 'right' });
 
-  if (data.taxMinor && data.taxMinor > 0) {
+  if (hasTax) {
     curY -= 16;
     doc.addText('Tax / GST', summaryLabelX, curY - 12, { size: 9, color: [0.35, 0.4, 0.45] });
     doc.addText(formatPdfMoney(data.taxMinor, data.currency), summaryValX, curY - 12, { size: 9, color: [0.2, 0.25, 0.3], align: 'right' });
   }
 
-  if (data.discountMinor && data.discountMinor > 0) {
+  if (hasDiscount) {
     curY -= 16;
     doc.addText('Discount', summaryLabelX, curY - 12, { size: 9, color: [0.35, 0.4, 0.45] });
     doc.addText(`-${formatPdfMoney(data.discountMinor, data.currency)}`, summaryValX, curY - 12, { size: 9, color: [0.8, 0.2, 0.1], align: 'right' });
@@ -362,16 +434,21 @@ export function generateInvoicePdf(data: InvoicePdfData): Buffer {
 
   // Notes if any
   if (data.notes) {
-    const notesY = curY - 40;
+    const notesY = curY - 35;
     doc.addText('NOTES / SPECIAL INSTRUCTIONS', margin, notesY, { font: '/F2', size: 8, color: [0.45, 0.5, 0.55] });
     doc.addText(data.notes.slice(0, 100), margin, notesY - 12, { size: 8.5, color: [0.35, 0.4, 0.45] });
   }
 
-  // Footer
-  const footerY = margin + 25;
-  doc.addLine(margin, footerY + 15, margin + contentWidth, footerY + 15, [0.85, 0.88, 0.9]);
-  doc.addText('Powered by FeraSetu', margin + contentWidth / 2, footerY, { font: '/F2', size: 9, color: [0.35, 0.4, 0.45], align: 'center' });
-  doc.addText('This is a computer-generated tax invoice and requires no physical signature.', margin + contentWidth / 2, footerY - 12, { size: 7.5, color: [0.6, 0.65, 0.7], align: 'center' });
+  // Consistent Footers across all pages
+  const totalPages = doc.pageCount;
+  const footerY = margin + 15;
+  for (let p = 0; p < totalPages; p++) {
+    doc.setPage(p);
+    doc.addLine(margin, footerY + 15, margin + contentWidth, footerY + 15, [0.85, 0.88, 0.9]);
+    doc.addText('Powered by FeraSetu', margin, footerY, { font: '/F2', size: 8.5, color: [0.35, 0.4, 0.45] });
+    doc.addText(`Page ${p + 1} of ${totalPages}`, margin + contentWidth, footerY, { size: 8.5, color: [0.45, 0.5, 0.55], align: 'right' });
+    doc.addText('This is a computer-generated tax invoice and requires no physical signature.', margin + contentWidth / 2, footerY - 12, { size: 7.5, color: [0.6, 0.65, 0.7], align: 'center' });
+  }
 
   return doc.build();
 }

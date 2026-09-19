@@ -7,3 +7,8 @@ B2_APPLICATION_KEY=your_b2_application_key
 B2_BUCKET=ferasetu-media-prod
 B2_REGION=eu-central-003
 B2_ENDPOINT=https://s3.eu-central-003.backblazeb2.com
+
+# Zoho Zia Agents Chat
+ZOHO_CHAT_ORG_ID="60088469696"
+ZOHO_CHAT_ENTITY_ID="12456000000002143"
+ZOHO_CHAT_KEY=""

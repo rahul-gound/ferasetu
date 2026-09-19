@@ -5,6 +5,7 @@ import {
   Ban, RotateCcw, Truck, MapPin, CheckCircle2, AlertCircle, FileText
 } from 'lucide-react';
 import { useStorefront } from '../runtime/StorefrontProvider';
+import InvoiceDocumentModal from '../../components/orders/InvoiceDocumentModal';
 
 const rawApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 const API = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
@@ -35,6 +36,7 @@ export default function CustomerAccountDrawer() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<any>(null);
 
   useEffect(() => {
     if (isCustomerAccountOpen && customer) {
@@ -281,14 +283,24 @@ export default function CustomerAccountDrawer() {
 
                 {/* Action Buttons */}
                 <div className="space-y-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadInvoicePdf(selectedCustomerOrder)}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
-                  >
-                    <Download size={15} />
-                    <span>Download Tax Invoice (PDF)</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewingInvoiceOrder(selectedCustomerOrder)}
+                      className="py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-blue-200"
+                    >
+                      <FileText size={15} />
+                      <span>View Invoice</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadInvoicePdf(selectedCustomerOrder)}
+                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                    >
+                      <Download size={15} />
+                      <span>Download PDF</span>
+                    </button>
+                  </div>
 
                   {/* Cancel Order Action */}
                   {['pending', 'confirmed'].includes(selectedCustomerOrder.status) && (
@@ -488,6 +500,16 @@ export default function CustomerAccountDrawer() {
           </div>
         </div>
       </div>
+
+      {viewingInvoiceOrder && (
+        <InvoiceDocumentModal
+          order={viewingInvoiceOrder}
+          onClose={() => setViewingInvoiceOrder(null)}
+          isCustomerView={true}
+          trackingToken={viewingInvoiceOrder.tracking_token}
+          merchantName={shopName}
+        />
+      )}
     </div>
   );
 }

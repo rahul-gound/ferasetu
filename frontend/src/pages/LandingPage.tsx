@@ -22,7 +22,7 @@
  * - No fake urgency
  * - No invented claims
  */
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -118,6 +118,51 @@ export default function LandingPage() {
   const previewPlans = getMarketPlans(market);
 
   const [claimShopName, setClaimShopName] = useState('');
+
+  useEffect(() => {
+    // Zoho Zia Agents Chat Integration
+    const scriptId = 'zoho-agents-chat-sdk';
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://agents.zoho.in/resources/addon-chat/assets/js/agents-chat-sdk.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    const containerId = 'zoho-agents-chatkit-wrap';
+    let container = document.getElementById(containerId);
+    if (!container) {
+      container = document.createElement('div');
+      container.id = containerId;
+
+      const orgId = (import.meta as any).env?.VITE_ZOHO_CHAT_ORG_ID || '60088469696';
+      const entityId = (import.meta as any).env?.VITE_ZOHO_CHAT_ENTITY_ID || '12456000000002143';
+      const chatKey = (import.meta as any).env?.VITE_ZOHO_CHAT_KEY || '';
+
+      const ziaConfig: Record<string, string> = { orgId, entityId };
+      if (chatKey) {
+        ziaConfig.chatKey = chatKey;
+        ziaConfig.chatkey = chatKey;
+      }
+
+      const chatkit = document.createElement('agents-chatkit');
+      chatkit.setAttribute('ziaAgents', JSON.stringify(ziaConfig));
+      if (chatKey) {
+        chatkit.setAttribute('chatkey', chatKey);
+        chatkit.setAttribute('chatKey', chatKey);
+      }
+
+      container.appendChild(chatkit);
+      document.body.appendChild(container);
+    }
+
+    return () => {
+      const el = document.getElementById(containerId);
+      if (el) el.remove();
+    };
+  }, []);
 
   const slugifiedClaim = claimShopName
     .trim()

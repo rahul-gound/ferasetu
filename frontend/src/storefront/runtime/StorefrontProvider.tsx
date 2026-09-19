@@ -437,6 +437,7 @@ export function StorefrontProvider({
             : [],
           emailStatus: ord.email_status,
           emailSent: Boolean(ord.email_sent),
+          trackingToken: ord.trackingToken || ord.tracking_token || data.trackingToken || data.order?.trackingToken,
         });
 
         clearCart();

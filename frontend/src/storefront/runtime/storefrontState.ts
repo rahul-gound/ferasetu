@@ -25,6 +25,7 @@ export interface OrderSuccessData {
   items?: Array<{ name: string; quantity: number; price: number }>;
   emailStatus?: string;
   emailSent?: boolean;
+  trackingToken?: string;
 }
 
 export interface CheckoutFormData {

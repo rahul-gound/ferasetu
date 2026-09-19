@@ -4,13 +4,14 @@ import toast from 'react-hot-toast';
 import {
   ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
   Download, Share2, Copy, Check, ExternalLink, Sparkles, Mail, Ban, RotateCcw,
-  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight
+  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt
 } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
+import InvoiceDocumentModal from '../components/orders/InvoiceDocumentModal';
 
 interface OrderItem {
   product_id?: string;
@@ -147,197 +148,15 @@ function InvoiceModal({ order, onClose, onPaymentUpdate, onVerifyOtp, merchantNa
   merchantName?: string;
   merchantLogo?: string | null;
 }) {
-  const [otpValue, setOtpValue] = useState('');
-  const invoiceNum = order.invoice_number || `INV-${order.id.slice(-8).toUpperCase()}`;
-  const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-    day: '2-digit', month: 'long', year: 'numeric',
-  });
-
   return (
-    <div className="no-print" style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-      zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '620px',
-        maxHeight: '92vh', overflowY: 'auto', color: '#1E293B',
-      }}>
-        {/* Invoice header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-          borderRadius: '16px 16px 0 0', padding: '28px 32px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-        }}>
-          <div>
-            <div style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '0.05em' }}>
-              TAX INVOICE
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: '6px' }}>
-              {invoiceNum} · {invoiceDate}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="no-print"
-            style={{
-              background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer',
-              color: '#fff', borderRadius: '8px', padding: '8px',
-              display: 'flex', alignItems: 'center',
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-4 sm:p-7">
-          {/* Handshake Panel */}
-          {order.payment_status !== 'paid' && (
-            <div style={{ background: '#FFF7ED', border: '2px solid #FFEDD5', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <ShieldCheck size={20} color="#FF6B35" />
-                  <span style={{ fontWeight: 800, fontSize: '15px', color: '#9A3412' }}>Secure Payment Verification</span>
-               </div>
-               <p style={{ fontSize: '13px', color: '#C2410C', marginBottom: '14px' }}>
-                  Please ask the customer for the <b>{order.delivery_type === 'delivery' ? 'Security Code' : 'Payment OTP'}</b> to confirm this transaction.
-               </p>
-               <div className="flex flex-col sm:flex-row gap-2.5">
-                  <input 
-                    placeholder="Enter Code/OTP" 
-                    value={otpValue}
-                    onChange={e => setOtpValue(e.target.value.toUpperCase())}
-                    className="flex-1 p-3 rounded-xl border border-amber-200 font-bold text-base outline-none bg-white"
-                  />
-                  <button 
-                    onClick={() => onVerifyOtp(order.id, otpValue)}
-                    className="bg-[#FF6B35] text-white border-0 py-3 px-5 rounded-xl font-bold cursor-pointer hover:bg-orange-600 transition-colors"
-                  >
-                    Verify & Pay
-                  </button>
-               </div>
-            </div>
-          )}
-
-          {/* Shop & Customer info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>From</div>
-              {merchantLogo && (
-                <img src={merchantLogo} alt={merchantName || 'Store'} className="h-8 w-auto object-contain mb-2" />
-              )}
-              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>{merchantName || 'Store'}</div>
-              <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
-                 Store Order: #{order.id.slice(0, 8).toUpperCase()}
-              </div>
-            </div>
-            <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '8px' }}>Bill To</div>
-              <div style={{ fontWeight: 700, fontSize: '15px', color: '#1E293B' }}>{order.customer_name}</div>
-              <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', lineHeight: 1.5 }}>
-                {order.customer_phone}
-                {order.customer_address && <><br />{order.customer_address}</>}
-              </div>
-            </div>
-          </div>
-
-          {/* Items table */}
-          <div style={{ marginBottom: '20px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ background: '#F1F5F9', borderRadius: '6px' }}>
-                  {['Product', 'Qty', 'Unit Price', 'Total'].map(h => (
-                    <th key={h} style={{
-                      padding: '10px 12px', textAlign: h === 'Product' ? 'left' : 'right',
-                      fontSize: '12px', fontWeight: 700, color: '#64748B',
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {order.items?.map((item, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                    <td style={{ padding: '12px', fontWeight: 500 }}>{item.product_name}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', color: '#64748B' }}>{item.quantity}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', color: '#64748B' }}>₹{item.price.toLocaleString('en-IN')}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>₹{(item.quantity * item.price).toLocaleString('en-IN')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals */}
-          <div style={{
-            background: '#F8FAFC', borderRadius: '10px', padding: '16px',
-            marginBottom: '20px',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
-              <span>Subtotal</span>
-              <span>₹{(order.subtotal || Math.max(0, order.total - (order.delivery_fee ?? (order.delivery_type === 'delivery' ? 30 : 0)))).toLocaleString('en-IN')}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748B' }}>
-              <span>Delivery Fee</span>
-              <span>{order.delivery_type === 'pickup' ? 'Free' : `₹${order.delivery_fee ?? 30}`}</span>
-            </div>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', paddingTop: '12px',
-              borderTop: '2px solid #E2E8F0', fontWeight: 800, fontSize: '18px',
-            }}>
-              <span>Grand Total</span>
-              <span style={{ color: '#FF6B35' }}>₹{order.total.toLocaleString('en-IN')}</span>
-            </div>
-          </div>
-
-          {/* Payment status */}
-          <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Payment Status:</span>
-            <PaymentBadge status={order.payment_status} />
-          </div>
-
-          {/* Action buttons */}
-          <div className="no-print" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {order.payment_status !== 'paid' && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => onPaymentUpdate(order.id, 'pay_later')}
-                style={{ flex: 1, minWidth: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                <Clock size={16} /> Pay Later
-              </button>
-            )}
-            <button
-              className="btn btn-secondary"
-              onClick={() => window.print()}
-              style={{ flex: 1, minWidth: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <Printer size={16} /> Print HTML
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => downloadPdf(`/orders/${order.id}/invoice/pdf`, `invoice-${invoiceNum}.pdf`)}
-              style={{ flex: 1, minWidth: '130px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <Download size={16} /> Download PDF
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={async () => {
-                const targetEmail = window.prompt('Send invoice to email address:', order.customer_email || '');
-                if (!targetEmail) return;
-                try {
-                  await api.post(`/orders/${order.id}/invoice/send`, { email: targetEmail });
-                  toast.success(`Invoice sent to ${targetEmail}`);
-                } catch (err: any) {
-                  toast.error(err.response?.data?.error || 'Failed to send invoice');
-                }
-              }}
-              style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <Mail size={16} /> Send Email
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <InvoiceDocumentModal
+      order={order}
+      onClose={onClose}
+      onPaymentUpdate={onPaymentUpdate}
+      onVerifyOtp={onVerifyOtp}
+      merchantName={merchantName}
+      merchantLogo={merchantLogo}
+    />
   );
 }
 
@@ -984,6 +803,15 @@ export default function OrdersPage() {
 
               {/* Action Bar */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setInvoiceOrder(selectedOrder)}
+                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                >
+                  <Receipt size={14} /> View Invoice
+                </button>
+
                 <button
                   type="button"
                   className="btn btn-secondary"

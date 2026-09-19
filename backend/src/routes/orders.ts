@@ -46,6 +46,91 @@ export function verifyOrderTrackingToken(orderId: string, phone: string, token: 
   }
 }
 
+export function buildInvoiceResponseData(order: any, invoice: any, merchant: any, shop: any) {
+  const currency = order.currency || invoice.currency || 'INR';
+  let parsedItems = [];
+  try {
+    parsedItems = typeof invoice.items === 'string'
+      ? JSON.parse(invoice.items)
+      : (Array.isArray(invoice.items) ? invoice.items : (typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || [])));
+  } catch {
+    try {
+      parsedItems = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+    } catch {
+      parsedItems = [];
+    }
+  }
+
+  const subtotalMinor = invoice.subtotal_minor || toMinorUnits(invoice.subtotal, currency);
+  const deliveryFeeMinor = invoice.shipping_minor || toMinorUnits(order.delivery_fee, currency);
+  const taxMinor = invoice.tax_minor || 0;
+  const discountMinor = invoice.discount_minor || 0;
+  const totalMinor = invoice.total_minor || toMinorUnits(invoice.total, currency);
+  const isPaid = order.payment_status === 'paid';
+  const amountPaidMinor = invoice.amount_paid_minor || (isPaid ? totalMinor : 0);
+  const balanceDueMinor = invoice.balance_due_minor || (isPaid ? 0 : totalMinor);
+
+  return {
+    id: invoice.id,
+    invoice_number: invoice.invoice_number,
+    order_id: order.id,
+    issued_at: invoice.issued_at || invoice.created_at,
+    order_date: order.created_at,
+    currency,
+    status: invoice.status || 'issued',
+    payment_method: order.payment_method || invoice.payment_method || 'offline',
+    payment_status: order.payment_status || 'unpaid',
+    order_status: order.status,
+    merchant: {
+      id: merchant?.id,
+      name: shop?.name || merchant?.business_name || merchant?.name || 'FeraSetu Store',
+      business_name: merchant?.business_name || shop?.name || merchant?.name,
+      address: [merchant?.city, merchant?.state].filter(Boolean).join(', ') || undefined,
+      city: merchant?.city || undefined,
+      state: merchant?.state || undefined,
+      phone: merchant?.phone || undefined,
+      email: merchant?.email || undefined,
+      gstin: merchant?.gstin || undefined,
+      logo_url: shop?.logo_url || merchant?.logo_url || null,
+    },
+    customer: {
+      name: order.customer_name,
+      phone: order.customer_phone,
+      email: order.customer_email || undefined,
+      delivery_address: order.delivery_address || undefined,
+      delivery_type: order.delivery_type,
+    },
+    items: (parsedItems || []).map((it: any) => {
+      const price = Number(it.price) || 0;
+      const quantity = Math.max(1, parseInt(it.quantity || it.qty || 1));
+      const unitPriceMinor = it.unitPriceMinor || it.unit_price_minor || toMinorUnits(price, currency);
+      const lineTotalMinor = it.totalMinor || it.total_minor || (unitPriceMinor * quantity);
+      return {
+        product_id: it.productId || it.product_id || it.id,
+        name: it.name || it.product_name || 'Item',
+        quantity,
+        price,
+        unit_price_minor: unitPriceMinor,
+        total: fromMinorUnits(lineTotalMinor, currency),
+        total_minor: lineTotalMinor,
+      };
+    }),
+    subtotal: fromMinorUnits(subtotalMinor, currency),
+    subtotal_minor: subtotalMinor,
+    delivery_fee: fromMinorUnits(deliveryFeeMinor, currency),
+    delivery_fee_minor: deliveryFeeMinor,
+    tax: fromMinorUnits(taxMinor, currency),
+    tax_minor: taxMinor,
+    discount: fromMinorUnits(discountMinor, currency),
+    discount_minor: discountMinor,
+    total: fromMinorUnits(totalMinor, currency),
+    total_minor: totalMinor,
+    amount_paid_minor: amountPaidMinor,
+    balance_due_minor: balanceDueMinor,
+    notes: order.notes || undefined,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // 1. PUBLIC: Create order (called by shop visitors at checkout)
 // ---------------------------------------------------------------------------
@@ -134,33 +219,39 @@ router.post('/create',
       isPaidOnline ? 'paid' : 'unpaid', paymentMethod
     );
 
-    // Generate authoritative immutable Invoice
-    const invoiceId = `inv_${uuidv4()}`;
-    const invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Generate authoritative immutable Invoice (idempotent)
+    const existingInvoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(orderId) as any;
+    let invoiceId = existingInvoice?.id;
+    let invoiceNumber = existingInvoice?.invoice_number;
 
-    db.prepare(`
-      INSERT INTO invoices (
-        id, order_id, user_id, invoice_number, items, subtotal, tax, total,
-        currency, subtotal_minor, shipping_minor, tax_minor, total_minor,
-        amount_paid_minor, balance_due_minor, payment_method, status, issued_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'issued', datetime('now'))
-    `).run(
-      invoiceId, orderId, shopId, invoiceNumber, JSON.stringify(resolvedItems),
-      subtotalDecimal, totalDecimal, currency, subtotalMinor, deliveryFeeMinor,
-      totalMinor, amountPaidMinor, isPaidOnline ? 0 : totalMinor, paymentMethod
-    );
+    if (!existingInvoice) {
+      invoiceId = `inv_${uuidv4()}`;
+      invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Append-only audit trail
-    recordFinancialAudit({
-      userId: shopId,
-      orderId,
-      invoiceId,
-      eventType: 'invoice_issued',
-      actorType: 'customer',
-      currency,
-      amountMinor: totalMinor,
-      metadata: { invoiceNumber, paymentMethod, customerPhone },
-    });
+      db.prepare(`
+        INSERT INTO invoices (
+          id, order_id, user_id, invoice_number, items, subtotal, tax, total,
+          currency, subtotal_minor, shipping_minor, tax_minor, total_minor,
+          amount_paid_minor, balance_due_minor, payment_method, status, issued_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'issued', datetime('now'))
+      `).run(
+        invoiceId, orderId, shopId, invoiceNumber, JSON.stringify(resolvedItems),
+        subtotalDecimal, totalDecimal, currency, subtotalMinor, deliveryFeeMinor,
+        totalMinor, amountPaidMinor, isPaidOnline ? 0 : totalMinor, paymentMethod
+      );
+
+      // Append-only audit trail
+      recordFinancialAudit({
+        userId: shopId,
+        orderId,
+        invoiceId,
+        eventType: 'invoice_issued',
+        actorType: 'customer',
+        currency,
+        amountMinor: totalMinor,
+        metadata: { invoiceNumber, paymentMethod, customerPhone },
+      });
+    }
 
     const trackingToken = generateOrderTrackingToken(orderId, customerPhone);
 
@@ -232,7 +323,43 @@ router.get('/public/track', async (req: Request, res: Response): Promise<void> =
 });
 
 // ---------------------------------------------------------------------------
-// 3. PUBLIC SECURE: Download Invoice PDF (requires cryptographic tracking token)
+// 3a. PUBLIC SECURE: View Invoice Details (requires cryptographic tracking token)
+// ---------------------------------------------------------------------------
+router.get('/public/:id/invoice', async (req: Request, res: Response): Promise<void> => {
+  const orderId = req.params.id;
+  const token = (req.query.token as string) || '';
+
+  const db = getDatabase();
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  // Cryptographic authorization check (possession validation)
+  if (!verifyOrderTrackingToken(orderId, order.customer_phone, token)) {
+    res.status(403).json({ error: 'Unauthorized: Invalid or expired tracking token' });
+    return;
+  }
+
+  const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(orderId) as any;
+  if (!invoice) {
+    res.status(404).json({ error: 'Invoice not found' });
+    return;
+  }
+
+  const merchant = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id) as any;
+  const shop = db.prepare('SELECT * FROM shops WHERE organization_id = ? OR id = ?').get(merchant?.id, merchant?.id) as any;
+
+  const invoiceData = buildInvoiceResponseData(order, invoice, merchant, shop);
+  res.json({
+    success: true,
+    invoice: invoiceData,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3b. PUBLIC SECURE: Download Invoice PDF (requires cryptographic tracking token)
 // ---------------------------------------------------------------------------
 router.get('/public/:id/invoice/pdf', async (req: Request, res: Response): Promise<void> => {
   const orderId = req.params.id;
@@ -467,33 +594,39 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     status, notes || null, payment_status, payment_method, deliveryCode, trackingToken
   );
 
-  // Generate immutable invoice
-  const invoiceId = `inv_${uuidv4()}`;
-  const invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+  // Generate immutable invoice (idempotent)
+  const existingInvoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(orderId) as any;
+  let invoiceId = existingInvoice?.id;
+  let invoiceNumber = existingInvoice?.invoice_number;
 
-  db.prepare(`
-    INSERT INTO invoices (
-      id, order_id, user_id, invoice_number, items, subtotal, tax, total,
-      currency, subtotal_minor, shipping_minor, tax_minor, total_minor,
-      amount_paid_minor, balance_due_minor, payment_method, status, issued_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'issued', datetime('now'))
-  `).run(
-    invoiceId, orderId, userId, invoiceNumber, JSON.stringify(resolvedItems),
-    subtotalDecimal, totalDecimal, currency, calculatedSubtotalMinor, deliveryFeeMinor,
-    totalMinor, amountPaidMinor, isPaid ? 0 : totalMinor, payment_method
-  );
+  if (!existingInvoice) {
+    invoiceId = `inv_${uuidv4()}`;
+    invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  recordFinancialAudit({
-    userId,
-    orderId,
-    invoiceId,
-    eventType: 'invoice_issued',
-    actorType: 'merchant',
-    actorId: userId,
-    currency,
-    amountMinor: totalMinor,
-    metadata: { invoiceNumber },
-  });
+    db.prepare(`
+      INSERT INTO invoices (
+        id, order_id, user_id, invoice_number, items, subtotal, tax, total,
+        currency, subtotal_minor, shipping_minor, tax_minor, total_minor,
+        amount_paid_minor, balance_due_minor, payment_method, status, issued_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'issued', datetime('now'))
+    `).run(
+      invoiceId, orderId, userId, invoiceNumber, JSON.stringify(resolvedItems),
+      subtotalDecimal, totalDecimal, currency, calculatedSubtotalMinor, deliveryFeeMinor,
+      totalMinor, amountPaidMinor, isPaid ? 0 : totalMinor, payment_method
+    );
+
+    recordFinancialAudit({
+      userId,
+      orderId,
+      invoiceId,
+      eventType: 'invoice_issued',
+      actorType: 'merchant',
+      actorId: userId,
+      currency,
+      amountMinor: totalMinor,
+      metadata: { invoiceNumber },
+    });
+  }
 
   res.status(201).json({
     id: orderId,
@@ -508,6 +641,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     delivery_code: deliveryCode,
     tracking_token: trackingToken,
     invoice_number: invoiceNumber,
+    invoiceNumber: invoiceNumber,
   });
 });
 
@@ -871,7 +1005,35 @@ router.get('/:id/credit-notes/:creditNoteId/pdf', async (req: AuthenticatedReque
 });
 
 // ---------------------------------------------------------------------------
-// 15. Download Invoice PDF (Merchant)
+// 15a. View Invoice Details JSON (Merchant)
+// ---------------------------------------------------------------------------
+router.get('/:id/invoice', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ? AND user_id = ?').get(req.params.id, userId) as any;
+  if (!invoice) {
+    res.status(404).json({ error: 'Invoice not found' });
+    return;
+  }
+
+  const merchant = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+  const shop = db.prepare('SELECT * FROM shops WHERE organization_id = ? OR id = ?').get(userId, userId) as any;
+
+  const invoiceData = buildInvoiceResponseData(order, invoice, merchant, shop);
+  res.json({
+    success: true,
+    invoice: invoiceData,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 15b. Download Invoice PDF (Merchant)
 // ---------------------------------------------------------------------------
 router.get('/:id/invoice/pdf', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const db = getDatabase();

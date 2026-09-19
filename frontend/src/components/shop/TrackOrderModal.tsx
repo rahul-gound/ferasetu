@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import axios from 'axios';
-import { X, Search, Phone, Clock, Truck, MapPin } from 'lucide-react';
+import { X, Search, Phone, Clock, Truck, MapPin, FileText, Download } from 'lucide-react';
+import InvoiceDocumentModal from '../orders/InvoiceDocumentModal';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -15,6 +16,7 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<any>(null);
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
@@ -155,6 +157,20 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
+                      onClick={() => setViewingInvoiceOrder(order)}
+                      style={{
+                        padding: '8px 12px', borderRadius: '10px',
+                        background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                      }}
+                    >
+                      <FileText size={14} />
+                      <span>View Invoice</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         const token = order.tracking_token || '';
                         window.open(`${API}/orders/public/${order.id}/invoice/pdf?token=${encodeURIComponent(token)}`, '_blank');
@@ -166,7 +182,8 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                       }}
                     >
-                      <span>Download Tax Invoice (PDF)</span>
+                      <Download size={14} />
+                      <span>Download PDF</span>
                     </button>
 
                     {isEligibleForCancel && (
@@ -204,6 +221,15 @@ export default function TrackOrderModal({ shopId, onClose }: TrackOrderModalProp
           </div>
         </div>
       </div>
+
+      {viewingInvoiceOrder && (
+        <InvoiceDocumentModal
+          order={viewingInvoiceOrder}
+          onClose={() => setViewingInvoiceOrder(null)}
+          isCustomerView={true}
+          trackingToken={viewingInvoiceOrder.tracking_token}
+        />
+      )}
     </div>
   );
 }

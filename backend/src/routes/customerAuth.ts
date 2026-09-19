@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../models/database';
+import { buildInvoiceResponseData } from './orders';
+import { generateInvoicePdf, InvoicePdfData } from '../services/pdfService';
+import { toMinorUnits } from '../utils/money';
 
 const router = Router();
 
@@ -49,7 +52,9 @@ function resolveStorefrontOrgId(req: Request): string | null {
 }
 
 function getAuthenticatedCustomer(req: Request, orgId: string): any {
-  const rawToken = req.cookies?.fs_customer_session || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  const rawToken = req.cookies?.fs_customer_session
+    || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null)
+    || (req.headers['x-customer-session'] as string);
   if (!rawToken) return null;
 
   const tokenHash = hashToken(rawToken);
@@ -414,6 +419,134 @@ router.get('/orders/:orderId', (req: Request, res: Response): void => {
       creditNotes,
     }
   });
+});
+
+// GET /api/storefront/customer/orders/:orderId/invoice
+router.get('/orders/:orderId/invoice', (req: Request, res: Response): void => {
+  const orgId = resolveStorefrontOrgId(req);
+  if (!orgId) {
+    res.status(400).json({ error: 'Storefront context required' });
+    return;
+  }
+
+  const session = getAuthenticatedCustomer(req, orgId);
+  if (!session) {
+    res.status(401).json({ error: 'Authentication required to view invoice' });
+    return;
+  }
+
+  const db = getDatabase();
+  const order = db.prepare(`
+    SELECT * FROM orders
+    WHERE id = ? AND customer_id = ? AND (organization_id = ? OR user_id = ?)
+  `).get(req.params.orderId, session.customer_id, orgId, orgId) as any;
+
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(order.id) as any;
+  if (!invoice) {
+    res.status(404).json({ error: 'Invoice not found' });
+    return;
+  }
+
+  const merchant = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id) as any;
+  const shop = db.prepare('SELECT * FROM shops WHERE organization_id = ? OR id = ?').get(orgId, orgId) as any;
+
+  const invoiceData = buildInvoiceResponseData(order, invoice, merchant, shop);
+  res.json({
+    success: true,
+    invoice: invoiceData,
+  });
+});
+
+// GET /api/storefront/customer/orders/:orderId/invoice/pdf
+router.get('/orders/:orderId/invoice/pdf', (req: Request, res: Response): void => {
+  const orgId = resolveStorefrontOrgId(req);
+  if (!orgId) {
+    res.status(400).json({ error: 'Storefront context required' });
+    return;
+  }
+
+  const session = getAuthenticatedCustomer(req, orgId);
+  if (!session) {
+    res.status(401).json({ error: 'Authentication required to download invoice' });
+    return;
+  }
+
+  const db = getDatabase();
+  const order = db.prepare(`
+    SELECT * FROM orders
+    WHERE id = ? AND customer_id = ? AND (organization_id = ? OR user_id = ?)
+  `).get(req.params.orderId, session.customer_id, orgId, orgId) as any;
+
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(order.id) as any;
+  if (!invoice) {
+    res.status(404).json({ error: 'Invoice not found' });
+    return;
+  }
+
+  try {
+    const merchant = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id) as any;
+    const shop = db.prepare('SELECT * FROM shops WHERE organization_id = ? OR id = ?').get(orgId, orgId) as any;
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+    const currency = order.currency || invoice.currency || 'INR';
+
+    const pdfData: InvoicePdfData = {
+      invoiceNumber: invoice.invoice_number,
+      orderId: order.id,
+      issuedAt: invoice.issued_at || invoice.created_at,
+      currency,
+      merchant: {
+        name: shop?.name || merchant?.business_name || merchant?.name || 'FeraSetu Store',
+        businessName: merchant?.business_name || shop?.name,
+        address: [merchant?.city, merchant?.state].filter(Boolean).join(', ') || undefined,
+        city: merchant?.city,
+        state: merchant?.state,
+        phone: merchant?.phone,
+        email: merchant?.email,
+        gstin: merchant?.gstin || undefined,
+      },
+      customer: {
+        name: order.customer_name,
+        phone: order.customer_phone,
+        email: order.customer_email,
+        deliveryAddress: order.delivery_address,
+        deliveryType: order.delivery_type,
+      },
+      items: (items || []).map((it: any) => ({
+        name: it.name || it.product_name,
+        quantity: it.quantity,
+        unitPriceMinor: it.unitPriceMinor || toMinorUnits(it.price, currency),
+        totalMinor: it.totalMinor || toMinorUnits(it.total, currency),
+      })),
+      subtotalMinor: invoice.subtotal_minor || toMinorUnits(invoice.subtotal, currency),
+      deliveryFeeMinor: invoice.shipping_minor || toMinorUnits(order.delivery_fee, currency),
+      taxMinor: invoice.tax_minor || 0,
+      totalMinor: invoice.total_minor || toMinorUnits(invoice.total, currency),
+      amountPaidMinor: invoice.amount_paid_minor || (order.payment_status === 'paid' ? invoice.total_minor : 0),
+      balanceDueMinor: invoice.balance_due_minor || (order.payment_status === 'paid' ? 0 : invoice.total_minor),
+      paymentMethod: order.payment_method || invoice.payment_method,
+      paymentStatus: order.payment_status,
+      orderStatus: order.status,
+      notes: order.notes,
+    };
+
+    const pdfBuffer = generateInvoicePdf(pdfData);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to generate invoice PDF' });
+  }
 });
 
 // POST /api/storefront/customer/orders/:orderId/cancel

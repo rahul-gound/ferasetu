@@ -323,6 +323,7 @@ export async function initializeDatabase(customEnv?: { DB?: any }): Promise<void
     "UPDATE orders SET refundable_amount_minor = amount_paid_minor - refunded_amount_minor WHERE refundable_amount_minor = 0",
     "UPDATE invoices SET total_minor = CAST(ROUND(total * 100) AS INTEGER) WHERE (total_minor IS NULL OR total_minor = 0) AND total > 0",
     "UPDATE invoices SET subtotal_minor = CAST(ROUND(subtotal * 100) AS INTEGER) WHERE (subtotal_minor IS NULL OR subtotal_minor = 0) AND subtotal > 0",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_order_unique ON invoices (order_id)",
   ];
   for (const sql of migrations) {
     try {

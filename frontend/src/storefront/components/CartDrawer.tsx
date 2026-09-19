@@ -13,11 +13,14 @@ import {
   ShieldCheck,
   Clock,
   Mail,
+  FileText,
+  Download,
 } from 'lucide-react';
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, sanitizeText } from '../utilities/formatting';
 import { handleImageFallback, getProductPlaceholderSvg } from '../utilities/imageFallback';
 import { resolveMediaUrl } from '../../utils/media';
+import InvoiceDocumentModal from '../../components/orders/InvoiceDocumentModal';
 
 const FREE_SHIPPING_THRESHOLD = 499;
 
@@ -35,10 +38,12 @@ export default function CartDrawer() {
     orderSuccess,
     clearOrderSuccess,
     openWhatsAppCartOrder,
+    shopName,
   } = useStorefront();
 
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -198,6 +203,30 @@ export default function CartDrawer() {
               )}
             </div>
 
+            <div className="grid grid-cols-2 gap-2 w-full mb-3">
+              <button
+                type="button"
+                onClick={() => setShowInvoiceModal(true)}
+                className="py-2.5 px-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <FileText size={15} />
+                <span>View Invoice</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const token = orderSuccess.trackingToken || '';
+                  const rawApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+                  const apiBase = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
+                  window.open(`${apiBase}/orders/public/${orderSuccess.id}/invoice/pdf?token=${encodeURIComponent(token)}`, '_blank');
+                }}
+                className="py-2.5 px-3 rounded-lg bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+              >
+                <Download size={15} />
+                <span>Download PDF</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => {
@@ -205,7 +234,7 @@ export default function CartDrawer() {
                 setCheckoutStep('cart');
                 closeCart();
               }}
-              className="w-full py-3 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-black transition-colors shadow-sm"
+              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-lg transition-colors border border-slate-200"
             >
               Continue Shopping
             </button>
@@ -500,6 +529,29 @@ export default function CartDrawer() {
           </form>
         )}
       </div>
+
+      {showInvoiceModal && orderSuccess && (
+        <InvoiceDocumentModal
+          order={{
+            id: orderSuccess.id,
+            invoice_number: orderSuccess.invoice,
+            customer_name: orderSuccess.customerName,
+            customer_phone: orderSuccess.customerPhone,
+            customer_email: orderSuccess.customerEmail,
+            delivery_address: orderSuccess.deliveryAddress,
+            delivery_type: orderSuccess.deliveryType,
+            total: orderSuccess.total,
+            subtotal: orderSuccess.subtotal,
+            delivery_fee: orderSuccess.deliveryFee,
+            items: orderSuccess.items,
+            tracking_token: orderSuccess.trackingToken,
+          }}
+          onClose={() => setShowInvoiceModal(false)}
+          isCustomerView={true}
+          trackingToken={orderSuccess.trackingToken}
+          merchantName={shopName}
+        />
+      )}
     </div>
   );
 }
