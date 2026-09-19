@@ -10,11 +10,40 @@ const OrderStatusPieChart = lazy(() =>
 );
 
 import {
-  TrendingUp, TrendingDown, ShoppingCart, ShoppingBag,
-  Package, Coins, ArrowRight, Download, Users, Target,
-  Sparkles, Calendar, ChevronDown, CreditCard, Share2,
-  Plus, AlertCircle, Copy, ExternalLink, Store, Check,
-  BarChart3, Zap, Globe, MessageSquareText, Eye, X, Radio
+  TrendingUp,
+  TrendingDown,
+  ShoppingCart,
+  ShoppingBag,
+  Package,
+  Coins,
+  ArrowRight,
+  Download,
+  Users,
+  Target,
+  Sparkles,
+  Calendar,
+  ChevronDown,
+  CreditCard,
+  Share2,
+  Plus,
+  AlertCircle,
+  Copy,
+  ExternalLink,
+  Store,
+  Check,
+  BarChart3,
+  Zap,
+  Globe,
+  MessageSquareText,
+  Eye,
+  X,
+  Radio,
+  QrCode,
+  ShieldCheck,
+  Clock,
+  Printer,
+  FileText,
+  ArrowUpRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -103,6 +132,7 @@ interface DashboardData {
     total: number;
     status: string;
     created_at: string;
+    delivery_type?: string;
   }[];
   top_products?: {
     id: string;
@@ -117,18 +147,15 @@ interface DashboardData {
   recent_clicks?: RecentClickItem[];
 }
 
-// Smooth SVG sparkline — only renders if we have ≥ 2 data points with variance.
-// Returns null when data is insufficient to avoid misleading flat lines.
 function generateSparkline(
   values: number[],
   width = 120,
-  height = 28
-): { path: string; endX: number; endY: number } | null {
+  height = 32
+): { path: string; areaPath: string; endX: number; endY: number } | null {
   if (!values || values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
-  // If all values identical, sparkline would be flat/misleading — skip it
   if (range === 0) return null;
 
   const step = width / Math.max(1, values.length - 1);
@@ -146,7 +173,9 @@ function generateSparkline(
   }, '');
 
   const last = points[points.length - 1];
-  return { path, endX: last.x, endY: last.y };
+  const areaPath = `${path} L${last.x.toFixed(1)},${height} L0,${height} Z`;
+
+  return { path, areaPath, endX: last.x, endY: last.y };
 }
 
 function SparklineOrPlaceholder({
@@ -154,50 +183,59 @@ function SparklineOrPlaceholder({
   strokeColor,
   fillColor,
   isEmpty,
+  gradientId,
 }: {
   sparkline: ReturnType<typeof generateSparkline>;
   strokeColor: string;
   fillColor: string;
   isEmpty: boolean;
+  gradientId: string;
 }) {
   if (isEmpty || !sparkline) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="text-[10px] font-medium text-[#667085]/60">Collecting data…</span>
+        <span className="text-[10px] font-medium text-slate-400">Collecting data…</span>
       </div>
     );
   }
   return (
     <svg
-      viewBox="0 0 120 28"
-      className="w-full h-full fill-transparent overflow-visible"
-      style={{ stroke: strokeColor }}
+      viewBox="0 0 120 32"
+      className="w-full h-full overflow-visible"
       preserveAspectRatio="none"
     >
-      <path d={sparkline.path} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={sparkline.endX} cy={sparkline.endY} r="3.5" style={{ fill: fillColor, stroke: 'none' }} />
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={fillColor} stopOpacity={0.25} />
+          <stop offset="100%" stopColor={fillColor} stopOpacity={0.0} />
+        </linearGradient>
+      </defs>
+      <path d={sparkline.areaPath} fill={`url(#${gradientId})`} />
+      <path d={sparkline.path} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={sparkline.endX} cy={sparkline.endY} r="3" fill={strokeColor} stroke="#FFFFFF" strokeWidth="1.5" />
     </svg>
   );
 }
 
-function TrendBadge({ change }: { change: number }) {
+function TrendBadge({ change, label = 'vs last 7d' }: { change: number; label?: string }) {
   if (change === 0) {
     return (
-      <span className="text-[10px] font-semibold text-[#667085] flex items-center gap-1">
-        — vs last 7 days
+      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
+        <span className="text-slate-400">—</span>
+        <span>0% {label}</span>
       </span>
     );
   }
   const positive = change > 0;
   return (
     <span
-      className={`text-[10px] font-bold flex items-center gap-1 ${
-        positive ? 'text-[#16A36A]' : 'text-[#E5484D]'
+      className={`inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+        positive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 border border-rose-200/60'
       }`}
     >
-      {positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-      {positive ? `+${change}%` : `${change}%`}
-      <span className="text-[#667085] font-medium">vs last 7 days</span>
+      {positive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      <span>{positive ? `+${change}%` : `${change}%`}</span>
+      <span className="font-normal opacity-75">{label}</span>
     </span>
   );
 }
@@ -211,6 +249,9 @@ export default function DashboardPage() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [inspectingProduct, setInspectingProduct] = useState<any>(null);
   const [clicksViewMode, setClicksViewMode] = useState<'top' | 'live'>('top');
+  const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d');
+  const [showQrModal, setShowQrModal] = useState(false);
+
   const greeting = useMemo(() => getGreeting(), []);
   const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
 
@@ -284,6 +325,12 @@ export default function DashboardPage() {
     return s.size;
   }, [dashboardData, orders]);
 
+  // Average Order Value (AOV)
+  const averageOrderValue = useMemo(() => {
+    if (totalOrders === 0) return 0;
+    return Math.round(totalRevenue / totalOrders);
+  }, [totalRevenue, totalOrders]);
+
   const conversionRate = useMemo(() => {
     if (dashboardData?.stats?.conversion_rate !== undefined) return dashboardData.stats.conversion_rate;
     if (totalOrders === 0) return 0;
@@ -300,11 +347,20 @@ export default function DashboardPage() {
     ? user.name.split(' ')[0]
     : user?.business_name || 'Merchant';
 
-  // Real 7-day trend data
-  const last7DaysData = useMemo(() => {
+  const planDisplayName = useMemo(() => {
+    const p = (user?.plan || 'free').toLowerCase();
+    if (p === 'pro') return 'Pro Plan';
+    if (p === 'business') return 'Business Plan';
+    if (p === 'starter') return 'Starter Plan';
+    return 'Free Plan';
+  }, [user?.plan]);
+
+  // Real 7-day or 30-day trend data
+  const trendDaysData = useMemo(() => {
+    const daysCount = timeRange === '30d' ? 30 : 7;
     const now = new Date();
     const days = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const ymd = d.toISOString().slice(0, 10);
@@ -314,7 +370,7 @@ export default function DashboardPage() {
         .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
       days.push({ date: dateLabel, ymd, revenue: dayRev, orders: dayOrders.length });
     }
-    if (dashboardData?.revenue_chart && dashboardData.revenue_chart.length > 0) {
+    if (timeRange === '7d' && dashboardData?.revenue_chart && dashboardData.revenue_chart.length > 0) {
       return dashboardData.revenue_chart.map((pt, idx) => ({
         date: pt.date || days[idx]?.date || '',
         ymd: days[idx]?.ymd || '',
@@ -323,24 +379,24 @@ export default function DashboardPage() {
       }));
     }
     return days;
-  }, [dashboardData, orders]);
+  }, [dashboardData, orders, timeRange]);
 
-  // Sparklines — only computed when there's meaningful variance in the data
+  // Sparklines
   const revenueSparkline = useMemo(
-    () => generateSparkline(last7DaysData.map(d => d.revenue)),
-    [last7DaysData]
+    () => generateSparkline(trendDaysData.map(d => d.revenue)),
+    [trendDaysData]
   );
   const ordersSparkline = useMemo(
-    () => generateSparkline(last7DaysData.map(d => d.orders)),
-    [last7DaysData]
+    () => generateSparkline(trendDaysData.map(d => d.orders)),
+    [trendDaysData]
   );
-  const customersSparkline = useMemo(
-    () => generateSparkline(last7DaysData.map(d => Math.min(d.orders, totalCustomers))),
-    [last7DaysData, totalCustomers]
+  const aovSparkline = useMemo(
+    () => generateSparkline(trendDaysData.map(d => (d.orders > 0 ? Math.round(d.revenue / d.orders) : 0))),
+    [trendDaysData]
   );
   const conversionSparkline = useMemo(
-    () => generateSparkline(last7DaysData.map(d => (d.orders > 0 ? conversionRate : 0))),
-    [last7DaysData, conversionRate]
+    () => generateSparkline(trendDaysData.map(d => (d.orders > 0 ? conversionRate : 0))),
+    [trendDaysData, conversionRate]
   );
 
   const noOrdersYet = totalOrders === 0;
@@ -389,13 +445,13 @@ export default function DashboardPage() {
 
   const donutData = useMemo(() => {
     if (totalOrders === 0) {
-      return [{ name: 'No Orders', value: 1, percentage: 0, color: '#E5EAF1' }];
+      return [{ name: 'No Orders', value: 1, percentage: 0, color: '#E2E8F0' }];
     }
     return [
-      { name: 'Delivered', value: statusCounts.delivered, percentage: Number(((statusCounts.delivered / totalOrders) * 100).toFixed(1)), color: '#16A36A' },
-      { name: 'Processing', value: statusCounts.processing, percentage: Number(((statusCounts.processing / totalOrders) * 100).toFixed(1)), color: '#0052FF' },
-      { name: 'Shipped', value: statusCounts.shipped, percentage: Number(((statusCounts.shipped / totalOrders) * 100).toFixed(1)), color: '#FF8A00' },
-      { name: 'Cancelled', value: statusCounts.cancelled, percentage: Number(((statusCounts.cancelled / totalOrders) * 100).toFixed(1)), color: '#E5484D' },
+      { name: 'Delivered', value: statusCounts.delivered, percentage: Number(((statusCounts.delivered / totalOrders) * 100).toFixed(1)), color: '#10B981' },
+      { name: 'Processing', value: statusCounts.processing, percentage: Number(((statusCounts.processing / totalOrders) * 100).toFixed(1)), color: '#2563EB' },
+      { name: 'Shipped', value: statusCounts.shipped, percentage: Number(((statusCounts.shipped / totalOrders) * 100).toFixed(1)), color: '#F59E0B' },
+      { name: 'Cancelled', value: statusCounts.cancelled, percentage: Number(((statusCounts.cancelled / totalOrders) * 100).toFixed(1)), color: '#EF4444' },
     ];
   }, [totalOrders, statusCounts]);
 
@@ -409,37 +465,38 @@ export default function DashboardPage() {
       total: Number(o.total) || 0,
       status: o.status || 'pending',
       created_at: o.created_at || '',
+      delivery_type: o.delivery_type || 'delivery',
     }));
   }, [dashboardData, orders]);
 
   // AI Credits
   const aiCreditsBalance = user?.ai_credits_balance ?? 20;
   const aiCreditsLimit = user?.ai_credits_monthly_limit ?? (
-    user?.plan === 'pro' ? 200 : user?.plan === 'business' ? 500 : 20
+    user?.plan === 'pro' ? 1000 : user?.plan === 'business' ? 200 : 20
   );
   const aiCreditsUsed = user?.ai_credits_used_month ?? Math.max(0, aiCreditsLimit - aiCreditsBalance);
   const aiCreditsPercent = Math.min(100, Math.max(0, Math.round((aiCreditsUsed / Math.max(1, aiCreditsLimit)) * 100)));
 
   // Date range display
   const dateRangeText = useMemo(() => {
-    if (last7DaysData.length === 0) return 'Last 7 days';
-    const first = last7DaysData[0].date;
-    const last = last7DaysData[last7DaysData.length - 1].date;
+    if (trendDaysData.length === 0) return 'Last 7 days';
+    const first = trendDaysData[0].date;
+    const last = trendDaysData[trendDaysData.length - 1].date;
     return `${first} – ${last}, ${new Date().getFullYear()}`;
-  }, [last7DaysData]);
+  }, [trendDaysData]);
 
   // Chart max values
   const maxChartRevenue = useMemo(() => {
-    const m = Math.max(...last7DaysData.map(d => d.revenue));
+    const m = Math.max(...trendDaysData.map(d => d.revenue));
     return m > 0 ? Math.ceil(m * 1.2) : 1000;
-  }, [last7DaysData]);
+  }, [trendDaysData]);
 
   const maxChartOrders = useMemo(() => {
-    const m = Math.max(...last7DaysData.map(d => d.orders));
+    const m = Math.max(...trendDaysData.map(d => d.orders));
     return m > 0 ? Math.ceil(m * 1.2) : 10;
-  }, [last7DaysData]);
+  }, [trendDaysData]);
 
-  // Needs Attention: only real alerts
+  // Smart attention alerts
   const pendingCount = statusCounts.processing;
   const lowStockProducts = useMemo(
     () => products.filter(p => typeof p.stock === 'number' && p.stock > 0 && p.stock <= 3),
@@ -457,16 +514,17 @@ export default function DashboardPage() {
         ['Store Name', user?.business_name || user?.name || 'My Store'],
         ['Period', dateRangeText],
         [],
-        ['Metric', 'Value', 'Trend vs Last 7 Days'],
+        ['Metric', 'Value', 'Trend vs Previous Period'],
         ['Total Revenue', `${config.symbol}${totalRevenue.toLocaleString()}`, `${revenueChange}%`],
         ['Total Orders', `${totalOrders}`, `${ordersChange}%`],
+        ['Average Order Value (AOV)', `${config.symbol}${averageOrderValue.toLocaleString()}`, '—'],
         ['Total Customers', `${totalCustomers}`, `${customersChange}%`],
         ['Conversion Rate', `${conversionRate}%`, `${conversionChange}%`],
         [],
-        [`Daily Breakdown (Last 7 Days)`, `Revenue (${config.currency})`, 'Orders'],
-        ...last7DaysData.map(d => [d.date, d.revenue, d.orders]),
+        [`Daily Breakdown`, `Revenue (${config.currency})`, 'Orders'],
+        ...trendDaysData.map(d => [d.date, d.revenue, d.orders]),
         [],
-        ['Product', `Price (${config.currency})`, 'Units Sold'],
+        ['Top Selling Product', `Price (${config.currency})`, 'Units Sold'],
         ...topProducts.map(p => [p.name, p.price, p.sold_count]),
         [],
         ['Order ID', 'Customer', `Amount (${config.currency})`, 'Status'],
@@ -477,11 +535,11 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `FeraSetu_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `FeraSetu_Performance_Report_${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      toast.success('Report downloaded!');
+      toast.success('Performance report downloaded');
     } catch {
       toast.error('Failed to download report.');
     } finally {
@@ -493,8 +551,8 @@ export default function DashboardPage() {
     try {
       await navigator.clipboard.writeText(storeUrl);
       setCopiedLink(true);
-      toast.success('Store link copied!');
-      setTimeout(() => setCopiedLink(false), 2000);
+      toast.success('Storefront link copied to clipboard');
+      setTimeout(() => setCopiedLink(false), 2200);
     } catch {
       toast.error('Failed to copy link.');
     }
@@ -502,164 +560,182 @@ export default function DashboardPage() {
 
   const handleShareStoreWhatsApp = () => {
     const text = encodeURIComponent(
-      `🛍️ Shop directly at our official zero-commission store:\n👉 ${storeUrl}`
+      `🛍️ Welcome to our official store!\nBrowse our full catalog and place orders directly:\n👉 ${storeUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  // ─── STATUS BADGE HELPER ──────────────────────────────────────────────────
   const statusBadge = (status: string) => {
-    switch (status) {
-      case 'delivered':  return { bg: 'bg-emerald-50', text: 'text-[#16A36A]', label: 'Delivered' };
-      case 'shipped':    return { bg: 'bg-blue-50', text: 'text-[#0052FF]', label: 'Shipped' };
-      case 'processing': return { bg: 'bg-orange-50', text: 'text-[#FF8A00]', label: 'Processing' };
-      case 'cancelled':  return { bg: 'bg-red-50', text: 'text-[#E5484D]', label: 'Cancelled' };
-      default:           return { bg: 'bg-slate-50', text: 'text-[#667085]', label: status || 'Pending' };
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Delivered', dot: 'bg-emerald-500' };
+      case 'shipped':
+      case 'out_for_delivery':
+        return { bg: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Out for Delivery', dot: 'bg-blue-500' };
+      case 'processing':
+      case 'preparing':
+      case 'confirmed':
+        return { bg: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Processing', dot: 'bg-amber-500' };
+      case 'cancelled':
+        return { bg: 'bg-rose-50 text-rose-700 border-rose-200', label: 'Cancelled', dot: 'bg-rose-500' };
+      default:
+        return { bg: 'bg-slate-50 text-slate-700 border-slate-200', label: status || 'Pending', dot: 'bg-slate-400' };
     }
   };
 
-  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <div className="pb-10 max-w-[1380px] mx-auto space-y-5">
-
-      {/* ── Subscription Banners ── */}
+    <div className="pb-12 max-w-[1400px] mx-auto space-y-6 text-slate-900 font-sans">
+      {/* ── Trial & Lifecycle Alerts ── */}
       {market !== 'IN' && subscription.isTrialing && !subscription.isEndingSoon && (
-        <div className="rounded-xl bg-[#0052FF] border border-blue-700 p-4 text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 p-4 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/15 shrink-0">
-              <Sparkles size={18} className="text-orange-300" />
+            <div className="p-2.5 rounded-xl bg-white/15 shrink-0 backdrop-blur-xs">
+              <Sparkles size={18} className="text-amber-300" />
             </div>
             <div>
               <div className="flex items-center gap-2 font-bold text-sm">
-                <span>14-Day Free Trial: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} remaining</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#FF8A00] text-[9px] font-black uppercase tracking-wider">Active</span>
+                <span>14-Day Free Trial: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} left</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">Active</span>
               </div>
-              <p className="text-xs text-blue-100 mt-0.5">Full access to Business features. Choose a plan to keep your store live.</p>
+              <p className="text-xs text-blue-100 mt-0.5">Full access to Business features. Select a plan to ensure uninterrupted operations.</p>
             </div>
           </div>
-          <Link to="/upgrade" className="shrink-0 px-4 py-2 rounded-xl bg-white text-[#0052FF] font-bold text-xs hover:bg-blue-50 transition-colors">
+          <Link to="/upgrade" className="shrink-0 px-4 py-2 rounded-xl bg-white text-blue-700 font-bold text-xs hover:bg-blue-50 transition-all shadow-sm">
             View Plans
           </Link>
         </div>
       )}
 
-      {market !== 'IN' && subscription.isTrialing && subscription.isEndingSoon && (
-        <div className="rounded-xl bg-white border-2 border-[#FF8A00] p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-orange-50 text-[#FF8A00] shrink-0">
-              <AlertCircle size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 font-bold text-sm text-[#152238]">
-                <span>Trial Ending Soon: {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? 'day' : 'days'} left</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#FF8A00] text-[9px] font-black uppercase tracking-wider text-white animate-pulse">Ending Soon</span>
-              </div>
-              <p className="text-xs text-[#667085] mt-0.5">Upgrade now to keep your storefront running.</p>
-            </div>
-          </div>
-          <Link to="/upgrade" className="shrink-0 px-4 py-2 rounded-xl bg-[#FF8A00] text-white font-bold text-xs hover:bg-orange-600 transition-colors">
-            Upgrade Now
-          </Link>
-        </div>
-      )}
-
-      {subscription.isTrialExpired && (
-        <div className="rounded-xl bg-white border-2 border-[#E5484D] p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-red-50 text-[#E5484D] shrink-0">
-              <AlertCircle size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 font-bold text-sm text-[#152238]">
-                <span>Trial Expired</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#152238] text-[9px] font-black uppercase tracking-wider text-white">Action Required</span>
-              </div>
-              <p className="text-xs text-[#667085] mt-0.5">Your 14-day trial has ended. Your catalog is safe — upgrade to reactivate.</p>
-            </div>
-          </div>
-          <Link to="/upgrade" className="shrink-0 px-4 py-2 rounded-xl bg-[#0052FF] text-white font-bold text-xs hover:bg-blue-600 transition-colors">
-            Select a Plan
-          </Link>
-        </div>
-      )}
-
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      {/* ── Executive Workspace Header ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
         <div>
-          <h1 className="text-[26px] font-extrabold text-[#152238] tracking-tight flex items-center gap-2">
-            {greeting}, {firstName}!{' '}
-            <span className="inline-block hover:animate-wiggle cursor-default" role="img" aria-label="wave">👋</span>
-          </h1>
-          <p className="text-sm text-[#667085] mt-0.5">
-            Here's what's happening with your business today.
+          <div className="flex flex-wrap items-center gap-2.5 mb-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {greeting}, {firstName}
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+              <ShieldCheck size={13} className="text-blue-600" />
+              {planDisplayName}
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 font-medium">
+            Live business performance, real-time footfall, and order pipeline.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="hidden sm:flex items-center gap-2 bg-white border border-[#E5EAF1] px-3 py-1.5 rounded-xl shadow-sm text-xs font-semibold text-[#152238] cursor-pointer hover:bg-slate-50 transition-colors">
-            <Calendar size={13} className="text-[#667085]" />
-            <span>{dateRangeText}</span>
-            <ChevronDown size={13} className="text-[#667085]" />
+        {/* Action controls */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* 7d / 30d Toggle */}
+          <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => setTimeRange('7d')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                timeRange === '7d' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeRange('30d')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                timeRange === '30d' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              30 Days
+            </button>
           </div>
+
+          {/* Export Report */}
           <button
+            type="button"
             onClick={handleDownloadReport}
             disabled={downloading}
-            className="flex items-center gap-1.5 bg-white border border-[#E5EAF1] px-3 py-1.5 rounded-xl shadow-sm text-xs font-semibold text-[#152238] hover:bg-slate-50 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 bg-white border border-slate-200/90 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
           >
-            <Download size={13} className="text-[#667085]" />
-            <span>{downloading ? 'Downloading…' : 'Download Report'}</span>
+            <Download size={14} className="text-slate-500" />
+            <span>{downloading ? 'Generating…' : 'Export CSV'}</span>
           </button>
+
+          {/* Primary Action */}
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 transition-all hover:-translate-y-0.5"
+          >
+            <Plus size={15} />
+            <span>Add Product</span>
+          </Link>
         </div>
       </div>
 
-      {/* ── Live Storefront Bar ── */}
-      <div className="bg-white rounded-xl p-4 border border-[#E5EAF1] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-l-[#16A36A]">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#16A36A] shrink-0">
-            <Store size={17} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#16A36A] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] animate-pulse" />
-                Live Storefront
-              </span>
-              <span className="text-[10px] text-[#667085]">• 0% commission</span>
+      {/* ── Storefront Deployment Control Hub ── */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs hover:border-slate-300 transition-all">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          
+          {/* Left: Domain & Status */}
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+              <Store size={20} />
             </div>
-            <p className="text-sm font-bold text-[#152238] truncate font-mono">{storeUrl}</p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Storefront Deployed
+                </span>
+                <span className="text-[11px] text-slate-500 font-medium">• 0% Commission</span>
+                <span className="text-[11px] text-slate-500 font-medium">• Direct UPI Active</span>
+              </div>
+              <p className="text-sm sm:text-base font-bold text-slate-900 truncate font-mono tracking-tight">
+                {storeUrl}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleCopyStoreLink}
-            className="px-3 py-1.5 rounded-xl bg-[#F6F8FC] hover:bg-slate-100 border border-[#E5EAF1] text-xs font-semibold text-[#152238] transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            {copiedLink ? <Check size={12} className="text-[#16A36A]" /> : <Copy size={12} />}
-            <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
-          </button>
-          <a
-            href={storeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-xl bg-[#F6F8FC] hover:bg-slate-100 border border-[#E5EAF1] text-xs font-semibold text-[#152238] transition-all flex items-center gap-1.5"
-          >
-            <ExternalLink size={12} />
-            <span>Preview</span>
-          </a>
-          <button
-            type="button"
-            onClick={handleShareStoreWhatsApp}
-            className="px-3 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Share2 size={12} />
-            <span>Share on WhatsApp</span>
-          </button>
+          {/* Right: Quick Deployment Actions */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopyStoreLink}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+            >
+              {copiedLink ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+              <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
+            </button>
+
+            <a
+              href={storeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors"
+            >
+              <ExternalLink size={14} />
+              <span>Preview Store</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setShowQrModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+            >
+              <QrCode size={14} />
+              <span>Counter QR</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShareStoreWhatsApp}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all hover:-translate-y-0.5 cursor-pointer"
+            >
+              <Share2 size={14} />
+              <span>Share on WhatsApp</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Onboarding ── */}
+      {/* ── Onboarding Progress Widget ── */}
       <OnboardingProgress
         shopCreated={true}
         hasProducts={products.length > 0}
@@ -669,684 +745,750 @@ export default function DashboardPage() {
         storeUrl={user?.organization?.store_url || (user?.subdomain ? `https://${user.subdomain}.ferasetu.com` : undefined)}
       />
 
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {/* Total Revenue */}
-        <div className="bg-white rounded-xl p-4 border border-[#E5EAF1] shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#16A36A] shrink-0">
-              <CreditCard size={16} />
+      {/* ── Executive 5-Pillar KPI Grid ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Metric 1: Total Revenue */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[170px]">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Net Revenue</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CreditCard size={15} />
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-[#667085]">Total Revenue</p>
-              <h3 className="text-xl font-black text-[#152238] tracking-tight mt-0.5">
-                {config.symbol}{totalRevenue.toLocaleString(config.market === 'IN' ? 'en-IN' : 'en-US')}
-              </h3>
-            </div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              {config.symbol}{totalRevenue.toLocaleString(config.market === 'IN' ? 'en-IN' : 'en-US')}
+            </h3>
           </div>
-          <TrendBadge change={revenueChange} />
-          <div className="h-8 relative">
-            <SparklineOrPlaceholder
-              sparkline={revenueSparkline}
-              strokeColor="#16A36A"
-              fillColor="#16A36A"
-              isEmpty={noOrdersYet}
-            />
-          </div>
-        </div>
-
-        {/* Total Orders */}
-        <div className="bg-white rounded-xl p-4 border border-[#E5EAF1] shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] shrink-0">
-              <ShoppingBag size={16} />
+          <div className="space-y-2 pt-2">
+            <TrendBadge change={revenueChange} />
+            <div className="h-7 w-full">
+              <SparklineOrPlaceholder
+                sparkline={revenueSparkline}
+                strokeColor="#10B981"
+                fillColor="#10B981"
+                isEmpty={noOrdersYet}
+                gradientId="sparklineRev"
+              />
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-[#667085]">Total Orders</p>
-              <h3 className="text-xl font-black text-[#152238] tracking-tight mt-0.5">{totalOrders}</h3>
-            </div>
-          </div>
-          <TrendBadge change={ordersChange} />
-          <div className="h-8 relative">
-            <SparklineOrPlaceholder
-              sparkline={ordersSparkline}
-              strokeColor="#0052FF"
-              fillColor="#0052FF"
-              isEmpty={noOrdersYet}
-            />
           </div>
         </div>
 
-        {/* Total Customers */}
-        <div className="bg-white rounded-xl p-4 border border-[#E5EAF1] shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF8A00] shrink-0">
-              <Users size={16} />
+        {/* Metric 2: Orders Volume */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[170px]">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Orders Volume</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <ShoppingBag size={15} />
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-[#667085]">Total Customers</p>
-              <h3 className="text-xl font-black text-[#152238] tracking-tight mt-0.5">{totalCustomers}</h3>
-            </div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              {totalOrders}
+            </h3>
           </div>
-          <TrendBadge change={customersChange} />
-          <div className="h-8 relative">
-            <SparklineOrPlaceholder
-              sparkline={customersSparkline}
-              strokeColor="#FF8A00"
-              fillColor="#FF8A00"
-              isEmpty={noOrdersYet}
-            />
-          </div>
-        </div>
-
-        {/* Store Visitors */}
-        <div className="bg-white rounded-xl p-4 border border-[#E5EAF1] shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-[#7C3AED] shrink-0">
-              <Globe size={16} />
+          <div className="space-y-2 pt-2">
+            <TrendBadge change={ordersChange} />
+            <div className="h-7 w-full">
+              <SparklineOrPlaceholder
+                sparkline={ordersSparkline}
+                strokeColor="#2563EB"
+                fillColor="#2563EB"
+                isEmpty={noOrdersYet}
+                gradientId="sparklineOrd"
+              />
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-[#667085]">Store Visitors</p>
-              <h3 className="text-xl font-black text-[#152238] tracking-tight mt-0.5">
-                {dashboardData?.visitors?.total_visitors || 0}
-              </h3>
-            </div>
-          </div>
-          <span className="text-[10px] font-semibold text-[#667085] flex items-center gap-1">
-            {dashboardData?.visitors?.unique_sessions || 0} unique sessions
-          </span>
-          <div className="h-8 relative">
-            <SparklineOrPlaceholder
-              sparkline={revenueSparkline}
-              strokeColor="#7C3AED"
-              fillColor="#7C3AED"
-              isEmpty={!dashboardData?.visitors?.total_visitors}
-            />
           </div>
         </div>
 
-        {/* Conversion Rate */}
-        <div className="bg-white rounded-xl p-4 border border-[#E5EAF1] shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] shrink-0">
-              <Target size={16} />
+        {/* Metric 3: Average Order Value (AOV) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[170px]">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avg. Order Value (AOV)</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Target size={15} />
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-[#667085]">Conversion Rate</p>
-              <h3 className="text-xl font-black text-[#152238] tracking-tight mt-0.5">{conversionRate}%</h3>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              {config.symbol}{averageOrderValue.toLocaleString()}
+            </h3>
+          </div>
+          <div className="space-y-2 pt-2">
+            <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
+              Basket size health
+            </span>
+            <div className="h-7 w-full">
+              <SparklineOrPlaceholder
+                sparkline={aovSparkline}
+                strokeColor="#F59E0B"
+                fillColor="#F59E0B"
+                isEmpty={noOrdersYet}
+                gradientId="sparklineAov"
+              />
             </div>
           </div>
-          <TrendBadge change={conversionChange} />
-          <div className="h-8 relative">
-            <SparklineOrPlaceholder
-              sparkline={conversionSparkline}
-              strokeColor="#0052FF"
-              fillColor="#0052FF"
-              isEmpty={noOrdersYet}
-            />
+        </div>
+
+        {/* Metric 4: Store Visitors / Footfall */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[170px]">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Store Footfall</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Globe size={15} />
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              {dashboardData?.visitors?.total_visitors || 0}
+            </h3>
+          </div>
+          <div className="space-y-2 pt-2">
+            <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+              {dashboardData?.visitors?.unique_sessions || 0} unique sessions
+            </span>
+            <div className="h-7 w-full">
+              <SparklineOrPlaceholder
+                sparkline={revenueSparkline}
+                strokeColor="#6366F1"
+                fillColor="#6366F1"
+                isEmpty={!dashboardData?.visitors?.total_visitors}
+                gradientId="sparklineVis"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 5: Conversion Rate */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[170px]">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Conversion Rate</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <PercentIcon size={15} />
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+              {conversionRate}%
+            </h3>
+          </div>
+          <div className="space-y-2 pt-2">
+            <TrendBadge change={conversionChange} />
+            <div className="h-7 w-full">
+              <SparklineOrPlaceholder
+                sparkline={conversionSparkline}
+                strokeColor="#2563EB"
+                fillColor="#2563EB"
+                isEmpty={noOrdersYet}
+                gradientId="sparklineConv"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Main Chart + Products + Order Status ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* ── Main Performance Analytics & Charts Grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Sales & Orders Overview (7/12) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-h-[360px]">
+          <div>
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <BarChart3 size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Revenue & Order Trends</h2>
+                  <p className="text-xs text-slate-500">{dateRangeText}</p>
+                </div>
+              </div>
 
-        {/* Sales Overview (7/12) */}
-        <div className="lg:col-span-7 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[320px]">
-          <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={16} className="text-[#0052FF]" />
-              <h2 className="text-sm font-bold text-[#152238]">Sales Overview</h2>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] font-semibold text-[#667085]">
-              <span className="flex items-center gap-1.5 text-[#0052FF]">
-                <span className="w-2 h-0.5 rounded-full bg-[#0052FF]" /> Revenue ({config.symbol})
-              </span>
-              <span className="flex items-center gap-1.5 text-[#93C5FD]">
-                <span className="w-2 h-0.5 rounded-full bg-[#93C5FD]" /> Orders
-              </span>
-              <div className="flex items-center gap-1 border border-[#E5EAF1] px-2 py-1 rounded-lg text-[#152238] bg-white cursor-pointer hover:bg-slate-50">
-                Last 7 Days <ChevronDown size={11} />
+              {/* Legends */}
+              <div className="flex items-center gap-3 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 text-blue-600">
+                  <span className="w-2.5 h-1 rounded-full bg-blue-600" /> Revenue ({config.symbol})
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                  <span className="w-2.5 h-1 rounded-full bg-emerald-500" /> Orders
+                </span>
               </div>
             </div>
-          </div>
-          <div className="flex-1 w-full min-w-0" style={{ minHeight: 220 }}>
-            <Suspense fallback={
-              <div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse flex items-center justify-center text-xs font-semibold text-[#667085]" style={{ minHeight: 220 }}>
-                Loading chart…
-              </div>
-            }>
-              <SalesOverviewChart
-                data={last7DaysData}
-                maxRevenue={maxChartRevenue}
-                maxOrders={maxChartOrders}
-                symbol={config.symbol}
-              />
-            </Suspense>
+
+            <div className="w-full min-w-0" style={{ minHeight: 250 }}>
+              <Suspense
+                fallback={
+                  <div className="w-full h-full bg-slate-50/70 rounded-xl animate-pulse flex items-center justify-center text-xs font-semibold text-slate-400" style={{ minHeight: 250 }}>
+                    Loading analytics data…
+                  </div>
+                }
+              >
+                <SalesOverviewChart
+                  data={trendDaysData}
+                  maxRevenue={maxChartRevenue}
+                  maxOrders={maxChartOrders}
+                  symbol={config.symbol}
+                />
+              </Suspense>
+            </div>
           </div>
         </div>
 
-        {/* Top Selling Products (3/12) */}
-        <div className="lg:col-span-3 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[320px]">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-bold text-[#152238]">Top Products</h2>
-            <Link to="/products" className="text-[11px] font-semibold text-[#0052FF] hover:underline">View All</Link>
-          </div>
-
-          {topProducts.length > 0 ? (
-            <div className="flex flex-col gap-2.5 flex-1">
-              {topProducts.map((prod, idx) => (
-                <div key={prod.id} className="flex items-center gap-2.5">
-                  <span className="text-[10px] font-bold text-[#667085] w-4 shrink-0 text-center">{idx + 1}</span>
-                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
-                    {prod.image_url
-                      ? <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
-                      : <Package size={14} className="text-[#667085]" />
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-[#152238] truncate">{prod.name}</p>
-                    <p className="text-[10px] text-[#667085]">{config.symbol}{prod.price.toLocaleString()}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[11px] font-bold text-[#16A36A]">{prod.sold_count}</p>
-                    <p className="text-[9px] text-[#667085]">sold</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-4">
-              <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052FF] mb-2">
-                <Package size={17} />
+        {/* Top Products Leaderboard (3/12) */}
+        <div className="lg:col-span-3 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[360px]">
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <Package size={16} className="text-blue-600" />
+                <h2 className="text-sm font-bold text-slate-900">Top Products</h2>
               </div>
-              <p className="text-xs font-semibold text-[#152238] mb-1">No products yet</p>
-              <p className="text-[11px] text-[#667085] mb-3 max-w-[160px]">Add items to start receiving customer orders.</p>
-              <Link
-                to="/products"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0052FF] hover:bg-blue-600 text-white text-[11px] font-bold rounded-xl transition-colors"
-              >
-                <Plus size={12} />
-                Add Product
+              <Link to="/products" className="text-xs font-bold text-blue-600 hover:text-blue-700">
+                View All
               </Link>
             </div>
-          )}
+
+            {topProducts.length > 0 ? (
+              <div className="space-y-3">
+                {topProducts.map((prod, idx) => (
+                  <div key={prod.id} className="flex items-center gap-3 group">
+                    <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 ${
+                      idx === 0 ? 'bg-amber-100 text-amber-800' : idx === 1 ? 'bg-slate-100 text-slate-700' : 'text-slate-400'
+                    }`}>
+                      {idx + 1}
+                    </span>
+                    <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                      {prod.image_url ? (
+                        <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package size={15} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                        {prod.name}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        {config.symbol}{prod.price.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-black text-emerald-600 font-mono">{prod.sold_count}</span>
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">sold</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8 text-slate-500">
+                <Package size={28} className="mb-2 text-slate-300" />
+                <p className="text-xs font-bold text-slate-800">No product sales yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 max-w-[170px]">Items will rank automatically as customers place orders.</p>
+                <Link
+                  to="/products"
+                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-colors"
+                >
+                  <Plus size={12} /> Add Items
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Order Status Donut (2/12) */}
-        <div className="lg:col-span-2 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[320px]">
-          <h2 className="text-sm font-bold text-[#152238] mb-3">Order Status</h2>
-
-          <div className="relative flex items-center justify-center" style={{ height: 140 }}>
-            <Suspense fallback={
-              <div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse" style={{ height: 140 }} />
-            }>
-              <OrderStatusPieChart donutData={donutData} totalOrders={totalOrders} />
-            </Suspense>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-black text-[#152238]">{totalOrders}</span>
-              <span className="text-[9px] font-bold text-[#667085] uppercase tracking-wide">Total</span>
+        <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[360px]">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <ShoppingBag size={16} className="text-emerald-600" />
+              <h2 className="text-sm font-bold text-slate-900">Fulfillment Status</h2>
             </div>
-          </div>
 
-          <div className="mt-3 flex flex-col gap-1">
-            {[
-              { label: 'Delivered', count: statusCounts.delivered, color: '#16A36A' },
-              { label: 'Processing', count: statusCounts.processing, color: '#0052FF' },
-              { label: 'Shipped', count: statusCounts.shipped, color: '#FF8A00' },
-              { label: 'Cancelled', count: statusCounts.cancelled, color: '#E5484D' },
-            ].map(s => (
-              <div key={s.label} className="flex justify-between items-center text-[11px]">
-                <div className="flex items-center gap-1.5 text-[#667085] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: s.color }} />
-                  {s.label}
-                </div>
-                <span className="font-bold text-[#152238]">
-                  {s.count}
-                  <span className="text-[#667085] font-normal ml-1">
-                    ({totalOrders > 0 ? Math.round((s.count / totalOrders) * 100) : 0}%)
-                  </span>
-                </span>
+            <div className="relative flex items-center justify-center my-2" style={{ height: 150 }}>
+              <Suspense fallback={<div className="w-full h-full bg-slate-50 rounded-xl animate-pulse" />}>
+                <OrderStatusPieChart donutData={donutData} totalOrders={totalOrders} />
+              </Suspense>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-2xl font-black text-slate-900 font-mono">{totalOrders}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
               </div>
-            ))}
+            </div>
+
+            <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100 text-xs">
+              {[
+                { label: 'Delivered', count: statusCounts.delivered, color: '#10B981' },
+                { label: 'Processing', count: statusCounts.processing, color: '#2563EB' },
+                { label: 'Shipped', count: statusCounts.shipped, color: '#F59E0B' },
+                { label: 'Cancelled', count: statusCounts.cancelled, color: '#EF4444' },
+              ].map(s => (
+                <div key={s.label} className="flex justify-between items-center text-[11px]">
+                  <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {s.count} <span className="font-normal text-slate-400 text-[10px]">({totalOrders > 0 ? Math.round((s.count / totalOrders) * 100) : 0}%)</span>
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Needs Attention (conditional — only real alerts) ── */}
+      {/* ── Smart Needs Attention Bar (Conditional Alerts) ── */}
       {hasAttentionItems && (
-        <div className="bg-white border border-[#E5EAF1] rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle size={15} className="text-[#FF8A00]" />
-            <h2 className="text-sm font-bold text-[#152238]">Needs Attention</h2>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {pendingCount > 0 && (
-              <Link
-                to="/orders"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-colors"
-              >
-                <ShoppingCart size={14} className="text-[#FF8A00]" />
-                <span className="text-xs font-semibold text-[#152238]">
-                  {pendingCount} order{pendingCount > 1 ? 's' : ''} pending fulfillment
-                </span>
-                <ArrowRight size={12} className="text-[#667085]" />
-              </Link>
-            )}
-            {lowStockProducts.length > 0 && (
-              <Link
-                to="/products"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-100 hover:bg-red-100 transition-colors"
-              >
-                <Package size={14} className="text-[#E5484D]" />
-                <span className="text-xs font-semibold text-[#152238]">
-                  {lowStockProducts.length} product{lowStockProducts.length > 1 ? 's' : ''} low on stock (≤3 units)
-                </span>
-                <ArrowRight size={12} className="text-[#667085]" />
-              </Link>
-            )}
+        <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <AlertCircle size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-amber-950 uppercase tracking-wider">Action Items Detected</p>
+                <p className="text-xs text-amber-800">You have pending workflows that require attention:</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              {pendingCount > 0 && (
+                <Link
+                  to="/orders"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-amber-300 text-xs font-bold text-amber-900 hover:bg-amber-100/60 shadow-xs transition-colors"
+                >
+                  <ShoppingCart size={13} className="text-amber-600" />
+                  <span>{pendingCount} order{pendingCount > 1 ? 's' : ''} awaiting dispatch</span>
+                  <ArrowRight size={12} />
+                </Link>
+              )}
+              {lowStockProducts.length > 0 && (
+                <Link
+                  to="/products"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-rose-300 text-xs font-bold text-rose-900 hover:bg-rose-50 shadow-xs transition-colors"
+                >
+                  <Package size={13} className="text-rose-600" />
+                  <span>{lowStockProducts.length} product{lowStockProducts.length > 1 ? 's' : ''} low on stock (≤3)</span>
+                  <ArrowRight size={12} />
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Shop Footfall, Geography & Product Insights ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Visitor Footfall & Geography (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[300px]">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <Globe size={16} className="text-[#0052FF]" />
-              <h2 className="text-sm font-bold text-[#152238]">Store Visitors & Geography</h2>
+      {/* ── Live Shopper Intelligence & Clickstream ("What Customers Are Doing") ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Footfall & Geography (4/12) */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <Globe size={16} className="text-blue-600" />
+                <h2 className="text-sm font-bold text-slate-900">Footfall & Geography</h2>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Live Traffic
+              </span>
             </div>
-            <span className="text-[11px] font-semibold text-[#16A36A] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-              Live Footfall
-            </span>
-          </div>
-          <div className="flex items-center gap-4 p-3 bg-[#F6F8FC] rounded-xl border border-[#E5EAF1] mb-3">
-            <div>
-              <p className="text-[10px] uppercase font-bold text-[#667085] tracking-wider">Total Visits</p>
-              <p className="text-lg font-black text-[#152238]">{dashboardData?.visitors?.total_visitors || 0}</p>
+
+            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200/70 mb-4">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Total Views</p>
+                <p className="text-lg font-black text-slate-900 font-mono">{dashboardData?.visitors?.total_visitors || 0}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Unique Shoppers</p>
+                <p className="text-lg font-black text-blue-600 font-mono">{dashboardData?.visitors?.unique_sessions || 0}</p>
+              </div>
             </div>
-            <div className="h-8 w-[1px] bg-[#E5EAF1]" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-[#667085] tracking-wider">Unique Sessions</p>
-              <p className="text-lg font-black text-[#0052FF]">{dashboardData?.visitors?.unique_sessions || 0}</p>
-            </div>
-          </div>
-          <h3 className="text-[11px] font-bold text-[#667085] uppercase tracking-wider mb-2">Top Visitor Locations</h3>
-          {dashboardData?.visitors?.geography && dashboardData.visitors.geography.length > 0 ? (
-            <div className="flex flex-col gap-2 flex-1">
-              {dashboardData.visitors.geography.slice(0, 5).map((geo, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold text-[#152238]">
-                    <span className="truncate">{geo.city ? `${geo.city}, ${geo.region || geo.country || ''}` : geo.location || 'Direct / Local'}</span>
-                    <span className="text-[#667085] shrink-0">{geo.count} ({geo.percentage}%)</span>
+
+            <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">Top Locations</h3>
+            {dashboardData?.visitors?.geography && dashboardData.visitors.geography.length > 0 ? (
+              <div className="space-y-2.5">
+                {dashboardData.visitors.geography.slice(0, 4).map((geo, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold text-slate-800">
+                      <span className="truncate">{geo.city ? `${geo.city}, ${geo.region || geo.country || ''}` : geo.location || 'Local / Direct'}</span>
+                      <span className="text-slate-500 font-mono text-[11px]">{geo.count} ({geo.percentage}%)</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.min(100, Math.max(8, geo.percentage))}%` }} />
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-[#E5EAF1] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#0052FF] rounded-full" style={{ width: `${Math.min(100, Math.max(8, geo.percentage))}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
-              <Globe size={24} className="mb-2 opacity-40" />
-              <p className="text-xs font-semibold text-[#152238]">No visitor location data yet</p>
-              <p className="text-[10px] text-[#667085] mt-0.5">Visits will be mapped as customers view your storefront.</p>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center text-slate-400 text-xs">
+                <Globe size={24} className="mx-auto mb-1.5 opacity-40" />
+                <p className="font-semibold text-slate-700">No geo locations recorded</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Footfall will be visualized as shoppers browse your store.</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Customer Product Clicks (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[300px]">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-[#FF8A00]" />
-              <h2 className="text-sm font-bold text-[#152238]">Product Clicks (What They Saw)</h2>
+        {/* Customer Product Clicks Feed (4/12) */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-amber-500" />
+                <h2 className="text-sm font-bold text-slate-900">Shopper Intent (Clicks)</h2>
+              </div>
+              {/* Segmented Control */}
+              <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setClicksViewMode('top')}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all ${
+                    clicksViewMode === 'top' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Top
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClicksViewMode('live')}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all flex items-center gap-1 ${
+                    clicksViewMode === 'live' ? 'bg-white text-emerald-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                </button>
+              </div>
             </div>
-            {/* View Mode Switcher */}
-            <div className="flex items-center bg-[#F6F8FC] p-0.5 rounded-lg border border-[#E5EAF1]">
-              <button
-                type="button"
-                onClick={() => setClicksViewMode('top')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
-                  clicksViewMode === 'top' ? 'bg-white text-[#0052FF] shadow-xs' : 'text-[#667085] hover:text-[#152238]'
-                }`}
-              >
-                Top
-              </button>
-              <button
-                type="button"
-                onClick={() => setClicksViewMode('live')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                  clicksViewMode === 'live' ? 'bg-white text-[#16A36A] shadow-xs' : 'text-[#667085] hover:text-[#152238]'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] animate-pulse" />
-                Live
-              </button>
-            </div>
-          </div>
 
-          {clicksViewMode === 'top' ? (
-            dashboardData?.most_viewed_products && dashboardData.most_viewed_products.length > 0 ? (
-              <div className="flex flex-col gap-2 flex-1">
-                {dashboardData.most_viewed_products.slice(0, 5).map((prod, idx) => (
-                  <div
-                    key={prod.id || idx}
-                    onClick={() => setInspectingProduct(prod)}
-                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-blue-50/60 border border-transparent hover:border-blue-100 transition-all cursor-pointer group"
-                    title="Click to see product details"
-                  >
-                    <span className="text-[10px] font-bold text-[#667085] w-4 shrink-0 text-center">{idx + 1}</span>
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
+            {clicksViewMode === 'top' ? (
+              dashboardData?.most_viewed_products && dashboardData.most_viewed_products.length > 0 ? (
+                <div className="space-y-2">
+                  {dashboardData.most_viewed_products.slice(0, 4).map((prod, idx) => (
+                    <div
+                      key={prod.id || idx}
+                      onClick={() => setInspectingProduct(prod)}
+                      className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-blue-50/60 border border-transparent hover:border-blue-100 transition-all cursor-pointer group"
+                    >
+                      <span className="text-[10px] font-bold text-slate-400 w-4 text-center">{idx + 1}</span>
+                      <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                        {prod.image_url ? (
+                          <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package size={14} className="text-slate-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                          {prod.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-mono">{config.symbol}{Number(prod.price || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right shrink-0 flex items-center gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-blue-600 font-mono">{prod.views} clicks</p>
+                          <p className="text-[9px] text-slate-400">{prod.unique_viewers || prod.views} shoppers</p>
+                        </div>
+                        <span className="p-1 rounded-lg bg-white border border-slate-200 text-slate-500 group-hover:text-blue-600 shadow-2xs">
+                          <Eye size={12} />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-400 text-xs">
+                  <Package size={24} className="mx-auto mb-1.5 opacity-40" />
+                  <p className="font-semibold text-slate-700">No clicks recorded yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Customer taps will populate here as they view items.</p>
+                </div>
+              )
+            ) : (
+              dashboardData?.recent_clicks && dashboardData.recent_clicks.length > 0 ? (
+                <div className="space-y-2">
+                  {dashboardData.recent_clicks.slice(0, 4).map((clk, idx) => (
+                    <div
+                      key={clk.id || idx}
+                      onClick={() => setInspectingProduct(clk)}
+                      className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-emerald-50/60 border border-transparent hover:border-emerald-100 transition-all cursor-pointer group"
+                    >
+                      <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                        {clk.image_url ? (
+                          <img src={clk.image_url} alt={clk.product_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package size={14} className="text-slate-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">
+                          {clk.product_name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          {clk.location ? `${clk.location} • ` : ''}{config.symbol}{Number(clk.price || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        Tap
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-400 text-xs">
+                  <Radio size={24} className="mx-auto mb-1.5 text-emerald-500 opacity-50" />
+                  <p className="font-semibold text-slate-700">No live clickstream yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Realtime product interactions stream here automatically.</p>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Most Purchased (What They Bought) (4/12) */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <ShoppingBag size={16} className="text-emerald-600" />
+                <h2 className="text-sm font-bold text-slate-900">Highest Converting Items</h2>
+              </div>
+              <Link to="/orders" className="text-xs font-bold text-blue-600 hover:text-blue-700">Orders</Link>
+            </div>
+
+            {dashboardData?.most_purchased_products && dashboardData.most_purchased_products.length > 0 ? (
+              <div className="space-y-2.5">
+                {dashboardData.most_purchased_products.slice(0, 4).map((prod: any, idx: number) => (
+                  <div key={prod.id || idx} className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-50">
+                    <span className="text-[10px] font-bold text-slate-400 w-4 text-center">{idx + 1}</span>
+                    <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
                       {prod.image_url ? (
                         <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
                       ) : (
-                        <Package size={14} className="text-[#667085]" />
+                        <Package size={14} className="text-slate-400" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-[#152238] group-hover:text-[#0052FF] transition-colors truncate">{prod.name}</p>
-                      <p className="text-[10px] text-[#667085]">{config.symbol}{Number(prod.price || 0).toLocaleString()}</p>
+                      <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{config.symbol}{Number(prod.revenue || 0).toLocaleString()} revenue</p>
                     </div>
-                    <div className="text-right shrink-0 flex items-center gap-2">
-                      <div>
-                        <p className="text-[11px] font-bold text-[#0052FF]">{prod.views} clicks</p>
-                        <p className="text-[9px] text-[#667085]">{prod.unique_viewers || prod.views} shoppers</p>
-                      </div>
-                      <span className="p-1 rounded-md bg-white border border-[#E5EAF1] text-[#667085] group-hover:text-[#0052FF] group-hover:border-blue-200 transition-all shadow-2xs">
-                        <Eye size={12} />
-                      </span>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-black text-emerald-600 font-mono">{prod.units_sold || 0} sold</p>
+                      <p className="text-[9px] text-slate-400">{prod.orders_count || 1} orders</p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
-                <Package size={24} className="mb-2 opacity-40" />
-                <p className="text-xs font-semibold text-[#152238]">No customer product clicks yet</p>
-                <p className="text-[10px] text-[#667085] mt-0.5 max-w-[200px]">Real customer clicks will appear here as visitors browse your catalog.</p>
-                <a
-                  href={storeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-[#0052FF] hover:underline"
-                >
-                  <ExternalLink size={11} /> Open Storefront
-                </a>
+              <div className="py-6 text-center text-slate-400 text-xs">
+                <ShoppingBag size={24} className="mx-auto mb-1.5 opacity-40" />
+                <p className="font-semibold text-slate-700">No completed sales yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Purchases will be cataloged and ranked by units sold.</p>
               </div>
-            )
-          ) : (
-            dashboardData?.recent_clicks && dashboardData.recent_clicks.length > 0 ? (
-              <div className="flex flex-col gap-2 flex-1">
-                {dashboardData.recent_clicks.slice(0, 5).map((clk, idx) => (
-                  <div
-                    key={clk.id || idx}
-                    onClick={() => setInspectingProduct(clk)}
-                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-emerald-50/60 border border-transparent hover:border-emerald-100 transition-all cursor-pointer group"
-                    title="Click to see product details"
-                  >
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
-                      {clk.image_url ? (
-                        <img src={clk.image_url} alt={clk.product_name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Package size={14} className="text-[#667085]" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-[#152238] group-hover:text-[#16A36A] transition-colors truncate">{clk.product_name}</p>
-                      <p className="text-[10px] text-[#667085]">
-                        {clk.location ? `${clk.location} • ` : ''}{config.symbol}{Number(clk.price || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0 flex items-center gap-2">
-                      <span className="text-[10px] font-semibold text-[#16A36A] bg-emerald-50 px-1.5 py-0.5 rounded">
-                        Clicked
-                      </span>
-                      <span className="p-1 rounded-md bg-white border border-[#E5EAF1] text-[#667085] group-hover:text-[#16A36A] group-hover:border-emerald-200 transition-all shadow-2xs">
-                        <Eye size={12} />
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
-                <Radio size={24} className="mb-2 opacity-40 text-[#16A36A]" />
-                <p className="text-xs font-semibold text-[#152238]">No live product clicks yet</p>
-                <p className="text-[10px] text-[#667085] mt-0.5 max-w-[200px]">Live click stream updates automatically as shoppers tap on products.</p>
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Most Purchased Products (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[300px]">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <ShoppingBag size={16} className="text-[#16A36A]" />
-              <h2 className="text-sm font-bold text-[#152238]">Most Purchased (What They Bought)</h2>
-            </div>
-            <Link to="/orders" className="text-[11px] font-semibold text-[#0052FF] hover:underline">Orders</Link>
+            )}
           </div>
-          {dashboardData?.most_purchased_products && dashboardData.most_purchased_products.length > 0 ? (
-            <div className="flex flex-col gap-2.5 flex-1">
-              {dashboardData.most_purchased_products.slice(0, 5).map((prod: any, idx: number) => (
-                <div key={prod.id || idx} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-50">
-                  <span className="text-[10px] font-bold text-[#667085] w-4 shrink-0 text-center">{idx + 1}</span>
-                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
-                    {prod.image_url ? (
-                      <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package size={14} className="text-[#667085]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-[#152238] truncate">{prod.name}</p>
-                    <p className="text-[10px] text-[#667085]">{config.symbol}{Number(prod.revenue || 0).toLocaleString()} revenue</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[11px] font-bold text-[#16A36A]">{prod.units_sold || 0} sold</p>
-                    <p className="text-[9px] text-[#667085]">{prod.orders_count || 1} orders</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-4 text-[#667085]">
-              <ShoppingBag size={24} className="mb-2 opacity-40" />
-              <p className="text-xs font-semibold text-[#152238]">No purchases yet</p>
-              <p className="text-[10px] text-[#667085] mt-0.5">Purchased items will appear ranked by units sold once orders are completed.</p>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* ── Bottom Row: Recent Orders + AI + Credits ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-        {/* Recent Orders (5/12) */}
-        <div className="lg:col-span-5 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[300px]">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-sm font-bold text-[#152238]">Recent Orders</h2>
-            <Link to="/orders" className="text-[11px] font-semibold text-[#0052FF] hover:underline">View All</Link>
-          </div>
-
-          {recentOrders.length > 0 ? (
-            <div className="flex flex-col gap-1.5 flex-1">
-              {recentOrders.map((order) => {
-                const badge = statusBadge(order.status);
-                return (
-                  <div key={order.id} className="flex items-center justify-between p-2 hover:bg-[#F6F8FC] rounded-xl transition-colors gap-3">
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <div className="w-7 h-7 rounded-xl bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center">
-                        <Package size={13} className="text-[#667085]" />
-                      </div>
-                      <p className="text-[11px] font-bold text-[#152238]">#{order.id.slice(0, 8).toUpperCase()}</p>
-                    </div>
-                    <p className="text-[11px] font-medium text-[#667085] truncate flex-1">{order.customer_name}</p>
-                    <p className="text-[11px] font-bold text-[#152238] shrink-0">{config.symbol}{order.total.toLocaleString()}</p>
-                    <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold capitalize ${badge.bg} ${badge.text} shrink-0`}>
-                      {badge.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-4">
-              <div className="w-9 h-9 rounded-xl bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center text-[#667085] mb-2">
-                <ShoppingCart size={17} />
+      {/* ── SaaS Table: Recent Orders Pipeline + FeraSetu AI Copilot Hub ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Recent Orders SaaS Table (7/12) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-h-[340px]">
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <ShoppingCart size={16} className="text-blue-600" />
+                <h2 className="text-sm font-bold text-slate-900">Recent Customer Orders</h2>
               </div>
-              <p className="text-xs font-semibold text-[#152238] mb-1">No orders received yet</p>
-              <p className="text-[11px] text-[#667085] mb-3 max-w-[200px]">
-                Share your store link on WhatsApp to start receiving orders.
-              </p>
-              <button
-                onClick={handleShareStoreWhatsApp}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-[11px] font-bold rounded-xl transition-colors cursor-pointer"
-              >
-                <Share2 size={12} />
-                Share Store Link
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* FeraSetu AI (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-[#E5EAF1] rounded-xl p-5 shadow-sm flex flex-col min-h-[300px]">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles size={15} className="text-[#0052FF]" />
-              <h2 className="text-sm font-bold text-[#152238]">FeraSetu AI</h2>
-            </div>
-            <Link
-              to="/ferasetu-ai"
-              className="text-[11px] font-semibold text-[#0052FF] hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 transition-colors"
-            >
-              New Chat
-            </Link>
-          </div>
-
-          <div className="bg-[#F6F8FC] p-3 rounded-xl border border-[#E5EAF1] mb-3 flex items-center gap-2.5">
-            <Sparkles className="text-[#0052FF] shrink-0" size={16} />
-            <p className="text-[12px] font-semibold text-[#0052FF] leading-relaxed">
-              Hi {firstName}! How can I help you grow your business today?
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1.5 flex-1">
-            {[
-              'Which product is selling most?',
-              'How can I increase my sales?',
-              'Show low stock products',
-            ].map((q, i) => (
-              <Link
-                to={`/ferasetu-ai?q=${encodeURIComponent(q)}`}
-                key={i}
-                className="flex justify-between items-center p-2.5 border border-[#E5EAF1] rounded-xl text-[12px] font-medium text-[#667085] hover:border-blue-200 hover:bg-blue-50/60 hover:text-[#0052FF] transition-all group"
-              >
-                <span>{q}</span>
-                <ArrowRight size={12} className="text-[#E5EAF1] group-hover:text-[#0052FF] transition-colors shrink-0" />
+              <Link to="/orders" className="text-xs font-bold text-blue-600 hover:text-blue-700">
+                View All Orders →
               </Link>
-            ))}
+            </div>
+
+            {recentOrders.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      <th className="pb-2.5 font-bold">Order ID</th>
+                      <th className="pb-2.5 font-bold">Customer</th>
+                      <th className="pb-2.5 font-bold text-right">Amount</th>
+                      <th className="pb-2.5 font-bold text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recentOrders.map((order) => {
+                      const badge = statusBadge(order.status);
+                      return (
+                        <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-3 font-mono font-bold text-slate-900">
+                            #{order.id.slice(0, 8).toUpperCase()}
+                          </td>
+                          <td className="py-3 text-slate-700 font-medium">
+                            <span className="block font-bold text-slate-900 truncate max-w-[160px]">{order.customer_name}</span>
+                            <span className="text-[10px] text-slate-400 capitalize">{order.delivery_type || 'Delivery'}</span>
+                          </td>
+                          <td className="py-3 text-right font-mono font-bold text-slate-900">
+                            {config.symbol}{order.total.toLocaleString()}
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badge.bg}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                              {badge.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-10 text-center text-slate-500">
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                  <ShoppingCart size={20} />
+                </div>
+                <p className="text-xs font-bold text-slate-900">No orders received yet</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 max-w-xs mx-auto">
+                  Share your store link on WhatsApp to receive your first direct order.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleShareStoreWhatsApp}
+                  className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+                >
+                  <Share2 size={13} /> Share Store Link
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* AI Credits + Quick Actions (3/12) */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
-          {/* AI Credits */}
-          <div className="bg-white border border-[#E5EAF1] rounded-xl p-4 shadow-sm flex-1">
+        {/* FeraSetu AI Copilot & Operations Hub (5/12) */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          
+          {/* AI Assistant Card */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
-                <Coins size={14} className="text-[#0052FF]" />
-                <h2 className="text-sm font-bold text-[#152238]">AI Credits</h2>
+                <Sparkles size={16} className="text-blue-600" />
+                <h2 className="text-sm font-bold text-slate-900">FeraSetu AI Copilot</h2>
               </div>
-              <Link to="/ai-credits" className="text-[11px] font-semibold text-[#0052FF] hover:underline">Details</Link>
+              <Link
+                to="/ferasetu-ai"
+                className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition-colors"
+              >
+                Open Copilot
+              </Link>
             </div>
 
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-9 h-9 rounded-full bg-[#0052FF] text-white flex items-center justify-center shrink-0">
-                <Coins size={16} />
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-[#667085] uppercase tracking-wider">Available</p>
-                <p className="text-base font-black text-[#152238]">{aiCreditsBalance} Credits</p>
-              </div>
-            </div>
-
-            <div className="mb-2">
-              <div className="flex justify-between text-[10px] font-semibold text-[#667085] mb-1">
-                <span>Used: {aiCreditsUsed}</span>
-                <span className="text-[#152238]">Total: {aiCreditsLimit}</span>
-              </div>
-              <div className="h-1.5 bg-[#E5EAF1] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${aiCreditsPercent}%`,
-                    background: aiCreditsPercent > 80 ? '#E5484D' : aiCreditsPercent > 60 ? '#FF8A00' : '#0052FF',
-                  }}
-                />
-              </div>
-            </div>
-
-            <p className="text-[10px] text-[#667085]">
-              Resets:{' '}
-              {new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric',
-              })}
+            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+              Your AI merchant copilot analyzes live sales, suggests promotions, and drafts WhatsApp broadcast messages.
             </p>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white border border-[#E5EAF1] rounded-xl p-4 shadow-sm">
-            <h2 className="text-sm font-bold text-[#152238] mb-3">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
               {[
-                { icon: <Plus size={14} />, label: 'Add Product', to: '/products' },
-                { icon: <ShoppingCart size={14} />, label: 'View Orders', to: '/orders' },
-                { icon: <Globe size={14} />, label: 'Edit Store', to: '/website-builder' },
-                { icon: <Sparkles size={14} />, label: 'FeraSetu AI', to: '/ferasetu-ai' },
-              ].map(action => (
+                'Which products are low on stock?',
+                'Draft a festive promo message for WhatsApp',
+                'Analyze my top selling product trends',
+              ].map((q, i) => (
                 <Link
-                  key={action.label}
-                  to={action.to}
-                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-[#E5EAF1] hover:border-blue-200 hover:bg-blue-50/50 text-[#667085] hover:text-[#0052FF] transition-all group text-center"
+                  to={`/ferasetu-ai?q=${encodeURIComponent(q)}`}
+                  key={i}
+                  className="flex justify-between items-center p-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700 transition-all group"
                 >
-                  <span className="text-[#0052FF] group-hover:scale-110 transition-transform">{action.icon}</span>
-                  <span className="text-[10px] font-semibold">{action.label}</span>
+                  <span className="truncate">{q}</span>
+                  <ArrowRight size={13} className="text-slate-400 group-hover:text-blue-600 shrink-0 ml-2" />
                 </Link>
               ))}
             </div>
           </div>
+
+          {/* AI Credits & Quick Launch Bar */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            
+            {/* Credit Gauge */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">AI Credits</span>
+                <Link to="/ai-credits" className="text-[11px] font-bold text-blue-600 hover:underline">Details</Link>
+              </div>
+              <p className="text-lg font-black text-slate-900 font-mono mb-2">
+                {aiCreditsBalance} <span className="text-xs font-semibold text-slate-500">Credits</span>
+              </p>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-1.5">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${aiCreditsPercent}%`,
+                    background: aiCreditsPercent > 80 ? '#EF4444' : aiCreditsPercent > 60 ? '#F59E0B' : '#2563EB',
+                  }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 font-medium">Used: {aiCreditsUsed} of {aiCreditsLimit}</p>
+            </div>
+
+            {/* Quick Actions Shortcuts */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Quick Actions</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/products"
+                  className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200/80 transition-colors"
+                >
+                  <Plus size={13} className="text-blue-600 shrink-0" />
+                  <span>Product</span>
+                </Link>
+                <Link
+                  to="/orders"
+                  className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200/80 transition-colors"
+                >
+                  <ShoppingCart size={13} className="text-emerald-600 shrink-0" />
+                  <span>Orders</span>
+                </Link>
+                <Link
+                  to="/website-builder"
+                  className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200/80 transition-colors"
+                >
+                  <Globe size={13} className="text-indigo-600 shrink-0" />
+                  <span>Storefront</span>
+                </Link>
+                <Link
+                  to="/pro-studio"
+                  className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200/80 transition-colors"
+                >
+                  <Sparkles size={13} className="text-amber-500 shrink-0" />
+                  <span>Pro Studio</span>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Inspecting Clicked Product Modal */}
+      {/* ── Product Inspection Modal (Clean Glass & Analytics) ── */}
       {inspectingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-[#E5EAF1] animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5EAF1] bg-[#F6F8FC]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setInspectingProduct(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-2">
-                <Eye size={16} className="text-[#0052FF]" />
-                <h3 className="text-sm font-bold text-[#152238]">Inspecting Clicked Product</h3>
+                <Eye size={16} className="text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Shopper Intent Inspection</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setInspectingProduct(null)}
-                className="p-1 rounded-lg text-[#667085] hover:text-[#152238] hover:bg-[#E5EAF1]/60 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-5 space-y-4">
               <div className="flex gap-4 items-start">
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#F6F8FC] border border-[#E5EAF1] flex items-center justify-center shrink-0">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
                   {inspectingProduct.image_url ? (
                     <img
                       src={inspectingProduct.image_url}
@@ -1354,73 +1496,132 @@ export default function DashboardPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <Package size={28} className="text-[#667085]" />
+                    <Package size={28} className="text-slate-400" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-base font-bold text-[#152238] leading-snug truncate">
+                  <h4 className="text-base font-bold text-slate-900 leading-snug truncate">
                     {inspectingProduct.name || inspectingProduct.product_name || 'Product'}
                   </h4>
-                  <p className="text-sm font-black text-[#0052FF] mt-1">
+                  <p className="text-base font-black text-blue-600 font-mono mt-0.5">
                     {config.symbol}{Number(inspectingProduct.price || 0).toLocaleString()}
                   </p>
                   {inspectingProduct.location && (
-                    <p className="text-[11px] text-[#667085] flex items-center gap-1 mt-1.5">
-                      <Globe size={11} className="text-[#0052FF]" />
-                      Customer from: <span className="font-semibold text-[#152238]">{inspectingProduct.location}</span>
+                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                      <Globe size={12} className="text-blue-600" />
+                      Shopper from: <span className="font-semibold text-slate-800">{inspectingProduct.location}</span>
                     </p>
                   )}
                 </div>
               </div>
 
               {/* Stats row */}
-              <div className="grid grid-cols-2 gap-2 bg-[#F6F8FC] p-3 rounded-xl border border-[#E5EAF1]">
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                 <div>
-                  <p className="text-[10px] font-bold text-[#667085] uppercase tracking-wider">Total Clicks</p>
-                  <p className="text-sm font-black text-[#152238]">
-                    {inspectingProduct.views ?? (inspectingProduct.action ? 1 : 0)} Clicks
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Clicks</p>
+                  <p className="text-base font-black text-slate-900 font-mono">
+                    {inspectingProduct.views ?? 1}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-[#667085] uppercase tracking-wider">Unique Shoppers</p>
-                  <p className="text-sm font-black text-[#152238]">
-                    {inspectingProduct.unique_viewers ?? 1} Shoppers
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Unique Shoppers</p>
+                  <p className="text-base font-black text-blue-600 font-mono">
+                    {inspectingProduct.unique_viewers ?? 1}
                   </p>
                 </div>
-                {inspectingProduct.timestamp && (
-                  <div className="col-span-2 pt-2 border-t border-[#E5EAF1]/70">
-                    <p className="text-[10px] text-[#667085]">
-                      Last clicked: <span className="font-medium text-[#152238]">{new Date(inspectingProduct.timestamp).toLocaleString()}</span>
-                    </p>
-                  </div>
-                )}
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-2.5 pt-2">
                 {storeUrl && (
                   <a
                     href={`${storeUrl}?product=${inspectingProduct.product_id || inspectingProduct.id || ''}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#0052FF] hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
                   >
-                    <ExternalLink size={13} />
-                    See on Live Storefront
+                    <ExternalLink size={13} /> View on Storefront
                   </a>
                 )}
-                <Link
-                  to={`/products`}
-                  onClick={() => setInspectingProduct(null)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#F6F8FC] hover:bg-[#E5EAF1] text-[#152238] text-xs font-bold rounded-xl border border-[#E5EAF1] transition-colors cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInspectingProduct(null);
+                    navigate('/products');
+                  }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                 >
-                  Catalog
-                </Link>
+                  Edit in Catalog
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Counter QR Code Modal (Physical Counter Display) ── */}
+      {showQrModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setShowQrModal(false)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-200 text-center p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-700">Dukaan Counter QR</span>
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center">
+              {/* Simulated Counter QR */}
+              <div className="w-48 h-48 bg-white p-3 rounded-2xl border-2 border-slate-900 shadow-sm flex flex-col items-center justify-center relative">
+                <QrCode size={150} className="text-slate-950" />
+                <span className="text-[10px] font-black text-blue-600 mt-1 uppercase tracking-widest">
+                  FERASETU STORE
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-900 mt-3">{user?.business_name || 'My Store'}</p>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5 truncate max-w-[240px]">{storeUrl}</p>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Place this QR code on your store checkout counter. Customers can scan to browse products and order directly on WhatsApp.
+            </p>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  window.print();
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                <Printer size={14} /> Print Counter Display
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyStoreLink}
+                className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                <Copy size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function PercentIcon({ size = 16 }: { size?: number }) {
+  return (
+    <span style={{ fontSize: size, fontWeight: 900, lineHeight: 1 }}>%</span>
   );
 }
