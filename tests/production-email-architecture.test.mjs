@@ -208,7 +208,10 @@ function createTestDb() {
           if (s.includes('FROM email_messages')) {
             let rows = [...tables.email_messages];
             if (s.includes('WHERE idempotency_key = ?')) {
-              rows = rows.filter(r => r.idempotency_key === args[0]);
+              const key = args[0];
+              const merchantId = args[1];
+              const isPlatform = args[2] === 1;
+              rows = rows.filter(r => r.idempotency_key === key && (r.merchant_id === merchantId || (!r.merchant_id && isPlatform)));
             }
             return { results: rows };
           }
@@ -665,6 +668,89 @@ await test('Security: CRLF header injection and cross-tenant spoofing rejected',
   }, /No authorized email identity found/);
 });
 
+// -----------------------------------------------------------------------------
+// TEST 8: External SMTP Client RFC 5321 / RFC 5322 Payload Dispatch
+// -----------------------------------------------------------------------------
+await test('External SMTP: Full MIME generation and socket execution path', async () => {
+  const { sendViaExternalSmtp, testSmtpConnection } = await import('../worker/services/externalSmtpClient.js');
+
+  // Verify connection test format check
+  const testConn = await testSmtpConnection({
+    host: 'smtp.testrelay.io',
+    port: 587,
+    username: 'user@testrelay.io',
+    password: 'secret_password_123',
+    securityMode: 'STARTTLS'
+  });
+  assert.equal(testConn.success, true);
+
+  // Verify sendViaExternalSmtp execution
+  const res = await sendViaExternalSmtp({
+    connection: {
+      smtp_host: 'smtp.testrelay.io',
+      smtp_port: 587,
+      smtp_username: 'user@testrelay.io',
+      password: 'secret_password_123',
+      security_mode: 'STARTTLS'
+    },
+    message: {
+      from: 'orders@merchant.com',
+      to: 'customer@domain.com',
+      subject: 'Test Order #101',
+      html: '<h1>Order Confirmed</h1>',
+      text: 'Order Confirmed'
+    }
+  });
+
+  assert.equal(res.success, true);
+  assert.equal(res.provider, 'EXTERNAL_SMTP');
+  assert.equal(res.status, 'SENT');
+  assert.ok(res.messageId.startsWith('ext_'));
+});
+
+// -----------------------------------------------------------------------------
+// TEST 9: Tenant-Scoped Idempotency Uniqueness & Non-Collision
+// -----------------------------------------------------------------------------
+await test('Idempotency: Same key deduplicates for same tenant, allows different tenant', async () => {
+  const db = createTestDb();
+  const env = { DB: db, JWKS: localKeySet, ADMIN_JWT_SECRET: 'test_jwt_key' };
+
+  // Tenant 1 sends message with key 'checkout_txn_999'
+  const send1 = await EmailService.send(env, {
+    organizationId: 'org_1',
+    to: 'customer1@test.com',
+    subject: 'Receipt 1',
+    text: 'Receipt',
+    idempotencyKey: 'checkout_txn_999'
+  });
+  assert.equal(send1.success, true);
+  assert.equal(send1.duplicate, undefined);
+
+  // Tenant 1 re-sends with identical key -> duplicate flagged, no re-dispatch
+  const send1Dup = await EmailService.send(env, {
+    organizationId: 'org_1',
+    to: 'customer1@test.com',
+    subject: 'Receipt 1 Re-attempt',
+    text: 'Receipt',
+    idempotencyKey: 'checkout_txn_999'
+  });
+  assert.equal(send1Dup.success, true);
+  assert.equal(send1Dup.duplicate, true);
+  assert.equal(send1Dup.messageId, send1.messageId);
+
+  // Tenant 3 sends with SAME key 'checkout_txn_999' -> must NOT collide with Tenant 1!
+  const send3 = await EmailService.send(env, {
+    organizationId: 'org_3',
+    to: 'customer3@test.com',
+    subject: 'Receipt 3',
+    text: 'Receipt',
+    idempotencyKey: 'checkout_txn_999'
+  });
+  assert.equal(send3.success, true);
+  assert.equal(send3.duplicate, undefined);
+  assert.notEqual(send3.messageId, send1.messageId, 'Different tenants must have distinct message IDs');
+});
+
 console.log(`\n────────────────────────────────────────────────────────────`);
 console.log(`Results: ${passed} passed, ${failed} failed\n`);
 
@@ -673,3 +759,4 @@ if (failed > 0) {
 } else {
   console.log('🎉 All Production Email Architecture tests passed successfully!\n');
 }
+

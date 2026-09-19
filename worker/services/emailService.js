@@ -325,6 +325,16 @@ export class EmailService {
         `).bind(organizationId).first();
       }
 
+      if (!identRow && !from && !resolvedIdentityId) {
+        await ensureMerchantEmailProvisioning(env.DB, organizationId, organizationId, 'Store');
+        identRow = await env.DB.prepare(`
+          SELECT ei.*, ed.verification_status 
+          FROM email_identities ei
+          JOIN email_domains ed ON ei.domain_id = ed.id
+          WHERE ei.organization_id = ? AND ei.is_default = 1
+        `).bind(organizationId).first();
+      }
+
       if (!identRow) {
         throw new Error(`No authorized email identity found for merchant ${organizationId}. Please complete email settings.`);
       }

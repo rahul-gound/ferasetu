@@ -47,7 +47,7 @@
       "enabled": true,
       "environment": {
         "APPWRITE_PROJECT_ID": "https://sgp.cloud.appwrite.io/v1",
-        "APPWRITE_API_KEY": "standard_1722af4985c315e4fe5dd76757d9b0cbd986c6dc2aaad26d9c81aa9d3c6e3e3e165dc38079c38cfb04f1bf9db39480b204fed5cead882943f31bfc0703cfc2cff373de8a52c9bd0728842a439ae2c6ee6be7b277473fdb5d219573eb518ff943b5c2d6fe5d228c1903418830e1a63e41d34c169e2577dc00db502e39d466de4d",
+        "APPWRITE_API_KEY": "{env:APPWRITE_API_KEY}",
         "APPWRITE_ENDPOINT": "https://sgp.cloud.appwrite.io/v1"
       }
     }

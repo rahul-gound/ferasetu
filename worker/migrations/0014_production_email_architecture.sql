@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS email_messages (
 CREATE INDEX IF NOT EXISTS idx_email_messages_merchant ON email_messages(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_email_messages_status ON email_messages(status);
 CREATE INDEX IF NOT EXISTS idx_email_messages_idempotency ON email_messages(idempotency_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_email_messages_tenant_idempotency ON email_messages(COALESCE(merchant_id, 'PLATFORM'), idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_email_messages_created ON email_messages(created_at);
 
 -- 5. Email Delivery Events Table

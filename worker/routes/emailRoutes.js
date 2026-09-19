@@ -56,26 +56,37 @@ export async function handleEmailRoutes(request, env) {
   const storeSlug = ctx.organization?.store_slug || ctx.organizationId;
   const orgName = ctx.organization?.name || 'Store';
 
-  // Ensure default merchant domain and identity exist
-  await ensureMerchantEmailProvisioning(env.DB, orgId, storeSlug, orgName);
-
   // ---------------------------------------------------------------------------
   // GET /api/email/settings
   // ---------------------------------------------------------------------------
   if (path === "/api/email/settings" && method === "GET") {
-    const providerConn = await env.DB.prepare(
+    let providerConn = await env.DB.prepare(
       "SELECT * FROM email_provider_connections WHERE organization_id = ?"
     ).bind(orgId).first();
 
-    const activeProvider = providerConn?.provider_type || 'FERASETU';
-
-    const defaultIdentity = await env.DB.prepare(
+    let defaultIdentity = await env.DB.prepare(
       "SELECT * FROM email_identities WHERE organization_id = ? AND is_default = 1"
     ).bind(orgId).first();
 
-    const ferasetuDomain = await env.DB.prepare(
+    let ferasetuDomain = await env.DB.prepare(
       "SELECT * FROM email_domains WHERE organization_id = ? AND domain_type = 'FERASETU_MERCHANT'"
     ).bind(orgId).first();
+
+    // Lazy on-demand provisioning if merchant has no default domain/identity yet
+    if (!ferasetuDomain || !defaultIdentity || !providerConn) {
+      await ensureMerchantEmailProvisioning(env.DB, orgId, storeSlug, orgName);
+      ferasetuDomain = await env.DB.prepare(
+        "SELECT * FROM email_domains WHERE organization_id = ? AND domain_type = 'FERASETU_MERCHANT'"
+      ).bind(orgId).first();
+      defaultIdentity = await env.DB.prepare(
+        "SELECT * FROM email_identities WHERE organization_id = ? AND is_default = 1"
+      ).bind(orgId).first();
+      providerConn = await env.DB.prepare(
+        "SELECT * FROM email_provider_connections WHERE organization_id = ?"
+      ).bind(orgId).first();
+    }
+
+    const activeProvider = providerConn?.provider_type || 'FERASETU';
 
     const customDomain = await env.DB.prepare(
       "SELECT * FROM email_domains WHERE organization_id = ? AND domain_type = 'CUSTOM' ORDER BY created_at DESC"

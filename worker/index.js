@@ -3311,6 +3311,7 @@ async function ensureTables(db) {
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_identities_org ON email_identities(organization_id);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_identities_email ON email_identities(email_address);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_messages_merchant ON email_messages(merchant_id);`);
+    await safeExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_messages_tenant_idempotency ON email_messages(COALESCE(merchant_id, 'PLATFORM'), idempotency_key) WHERE idempotency_key IS NOT NULL;`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_email_events_merchant ON email_events(merchant_id);`);
 
     // Seed platform domain and identities if not present
