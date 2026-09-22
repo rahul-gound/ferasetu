@@ -505,6 +505,46 @@ export async function handleEmailRoutes(request, env) {
   }
 
   // ---------------------------------------------------------------------------
+  // POST /api/email/send
+  // Unified email dispatch endpoint for backend services
+  // ---------------------------------------------------------------------------
+  if (path === "/api/email/send" && method === "POST") {
+    const body = await readJsonBody(request);
+    
+    // Validate required fields
+    const to = String(body.to || '').trim();
+    if (!to || !to.includes('@')) {
+      throw new HttpError("Valid recipient email (to) is required", 422);
+    }
+    if (!body.templateKey && !body.subject) {
+      throw new HttpError("Either templateKey or raw subject/html/text must be provided", 422);
+    }
+
+    try {
+      const result = await EmailService.send(env, {
+        organizationId: orgId,
+        to,
+        templateKey: body.templateKey || null,
+        templateData: body.templateData || {},
+        locale: body.locale || 'en',
+        subject: body.subject || null,
+        html: body.html || null,
+        text: body.text || null,
+        replyTo: body.replyTo || null,
+        idempotencyKey: body.idempotencyKey || null,
+        priority: body.priority || 'NORMAL',
+        customHeaders: body.customHeaders || {},
+        storeSlug: body.storeSlug || storeSlug,
+        orgName: body.orgName || orgName
+      });
+
+      return json({ success: true, message: "Email dispatched successfully", result }, 200, {}, request);
+    } catch (sendErr) {
+      throw new HttpError(`Email dispatch failed: ${sendErr?.message || sendErr}`, 500);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /api/email/test
   // ---------------------------------------------------------------------------
   if (path === "/api/email/test" && method === "POST") {

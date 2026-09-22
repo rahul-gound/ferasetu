@@ -9,7 +9,6 @@ import { registerUser, loginUser, getUserById } from '../services/authService';
 import { sendOnboardingEmail, sendOTPEmail } from '../services/mailService';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { OTPService } from '../services/otpService';
-import { getSmtpSettings, sendOtpViaCustomSmtp } from '../services/smtpService';
 import { createRateLimiter } from '../middleware/rateLimiter';
 import { findNextAvailableStorefront } from '../utils/canonicalHostname';
 
@@ -134,20 +133,9 @@ router.post('/send-verification-email',
         return;
       }
 
-      // Send email using custom SMTP if configured, otherwise use default mail service
-      let result;
-      if (smtpSettings && smtpSettings.is_active && smtpSettings.host && smtpSettings.sender_email && smtpSettings.has_password) {
-        result = await sendOtpViaCustomSmtp(shop_id!, email, otp, otpSettings.otp_expiry_minutes);
-      } else {
-        await sendOTPEmail(email, otp);
-        result = { success: true, message: 'OTP sent via default mail service.' };
-      }
-
-      if (result.success) {
-        res.status(200).json({ success: true, message: 'Verification email sent.' });
-      } else {
-        res.status(400).json({ success: false, error: result.message });
-      }
+      // Send email via unified worker EmailService (handles FeraSetu SMTP or External SMTP)
+      await sendOTPEmail(email, otp);
+      res.status(200).json({ success: true, message: 'Verification email sent.' });
     } catch (err: any) {
       console.error('Send verification email error:', err);
       res.status(500).json({ error: 'Failed to send verification email. Please try again later.' });

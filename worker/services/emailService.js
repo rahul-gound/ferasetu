@@ -43,6 +43,161 @@ export function sanitizeHeaderValue(val) {
 }
 
 /**
+ * SMTP Failure Classification
+ * Categorizes failures for retry decisions
+ */
+export enum SmtpFailureCategory {
+  TRANSIENT = 'TRANSIENT',
+  PERMANENT = 'PERMANENT',
+  POLICY = 'POLICY',
+  AUTHENTICATION = 'AUTHENTICATION',
+  RATE_LIMIT = 'RATE_LIMIT',
+  DNS = 'DNS',
+  UNKNOWN = 'UNKNOWN',
+}
+
+/**
+ * Classifies an SMTP error into a failure category for retry logic
+ */
+export function classifySmtpFailure(error: any, providerResponse?: { status?: number; body?: string }): SmtpFailureCategory {
+  const message = (error?.message || error?.details || error?.toString() || '').toLowerCase();
+  const status = providerResponse?.status;
+  const body = (providerResponse?.body || '').toLowerCase();
+
+  // Authentication failures - never retry
+  if (
+    status === 401 || status === 403 ||
+    message.includes('authentication failed') ||
+    message.includes('invalid credentials') ||
+    message.includes('access denied') ||
+    message.includes('unauthorized') ||
+    body.includes('authentication failed') ||
+    body.includes('invalid api key') ||
+    body.includes('unauthorized sender')
+  ) {
+    return SmtpFailureCategory.AUTHENTICATION;
+  }
+
+  // Rate limiting - transient but with backoff
+  if (
+    status === 429 ||
+    message.includes('rate limit') ||
+    message.includes('too many requests') ||
+    message.includes('throttl') ||
+    body.includes('rate limit') ||
+    body.includes('throttl')
+  ) {
+    return SmtpFailureCategory.RATE_LIMIT;
+  }
+
+  // DNS failures - transient
+  if (
+    message.includes('dns') ||
+    message.includes('name resolution') ||
+    message.includes('getaddrinfo') ||
+    message.includes('enotfound') ||
+    message.includes('host not found') ||
+    body.includes('dns')
+  ) {
+    return SmtpFailureCategory.DNS;
+  }
+
+  // Permanent failures - invalid recipient, hard bounce, etc.
+  if (
+    status === 550 || status === 551 || status === 552 || status === 553 || status === 554 ||
+    message.includes('invalid recipient') ||
+    message.includes('user unknown') ||
+    message.includes('mailbox unavailable') ||
+    message.includes('no such user') ||
+    message.includes('recipient rejected') ||
+    message.includes('address rejected') ||
+    message.includes('domain does not exist') ||
+    body.includes('550') ||
+    body.includes('user unknown') ||
+    body.includes('no such user')
+  ) {
+    return SmtpFailureCategory.PERMANENT;
+  }
+
+  // Policy failures - spam, content, etc. - could be permanent or transient
+  if (
+    status === 554 ||
+    message.includes('policy') ||
+    message.includes('spam') ||
+    message.includes('blocked') ||
+    message.includes('rejected by policy') ||
+    body.includes('policy') ||
+    body.includes('spam')
+  ) {
+    return SmtpFailureCategory.POLICY;
+  }
+
+  // Transient failures - temporary issues that should retry
+  if (
+    status === 421 || status === 450 || status === 451 || status === 452 ||
+    message.includes('temporary') ||
+    message.includes('try again') ||
+    message.includes('service unavailable') ||
+    message.includes('queue overload') ||
+    message.includes('connection timeout') ||
+    message.includes('connection refused') ||
+    message.includes('network') ||
+    message.includes('econnreset') ||
+    message.includes('etimedout') ||
+    body.includes('temporary') ||
+    body.includes('try again') ||
+    body.includes('service unavailable')
+  ) {
+    return SmtpFailureCategory.TRANSIENT;
+  }
+
+  // Default to unknown - treat as transient for safety
+  return SmtpFailureCategory.UNKNOWN;
+}
+
+/**
+ * Determines if a failure category should trigger a retry
+ */
+export function shouldRetry(category: SmtpFailureCategory): boolean {
+  return category === SmtpFailureCategory.TRANSIENT ||
+         category === SmtpFailureCategory.RATE_LIMIT ||
+         category === SmtpFailureCategory.DNS ||
+         category === SmtpFailureCategory.UNKNOWN;
+}
+
+/**
+ * Exponential backoff with jitter for retry delays
+ * @param attempt - Current attempt number (0-indexed)
+ * @param baseDelayMs - Base delay in milliseconds (default: 1000ms)
+ * @param maxDelayMs - Maximum delay cap (default: 60000ms = 1 minute)
+ * @returns Delay in milliseconds
+ */
+export function calculateBackoffDelay(
+  attempt: number,
+  baseDelayMs: number = 1000,
+  maxDelayMs: number = 60000
+): number {
+  const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
+  const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
+  // Add jitter: ±25% of the delay
+  const jitter = cappedDelay * 0.25 * (Math.random() * 2 - 1);
+  return Math.floor(cappedDelay + jitter);
+}
+
+/**
+ * Maximum retry attempts per failure category
+ */
+export const MAX_RETRIES_BY_CATEGORY: Record<SmtpFailureCategory, number> = {
+  [SmtpFailureCategory.TRANSIENT]: 5,
+  [SmtpFailureCategory.RATE_LIMIT]: 3,
+  [SmtpFailureCategory.DNS]: 3,
+  [SmtpFailureCategory.UNKNOWN]: 3,
+  [SmtpFailureCategory.PERMANENT]: 0,
+  [SmtpFailureCategory.POLICY]: 0,
+  [SmtpFailureCategory.AUTHENTICATION]: 0,
+};
+
+/**
  * HTML Escaping helper.
  */
 function escapeHtml(str) {
@@ -418,92 +573,137 @@ async function dispatchEmail(env, options) {
     console.warn("[EmailService] Message record insert note:", insertErr?.message);
   }
 
-  // 5. Dispatch delivery
+  // 5. Dispatch delivery with retry logic
   let deliveryResult = { success: false, status: 'FAILED' };
+  let lastError: any = null;
 
-  if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection) {
-    // Decrypt external SMTP password
-    const masterKey = env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
-    const decryptedPassword = await decryptSecret(externalConnection.encrypted_secret_reference, masterKey);
+  // Retry configuration
+  const maxRetries = 5;
+  let attempt = 0;
 
-    deliveryResult = await sendViaExternalSmtp({
-      connection: {
-        ...externalConnection,
-        password: decryptedPassword
-      },
-      message: {
-        from: resolvedFrom,
-        to: cleanTo,
-        replyTo: cleanReplyTo,
-        subject: finalSubject,
-        html: finalHtml,
-        text: finalText
-      }
-    });
-  } else {
-    // Dispatch via FeraSetu SMTP Infrastructure (Modal Postfix gateway)
-    const smtpUrl = env?.FERASETU_SMTP_SERVICE_URL || 'https://singhantima203--ferasetu-smtp-web-gateway.modal.run';
-    const smtpKey = env?.FERASETU_SMTP_API_KEY || '';
+  async function attemptDelivery(): Promise<{ success: boolean; status: string; details?: string; messageId?: string; provider?: string }> {
+    if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection) {
+      // Decrypt external SMTP password
+      const masterKey = env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
+      const decryptedPassword = await decryptSecret(externalConnection.encrypted_secret_reference, masterKey);
 
-    if (smtpKey && smtpUrl) {
-      try {
-        const res = await fetch(`${smtpUrl.replace(/\/+$/, '')}/v1/email/send`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${smtpKey}`
-          },
-          body: JSON.stringify({
-            merchantId: organizationId || 'ferasetu-platform',
-            from: resolvedFrom,
-            to: cleanTo,
-            subject: finalSubject,
-            html: finalHtml,
-            text: finalText,
-            replyTo: cleanReplyTo,
-            idempotencyKey: idempotencyKey || messageId,
-            customHeaders: safeHeaders
-          })
-        });
+      return await sendViaExternalSmtp({
+        connection: {
+          ...externalConnection,
+          password: decryptedPassword
+        },
+        message: {
+          from: resolvedFrom,
+          to: cleanTo,
+          replyTo: cleanReplyTo,
+          subject: finalSubject,
+          html: finalHtml,
+          text: finalText
+        }
+      });
+    } else {
+      // Dispatch via FeraSetu SMTP Infrastructure (Modal Postfix gateway)
+      const smtpUrl = env?.FERASETU_SMTP_SERVICE_URL || 'https://singhantima203--ferasetu-smtp-web-gateway.modal.run';
+      const smtpKey = env?.FERASETU_SMTP_API_KEY || '';
 
-        if (res.ok) {
-          const respData = await res.json();
-          deliveryResult = {
-            success: true,
-            messageId: respData.messageId || messageId,
-            status: respData.status || 'SENT',
-            provider: 'FERASETU'
-          };
-        } else {
-          const errText = await res.text();
-          console.error('[EmailService] FeraSetu SMTP error:', res.status, errText);
-          deliveryResult = {
+      if (smtpKey && smtpUrl) {
+        try {
+          const res = await fetch(`${smtpUrl.replace(/\/+$/, '')}/v1/email/send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${smtpKey}`
+            },
+            body: JSON.stringify({
+              merchantId: organizationId || 'ferasetu-platform',
+              from: resolvedFrom,
+              to: cleanTo,
+              subject: finalSubject,
+              html: finalHtml,
+              text: finalText,
+              replyTo: cleanReplyTo,
+              idempotencyKey: idempotencyKey || messageId,
+              customHeaders: safeHeaders
+            })
+          });
+
+          if (res.ok) {
+            const respData = await res.json();
+            return {
+              success: true,
+              messageId: respData.messageId || messageId,
+              status: respData.status || 'SENT',
+              provider: 'FERASETU'
+            };
+          } else {
+            const errText = await res.text();
+            console.error('[EmailService] FeraSetu SMTP error:', res.status, errText);
+            // Classify the failure for retry decision
+            const category = classifySmtpFailure(
+              new Error(errText),
+              { status: res.status, body: errText }
+            );
+            return {
+              success: false,
+              status: 'FAILED',
+              details: `FeraSetu SMTP [${res.status}]: ${errText}`,
+              _retryCategory: category
+            };
+          }
+        } catch (fetchErr) {
+          console.warn('[EmailService] Network error to FeraSetu SMTP gateway:', fetchErr?.message);
+          // Network errors are transient
+          const category = classifySmtpFailure(fetchErr);
+          return {
             success: false,
             status: 'FAILED',
-            details: `FeraSetu SMTP [${res.status}]: ${errText}`
+            details: `Network error: ${fetchErr?.message}`,
+            _retryCategory: category
           };
         }
-      } catch (fetchErr) {
-        console.warn('[EmailService] Network error to FeraSetu SMTP gateway:', fetchErr?.message);
-        // Fallback simulation in dev/offline
-        deliveryResult = {
+      } else {
+        // No SMTP key configured (dev / test mode)
+        return {
           success: true,
           messageId,
           status: 'SENT',
           provider: 'FERASETU',
-          details: 'Delivered via simulated fallback (gateway unreachable)'
+          details: 'Delivered via local simulation'
         };
       }
-    } else {
-      // No SMTP key configured (dev / test mode)
-      deliveryResult = {
-        success: true,
-        messageId,
-        status: 'SENT',
-        provider: 'FERASETU',
-        details: 'Delivered via local simulation'
-      };
     }
+  }
+
+  // Retry loop
+  while (attempt <= maxRetries) {
+    const result = await attemptDelivery();
+    
+    if (result.success) {
+      deliveryResult = result;
+      break;
+    }
+
+    // Check if we should retry
+    const category = (result as any)._retryCategory || classifySmtpFailure(new Error(result.details || 'Unknown error'));
+    const shouldRetryCategory = shouldRetry(category);
+    const maxRetriesForCategory = MAX_RETRIES_BY_CATEGORY[category] ?? maxRetries;
+
+    if (!shouldRetryCategory || attempt >= maxRetriesForCategory) {
+      deliveryResult = result;
+      lastError = new Error(result.details || 'Delivery failed');
+      break;
+    }
+
+    attempt++;
+    const delay = calculateBackoffDelay(attempt - 1);
+    console.log(`[EmailService] Delivery failed (attempt ${attempt}/${maxRetriesForCategory}), retrying in ${delay}ms. Category: ${category}`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  // If all retries exhausted, mark for dead-letter queue
+  if (!deliveryResult.success && attempt > 0) {
+    console.error(`[EmailService] All retry attempts exhausted for message ${messageId}. Category: ${classifySmtpFailure(lastError)}`);
+    // Could enqueue to DLQ here if Cloudflare Queues is configured
   }
 
   // 6. Update message status and log event

@@ -6405,7 +6405,7 @@ export async function sendCustomerOrderOtpEmail(env, {
     return { success: false, reason: 'PLACEHOLDER_EMAIL' };
   }
 
-  // 1. Unified EmailService sending
+  // 1. Unified EmailService sending (single authoritative transport)
   try {
     const res = await EmailService.send(env, {
       organizationId,
@@ -6426,42 +6426,12 @@ export async function sendCustomerOrderOtpEmail(env, {
     if (res && res.success) {
       return { success: true, method: res.provider || 'email-service' };
     }
+    // EmailService handles retries and failures internally - no silent fallback
+    return { success: false, reason: res?.details || 'EmailService dispatch failed' };
   } catch (esErr) {
-    console.warn("[sendCustomerOrderOtpEmail] EmailService note:", esErr?.message);
+    console.error("[sendCustomerOrderOtpEmail] EmailService error:", esErr?.message);
+    return { success: false, reason: esErr?.message || 'EmailService exception' };
   }
-
-  // 2. Legacy fallback to Brevo if configured
-  const brevoKey = env?.BREVO_API_KEY || env?.SMTP_API_KEY;
-  if (brevoKey) {
-    try {
-      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": brevoKey,
-        },
-        body: JSON.stringify({
-          to: [{ email: cleanEmail, name: customerName || undefined }],
-          subject: `Order Verification Code: ${otp} • ${shopName || 'FeraSetu Store'}`,
-          htmlContent: `<p>Your verification code is <strong>${otp}</strong></p>`,
-          sender: { email: "noreply@ferasetu.com", name: shopName || 'FeraSetu' },
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("[sendCustomerOrderOtpEmail] Brevo API error:", res.status, errText);
-        return { success: false, reason: `Mailer HTTP ${res.status}: ${errText}` };
-      }
-      return { success: true, method: 'brevo' };
-    } catch (sendErr) {
-      console.error("[sendCustomerOrderOtpEmail] Network error:", sendErr?.message);
-      return { success: false, reason: sendErr?.message || 'Network error' };
-    }
-  }
-
-  console.log(`[sendCustomerOrderOtpEmail] Simulated OTP email send to ${cleanEmail}`);
-  return { success: true, method: 'simulated' };
 }
 
 async function handlePaymentEmailQuotaPurchase(request, env) {

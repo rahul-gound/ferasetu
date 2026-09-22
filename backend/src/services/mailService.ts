@@ -1,5 +1,4 @@
-import { sendEmailViaBrevo, verifyBrevoConnection } from './brevoService';
-import { renderEmailTemplate, validateTemplateVariables, EMAIL_TEMPLATES } from '../../worker/templates/emailTemplates.js';
+import { WorkerEmailClient, sendEmailViaWorker } from './workerEmailClient';
 
 const BRAND_COLOR = '#FF6B35';
 const BRAND_NAME = 'FeraSetu';
@@ -29,32 +28,67 @@ function getFromAddress(): ParsedSender {
   return parseFromAddress(process.env.EMAIL_FROM || `"${BRAND_NAME}" <${DEFAULT_FROM_EMAIL}>`);
 }
 
+async function dispatchViaWorker(
+  templateKey: string,
+  to: string,
+  data: Record<string, any>,
+  branding: {
+    storeName: string;
+    primaryColor: string;
+    storeUrl: string;
+    supportEmail: string;
+  },
+  isPlatform: boolean = false
+): Promise<void> {
+  const workerUrl = process.env.WORKER_EMAIL_API_URL || 'https://api.ferasetu.com';
+  const apiKey = process.env.WORKER_EMAIL_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('WORKER_EMAIL_API_KEY not configured');
+  }
+
+  const payload = {
+    templateKey,
+    to,
+    templateData: data,
+    locale: 'en',
+    // Branding passed as custom data, the worker will use its own branding logic
+  };
+
+  await sendEmailViaWorker(workerUrl, apiKey, payload);
+}
+
 export async function verifyMailService(): Promise<boolean> {
-  return await verifyBrevoConnection();
+  const workerUrl = process.env.WORKER_EMAIL_API_URL || 'https://api.ferasetu.com';
+  const apiKey = process.env.WORKER_EMAIL_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('WORKER_EMAIL_API_KEY not configured');
+    return false;
+  }
+
+  try {
+    const client = new WorkerEmailClient(workerUrl, apiKey);
+    return await client.healthCheck();
+  } catch (error: any) {
+    console.error('Worker email service verification failed:', error.message);
+    return false;
+  }
 }
 
 export async function sendOTPEmail(email: string, otp: string) {
   try {
-    const rendered = renderEmailTemplate({
-      templateKey: 'account.verify_email',
-      locale: 'en',
-      data: { otp, customer_name: 'Customer', expiry_minutes: 10 },
-      branding: {
+    await dispatchViaWorker(
+      'account.verify_email',
+      email,
+      { otp, customer_name: 'Customer', expiry_minutes: 10 },
+      {
         storeName: 'FeraSetu',
         primaryColor: BRAND_COLOR,
         storeUrl: 'https://ferasetu.com',
         supportEmail: 'support@ferasetu.com'
       },
-      isPlatform: true
-    });
-
-    const sender = getFromAddress();
-    await sendEmailViaBrevo(
-      email,
-      rendered.subject,
-      rendered.html,
-      sender.email,
-      sender.name
+      true // isPlatform
     );
     console.log(`OTP email sent successfully to: ${email}`);
   } catch (error: any) {
@@ -66,26 +100,17 @@ export async function sendOTPEmail(email: string, otp: string) {
 export async function sendOnboardingEmail(email: string, name: string) {
   try {
     const firstName = name.split(' ')[0];
-    const rendered = renderEmailTemplate({
-      templateKey: 'merchant.onboarding',
-      locale: 'en',
-      data: { merchant_name: name, store_url: process.env.FRONTEND_URL || 'https://ferasetu.com/dashboard' },
-      branding: {
+    await dispatchViaWorker(
+      'merchant.onboarding',
+      email,
+      { merchant_name: name, store_url: process.env.FRONTEND_URL || 'https://ferasetu.com/dashboard' },
+      {
         storeName: 'FeraSetu',
         primaryColor: BRAND_COLOR,
         storeUrl: process.env.FRONTEND_URL || 'https://ferasetu.com',
         supportEmail: 'support@ferasetu.com'
       },
-      isPlatform: true
-    });
-
-    const sender = getFromAddress();
-    await sendEmailViaBrevo(
-      email,
-      rendered.subject,
-      rendered.html,
-      sender.email,
-      sender.name
+      true // isPlatform
     );
     console.log(`Onboarding email sent successfully to: ${email}`);
   } catch (error: any) {
@@ -95,25 +120,22 @@ export async function sendOnboardingEmail(email: string, name: string) {
 
 export async function sendInvoiceEmail(email: string, invoiceData: { invoiceNumber: string; storeName: string; totalFormatted: string; orderId: string }): Promise<void> {
   try {
-    const rendered = renderEmailTemplate({
-      templateKey: 'invoice.created',
-      locale: 'en',
-      data: {
+    await dispatchViaWorker(
+      'invoice.created',
+      email,
+      {
         invoice_number: invoiceData.invoiceNumber,
         order_id: invoiceData.orderId,
         total: invoiceData.totalFormatted,
         customer_name: 'Customer'
       },
-      branding: {
+      {
         storeName: invoiceData.storeName,
         primaryColor: BRAND_COLOR,
         storeUrl: process.env.FRONTEND_URL || 'https://ferasetu.com',
         supportEmail: 'support@ferasetu.com'
       }
-    });
-
-    const sender = getFromAddress();
-    await sendEmailViaBrevo(email, rendered.subject, rendered.html, sender.email, sender.name);
+    );
   } catch (err: any) {
     console.warn(`[mailService] Could not send invoice email to ${email}:`, err.message);
   }
@@ -121,25 +143,22 @@ export async function sendInvoiceEmail(email: string, invoiceData: { invoiceNumb
 
 export async function sendOrderCancellationEmail(email: string, data: { orderId: string; storeName: string; reason?: string; isRefundable?: boolean }): Promise<void> {
   try {
-    const rendered = renderEmailTemplate({
-      templateKey: 'order.cancelled',
-      locale: 'en',
-      data: {
+    await dispatchViaWorker(
+      'order.cancelled',
+      email,
+      {
         order_id: data.orderId,
         customer_name: 'Customer',
         reason: data.reason || 'Requested by customer / merchant',
         is_refundable: data.isRefundable || false
       },
-      branding: {
+      {
         storeName: data.storeName,
         primaryColor: BRAND_COLOR,
         storeUrl: process.env.FRONTEND_URL || 'https://ferasetu.com',
         supportEmail: 'support@ferasetu.com'
       }
-    });
-
-    const sender = getFromAddress();
-    await sendEmailViaBrevo(email, rendered.subject, rendered.html, sender.email, sender.name);
+    );
   } catch (err: any) {
     console.warn(`[mailService] Could not send cancellation email to ${email}:`, err.message);
   }
@@ -148,26 +167,23 @@ export async function sendOrderCancellationEmail(email: string, data: { orderId:
 export async function sendRefundEmail(email: string, data: { refundNumber: string; orderId: string; amountFormatted: string; method: string; isCompleted: boolean }): Promise<void> {
   try {
     const templateKey = data.isCompleted ? 'refund.completed' : 'refund.initiated';
-    const rendered = renderEmailTemplate({
+    await dispatchViaWorker(
       templateKey,
-      locale: 'en',
-      data: {
+      email,
+      {
         refund_number: data.refundNumber,
         order_id: data.orderId,
         amount: data.amountFormatted,
         customer_name: 'Customer',
         refund_method: data.method
       },
-      branding: {
+      {
         storeName: 'FeraSetu',
         primaryColor: BRAND_COLOR,
         storeUrl: process.env.FRONTEND_URL || 'https://ferasetu.com',
         supportEmail: 'support@ferasetu.com'
       }
-    });
-
-    const sender = getFromAddress();
-    await sendEmailViaBrevo(email, rendered.subject, rendered.html, sender.email, sender.name);
+    );
   } catch (err: any) {
     console.warn(`[mailService] Could not send refund email to ${email}:`, err.message);
   }
@@ -175,26 +191,23 @@ export async function sendRefundEmail(email: string, data: { refundNumber: strin
 
 export async function sendCreditNoteEmail(email: string, data: { creditNoteNumber: string; orderId: string; amountFormatted: string; storeName: string }): Promise<void> {
   try {
-    const rendered = renderEmailTemplate({
-      templateKey: 'credit_note.created',
-      locale: 'en',
-      data: {
+    await dispatchViaWorker(
+      'credit_note.created',
+      email,
+      {
         credit_note_number: data.creditNoteNumber,
         order_id: data.orderId,
         amount: data.amountFormatted,
         customer_name: 'Customer',
         reason: 'Return / Adjustment'
       },
-      branding: {
+      {
         storeName: data.storeName,
         primaryColor: BRAND_COLOR,
         storeUrl: process.env.FRONTEND_URL || 'https://ferasetu.com',
         supportEmail: 'support@ferasetu.com'
       }
-    });
-
-    const sender = getFromAddress();
-    await sendEmailViaBrevo(email, rendered.subject, rendered.html, sender.email, sender.name);
+    );
   } catch (err: any) {
     console.warn(`[mailService] Could not send credit note email to ${email}:`, err.message);
   }
