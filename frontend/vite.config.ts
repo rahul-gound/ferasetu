@@ -14,6 +14,7 @@ export default defineConfig({
       transformMixedEsModules: true
     },
     rollupOptions: {
+      external: ['cloudflare:sockets'],
       output: {
         manualChunks(id) {
           if (id.includes('node_modules/recharts') || id.includes('node_modules/chart.js')) {
