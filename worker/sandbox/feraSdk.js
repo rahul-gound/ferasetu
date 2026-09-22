@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { FeraRuntimeError } from './feraRuntime.js';
+import { EmailService } from '../services/emailService.js';
 
 export function createFeraSDK({
   tenantId,
@@ -427,37 +428,52 @@ export function createFeraSDK({
         }
         const to = emailData.to || emailData.data?.email;
         const subject = emailData.subject || `Notification from store`;
-        const template = emailData.template || "generic";
-        const contentData = emailData.data || {};
+        const templateKey = emailData.templateKey || emailData.template || "system.test";
+        const templateData = emailData.data || {};
+        const locale = emailData.locale || 'en';
+        const priority = emailData.priority || 'NORMAL';
+        const idempotencyKey = emailData.idempotencyKey || `sandbox_${templateKey}:${to}:${Date.now()}`;
 
-        // Use mailer service if configured
-        const brevoKey = env?.BREVO_API_KEY || env?.SMTP_API_KEY;
-        if (brevoKey && to) {
-          try {
-            await fetch("https://api.brevo.com/v3/smtp/email", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "api-key": brevoKey,
-              },
-              body: JSON.stringify({
-                to: [{ email: to }],
-                subject,
-                htmlContent: `<h3>${subject}</h3><p>Template: ${template}</p><pre>${JSON.stringify(contentData, null, 2)}</pre>`,
-                sender: { email: "noreply@ferasetu.com", name: "FeraSetu Notification" },
-              }),
-            });
-          } catch (mErr) {
-            console.warn("[ferasetu.email.send] Brevo dispatch note:", mErr?.message);
-          }
+        if (!to || typeof to !== 'string' || !to.includes('@')) {
+          throw new FeraRuntimeError("Valid recipient email (to) is required", "INVALID_INPUT");
         }
 
-        return {
-          sent: true,
-          to: to || "admin",
-          template,
-          timestamp: new Date().toISOString(),
-        };
+        try {
+          // Use unified EmailService with merchant context
+          const result = await EmailService.sendMerchantEmail(env, {
+            organizationId: tenantId,
+            to,
+            templateKey,
+            locale,
+            data: {
+              ...templateData,
+              subject // Pass subject for templates that need it
+            },
+            idempotencyKey,
+            priority,
+            storeSlug: tenantId,
+            orgName: authContext.user?.business_name || authContext.user?.name || 'Store'
+          });
+
+          return {
+            sent: result.success,
+            to,
+            template: templateKey,
+            timestamp: new Date().toISOString(),
+            messageId: result.messageId,
+            provider: result.provider
+          };
+        } catch (emailErr) {
+          console.warn("[ferasetu.email.send] EmailService error:", emailErr?.message);
+          // Return success=false but don't throw - sandboxed scripts shouldn't crash on email failure
+          return {
+            sent: false,
+            to,
+            template: templateKey,
+            timestamp: new Date().toISOString(),
+            error: emailErr?.message || 'Email send failed'
+          };
+        }
       },
     },
 

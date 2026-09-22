@@ -4249,6 +4249,84 @@ export async function transitionSubscription({
 
   const updatedSub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(userId).first();
 
+  // Send platform email notifications for subscription events
+  try {
+    const user = await env.DB.prepare("SELECT email, name FROM users WHERE id = ?").bind(userId).first();
+    if (user?.email) {
+      switch (event) {
+        case 'PAYMENT_FAILED': {
+          await EmailService.sendPlatformEmail(env, {
+            event: 'billing.payment_failed',
+            to: user.email,
+            templateKey: 'billing.payment_failed',
+            locale: 'en',
+            data: {
+              amount: metadata?.amount || 0,
+              merchant_name: user.name || 'Partner',
+              reason: metadata?.reason || 'Payment could not be processed'
+            },
+            idempotencyKey: `payment_failed:${tx?.id || userId}:${Date.now()}`,
+            priority: 'HIGH'
+          });
+          break;
+        }
+        case 'SUBSCRIPTION_CANCELLED': {
+          await EmailService.sendPlatformEmail(env, {
+            event: 'billing.cancellation_confirmation',
+            to: user.email,
+            templateKey: 'billing.cancellation_confirmation',
+            locale: 'en',
+            data: {
+              plan_name: updatedSub?.plan || 'Plan',
+              effective_date: updatedSub?.current_period_end || now,
+              merchant_name: user.name || 'Partner'
+            },
+            idempotencyKey: `sub_cancelled:${updatedSub?.id || userId}`,
+            priority: 'HIGH'
+          });
+          break;
+        }
+        case 'SUBSCRIPTION_EXPIRED': {
+          await EmailService.sendPlatformEmail(env, {
+            event: 'billing.cancellation_confirmation',
+            to: user.email,
+            templateKey: 'billing.cancellation_confirmation',
+            locale: 'en',
+            data: {
+              plan_name: updatedSub?.plan || 'Plan',
+              effective_date: now,
+              merchant_name: user.name || 'Partner'
+            },
+            idempotencyKey: `sub_expired:${updatedSub?.id || userId}`,
+            priority: 'HIGH'
+          });
+          break;
+        }
+        case 'PAYMENT_CONFIRMED': {
+          // Subscription renewal email (when a new period starts)
+          if (nextMeta.last_period_end && nextPeriodStart) {
+            await EmailService.sendPlatformEmail(env, {
+              event: 'billing.subscription_renewed',
+              to: user.email,
+              templateKey: 'billing.subscription_renewed',
+              locale: 'en',
+              data: {
+                plan_name: nextPlan,
+                next_billing_date: nextPeriodEnd,
+                merchant_name: user.name || 'Partner'
+              },
+              idempotencyKey: `sub_renewed:${updatedSub?.id || userId}:${nextPeriodStart}`,
+              priority: 'NORMAL'
+            });
+          }
+          break;
+        }
+      }
+    }
+  } catch (emailErr) {
+    console.warn('[transitionSubscription] Failed to send billing email:', emailErr?.message);
+  }
+
   // Heal compatibility mirrors in users & organizations synchronously
   await healCompatibilityMirrors(updatedSub, env);
 
@@ -4438,6 +4516,43 @@ export async function handleSuccessfulCashfreePayment(paymentContext) {
     `).bind(credits, credits, now, tx.user_id).run();
   } catch (crErr) {
     console.warn("[handleSuccessfulCashfreePayment] AI credits topup note:", crErr?.message);
+  }
+
+  // Send subscription started email
+  try {
+    const user = await env.DB.prepare("SELECT email, name FROM users WHERE id = ?").bind(tx.user_id).first();
+    if (user?.email) {
+      await EmailService.sendPlatformEmail(env, {
+        event: 'billing.subscription_started',
+        to: user.email,
+        templateKey: 'billing.subscription_started',
+        locale: 'en',
+        data: {
+          plan_name: updatedSub.plan,
+          merchant_name: user.name || 'Partner'
+        },
+        idempotencyKey: `sub_started:${updatedSub.id}`,
+        priority: 'HIGH'
+      });
+
+      // Also send payment success email
+      await EmailService.sendPlatformEmail(env, {
+        event: 'billing.payment_success',
+        to: user.email,
+        templateKey: 'billing.payment_success',
+        locale: 'en',
+        data: {
+          amount: amount || tx.amount,
+          payment_id: paymentId || tx.id,
+          merchant_name: user.name || 'Partner',
+          description: `Subscription to ${updatedSub.plan} plan`
+        },
+        idempotencyKey: `payment_received:${tx.id}`,
+        priority: 'HIGH'
+      });
+    }
+  } catch (emailErr) {
+    console.warn('[handleSuccessfulCashfreePayment] Failed to send billing emails:', emailErr?.message);
   }
 
   console.log(`[handleSuccessfulCashfreePayment] subscription_activated: user=${tx.user_id} plan=${updatedSub.plan} order=${orderId} source=${source}`);
@@ -6861,71 +6976,98 @@ async function handlePublicCreateOrder(request, env) {
     console.warn("Invoice creation note:", invErr?.message);
   }
 
-  // Quota validation & Customer Email OTP Dispatch
+  // Quota validation & Customer Email OTP Dispatch using unified EmailService
   let emailSent = false;
   let emailStatus = 'NO_EMAIL';
   let emailMessage = 'No customer email provided.';
 
   if (customerEmail && !customerEmail.endsWith('@customer.ferasetu.local') && customerEmail.includes('@')) {
-    const quotaRes = await checkAndConsumeEmailQuota(env.DB, orgId);
-    if (quotaRes.allowed) {
-      try {
-        const sendRes = await sendCustomerOrderOtpEmail(env, {
-          recipientEmail: customerEmail,
-          customerName,
-          shopName: tenant.organization?.name || tenant.shop?.name || storeSlug,
-          orderId,
-          invoiceNumber,
+    try {
+      const orgName = tenant.organization?.name || tenant.shop?.name || storeSlug;
+      const storeSlugForSender = tenant.organization?.store_slug || storeSlug;
+      
+      const sendRes = await EmailService.sendCustomerEmail(env, {
+        organizationId: orgId,
+        customerEmail,
+        templateKey: 'order.confirmation',
+        locale: 'en',
+        data: {
+          order_id: orderId,
+          invoice_number: invoiceNumber,
           otp: paymentOtp,
-          total,
-          deliveryType,
-          items: resolvedItems,
-          organizationId: orgId
-        });
+          total: Number(total || 0) / 100, // Convert to decimal for template
+          currency: 'INR',
+          customer_name: customerName,
+          delivery_type: deliveryType,
+          items: resolvedItems.map(item => ({
+            name: item.title_snapshot || item.name || 'Product',
+            quantity: item.quantity,
+            price: item.unit_price_minor ? item.unit_price_minor / 100 : (item.price || 0),
+            total: item.total_minor ? item.total_minor / 100 : (item.total || 0)
+          }))
+        },
+        idempotencyKey: `order_confirmation:${orderId}`,
+        priority: 'HIGH',
+        storeSlug: storeSlugForSender,
+        orgName
+      });
 
-        if (sendRes.success) {
-          emailSent = true;
-          emailStatus = 'SENT';
-          emailMessage = 'Order confirmation OTP sent to customer email.';
-          try {
-            await env.DB.prepare(
-              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
-               VALUES (?, ?, ?, ?, 'order_otp', 'sent', ?, ?)`
-            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, quotaRes.source || 'daily', now).run();
-          } catch {}
-        } else {
-          emailSent = false;
-          emailStatus = 'FAILED';
-          emailMessage = 'Could not deliver confirmation email.';
-          try {
-            await env.DB.prepare(
-              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-               VALUES (?, ?, ?, ?, 'order_otp', 'failed_network', ?, ?, ?)`
-            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes.reason || 'Send failed', quotaRes.source || 'daily', now).run();
-          } catch {}
-        }
-      } catch (sendErr) {
+      if (sendRes.success) {
+        emailSent = true;
+        emailStatus = 'SENT';
+        emailMessage = 'Order confirmation sent to customer email.';
+        try {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_confirmation', 'sent', ?, ?)`
+          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, 'daily', now).run();
+        } catch {}
+      } else {
         emailSent = false;
         emailStatus = 'FAILED';
         emailMessage = 'Could not deliver confirmation email.';
         try {
           await env.DB.prepare(
             `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-             VALUES (?, ?, ?, ?, 'order_otp', 'failed_network', ?, ?, ?)`
-          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendErr?.message || 'Exception', quotaRes.source || 'daily', now).run();
+             VALUES (?, ?, ?, ?, 'order_confirmation', 'failed_network', ?, ?, ?)`
+          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes.reason || 'Send failed', 'daily', now).run();
         } catch {}
       }
-    } else {
-      // Quota exhausted: order STILL succeeds! Record failure reason in email_logs
+    } catch (sendErr) {
+      const isQuota = sendErr?.message?.includes('quota exhausted') || sendErr?.message?.includes('QUOTA_EXHAUSTED');
       emailSent = false;
-      emailStatus = 'QUOTA_EXHAUSTED';
-      emailMessage = 'Store daily email quota reached. Order confirmed without email.';
-      try {
-        await env.DB.prepare(
-          `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-           VALUES (?, ?, ?, ?, 'order_otp', 'failed_quota_exhausted', 'Daily store email quota exhausted', 'none', ?)`
-        ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, now).run();
-      } catch {}
+      emailStatus = isQuota ? 'QUOTA_EXHAUSTED' : 'FAILED';
+      emailMessage = isQuota 
+        ? 'Store daily email quota reached. Order confirmed without email.' 
+        : 'Could not deliver confirmation email.';
+      if (isQuota) {
+        try {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_otp', 'failed_quota_exhausted', 'Daily store email quota exhausted', 'none', ?)`
+          ).bind(
+            `el_${crypto.randomUUID()}`,
+            orgId,
+            orderId,
+            customerEmail,
+            now
+          ).run();
+        } catch {}
+      } else {
+        try {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_otp', 'failed_network', ?, 'none', ?)`
+          ).bind(
+            `el_${crypto.randomUUID()}`,
+            orgId,
+            orderId,
+            customerEmail,
+            sendErr?.message || 'Exception',
+            now
+          ).run();
+        } catch {}
+      }
     }
 
     try {
@@ -7302,8 +7444,9 @@ async function handleCustomerForgotPassword(request, env) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   if (!email) throw new HttpError("Email is required", 422);
 
-  const cust = await env.DB.prepare("SELECT id FROM customers WHERE organization_id = ? AND LOWER(email) = ?").bind(orgId, email).first();
+  const cust = await env.DB.prepare("SELECT id, name FROM customers WHERE organization_id = ? AND LOWER(email) = ?").bind(orgId, email).first();
   let resetToken = null;
+  let resetUrl = null;
   if (cust) {
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
@@ -7315,6 +7458,32 @@ async function handleCustomerForgotPassword(request, env) {
       INSERT INTO customer_password_resets (id, customer_id, organization_id, token_hash, expires_at)
       VALUES (?, ?, ?, ?, ?)
     `).bind(`cpr_${crypto.randomUUID()}`, cust.id, orgId, tokenHash, expiresAt).run();
+
+    // Build reset URL
+    const url = new URL(request.url);
+    const baseUrl = `${url.protocol}//${url.host}`;
+    resetUrl = `${baseUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+    // Send password reset email via unified EmailService
+    try {
+      const storeSlugForSender = orgId; // Will be resolved from organization
+      await EmailService.sendCustomerEmail(env, {
+        organizationId: orgId,
+        customerEmail: email,
+        templateKey: 'account.password_reset',
+        locale: 'en',
+        data: {
+          reset_url: resetUrl,
+          customer_name: cust.name || 'Customer'
+        },
+        idempotencyKey: `pwd_reset:${cust.id}:${resetToken.slice(0, 16)}`,
+        priority: 'HIGH',
+        storeSlug: storeSlugForSender
+      });
+    } catch (emailErr) {
+      console.warn('[handleCustomerForgotPassword] Failed to send reset email:', emailErr?.message);
+      // Don't fail the request - email is best effort
+    }
   }
 
   const url = new URL(request.url);
@@ -7443,10 +7612,61 @@ async function updateOrderStatus(orderId, request, env) {
   if (!status) throw new HttpError("status is required", 422);
 
   const now = new Date().toISOString();
+  
+  // Get order details before update for email
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
+  ).bind(orderId, ctx.organizationId).first();
+  
+  if (!order) throw new HttpError("Order not found", 404);
+  
+  const previousStatus = order.status;
+  
   const res = await env.DB.prepare(
     "UPDATE orders SET status = ?, updated_at = ? WHERE id = ? AND organization_id = ?"
   ).bind(status, now, orderId, ctx.organizationId).run();
   if (res?.meta?.changes === 0) throw new HttpError("Order not found", 404);
+
+  // Send customer email notification for status changes
+  if (order.customer_email && status !== previousStatus) {
+    const templateMap = {
+      'shipped': 'order.shipped',
+      'delivered': 'order.delivered',
+      'cancelled': 'order.cancelled',
+      'accepted': 'order.accepted',
+      'rejected': 'order.rejected'
+    };
+    
+    const templateKey = templateMap[status];
+    if (templateKey) {
+      try {
+        const storeSlugForSender = ctx.organization?.store_slug || ctx.organizationId;
+        await EmailService.sendCustomerEmail(env, {
+          organizationId: ctx.organizationId,
+          customerEmail: order.customer_email,
+          templateKey,
+          locale: 'en',
+          data: {
+            order_id: orderId,
+            customer_name: order.customer_name,
+            carrier: body.carrier,
+            tracking_number: body.tracking_number,
+            tracking_url: body.tracking_url,
+            delivery_time: now,
+            reason: body.reason
+          },
+          idempotencyKey: `order_${status}:${orderId}`,
+          priority: 'HIGH',
+          storeSlug: storeSlugForSender,
+          orgName: ctx.organization?.name || 'Store'
+        });
+      } catch (emailErr) {
+        console.warn(`[updateOrderStatus] Failed to send ${status} email:`, emailErr?.message);
+        // Don't fail the request - email is best effort
+      }
+    }
+  }
+
   return json({ success: true }, 200, {}, request);
 }
 
@@ -7455,10 +7675,48 @@ async function updateOrderPayment(orderId, request, env) {
   const body = await readJsonBody(request);
   const paymentStatus = body.payment_status || body.status || 'paid';
   const now = new Date().toISOString();
+  
+  // Get order details before update for email
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
+  ).bind(orderId, ctx.organizationId).first();
+  
+  if (!order) throw new HttpError("Order not found", 404);
+  
+  const previousPaymentStatus = order.payment_status;
+  
   const res = await env.DB.prepare(
     "UPDATE orders SET payment_status = ?, status = ?, updated_at = ? WHERE id = ? AND organization_id = ?"
   ).bind(paymentStatus, paymentStatus === 'paid' ? 'confirmed' : 'pending', now, orderId, ctx.organizationId).run();
   if (res?.meta?.changes === 0) throw new HttpError("Order not found", 404);
+
+  // Send payment received email when payment is confirmed
+  if (order.customer_email && paymentStatus === 'paid' && previousPaymentStatus !== 'paid') {
+    try {
+      const storeSlugForSender = ctx.organization?.store_slug || ctx.organizationId;
+      await EmailService.sendCustomerEmail(env, {
+        organizationId: ctx.organizationId,
+        customerEmail: order.customer_email,
+        templateKey: 'payment.received',
+        locale: 'en',
+        data: {
+          order_id: orderId,
+          amount: order.total,
+          customer_name: order.customer_name,
+          payment_id: body.payment_id,
+          currency: order.currency || 'INR',
+          payment_method: body.payment_method || order.payment_method
+        },
+        idempotencyKey: `payment_received:${orderId}`,
+        priority: 'HIGH',
+        storeSlug: storeSlugForSender,
+        orgName: ctx.organization?.name || 'Store'
+      });
+    } catch (emailErr) {
+      console.warn('[updateOrderPayment] Failed to send payment received email:', emailErr?.message);
+    }
+  }
+
   return json({ success: true }, 200, {}, request);
 }
 
@@ -7527,6 +7785,30 @@ async function verifyOrderOtp(orderId, request, env) {
   const changes = updateRes?.meta?.changes ?? 0;
   if (changes !== 1) {
     throw new HttpError("Order update failed or already delivered", 409);
+  }
+
+  // Send order delivered email to customer
+  if (order.customer_email) {
+    try {
+      const storeSlugForSender = ctx.organization?.store_slug || ctx.organizationId;
+      await EmailService.sendCustomerEmail(env, {
+        organizationId: ctx.organizationId,
+        customerEmail: order.customer_email,
+        templateKey: 'order.delivered',
+        locale: 'en',
+        data: {
+          order_id: orderId,
+          customer_name: order.customer_name,
+          delivery_time: now
+        },
+        idempotencyKey: `order_delivered:${orderId}`,
+        priority: 'HIGH',
+        storeSlug: storeSlugForSender,
+        orgName: ctx.organization?.name || 'Store'
+      });
+    } catch (emailErr) {
+      console.warn('[verifyOrderOtp] Failed to send order delivered email:', emailErr?.message);
+    }
   }
 
   return json({
@@ -8093,11 +8375,11 @@ async function createTicketReply(ticketId, request, env) {
   let ticket = null;
   try {
     ticket = await env.DB.prepare(
-      "SELECT id, status FROM tickets WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
+      "SELECT id, status, user_id, organization_id FROM tickets WHERE id = ? AND (organization_id = ? OR (organization_id IS NULL AND user_id = ?))"
     ).bind(ticketId, ctx.organizationId, ctx.user.$id).first();
   } catch {
     ticket = await env.DB.prepare(
-      "SELECT id, status FROM tickets WHERE id = ? AND organization_id = ?"
+      "SELECT id, status, user_id, organization_id FROM tickets WHERE id = ? AND organization_id = ?"
     ).bind(ticketId, ctx.organizationId).first();
   }
   if (!ticket) throw new HttpError("Ticket not found", 404);
@@ -8112,6 +8394,32 @@ async function createTicketReply(ticketId, request, env) {
 
   await env.DB.prepare("UPDATE tickets SET updated_at = ? WHERE id = ?").bind(now, ticketId).run();
   const reply = await env.DB.prepare("SELECT * FROM ticket_replies WHERE id = ?").bind(replyId).first();
+
+  // Send notification email to ticket owner (merchant) when admin/staff replies
+  try {
+    // Get the merchant user who owns this ticket
+    const merchantUser = await env.DB.prepare(
+      "SELECT email FROM users WHERE id = ?"
+    ).bind(ticket.user_id).first();
+
+    if (merchantUser?.email) {
+      await EmailService.sendPlatformEmail(env, {
+        event: 'support.reply',
+        to: merchantUser.email,
+        templateKey: 'support.reply',
+        locale: 'en',
+        data: {
+          ticket_id: ticketId,
+          reply_content: body.content
+        },
+        idempotencyKey: `ticket_reply:${replyId}`,
+        priority: 'NORMAL'
+      });
+    }
+  } catch (emailErr) {
+    console.warn('[createTicketReply] Failed to send support reply email:', emailErr?.message);
+  }
+
   return json(reply, 201, {}, request);
 }
 
