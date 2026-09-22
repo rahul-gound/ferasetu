@@ -1,0 +1,69 @@
+# /etc/postfix/main.cf - FeraSetu Secure Postfix Configuration for Direct Transactional Mail Delivery
+
+# 1. Identity
+myhostname = mail.ferasetu.com
+mydomain = ferasetu.com
+myorigin = $mydomain
+smtpd_banner = $myhostname ESMTP FeraSetu Transactional Mail Service
+biff = no
+append_dot_mydomain = no
+readme_directory = no
+
+# 2. Network & Interfaces
+# In serverless container, listen only on localhost (loopback) to prevent external relay attempts
+inet_interfaces = 127.0.0.1
+inet_protocols = ipv4
+
+# 3. Open Relay Prevention & Access Controls
+# STRICT: Only allow submission from loopback
+mynetworks = 127.0.0.0/8 [::1]/128
+smtpd_client_restrictions = permit_mynetworks, reject
+smtpd_relay_restrictions = permit_mynetworks, reject
+smtpd_recipient_restrictions = permit_mynetworks, reject
+smtpd_sender_restrictions = permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain
+smtpd_data_restrictions = reject_unauth_pipelining
+relay_domains =
+smtpd_helo_required = yes
+smtpd_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname
+
+# 4. Message Size and Limits
+message_size_limit = 10485760
+mailbox_size_limit = 0
+recipient_delimiter = +
+
+# 5. Connection and Rate Limiting
+smtpd_client_connection_rate_limit = 60
+smtpd_client_message_rate_limit = 200
+smtpd_client_recipient_rate_limit = 300
+smtpd_client_connection_count_limit = 20
+anvil_rate_time_unit = 60s
+
+# 6. Logging to container stdout (Postfix >= 3.4)
+maillog_file = /dev/stdout
+
+# 7. Outbound Delivery TLS Configuration (Direct to destination MX)
+# Opportunistic TLS with strong ciphers
+smtp_tls_security_level = may
+smtp_tls_protocols = !SSLv2, !SSLv3, !TLSv1, !TLSv1.1
+smtp_tls_mandatory_protocols = !SSLv2, !SSLv3, !TLSv1, !TLSv1.1
+smtp_tls_ciphers = high
+smtp_tls_loglevel = 1
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+
+# Inbound TLS on loopback
+smtpd_tls_security_level = may
+smtpd_tls_protocols = !SSLv2, !SSLv3, !TLSv1, !TLSv1.1
+smtpd_tls_ciphers = high
+smtpd_tls_loglevel = 1
+
+# 8. Queue Persistence and Backoff Retries
+queue_directory = /var/spool/postfix
+queue_run_delay = 60s
+minimal_backoff_time = 60s
+maximal_backoff_time = 1800s
+maximal_queue_lifetime = 3d
+bounce_queue_lifetime = 1d
+
+# 9. Direct Delivery Transport (No external relay)
+# When relayhost is empty, Postfix performs direct DNS MX lookup and delivery
+relayhost =

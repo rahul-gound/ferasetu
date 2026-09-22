@@ -1,0 +1,105 @@
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+notify = [ "C:\\Users\\himanshu\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\c2900163265bdaec\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use.exe", "turn-ended" ]
+[projects.'c:\users\himanshu\onedrive\fera-shopkeeeper-web-testing-']
+trust_level = "trusted"
+
+# ~/.codex/config.toml
+[model_providers.modal]
+name = "Modal"
+base_url = "https://inference.us-west.modal.direct/v1"
+env_key = "MODAL_PROXY_TOKEN"
+wire_api = "responses"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+"gpt-5.6-sol" = 4
+
+[projects.'c:\users\himanshu']
+trust_level = "trusted"
+
+[windows]
+sandbox = "elevated"
+
+[marketplaces.openai-bundled]
+source_type = "local"
+source = '\\?\C:\Users\himanshu\.codex\.tmp\bundled-marketplaces\openai-bundled'
+
+[marketplaces.openai-primary-runtime]
+source_type = "local"
+source = '\\?\C:\Users\himanshu\.cache\codex-runtimes\codex-primary-runtime\plugins\openai-primary-runtime'
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."codex-app-tools@openai-bundled"]
+enabled = true
+
+[plugins."unified-computer-use@openai-bundled"]
+enabled = true
+
+[features]
+js_repl = false
+
+[mcp_servers.node_repl]
+args = []
+command = 'C:\Users\himanshu\AppData\Local\OpenAI\Codex\runtimes\cua_node\c2900163265bdaec\bin\node_repl.exe'
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = 'C:\Users\himanshu\AppData\Local\OpenAI\Codex\runtimes\cua_node\c2900163265bdaec\bin\node_modules'
+NODE_REPL_NODE_PATH = 'C:\Users\himanshu\AppData\Local\OpenAI\Codex\runtimes\cua_node\c2900163265bdaec\bin\node.exe'
+NODE_REPL_TRUSTED_CODE_PATHS = 'C:\Users\himanshu\.codex;C:\Users\himanshu\AppData\Local\OpenAI\Codex\runtimes\cua_node\c2900163265bdaec\bin\node_modules'
+CODEX_HOME = 'C:\Users\himanshu\.codex'
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+BROWSER_USE_TINYSKY_ENABLED = "1"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.901.31953"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"C:/Users/himanshu/.codex/plugins/cache/openai-bundled/browser/26.901.31953/scripts/browser-service.mjs","sky":"@oai/sky/service"}'
+SKY_CUA_NATIVE_PIPE = "1"
+SKY_CUA_NATIVE_PIPE_DIRECTORY = '\\.\pipe\codex-computer-use-5135d17d-1117-49b1-8e3c-0c1a9f1b5989'
+CODEX_CLI_PATH = 'C:\Users\himanshu\AppData\Local\OpenAI\Codex\bin\1e3e57cdf0634c02\codex.exe'
+
+[mcp_servers.workos]
+url = "https://mcp.workos.com/mcp"
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "8e172ec9f458f2e636fc69a1b8c68c217f6bb8d10c41f70a05a0878b73863701"
+ANTHROPIC_API_KEY = "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"
+ANTHROPIC_BASE_URL = "https://integrate.api.nvidia.com/v1"
+CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
+
+[desktop]
+external-agent-import-sync-enabled = true
+conversationDetailMode = "STEPS_PROSE"
+sansFontSize = 14
+codeFontSize = 13
+ambient-suggestions-enabled = true
+followUpQueueMode = "queue"

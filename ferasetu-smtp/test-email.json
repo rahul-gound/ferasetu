@@ -1,0 +1,8 @@
+﻿{
+    "text":  "Hello from FeraSetu!",
+    "subject":  "FeraSetu Test",
+    "merchantId":  "shopname-mumbai-mh-1",
+    "from":  "noreply@shopname-mumbai-mh-1.ferasetu.com",
+    "to":  "himanshu711foundation@gmail.com",
+    "html":  "\u003ch1\u003eHello from FeraSetu!\u003c/h1\u003e"
+}

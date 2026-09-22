@@ -1,0 +1,8 @@
+{
+  "merchantId": "shopname-mumbai-mh-1",
+  "from": "noreply@shopname-mumbai-mh-1.ferasetu.com",
+  "to": "himanshu711foundation@gmail.com",
+  "subject": "FeraSetu Wildcard Verification",
+  "text": "Hello! Your FeraSetu merchant email infrastructure is active with root DKIM alignment.",
+  "html": "<h1>FeraSetu Multi-Tenant SMTP Active!</h1><p>Sent from <b>shopname-mumbai-mh-1.ferasetu.com</b> with root DKIM alignment on <b>ferasetu.com</b>.</p>"
+}
