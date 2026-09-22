@@ -47,4 +47,5 @@ wrangler.local.toml
 
 # Experimental/Temporary
 testing-waste/
-ferasetu-smtp/
+ferasetu-smtp/.venv/
+

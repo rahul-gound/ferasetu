@@ -46,20 +46,20 @@ export function sanitizeHeaderValue(val) {
  * SMTP Failure Classification
  * Categorizes failures for retry decisions
  */
-export enum SmtpFailureCategory {
-  TRANSIENT = 'TRANSIENT',
-  PERMANENT = 'PERMANENT',
-  POLICY = 'POLICY',
-  AUTHENTICATION = 'AUTHENTICATION',
-  RATE_LIMIT = 'RATE_LIMIT',
-  DNS = 'DNS',
-  UNKNOWN = 'UNKNOWN',
-}
+export const SmtpFailureCategory = {
+  TRANSIENT: 'TRANSIENT',
+  PERMANENT: 'PERMANENT',
+  POLICY: 'POLICY',
+  AUTHENTICATION: 'AUTHENTICATION',
+  RATE_LIMIT: 'RATE_LIMIT',
+  DNS: 'DNS',
+  UNKNOWN: 'UNKNOWN',
+};
 
 /**
  * Classifies an SMTP error into a failure category for retry logic
  */
-export function classifySmtpFailure(error: any, providerResponse?: { status?: number; body?: string }): SmtpFailureCategory {
+export function classifySmtpFailure(error, providerResponse) {
   const message = (error?.message || error?.details || error?.toString() || '').toLowerCase();
   const status = providerResponse?.status;
   const body = (providerResponse?.body || '').toLowerCase();
@@ -158,7 +158,7 @@ export function classifySmtpFailure(error: any, providerResponse?: { status?: nu
 /**
  * Determines if a failure category should trigger a retry
  */
-export function shouldRetry(category: SmtpFailureCategory): boolean {
+export function shouldRetry(category) {
   return category === SmtpFailureCategory.TRANSIENT ||
          category === SmtpFailureCategory.RATE_LIMIT ||
          category === SmtpFailureCategory.DNS ||
@@ -173,10 +173,10 @@ export function shouldRetry(category: SmtpFailureCategory): boolean {
  * @returns Delay in milliseconds
  */
 export function calculateBackoffDelay(
-  attempt: number,
-  baseDelayMs: number = 1000,
-  maxDelayMs: number = 60000
-): number {
+  attempt,
+  baseDelayMs = 1000,
+  maxDelayMs = 60000
+) {
   const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
   const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
   // Add jitter: ±25% of the delay
@@ -187,7 +187,7 @@ export function calculateBackoffDelay(
 /**
  * Maximum retry attempts per failure category
  */
-export const MAX_RETRIES_BY_CATEGORY: Record<SmtpFailureCategory, number> = {
+export const MAX_RETRIES_BY_CATEGORY = {
   [SmtpFailureCategory.TRANSIENT]: 5,
   [SmtpFailureCategory.RATE_LIMIT]: 3,
   [SmtpFailureCategory.DNS]: 3,
@@ -575,13 +575,13 @@ async function dispatchEmail(env, options) {
 
   // 5. Dispatch delivery with retry logic
   let deliveryResult = { success: false, status: 'FAILED' };
-  let lastError: any = null;
+  let lastError = null;
 
   // Retry configuration
   const maxRetries = 5;
   let attempt = 0;
 
-  async function attemptDelivery(): Promise<{ success: boolean; status: string; details?: string; messageId?: string; provider?: string }> {
+  async function attemptDelivery() {
     if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection) {
       // Decrypt external SMTP password
       const masterKey = env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
@@ -684,7 +684,7 @@ async function dispatchEmail(env, options) {
     }
 
     // Check if we should retry
-    const category = (result as any)._retryCategory || classifySmtpFailure(new Error(result.details || 'Unknown error'));
+    const category = result._retryCategory || classifySmtpFailure(new Error(result.details || 'Unknown error'));
     const shouldRetryCategory = shouldRetry(category);
     const maxRetriesForCategory = MAX_RETRIES_BY_CATEGORY[category] ?? maxRetries;
 
