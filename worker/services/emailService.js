@@ -43,6 +43,33 @@ export function sanitizeHeaderValue(val) {
 }
 
 /**
+ * EmailTransport Abstraction (RFC 5321 Transport Layer)
+ * Provides clean decoupled interface for outbound email delivery transports.
+ */
+export class EmailTransport {
+  async send(envelope, context) {
+    throw new Error('EmailTransport.send must be implemented by subclass');
+  }
+}
+
+export class FeraSetuPostfixTransport extends EmailTransport {
+  // Routes to Modal.com in-container Postfix MTA on 127.0.0.1:25
+}
+
+export class ExternalSMTPTransport extends EmailTransport {
+  // Routes to merchant-configured external SMTP via cloudflare:sockets TCP
+}
+
+// Future-compatible stubs (Not instantiated now, clean interfaces ready for scale)
+export class DedicatedPlatformTransport extends EmailTransport {
+  // Future: Dedicated platform IP pool / MTA
+}
+
+export class DedicatedMerchantTransport extends EmailTransport {
+  // Future: Dedicated merchant IP pool / MTA
+}
+
+/**
  * SMTP Failure Classification
  * Categorizes failures for retry decisions
  */
@@ -424,7 +451,16 @@ async function dispatchEmail(env, options) {
     // Platform tenant path
     if (from) {
       const cleanFrom = sanitizeHeaderValue(from.toLowerCase());
-      if (!ALLOWED_PLATFORM_SENDERS.has(cleanFrom)) {
+      let isAllowed = ALLOWED_PLATFORM_SENDERS.has(cleanFrom);
+      if (!isAllowed && env?.DB) {
+        try {
+          const dbSender = await env.DB.prepare(
+            "SELECT id FROM email_identities WHERE email_address = ? AND identity_type = 'PLATFORM' AND status = 'ACTIVE'"
+          ).bind(cleanFrom).first();
+          if (dbSender) isAllowed = true;
+        } catch {}
+      }
+      if (!isAllowed) {
         throw new Error(`Unauthorized platform sender: ${cleanFrom}. Allowed senders: ${Array.from(ALLOWED_PLATFORM_SENDERS).join(', ')}`);
       }
       resolvedFrom = cleanFrom;
@@ -615,13 +651,16 @@ async function dispatchEmail(env, options) {
               'Authorization': `Bearer ${smtpKey}`
             },
             body: JSON.stringify({
-              merchantId: organizationId || 'ferasetu-platform',
+              scope: isPlatform ? 'PLATFORM' : 'MERCHANT',
+              tenantId: isPlatform ? PLATFORM_TENANT_ID : organizationId,
+              merchantId: isPlatform ? undefined : organizationId,
               from: resolvedFrom,
               to: cleanTo,
               subject: finalSubject,
               html: finalHtml,
               text: finalText,
               replyTo: cleanReplyTo,
+              priority: priority || 'NORMAL',
               idempotencyKey: idempotencyKey || messageId,
               customHeaders: safeHeaders
             })
@@ -916,7 +955,16 @@ export class EmailService {
       // Platform tenant path
       if (from) {
         const cleanFrom = sanitizeHeaderValue(from.toLowerCase());
-        if (!ALLOWED_PLATFORM_SENDERS.has(cleanFrom)) {
+        let isAllowed = ALLOWED_PLATFORM_SENDERS.has(cleanFrom);
+        if (!isAllowed && env?.DB) {
+          try {
+            const dbSender = await env.DB.prepare(
+              "SELECT id FROM email_identities WHERE email_address = ? AND identity_type = 'PLATFORM' AND status = 'ACTIVE'"
+            ).bind(cleanFrom).first();
+            if (dbSender) isAllowed = true;
+          } catch {}
+        }
+        if (!isAllowed) {
           throw new Error(`Unauthorized platform sender: ${cleanFrom}. Allowed senders: ${Array.from(ALLOWED_PLATFORM_SENDERS).join(', ')}`);
         }
         resolvedFrom = cleanFrom;
@@ -1075,13 +1123,16 @@ export class EmailService {
               'Authorization': `Bearer ${smtpKey}`
             },
             body: JSON.stringify({
-              merchantId: organizationId || 'ferasetu-platform',
+              scope: isPlatform ? 'PLATFORM' : 'MERCHANT',
+              tenantId: isPlatform ? PLATFORM_TENANT_ID : organizationId,
+              merchantId: isPlatform ? undefined : organizationId,
               from: resolvedFrom,
               to: cleanTo,
               subject: finalSubject,
               html: finalHtml,
               text: finalText,
               replyTo: cleanReplyTo,
+              priority: priority || 'NORMAL',
               idempotencyKey: idempotencyKey || messageId,
               customHeaders: safeHeaders
             })

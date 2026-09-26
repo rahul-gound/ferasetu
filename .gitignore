@@ -49,3 +49,16 @@ wrangler.local.toml
 testing-waste/
 ferasetu-smtp/.venv/
 
+
+ferasetu-smtp/data/
+*.key
+*.pem
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+.codex/
+ferasetu-smtp/.codex/
+
+

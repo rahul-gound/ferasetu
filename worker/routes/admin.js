@@ -2,6 +2,7 @@ import { verifyPassword, signAdminJwt, requireAdminAuth } from "../utils/auth.js
 import { logAdminAction } from "../utils/audit.js";
 import { provisionNewShard } from "../sharding/provisioner.js";
 import { SHARD_STATUS, VALID_MARKETS } from "../sharding/config.js";
+import { EmailService } from "../services/emailService.js";
 
 // Rate limiting in-memory store for local/isolate brute force protection
 const loginAttempts = new Map();
@@ -926,6 +927,34 @@ export async function handleAdminRoutes(request, env) {
         },
         recentFailures
       });
+    }
+
+    // -------------------------------------------------------------------------
+    // SEND OFFICIAL PLATFORM EMAIL (Internal Admin Only)
+    // -------------------------------------------------------------------------
+    if (path === "/api/admin/email/send-platform" && method === "POST") {
+      const body = await readJsonBody(request);
+      const to = String(body.to || '').trim();
+      if (!to || !to.includes('@')) {
+        throw new HttpError("Valid recipient email (to) is required", 422);
+      }
+
+      const from = body.from ? String(body.from).trim() : 'no-reply@ferasetu.com';
+      const result = await EmailService.send(env, {
+        organizationId: null, // Platform tenant
+        from,
+        to,
+        subject: body.subject || 'Official Platform Notification • FeraSetu',
+        html: body.html || `<p>${String(body.text || '')}</p>`,
+        text: body.text || '',
+        replyTo: body.replyTo || 'support@ferasetu.com',
+        priority: body.priority || 'HIGH',
+        idempotencyKey: body.idempotencyKey || null
+      });
+
+      await logAdminAction(env, adminEmail, "SEND_PLATFORM_EMAIL", "email_messages", result.messageId);
+
+      return json({ success: true, message: "Platform email dispatched", result });
     }
 
     // Fallback for missing admin route

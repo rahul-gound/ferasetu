@@ -185,3 +185,86 @@ export async function verifyDomainDns(domain, challengeToken, selector = DEFAULT
     }
   };
 }
+
+/**
+ * Automatically provisions DNS records via Cloudflare v4 REST API if domain zone is authorized.
+ */
+export async function provisionCloudflareDnsIfManaged(domain, instructions, env) {
+  const token = env?.CLOUDFLARE_API_TOKEN || env?.CF_API_TOKEN;
+  if (!token) {
+    return { automated: false, reason: "NO_CLOUDFLARE_API_TOKEN" };
+  }
+
+  try {
+    const domainParts = domain.split('.');
+    let zoneId = null;
+
+    for (let i = 0; i <= domainParts.length - 2; i++) {
+      const candidateZone = domainParts.slice(i).join('.');
+      const zoneRes = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${encodeURIComponent(candidateZone)}&status=active`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (zoneRes.ok) {
+        const zoneData = await zoneRes.json();
+        if (zoneData.result && zoneData.result.length > 0) {
+          zoneId = zoneData.result[0].id;
+          break;
+        }
+      }
+    }
+
+    if (!zoneId) {
+      return { automated: false, reason: "ZONE_NOT_FOUND_IN_ACCOUNT" };
+    }
+
+    const existingRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?per_page=100`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const existingRecords = existingRes.ok ? (await existingRes.json()).result || [] : [];
+    const createdRecords = [];
+
+    for (const record of instructions) {
+      const match = existingRecords.find(r => r.name.toLowerCase() === record.name.toLowerCase() && r.type === record.type);
+      if (match) {
+        if (match.content !== record.value) {
+          await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${match.id}`, {
+            method: "PATCH",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ content: record.value })
+          });
+        }
+        createdRecords.push({ name: record.name, type: record.type, status: "UPDATED" });
+      } else {
+        const createRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            type: record.type,
+            name: record.name,
+            content: record.value,
+            ttl: 300,
+            proxied: false,
+            comment: "Managed by FeraSetu Email Architecture"
+          })
+        });
+        if (createRes.ok) {
+          createdRecords.push({ name: record.name, type: record.type, status: "CREATED" });
+        }
+      }
+    }
+
+    return { automated: true, zoneId, records: createdRecords };
+  } catch (err) {
+    return { automated: false, reason: `Cloudflare API error: ${err?.message || err}` };
+  }
+}
+

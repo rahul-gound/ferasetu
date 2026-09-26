@@ -138,6 +138,9 @@ def ensure_postfix_running():
         subprocess.run(["postconf", "-e", "myhostname = mail.ferasetu.com"], check=False)
         subprocess.run(["postconf", "-e", "mydomain = ferasetu.com"], check=False)
         subprocess.run(["postconf", "-e", "relayhost = "], check=False)
+        subprocess.run(["postconf", "-e", "mynetworks = 127.0.0.0/8 [::1]/128"], check=False)
+        subprocess.run(["postconf", "-e", "smtpd_relay_restrictions = permit_mynetworks, reject"], check=False)
+        subprocess.run(["postconf", "-e", "smtpd_recipient_restrictions = permit_mynetworks, reject"], check=False)
         subprocess.run(["postconf", "-e", "smtpd_sender_restrictions = permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain"], check=False)
 
         # Postfix permissions and sanity check

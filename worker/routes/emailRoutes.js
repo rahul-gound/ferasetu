@@ -5,7 +5,7 @@
  */
 
 import { requireOrgContext, HttpError } from '../index.js';
-import { normalizeDomain, generateDnsInstructions, verifyDomainDns } from '../services/dnsVerification.js';
+import { normalizeDomain, generateDnsInstructions, verifyDomainDns, provisionCloudflareDnsIfManaged } from '../services/dnsVerification.js';
 import { encryptSecret } from '../services/emailCrypto.js';
 import { testSmtpConnection } from '../services/externalSmtpClient.js';
 import { EmailService, ensureMerchantEmailProvisioning } from '../services/emailService.js';
@@ -27,6 +27,16 @@ function json(data, status = 200, headers = {}, request = null) {
       ...headers
     }
   });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /**
@@ -174,7 +184,14 @@ export async function handleEmailRoutes(request, env) {
       const createdRow = await env.DB.prepare("SELECT * FROM email_domains WHERE id = ?").bind(domainId).first();
       const instructions = generateDnsInstructions(normalized.domain, token, selector);
 
-      return json({ domain: createdRow, dnsInstructions: instructions }, 201, {}, request);
+      let cfResult = null;
+      try {
+        cfResult = await provisionCloudflareDnsIfManaged(normalized.domain, instructions, env);
+      } catch (cfErr) {
+        console.warn("Cloudflare DNS auto-provision notice:", cfErr?.message);
+      }
+
+      return json({ domain: createdRow, dnsInstructions: instructions, cloudflareAutomated: cfResult?.automated || false }, 201, {}, request);
     }
 
     throw new HttpError("Method not allowed", 405);
