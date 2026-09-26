@@ -3836,6 +3836,12 @@ async function ensureTables(db) {
         user_agent TEXT,
         network_log TEXT,
         user_id TEXT,
+        user_email TEXT,
+        user_name TEXT,
+        plan_tier TEXT,
+        is_paid INTEGER DEFAULT 0,
+        store_slug TEXT,
+        metadata TEXT,
         status TEXT DEFAULT 'open',
         resolved_by TEXT,
         resolved_at TEXT,
@@ -3844,6 +3850,12 @@ async function ensureTables(db) {
       );
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_error_logs_status ON error_logs(status, created_at);`);
+    await safeExec(`ALTER TABLE error_logs ADD COLUMN user_email TEXT;`);
+    await safeExec(`ALTER TABLE error_logs ADD COLUMN user_name TEXT;`);
+    await safeExec(`ALTER TABLE error_logs ADD COLUMN plan_tier TEXT;`);
+    await safeExec(`ALTER TABLE error_logs ADD COLUMN is_paid INTEGER DEFAULT 0;`);
+    await safeExec(`ALTER TABLE error_logs ADD COLUMN store_slug TEXT;`);
+    await safeExec(`ALTER TABLE error_logs ADD COLUMN metadata TEXT;`);
 
     // Verify that organizations table actually exists in D1
     try {
@@ -9542,23 +9554,75 @@ async function handleCreateErrorLog(request, env) {
   try {
     const body = await readJsonBody(request);
     const errorMessage = body.error_message || body.message || "Unknown client render error";
-    const id = `err_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    const id = body.id || `err_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
     const errorName = body.error_name || body.name || "Error";
     const stack = body.stack || null;
     const componentStack = body.component_stack || body.componentStack || null;
     const url = body.url || request.headers.get("referer") || "unknown";
     const userAgent = body.user_agent || request.headers.get("user-agent") || "unknown";
     const networkLog = typeof body.network_log === 'object' ? JSON.stringify(body.network_log) : (body.network_log || null);
-    const userId = body.user_id || null;
+    let userId = body.user_id || body.userId || null;
+    let userEmail = body.user_email || body.userEmail || body.email || null;
+    let userName = body.user_name || body.userName || body.name || null;
+    let planTier = body.plan_tier || body.plan || body.subscription_plan || 'free';
+    let isPaid = body.is_paid !== undefined ? (body.is_paid ? 1 : 0) : (planTier && planTier !== 'free' && planTier !== 'trial' ? 1 : 0);
+    let storeSlug = body.store_slug || body.storeSlug || body.shop_slug || null;
+    const metadata = typeof body.metadata === 'object' ? JSON.stringify(body.metadata) : (body.metadata || null);
+
+    // Authoritative Server-side Enrichment:
+    // If user is identified by ID or Email, verify against D1 to ensure plan & store are accurate
+    if (env.DB && (userId || userEmail)) {
+      try {
+        let userRow = null;
+        if (userId) {
+          userRow = await env.DB.prepare("SELECT id, email, name, plan, organization_id FROM users WHERE id = ? LIMIT 1").bind(userId).first();
+        }
+        if (!userRow && userEmail) {
+          userRow = await env.DB.prepare("SELECT id, email, name, plan, organization_id FROM users WHERE email = ? LIMIT 1").bind(userEmail).first();
+        }
+
+        if (userRow) {
+          if (!userId) userId = userRow.id;
+          if (!userEmail) userEmail = userRow.email;
+          if (!userName && userRow.name) userName = userRow.name;
+          if (userRow.plan) {
+            planTier = userRow.plan;
+            isPaid = (planTier !== 'free' && planTier !== 'trial') ? 1 : 0;
+          }
+          if (!storeSlug && userRow.organization_id) {
+            const orgRow = await env.DB.prepare("SELECT store_slug FROM organizations WHERE id = ? LIMIT 1").bind(userRow.organization_id).first();
+            if (orgRow?.store_slug) storeSlug = orgRow.store_slug;
+          }
+        }
+      } catch (enrichErr) {
+        console.warn("Authoritative user enrichment warning:", enrichErr?.message);
+      }
+    }
 
     if (env.DB) {
       await env.DB.prepare(`
-        INSERT INTO error_logs (id, error_message, error_name, stack, component_stack, url, user_agent, network_log, user_id, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'))
-      `).bind(id, errorMessage, errorName, stack, componentStack, url, userAgent, networkLog, userId).run();
+        INSERT INTO error_logs (
+          id, error_message, error_name, stack, component_stack, url, user_agent, network_log,
+          user_id, user_email, user_name, plan_tier, is_paid, store_slug, metadata,
+          status, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'))
+      `).bind(
+        id, errorMessage, errorName, stack, componentStack, url, userAgent, networkLog,
+        userId, userEmail, userName, planTier, isPaid, storeSlug, metadata
+      ).run();
     }
 
-    return json({ success: true, ticket_id: id, message: "Error ticket created for FeraSetu engineering team" }, 201, {}, request);
+    return json({
+      success: true,
+      ticket_id: id,
+      user_id: userId,
+      user_email: userEmail,
+      user_name: userName,
+      plan_tier: planTier,
+      is_paid: Boolean(isPaid),
+      message: "Error ticket created with user specifications for FeraSetu engineering team"
+    }, 201, {}, request);
   } catch (err) {
     console.error("Failed to store error log:", err);
     return json({ error: "Failed to store error log", details: err?.message }, 500, {}, request);

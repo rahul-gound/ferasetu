@@ -20,7 +20,7 @@ import {
   type ProBackupSnapshot
 } from '../services/proStudioApi';
 import { useAuth } from '../contexts/AuthContext';
-import { parseAIPromptToActions } from '../../../worker/ai/proBuilderActions.js';
+import { parseAIPromptToActions } from '../utils/proBuilderActions';
 import ProjectImportModal from '../components/pro/ProjectImportModal';
 import { ProPageEditor } from '../components/pro/editor/ProPageEditor';
 import { CreatePageModal } from '../components/pro/editor/CreatePageModal';

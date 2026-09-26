@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   AlertTriangle, CheckCircle2, RefreshCw, Bug,
-  Search, Eye, Globe, Clock, ShieldCheck, Terminal, Trash2, X, Check
+  Search, Eye, Globe, Clock, ShieldCheck, Terminal, Trash2, X, Check, User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -82,7 +82,10 @@ export default function AdminErrorLogsPage() {
     return (
       (log.error_message || '').toLowerCase().includes(q) ||
       (log.url || '').toLowerCase().includes(q) ||
-      (log.id || '').toLowerCase().includes(q)
+      (log.id || '').toLowerCase().includes(q) ||
+      (log.user_email || '').toLowerCase().includes(q) ||
+      (log.user_name || '').toLowerCase().includes(q) ||
+      (log.plan_tier || '').toLowerCase().includes(q)
     );
   });
 
@@ -99,7 +102,7 @@ export default function AdminErrorLogsPage() {
               <h1 className="text-xl font-bold text-slate-900">Client Error Tickets</h1>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Live exceptions, chunk fetch failures, and network diagnostic tickets submitted by users.
+              Live exceptions, chunk fetch failures, and network diagnostic tickets submitted with user & subscription specifications.
             </p>
           </div>
 
@@ -135,7 +138,7 @@ export default function AdminErrorLogsPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by error, URL, or ID..."
+              placeholder="Search error, URL, user, plan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -151,6 +154,7 @@ export default function AdminErrorLogsPage() {
                 <tr>
                   <th className="px-4 py-3">Ticket ID</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">User & Subscription</th>
                   <th className="px-4 py-3">Error Message</th>
                   <th className="px-4 py-3">Page URL</th>
                   <th className="px-4 py-3">Reported</th>
@@ -160,7 +164,7 @@ export default function AdminErrorLogsPage() {
               <tbody className="divide-y divide-slate-100">
                 {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
                       <ShieldCheck size={36} className="mx-auto text-emerald-500 mb-2 opacity-80" />
                       <p className="text-xs font-semibold text-slate-700">No Error Tickets Found</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">Platform clients are currently error-free.</p>
@@ -186,6 +190,27 @@ export default function AdminErrorLogsPage() {
                           {log.status}
                         </span>
                       </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 font-medium text-slate-800 text-[11px] truncate max-w-[170px]">
+                            <User size={12} className="text-slate-400 shrink-0" />
+                            <span className="truncate" title={log.user_email || log.user_name || log.user_id || 'Anonymous'}>
+                              {log.user_name || log.user_email || (log.user_id ? `User #${log.user_id.slice(0, 8)}` : 'Anonymous')}
+                            </span>
+                          </div>
+                          <div>
+                            {log.is_paid || (log.plan_tier && log.plan_tier !== 'free' && log.plan_tier !== 'trial') ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                PAID: {(log.plan_tier || 'PRO').toUpperCase()}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-slate-100 text-slate-600">
+                                FREE TIER
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-4 py-3.5 max-w-xs sm:max-w-md">
                         <p className="font-semibold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
                           {log.error_message}
@@ -194,7 +219,7 @@ export default function AdminErrorLogsPage() {
                           {log.error_name || 'Error'}
                         </p>
                       </td>
-                      <td className="px-4 py-3.5 max-w-[200px] truncate text-slate-500 font-mono text-[11px]">
+                      <td className="px-4 py-3.5 max-w-[180px] truncate text-slate-500 font-mono text-[11px]">
                         {log.url || '—'}
                       </td>
                       <td className="px-4 py-3.5 text-slate-400 text-[11px] whitespace-nowrap">
@@ -270,6 +295,50 @@ export default function AdminErrorLogsPage() {
 
               {/* Modal Body */}
               <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+                {/* User & Subscription Specifications Card */}
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                    <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <User size={14} className="text-indigo-600" /> User & Subscription Specifications
+                    </span>
+                    {selectedLog.is_paid || (selectedLog.plan_tier && selectedLog.plan_tier !== 'free' && selectedLog.plan_tier !== 'trial') ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Paid Merchant
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700">
+                        Free Plan
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">User Identity</div>
+                      <div className="font-medium text-slate-800 truncate" title={selectedLog.user_name || '—'}>
+                        {selectedLog.user_name || (selectedLog.user_id ? `#${selectedLog.user_id.slice(0, 8)}` : 'Anonymous')}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Email</div>
+                      <div className="font-mono text-slate-800 truncate" title={selectedLog.user_email || '—'}>
+                        {selectedLog.user_email || '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Exact Plan Tier</div>
+                      <div className="font-bold uppercase text-indigo-700">
+                        {selectedLog.plan_tier || 'free'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Merchant Store</div>
+                      <div className="font-mono text-slate-800 truncate">
+                        {selectedLog.store_slug ? `${selectedLog.store_slug}.ferasetu.com` : '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Error Message */}
                 <div>
                   <div className="font-bold text-slate-700 mb-1">Error Message</div>

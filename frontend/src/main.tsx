@@ -10,6 +10,10 @@ import '@fontsource/inter/800.css'
 import './index.css'
 import App from './App.tsx'
 import { initDeferredStatsig } from './lib/statsig'
+import { initGlobalErrorTelemetry } from './services/errorTelemetry'
+
+// Initialize global crash and error tracking early to catch any asset or runtime failures
+initGlobalErrorTelemetry();
 
 // Initialize Statsig asynchronously in idle/load time so it never blocks DOM render
 initDeferredStatsig();

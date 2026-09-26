@@ -1,6 +1,10 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, Send, CheckCircle2 } from 'lucide-react';
-import axios from 'axios';
+import { AlertTriangle, RefreshCw, Home, Send, CheckCircle2, UserCheck, Shield } from 'lucide-react';
+import {
+  reportClientError,
+  getStoredUserSpecifications,
+  type UserSpecification,
+} from '../services/errorTelemetry';
 
 interface Props {
   children: ReactNode;
@@ -14,6 +18,7 @@ interface State {
   sendingReport: boolean;
   sentReport: boolean;
   ticketId: string | null;
+  userSpecs: UserSpecification;
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
@@ -26,6 +31,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       sendingReport: false,
       sentReport: false,
       ticketId: null,
+      userSpecs: getStoredUserSpecifications(),
     };
   }
 
@@ -34,13 +40,55 @@ export default class ErrorBoundary extends Component<Props, State> {
       hasError: true,
       error,
       errorInfo: null,
+      userSpecs: getStoredUserSpecifications(),
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({ errorInfo });
+    const userSpecs = getStoredUserSpecifications();
+    this.setState({ errorInfo, userSpecs });
     console.error('[ErrorBoundary caught error]:', error, errorInfo);
+
+    // Automatically record and dispatch error report with authoritative user specifications
+    this.dispatchErrorReport(error, errorInfo, userSpecs);
   }
+
+  dispatchErrorReport = async (
+    targetError?: Error,
+    targetInfo?: ErrorInfo,
+    overrideSpecs?: UserSpecification
+  ) => {
+    if (this.state.sendingReport || this.state.sentReport) return;
+    this.setState({ sendingReport: true });
+
+    const err = targetError || this.state.error;
+    const info = targetInfo || this.state.errorInfo;
+    const specs = overrideSpecs || this.state.userSpecs || getStoredUserSpecifications();
+
+    try {
+      const ticketId = await reportClientError({
+        error_message: err?.message || 'Unknown render error',
+        error_name: err?.name || 'RenderError',
+        stack: err?.stack || null,
+        component_stack: info?.componentStack || null,
+        user_id: specs.user_id,
+        user_email: specs.user_email,
+        user_name: specs.user_name,
+        plan_tier: specs.plan_tier,
+        is_paid: specs.is_paid,
+        store_slug: specs.store_slug,
+        metadata: {
+          captured_by: 'ErrorBoundary.componentDidCatch',
+          market: specs.market,
+        },
+      });
+
+      this.setState({ sendingReport: false, sentReport: true, ticketId, userSpecs: specs });
+    } catch {
+      const fallbackTicket = `ERR-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+      this.setState({ sendingReport: false, sentReport: true, ticketId: fallbackTicket });
+    }
+  };
 
   handleReload = () => {
     if (this.isChunkError()) {
@@ -58,7 +106,14 @@ export default class ErrorBoundary extends Component<Props, State> {
   };
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null, sentReport: false, ticketId: null });
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      sentReport: false,
+      ticketId: null,
+      userSpecs: getStoredUserSpecifications(),
+    });
   };
 
   isChunkError = (): boolean => {
@@ -67,66 +122,13 @@ export default class ErrorBoundary extends Component<Props, State> {
       msg.includes('Failed to fetch dynamically imported module') ||
       msg.includes('Importing a module script failed') ||
       msg.includes('error loading dynamically imported module') ||
-      msg.includes('Loading chunk')
+      msg.includes('Loading chunk') ||
+      msg.includes('Failed to resolve module specifier')
     );
   };
 
-  handleSendReport = async () => {
-    if (this.state.sendingReport || this.state.sentReport) return;
-    this.setState({ sendingReport: true });
-
-    try {
-      const rawApi = import.meta.env.VITE_API_URL || '/api';
-      const apiBase = rawApi.replace(/\/+$/, '');
-      const endpoint = apiBase.endsWith('/api') ? `${apiBase}/error-logs` : `${apiBase}/api/error-logs`;
-
-      let networkLog: any[] = [];
-      try {
-        if (typeof window !== 'undefined' && window.performance && window.performance.getEntriesByType) {
-          const resources = window.performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-          networkLog = resources.slice(-15).map((r) => ({
-            name: r.name,
-            initiatorType: r.initiatorType,
-            duration: Math.round(r.duration),
-            transferSize: r.transferSize,
-          }));
-        }
-      } catch {
-        networkLog = [];
-      }
-
-      let userId: string | null = null;
-      try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          userId = parsed.id || parsed.$id || parsed.email || null;
-        }
-      } catch {
-        // ignore
-      }
-
-      const payload = {
-        error_message: this.state.error?.message || 'Unknown render error',
-        error_name: this.state.error?.name || 'Error',
-        stack: this.state.error?.stack || null,
-        component_stack: this.state.errorInfo?.componentStack || null,
-        url: window.location.href,
-        user_agent: navigator.userAgent,
-        network_log: networkLog,
-        user_id: userId,
-      };
-
-      const res = await axios.post(endpoint, payload);
-      const ticketId = res.data?.ticket_id || `ERR-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-      this.setState({ sendingReport: false, sentReport: true, ticketId });
-    } catch (err: any) {
-      this.setState({
-        sendingReport: false,
-        sentReport: true,
-        ticketId: `ERR-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
-      });
-    }
+  handleSendReport = () => {
+    this.dispatchErrorReport();
   };
 
   render() {
@@ -174,12 +176,42 @@ export default class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
+            {/* User & Subscription Specifications Badge */}
+            {this.state.userSpecs.user_email && (
+              <div className="mb-4 p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-left text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <UserCheck size={15} className="text-slate-500 shrink-0" />
+                  <span className="truncate text-slate-700 font-medium">
+                    {this.state.userSpecs.user_name || this.state.userSpecs.user_email}
+                  </span>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                    this.state.userSpecs.is_paid
+                      ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {this.state.userSpecs.is_paid
+                    ? `PAID (${this.state.userSpecs.plan_tier})`
+                    : `FREE PLAN`}
+                </span>
+              </div>
+            )}
+
             {this.state.sentReport && (
               <div className="mb-5 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center justify-center gap-2">
                 <CheckCircle2 size={16} className="text-emerald-600" />
                 <span>
-                  Report sent to FeraSetu team. Ticket: <strong>#{this.state.ticketId}</strong>
+                  Incident automatically recorded. Ticket: <strong>#{this.state.ticketId}</strong>
                 </span>
+              </div>
+            )}
+
+            {this.state.sendingReport && !this.state.sentReport && (
+              <div className="mb-5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium flex items-center justify-center gap-2">
+                <RefreshCw size={14} className="animate-spin text-blue-600" />
+                <span>Submitting error diagnostic ticket to FeraSetu team...</span>
               </div>
             )}
 
@@ -216,12 +248,12 @@ export default class ErrorBoundary extends Component<Props, State> {
                 {this.state.sentReport ? (
                   <>
                     <CheckCircle2 size={14} />
-                    <span>Report Delivered to FeraSetu Engineers</span>
+                    <span>Ticket Logged with User Specifications</span>
                   </>
                 ) : (
                   <>
                     <Send size={14} />
-                    <span>{this.state.sendingReport ? 'Submitting Error Telemetry...' : 'Send to FeraSetu Team'}</span>
+                    <span>{this.state.sendingReport ? 'Transmitting Telemetry...' : 'Send Telemetry to Engineering'}</span>
                   </>
                 )}
               </button>

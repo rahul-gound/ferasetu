@@ -72,20 +72,82 @@ router.post('/login', adminLoginLimiter, async (req: Request, res: Response): Pr
   res.json({ success: true, token });
 });
 
-// Public error intake endpoint (called by frontend ErrorBoundary)
+// Public error intake endpoint (called by frontend ErrorBoundary & errorTelemetry)
 router.post('/error-logs', (req: Request, res: Response): void => {
   try {
     const db = getDatabase();
-    const { error_message, error_name, stack, component_stack, url, user_agent, network_log, user_id } = req.body;
+    const {
+      error_message, error_name, stack, component_stack, url, user_agent, network_log,
+      user_id, user_email, user_name, plan_tier, is_paid, store_slug, metadata
+    } = req.body;
     const id = (req.body.id as string) || `err_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
     const netLogStr = typeof network_log === 'object' ? JSON.stringify(network_log) : (network_log || null);
+    const metaStr = typeof metadata === 'object' ? JSON.stringify(metadata) : (metadata || null);
 
-    db.prepare(`
-      INSERT INTO error_logs (id, error_message, error_name, stack, component_stack, url, user_agent, network_log, user_id, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'))
-    `).run(id, error_message || 'Unknown render error', error_name || 'Error', stack || null, component_stack || null, url || null, user_agent || null, netLogStr, user_id || null);
+    let finalUserId = user_id || null;
+    let finalEmail = user_email || null;
+    let finalName = user_name || null;
+    let finalPlan = plan_tier || 'free';
+    let finalIsPaid = is_paid !== undefined ? (is_paid ? 1 : 0) : (finalPlan && finalPlan !== 'free' && finalPlan !== 'trial' ? 1 : 0);
+    let finalStore = store_slug || null;
 
-    res.status(201).json({ success: true, ticket_id: id, message: 'Ticket created for FeraSetu team' });
+    if (finalUserId || finalEmail) {
+      try {
+        let userRow: any = null;
+        if (finalUserId) {
+          userRow = db.prepare('SELECT id, email, name, plan, organization_id FROM users WHERE id = ?').get(finalUserId);
+        }
+        if (!userRow && finalEmail) {
+          userRow = db.prepare('SELECT id, email, name, plan, organization_id FROM users WHERE email = ?').get(finalEmail);
+        }
+        if (userRow) {
+          if (!finalUserId) finalUserId = userRow.id;
+          if (!finalEmail) finalEmail = userRow.email;
+          if (!finalName && userRow.name) finalName = userRow.name;
+          if (userRow.plan) {
+            finalPlan = userRow.plan;
+            finalIsPaid = (finalPlan !== 'free' && finalPlan !== 'trial') ? 1 : 0;
+          }
+          if (!finalStore && userRow.organization_id) {
+            const orgRow: any = db.prepare('SELECT store_slug FROM organizations WHERE id = ?').get(userRow.organization_id);
+            if (orgRow?.store_slug) finalStore = orgRow.store_slug;
+          }
+        }
+      } catch {
+        // ignore enrichment error
+      }
+    }
+
+    try {
+      db.prepare(`
+        INSERT INTO error_logs (
+          id, error_message, error_name, stack, component_stack, url, user_agent, network_log,
+          user_id, user_email, user_name, plan_tier, is_paid, store_slug, metadata,
+          status, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'))
+      `).run(
+        id, error_message || 'Unknown render error', error_name || 'Error', stack || null,
+        component_stack || null, url || null, user_agent || null, netLogStr,
+        finalUserId, finalEmail, finalName, finalPlan, finalIsPaid, finalStore, metaStr
+      );
+    } catch {
+      // Fallback for tables created prior to migration without the new columns
+      db.prepare(`
+        INSERT INTO error_logs (id, error_message, error_name, stack, component_stack, url, user_agent, network_log, user_id, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'))
+      `).run(id, error_message || 'Unknown render error', error_name || 'Error', stack || null, component_stack || null, url || null, user_agent || null, netLogStr, finalUserId);
+    }
+
+    res.status(201).json({
+      success: true,
+      ticket_id: id,
+      user_id: finalUserId,
+      user_email: finalEmail,
+      plan_tier: finalPlan,
+      is_paid: Boolean(finalIsPaid),
+      message: 'Ticket created with user specifications for FeraSetu team'
+    });
   } catch (err: any) {
     console.error('Error logs intake failed:', err);
     res.status(500).json({ error: err.message });
