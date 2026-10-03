@@ -284,18 +284,27 @@ function createTestDb() {
             return { meta: { changes: 0 } };
           }
           if (s.includes('insert into orders')) {
-            const [id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at] = this._params;
-            const newOrder = {
-              id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at,
-              shop_id: this._params[9],
-              customer_id: this._params[10],
-              delivery_address: this._params[11],
-              delivery_type: this._params[12],
-              subtotal: this._params[13],
-              delivery_fee: this._params[14],
-              payment_status: this._params[15],
-              invoice_number: this._params[16],
-            };
+            const colMatch = sql.match(/insert into orders\s*\(([^)]+)\)/i);
+            const newOrder = {};
+            if (colMatch) {
+              const cols = colMatch[1].split(',').map(c => c.trim().toLowerCase());
+              cols.forEach((col, idx) => {
+                newOrder[col] = this._params[idx];
+              });
+            } else {
+              const [id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at] = this._params;
+              Object.assign(newOrder, {
+                id, user_id, organization_id, customer_name, customer_phone, items, total, status, created_at,
+                shop_id: this._params[9],
+                customer_id: this._params[10],
+                delivery_address: this._params[11],
+                delivery_type: this._params[12],
+                subtotal: this._params[13],
+                delivery_fee: this._params[14],
+                payment_status: this._params[15],
+                invoice_number: this._params[16],
+              });
+            }
             tables.orders.push(newOrder);
             return { meta: { changes: 1 } };
           }

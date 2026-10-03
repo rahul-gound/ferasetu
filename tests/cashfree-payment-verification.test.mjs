@@ -313,13 +313,16 @@ function createTestDb() {
         async run() {
           const s = sql.toLowerCase().replace(/\s+/g, ' ');
           if (s.includes('update transactions')) {
-            const txId = this._params[this._params.length - 1];
-            const tx = tables.transactions.find(t => t.id === txId);
+            const tx = tables.transactions.find(t =>
+              this._params.some(p => p && (t.id === p || t.provider_order_id === p))
+            );
             if (tx) {
+              const wasPending = tx.status === 'pending';
               tx.status = 'completed';
               tx.updated_at = new Date().toISOString();
+              return { success: true, meta: { changes: wasPending ? 1 : 0 } };
             }
-            return { success: true, meta: { changes: 1 } };
+            return { success: true, meta: { changes: 0 } };
           }
           if (s.includes('update ai_credit_purchases')) {
             const purchaseId = this._params[this._params.length - 1];
@@ -746,7 +749,7 @@ await test('WhatsApp checkout dynamically adapts currency symbol and locale', ()
 
 console.log('\n🚀 SUITE 7: End-to-End Monetization, Cashfree Add-ons & Plan Isolation');
 
-await test('POST /api/payment/initialize uses dynamic request origin for Cashfree return_url', async () => {
+await test('POST /api/payment/initialize uses trusted app URL for Cashfree return_url (ignoring arbitrary Origin header)', async () => {
   const token = await createAuthToken('usr_free_merchant', 'owner', 'org_workos_free');
   const req = new Request('https://ferasetu.com/api/payment/initialize', {
     method: 'POST',
@@ -769,7 +772,8 @@ await test('POST /api/payment/initialize uses dynamic request origin for Cashfre
   assert.equal(data.requiresPayment, true);
   assert.ok(data.paymentSessionId);
   assert.ok(lastCashfreeOrderBody);
-  assert.equal(lastCashfreeOrderBody.order_meta.return_url, `https://custom-shop.example.com/upgrade?order_id=${data.id}`);
+  assert.equal(lastCashfreeOrderBody.order_meta.return_url, `https://ferasetu.com/upgrade?order_id=${data.id}`);
+  assert.equal(lastCashfreeOrderBody.order_meta.notify_url, `https://ferasetu.com/api/payment/webhook`);
 });
 
 let creditPurchaseTxId = null;

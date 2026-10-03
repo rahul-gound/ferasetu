@@ -1,0 +1,39 @@
+Flow,Subsystem,Component,File Path,Line Numbers,Function/Identifier,Provider,Real/Mocked/Incomplete,Pricing/Amount Enforced,Status & Findings
+Flow A,Frontend,Upgrade Page,frontend/src/pages/UpgradePage.tsx,30-40,loadCashfreeScript,Cashfree,Real,N/A,Loads https://sdk.cashfree.com/js/v3/cashfree.js dynamically
+Flow A,Frontend,Upgrade Page,frontend/src/pages/UpgradePage.tsx,68-104,useEffect (?order_id=),Cashfree,Real,N/A,Listens for Cashfree return URL query parameter and triggers /api/payment/verify
+Flow A,Frontend,Upgrade Page,frontend/src/pages/UpgradePage.tsx,112-117,handleSelectPlan,Cashfree,Vulnerable,Client-calculated amount sent,Vulnerable: Sends client-provided amount to /payment/initialize
+Flow A,Frontend,Upgrade Page,frontend/src/pages/UpgradePage.tsx,138-142,handleSelectPlan,Cashfree,Real,N/A,Invokes window.Cashfree({ mode }).checkout({ paymentSessionId })
+Flow A,Frontend,Upgrade Page,frontend/src/pages/UpgradePage.tsx,160-167,handleSelectPlan,Stripe,Broken,N/A,Expects res.data.stripeUrl but backend returns stripeSessionId; displays error toast
+Flow A,Frontend,Cashfree Utils,frontend/src/utils/cashfree.ts,25-37,getCashfreeMode,Cashfree,Real,N/A,Strict fail-closed resolution of 'production' vs 'sandbox'
+Flow A,Frontend,Cashfree Utils,frontend/src/utils/cashfree.ts,48-67,validateCashfreePaymentResponse,Cashfree,Real,N/A,Validates paymentSessionId and cashfreeEnv before initializing SDK
+Flow A,Frontend,Pricing Config,frontend/src/config/pricing.ts,44-51,MARKET_CONFIGS.IN,Cashfree,Corrupted,₹1 plans,Defines monthly: 1 and yearly: 1 for starter/growth/business/pro/scale
+Flow A,Frontend,Plan Config,frontend/src/config/plans.ts,67-88,PLAN_PRICES,Cashfree,Corrupted,₹1 plans,Defines monthly: 1 and yearly: 1 for starter/business/pro
+Flow A,Worker,Geo Routing,worker/routes/geo.js,14-45,REGIONAL_CONFIGS.IN,Cashfree,Real,₹399/mo ₹999/mo,Defines canonical pricing 399/3990 for business and 999/9990 for pro
+Flow A,Worker,Payment Engine,worker/index.js,3927-3940,MARKET_PRICING.IN,Cashfree,Corrupted,₹1 plans,Corrupted: Hardcodes monthly: 1 and yearly: 1 for all Indian plans
+Flow A,Worker,Payment Engine,worker/index.js,4106-4354,transitionSubscription,Cashfree,Real,Authoritative state machine,Handles START_TRIAL PAYMENT_PENDING PAYMENT_CONFIRMED PAYMENT_FAILED CANCELLED
+Flow A,Worker,Payment Engine,worker/index.js,4340-4570,handleSuccessfulCashfreePayment,Cashfree,Real,Authoritative activation,Activates plan tops up AI credits updates transactions and triggers billing emails
+Flow A,Worker,Payment Engine,worker/index.js,4588-4597,getCashfreeCredentials,Cashfree,Real,Fails closed,Extracts CASHFREE_APP_ID/SECRET and enforces production vs sandbox endpoints
+Flow A,Worker,Payment Engine,worker/index.js,4726-4728,handlePaymentInitialize,Cashfree,Vulnerable,Whitelist allows ₹1,CRITICAL VULNERABILITY: Whitelist accepts body.amount of 1 for any plan
+Flow A,Worker,Payment Engine,worker/index.js,4758-4782,handlePaymentInitialize,Cashfree,Real,Cashfree Orders API,Calls POST https://api.cashfree.com/pg/orders (or sandbox)
+Flow A,Worker,Payment Engine,worker/index.js,4933-5062,handlePaymentVerify,Cashfree,Real,Authoritative verification,Calls GET /orders/{orderId} to verify order_status PAID and checks amount/currency
+Flow A,Worker,Payment Engine,worker/index.js,5252-5363,handlePaymentWebhook,Cashfree,Real,HMAC-SHA256 verification,Verifies x-webhook-signature with Web Crypto API and replay protection
+Flow A,Worker,Payment Engine,worker/index.js,5709-5736,handleCancelSubscription,Cashfree,Real,N/A,Sets cancel_at_period_end = 1 in subscriptions table
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,22-33,PLAN_CONFIG,Cashfree,Conflicting,₹299/₹399/₹699/₹999,Conflicting legacy plan amounts: starter=299 basic=299 standard=699 pro=999
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,58-93,createCashfreeOrder,Cashfree,Real,Cashfree Orders API,Calls POST https://api.cashfree.com/pg/orders using axios
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,95-112,verifyCashfreeOrder,Cashfree,Real,Cashfree Orders API,Calls GET https://api.cashfree.com/pg/orders/{id} using axios
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,145-167,verifyCashfreeWebhookSignature,Cashfree,Real,HMAC-SHA256 Node Crypto,Verifies signature using crypto.createHmac and timingSafeEqual
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,344-512,POST /webhook,Cashfree,Real,Webhook dispatcher,Processes Cashfree payment & refund webhooks and updates SQLite DB
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,605-868,POST /initialize,Cashfree,Real (Bypassed in test),Server expected amount check,Calls createCashfreeOrder in prod; activates immediately if NODE_ENV=test
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,846-862,POST /initialize,Stripe,Mocked,Fake session ID,Returns cs_sess_{transactionId} without contacting Stripe API
+Flow A,Backend,Payment Route,backend/src/routes/payment.ts,1108-1300,POST /verify,Cashfree,Real,Authoritative verification,Verifies Cashfree order status with gateway before activating plan
+Flow A,Database,Migrations,worker/migrations/0009_authoritative_subscriptions.sql,1-50,subscriptions table,Internal,Real,Authoritative D1 schema,Defines plan status trial_used current_period_end provider
+Flow A,Database,Migrations,worker/migrations/0015_payment_hardening_and_test_mode.sql,10-14,idx_transactions_provider_order_unique,Internal,Real,Idempotency,CREATE UNIQUE INDEX on transactions(provider_order_id)
+Flow B,Frontend,Storefront Cart,frontend/src/storefront/components/CartDrawer.tsx,498-503,handleCheckoutSubmit,None,Incomplete,Offline COD only,Only displays Cash on Delivery / UPI on Delivery; online payment missing
+Flow B,Frontend,Product Section,frontend/src/components/shop/sections/ProductGridSection.tsx,199,handlePlaceOrder,None,Incomplete,Offline COD only,Hardcodes paymentMethod: 'offline' in checkout state
+Flow B,Worker,Storefront Core,worker/index.js,6896-6908,handleCreateOrder,None,Broken / Spoofed,Fake online payment,VULNERABILITY: If paymentMethod === 'online' marks order 'paid' with zero gateway charge
+Flow B,Backend,Order Route,backend/src/routes/orders.ts,201-220,POST /create,None,Broken / Spoofed,Fake online payment,VULNERABILITY: If paymentMethod === 'online' marks order 'paid' with zero gateway charge
+Flow B,Platform,Vendor KYC,worker/index.js & backend/,N/A,N/A,None,Missing,N/A,Merchant onboarding and KYC verification for sub-merchants is completely unbuilt
+Flow B,Platform,Merchant Credentials,worker/index.js & backend/,N/A,N/A,None,Missing,N/A,No configuration exists for merchant UPI VPAs or merchant Cashfree/Razorpay keys
+Flow B,Platform,Split Settlement,worker/index.js & backend/,N/A,N/A,None,Missing,N/A,No marketplace split settlement (Cashfree Split / Razorpay Route) exists
+Flow B,Platform,Customer Cards/UPI,worker/index.js & backend/,N/A,N/A,None,Missing,N/A,Zero online payment gateway integration for shoppers
+Flow B,Platform,Chargebacks,worker/index.js & backend/,N/A,N/A,None,Missing,N/A,No chargeback or dispute resolution webhooks exist for customer orders

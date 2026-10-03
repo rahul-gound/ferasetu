@@ -154,6 +154,8 @@ function createTestDb() {
               rows = rows.filter(r => r.organization_id === args[0] && r.domain_type === 'CUSTOM');
             } else if (s.includes('WHERE organization_id = ? AND domain_type =')) {
               rows = rows.filter(r => r.organization_id === args[0] && r.domain_type === args[1]);
+            } else if (s.includes('WHERE domain = ? AND organization_id = ?')) {
+              rows = rows.filter(r => r.domain === args[0] && r.organization_id === args[1]);
             } else if (s.includes('WHERE domain = ?')) {
               rows = rows.filter(r => r.domain === args[0]);
             } else if (s.includes('WHERE id = ? AND organization_id = ?')) {

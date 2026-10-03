@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag, BarChart3, Bot, ArrowRight, Check,
@@ -19,6 +19,7 @@ import MarketingReveal from '../components/marketing/MarketingReveal';
 import MarketSelector from '../components/marketing/MarketSelector';
 import { getMarketPlans, normalizePlanId } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
+import { trackPricingView, trackPricingPlanSelect, trackSignupStart } from '../lib/analytics/tracker';
 
 /** Outcome value prop items */
 const OUTCOMES = [
@@ -53,15 +54,23 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [selectingPlan, setSelectingPlan] = useState<string | null>(null);
 
-  const currentPlan = user ? normalizePlanId(user.plan) : null;
+   const currentPlan = user ? normalizePlanId(user.plan) : null;
   const marketPlans = getMarketPlans(market);
 
+  useEffect(() => {
+    trackPricingView(market, billing);
+  }, [market, billing]);
+
   const handleSelectPlan = async (plan: PlanDefinition) => {
+    const planPrice = billing === 'yearly' ? plan.price.yearly : plan.price.monthly;
+    trackPricingPlanSelect(plan.id, market, billing, planPrice);
+
     // Free plan (India only): go to register
     if (plan.price.monthly === 0) {
       if (user) {
         navigate('/dashboard');
       } else {
+        trackSignupStart(market, `pricing_${plan.id}`);
         register();
       }
       return;
@@ -69,6 +78,7 @@ export default function PricingPage() {
 
     // US/EU: 14-day trial signup
     if (!user) {
+      trackSignupStart(market, `pricing_${plan.id}`);
       navigate(`/register?plan=${plan.id}&market=${market}`);
       return;
     }

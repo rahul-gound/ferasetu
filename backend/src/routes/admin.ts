@@ -7,7 +7,16 @@ import { getDatabase } from '../models/database';
 import { adminOnly, AdminRequest, verifyAdminCredentials } from '../middleware/adminAuth';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'fallback-dev-secret-do-not-use-in-dev');
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be set in production environment');
+    }
+    return 'dev-only-' + (process.env.DEV_JWT_SECRET || 'dev-secret-ferasetu-2026');
+  }
+  return secret;
+}
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fera.ai';
 const VALID_PLANS = new Set(['free', 'trial', 'basic', 'standard', 'pro', 'premium']);
 
@@ -35,7 +44,10 @@ function writeAuditLog(req: AdminRequest, action: string, targetType?: string, t
 router.post('/login', adminLoginLimiter, async (req: Request, res: Response): Promise<void> => {
   const { username, password, totp } = req.body;
 
-  if (!JWT_SECRET) {
+  let secret: string;
+  try {
+    secret = getJwtSecret();
+  } catch {
     res.status(500).json({ error: 'Admin authentication is not configured' });
     return;
   }
@@ -66,7 +78,7 @@ router.post('/login', adminLoginLimiter, async (req: Request, res: Response): Pr
 
   const token = jwt.sign(
     { id: 'admin-root', email: ADMIN_EMAIL, role: 'admin' },
-    JWT_SECRET,
+    secret,
     { expiresIn: '24h' }
   );
   res.json({ success: true, token });
@@ -448,7 +460,7 @@ router.post('/users/:id/impersonate', (req: AdminRequest, res: Response) => {
       impersonator: req.admin?.id,
       impersonated_at: Date.now()
     },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '15m' }
   );
 

@@ -5,7 +5,7 @@ export { loadDictionary as getDictionary } from '../i18n';
 export const EU_COUNTRY_CODES = [
   'FR', 'DE', 'IT', 'ES', 'NL', 'BE', 'AT', 'PT', 'IE', 'FI',
   'GR', 'LU', 'CY', 'MT', 'SK', 'SI', 'EE', 'LV', 'LT', 'BG',
-  'HR', 'CZ', 'DK', 'HU', 'PL', 'RO', 'SE'
+  'HR', 'CZ', 'DK', 'HU', 'PL', 'RO', 'SE', 'GB', 'UK'
 ] as const;
 
 export const SUPPORTED_LOCALES = [

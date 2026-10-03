@@ -105,8 +105,14 @@ const ALLOWED_ORIGINS = [
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.fera-search.tech')) {
-      return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    try {
+      const parsed = new URL(origin);
+      if (parsed.hostname === 'fera-search.tech' || parsed.hostname.endsWith('.fera-search.tech')) {
+        return callback(null, true);
+      }
+    } catch {
+      // Malformed origin
     }
     console.warn(`⚠️ CORS blocked: ${origin}`);
     return callback(new Error('Not allowed by CORS'));

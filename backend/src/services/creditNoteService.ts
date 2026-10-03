@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../models/database';
 import { recordFinancialAudit } from './auditService';
@@ -23,7 +24,7 @@ export interface CreateCreditNoteParams {
 
 function generateCreditNoteNumber(): string {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.floor(1000 + Math.random() * 9000);
+  const rand = crypto.randomInt(1000, 10000);
   return `FS-CN-${dateStr}-${rand}`;
 }
 

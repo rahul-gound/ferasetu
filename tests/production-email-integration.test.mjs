@@ -260,6 +260,8 @@ function createMockDb() {
               rows = rows.filter(d => d.organization_id === this._params[0] && d.domain_type === 'CUSTOM' && d.verification_status === 'VERIFIED');
             } else if (s.includes("domain_type = 'ferasetu_merchant'")) {
               rows = rows.filter(d => d.organization_id === this._params[0] && d.domain_type === 'FERASETU_MERCHANT');
+            } else if (s.includes('domain = ? and organization_id = ?')) {
+              rows = rows.filter(d => d.domain === this._params[0] && d.organization_id === this._params[1]);
             }
             return { results: rows };
           }

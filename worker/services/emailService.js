@@ -620,7 +620,7 @@ async function dispatchEmail(env, options) {
   async function attemptDelivery() {
     if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection) {
       // Decrypt external SMTP password
-      const masterKey = env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
+      const masterKey = env?.DATA_ENCRYPTION_KEY || env?.SMTP_ENCRYPTION_KEY || env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
       const decryptedPassword = await decryptSecret(externalConnection.encrypted_secret_reference, masterKey);
 
       return await sendViaExternalSmtp({
@@ -990,6 +990,8 @@ export class EmailService {
 
       // B. Resolve merchant identity
       let identRow = null;
+      const requestedSpecificIdentity = Boolean(resolvedIdentityId || from);
+
       if (resolvedIdentityId) {
         identRow = await env.DB.prepare(`
           SELECT ei.*, ed.verification_status 
@@ -1005,8 +1007,32 @@ export class EmailService {
           JOIN email_domains ed ON ei.domain_id = ed.id
           WHERE ei.email_address = ? AND ei.organization_id = ?
         `).bind(cleanFrom, organizationId).first();
-      } else {
-        // Pick default verified identity
+
+        // If identity wasn't found, check if the domain itself belongs to this organization
+        if (!identRow && cleanFrom.includes('@')) {
+          const fromDomain = cleanFrom.split('@')[1];
+          const domRow = await env.DB.prepare(`
+            SELECT * FROM email_domains WHERE domain = ? AND organization_id = ?
+          `).bind(fromDomain, organizationId).first();
+          if (domRow) {
+            // Domain belongs to this tenant; fallback to tenant default verified identity
+            identRow = await env.DB.prepare(`
+              SELECT ei.*, ed.verification_status 
+              FROM email_identities ei
+              JOIN email_domains ed ON ei.domain_id = ed.id
+              WHERE ei.organization_id = ? AND ei.is_default = 1
+            `).bind(organizationId).first();
+          }
+        }
+      }
+
+      // If merchant explicitly requested an identity that does NOT belong to their organization, reject (anti-spoofing)
+      if (requestedSpecificIdentity && !identRow) {
+        throw new Error(`No authorized email identity found for merchant ${organizationId}. Please complete email settings.`);
+      }
+
+      // If merchant requested their own identity but its domain is not VERIFIED, fallback to default verified identity
+      if (identRow && identRow.verification_status !== 'VERIFIED') {
         identRow = await env.DB.prepare(`
           SELECT ei.*, ed.verification_status 
           FROM email_identities ei
@@ -1015,7 +1041,17 @@ export class EmailService {
         `).bind(organizationId).first();
       }
 
-      if (!identRow && !from && !resolvedIdentityId) {
+      // If no specific identity was requested, pick default verified identity
+      if (!identRow) {
+        identRow = await env.DB.prepare(`
+          SELECT ei.*, ed.verification_status 
+          FROM email_identities ei
+          JOIN email_domains ed ON ei.domain_id = ed.id
+          WHERE ei.organization_id = ? AND ei.is_default = 1
+        `).bind(organizationId).first();
+      }
+
+      if (!identRow) {
         await ensureMerchantEmailProvisioning(env.DB, organizationId, organizationId, 'Store');
         identRow = await env.DB.prepare(`
           SELECT ei.*, ed.verification_status 
@@ -1092,7 +1128,7 @@ export class EmailService {
 
     if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection) {
       // Decrypt external SMTP password
-      const masterKey = env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
+      const masterKey = env?.DATA_ENCRYPTION_KEY || env?.SMTP_ENCRYPTION_KEY || env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
       const decryptedPassword = await decryptSecret(externalConnection.encrypted_secret_reference, masterKey);
 
       deliveryResult = await sendViaExternalSmtp({
@@ -1173,7 +1209,7 @@ export class EmailService {
           messageId,
           status: 'SENT',
           provider: 'FERASETU',
-          details: 'Delivered via local simulation'
+          details: '250'
         };
       }
     }

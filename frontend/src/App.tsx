@@ -9,6 +9,9 @@ import { MarketProvider } from './contexts/MarketContext';
 import { ENABLED_LANGUAGES } from './i18n';
 import ErrorBoundary from './components/ErrorBoundary';
 import { RESERVED_SUBDOMAINS } from './utils/canonicalHostname';
+import { ConsentProvider } from './contexts/ConsentContext';
+import ConsentBanner from './components/consent/ConsentBanner';
+import { trackPageView, initLifecycleTracking } from './lib/analytics/tracker';
 
 // Public landing page — lazy loaded for fast initial entry
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -50,6 +53,10 @@ const AdminTicketsPage = lazy(() => import('./pages/AdminTicketsPage'));
 const AdminErrorLogsPage = lazy(() => import('./pages/AdminErrorLogsPage'));
 const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'));
 const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
+const AdminQAPage = lazy(() => import('./pages/AdminQAPage'));
+const AdminQARunDetailPage = lazy(() => import('./pages/AdminQARunDetailPage'));
+const AdminQAIssueDetailPage = lazy(() => import('./pages/AdminQAIssueDetailPage'));
+const AdminQASandboxPage = lazy(() => import('./pages/AdminQASandboxPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
@@ -201,6 +208,33 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
 
+        {/* Legacy Regional Redirects to Canonical Clean URLs */}
+        <Route path="/eu/uk" element={<Navigate to="/" replace />} />
+        <Route path="/eu/uk/*" element={<Navigate to="/" replace />} />
+        <Route path="/uk" element={<Navigate to="/" replace />} />
+        <Route path="/uk/pricing" element={<Navigate to="/pricing" replace />} />
+        <Route path="/uk/shopify-alternative" element={<Navigate to="/shopify-alternative-india" replace />} />
+        <Route path="/uk/*" element={<Navigate to="/" replace />} />
+        <Route path="/us" element={<Navigate to="/" replace />} />
+        <Route path="/us/pricing" element={<Navigate to="/pricing" replace />} />
+        <Route path="/us/*" element={<Navigate to="/" replace />} />
+        <Route path="/in" element={<Navigate to="/" replace />} />
+        <Route path="/in/pricing" element={<Navigate to="/pricing" replace />} />
+        <Route path="/in/shopify-alternative" element={<Navigate to="/shopify-alternative-india" replace />} />
+        <Route path="/in/online-dukaan" element={<Navigate to="/online-dukaan-banaye" replace />} />
+        <Route path="/in/online-dukaan-banaye" element={<Navigate to="/online-dukaan-banaye" replace />} />
+        <Route path="/in/free-online-store" element={<Navigate to="/free-online-store" replace />} />
+        <Route path="/in/kirana-store-online" element={<Navigate to="/kirana-store-online" replace />} />
+        <Route path="/in/whatsapp-store" element={<Navigate to="/" replace />} />
+        <Route path="/in/*" element={<Navigate to="/" replace />} />
+        <Route path="/eu" element={<Navigate to="/" replace />} />
+        <Route path="/eu/pricing" element={<Navigate to="/pricing" replace />} />
+        <Route path="/eu/*" element={<Navigate to="/" replace />} />
+        <Route path="/europe" element={<Navigate to="/" replace />} />
+        <Route path="/europe/pricing" element={<Navigate to="/pricing" replace />} />
+        <Route path="/europe/shopify-alternative" element={<Navigate to="/shopify-alternative-india" replace />} />
+        <Route path="/europe/*" element={<Navigate to="/" replace />} />
+
         {/* Localized Public Routes (/hi, /gu/pricing, etc.) */}
         <Route path="/:lang" element={<LanguageRouteGuard />}>
           <Route index element={<LandingPage />} />
@@ -230,6 +264,10 @@ function AppRoutes() {
               <Route path="feedback" element={<AdminFeedbackPage />} />
               <Route path="errors" element={<AdminErrorLogsPage />} />
               <Route path="system" element={<AdminSystemPage />} />
+              <Route path="qa" element={<AdminQAPage />} />
+              <Route path="qa/runs/:runId" element={<AdminQARunDetailPage />} />
+              <Route path="qa/issues/:issueId" element={<AdminQAIssueDetailPage />} />
+              <Route path="qa/sandbox" element={<AdminQASandboxPage />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
           </AdminProtectedRoute>
@@ -249,8 +287,20 @@ function AppRoutes() {
   );
 }
 
-// Inner app content — all providers except Statsig
+function RouteTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(location.pathname, document.title);
+  }, [location.pathname]);
+  return null;
+}
+
+// Inner app content
 function AppContent() {
+  useEffect(() => {
+    initLifecycleTracking();
+  }, []);
+
   const handleRefreshFailure = ({ signIn }: { signIn: () => Promise<void> }) => {
     // WorkOS signalled a permanent refresh failure — the refresh token is dead
     // (e.g. expired, rotated, or the WorkOS session cookie was cleared).
@@ -266,26 +316,30 @@ function AppContent() {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthKitProvider 
-        clientId={import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY'}
-        redirectUri={window.location.origin + '/callback'}
-        onRefreshFailure={handleRefreshFailure}
-      >
-        <AuthProvider>
-          <BrowserRouter>
-            <LanguageProvider>
-              <MarketProvider>
-                <ErrorBoundary>
-                  <AppRoutes />
-                </ErrorBoundary>
-                <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
-              </MarketProvider>
-            </LanguageProvider>
-          </BrowserRouter>
-        </AuthProvider>
-      </AuthKitProvider>
-    </QueryClientProvider>
+    <ConsentProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthKitProvider 
+          clientId={import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY'}
+          redirectUri={window.location.origin + '/callback'}
+          onRefreshFailure={handleRefreshFailure}
+        >
+          <AuthProvider>
+            <BrowserRouter>
+              <LanguageProvider>
+                <MarketProvider>
+                  <RouteTracker />
+                  <ErrorBoundary>
+                    <AppRoutes />
+                  </ErrorBoundary>
+                  <ConsentBanner />
+                  <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+                </MarketProvider>
+              </LanguageProvider>
+            </BrowserRouter>
+          </AuthProvider>
+        </AuthKitProvider>
+      </QueryClientProvider>
+    </ConsentProvider>
   );
 }
 

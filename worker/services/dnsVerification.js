@@ -33,6 +33,18 @@ export function normalizeDomain(domainInput) {
     return { valid: false, error: "Invalid domain format" };
   }
 
+  // RFC 1035 / 1123 length checks
+  if (domain.length > 253) {
+    return { valid: false, error: "Domain name exceeds maximum RFC 1035 length of 253 characters" };
+  }
+
+  const labels = domain.split('.');
+  for (const label of labels) {
+    if (label.length > 63) {
+      return { valid: false, error: "DNS label exceeds maximum RFC 1035 length of 63 characters" };
+    }
+  }
+
   // Check RFC 1035 / 1123 domain syntax
   const domainRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i;
   if (!domainRegex.test(domain)) {

@@ -1,0 +1,19 @@
+{
+  "name": "@ferasetu/qa-engine",
+  "version": "1.0.0",
+  "description": "FeraSetu Advanced QA Control Plane, Automated Browser Debugger & Reliability Scanner",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "scan:smoke": "node src/cli.js --mode smoke",
+    "scan:full": "node src/cli.js --mode full"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

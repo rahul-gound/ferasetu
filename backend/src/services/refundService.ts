@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { getDatabase } from '../models/database';
@@ -29,7 +30,7 @@ export interface InitiateRefundParams {
 
 function generateRefundNumber(): string {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.floor(1000 + Math.random() * 9000);
+  const rand = crypto.randomInt(1000, 10000);
   return `FS-RF-${dateStr}-${rand}`;
 }
 

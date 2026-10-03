@@ -71,19 +71,19 @@ export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
     yearlyPerMonth: 0,
   },
   starter: {
-    monthly: 1,
-    yearly: 1,
-    yearlyPerMonth: 1,
+    monthly: 199,
+    yearly: 1990,
+    yearlyPerMonth: 165.8,
   },
   business: {
-    monthly: 1,
-    yearly: 1,
-    yearlyPerMonth: 1,
+    monthly: 399,
+    yearly: 3990,
+    yearlyPerMonth: 332.5,
   },
   pro: {
-    monthly: 1,
-    yearly: 1,
-    yearlyPerMonth: 1,
+    monthly: 999,
+    yearly: 9990,
+    yearlyPerMonth: 832.5,
   },
 };
 
@@ -93,19 +93,19 @@ export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
  */
 export const BUSINESS_PRICE_VARIANTS: Record<string, PlanPrice> = {
   variant_299: {
-    monthly: 1,
-    yearly: 1,
-    yearlyPerMonth: 1,
+    monthly: 299,
+    yearly: 2990,
+    yearlyPerMonth: 249.1,
   },
   control_399: {
-    monthly: 1,
-    yearly: 1,
-    yearlyPerMonth: 1,
+    monthly: 399,
+    yearly: 3990,
+    yearlyPerMonth: 332.5,
   },
   variant_499: {
-    monthly: 1,
-    yearly: 1,
-    yearlyPerMonth: 1,
+    monthly: 499,
+    yearly: 4990,
+    yearlyPerMonth: 415.8,
   },
 };
 
@@ -334,7 +334,7 @@ export const PLANS: PlanDefinition[] = [
  * - US ('US'), Europe ('EU'), Other: Returns 3 paid plans (Starter, Business, Pro) with 14-day trial. NO Free plan.
  */
 export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[] {
-  const cfg = MARKET_CONFIGS[market] || MARKET_CONFIGS.US;
+  const cfg = MARKET_CONFIGS[market] || MARKET_CONFIGS.GLOBAL;
 
   if (market === 'IN') {
     const freeDef = PLANS.find(p => p.id === 'free') || PLANS[0];

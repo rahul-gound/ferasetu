@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Search, ShieldAlert, ShieldCheck, UserCog, 
+  Search, ShieldAlert, ShieldCheck, 
   Trash2, ChevronLeft, ChevronRight,
   Package, ShoppingCart, CreditCard, Calendar,
   Clock, X, Check, Sparkles
@@ -134,21 +134,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleImpersonate = async (id: string) => {
-    try {
-      const res = await axios.post(`${API}/admin/users/${id}/impersonate`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      // Store user token and redirect to dashboard
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      toast.success(`Entering impersonation mode: ${res.data.user.name}`);
-      window.open('/dashboard', '_blank');
-    } catch (err) {
-      toast.error('Impersonation failed');
-    }
-  };
-
   const handleDeleteUser = async (id: string, name: string) => {
     if (!window.confirm(`🚨 DANGER: Are you sure you want to delete "${name}"? This will permanently remove all their products, orders, and data. This action CANNOT be undone.`)) {
       return;
@@ -268,13 +253,6 @@ export default function AdminUsersPage() {
                             title="Manage Subscription & Pricing"
                           >
                             <CreditCard size={17} />
-                          </button>
-                          <button 
-                            onClick={() => handleImpersonate(user.id)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
-                            title="Impersonate"
-                          >
-                            <UserCog size={17} />
                           </button>
                           <button 
                             onClick={() => handleToggleBlock(user.id, user.is_blocked)}

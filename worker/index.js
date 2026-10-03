@@ -19,10 +19,10 @@
 //   PUT  /api/users/me  -> create/update the logged-in user's profile (auth required)
 //   POST /api/ai/chat   -> Sarvam AI chat, deducts AI credits (auth required)
 //
-// Auth: login itself lives in Clerk (frontend uses the Clerk React SDK).
-// Authenticated routes expect `Authorization: Bearer <clerk-jwt>`; the
-// Worker verifies the JWT against Clerk JWKS keys and uses the account ID
-// as the D1 users.id. Profile data itself lives in D1, NOT in Clerk.
+// Auth: WorkOS AuthKit (frontend uses @workos-inc/authkit-react).
+// Authenticated routes expect `Authorization: Bearer <workos-jwt>`; the
+// Worker verifies the JWT against WorkOS JWKS keys and uses the subject ID
+// as the D1 users.id. Multi-tenancy is scoped by WorkOS organizations.
 //
 //   WORKOS_CLIENT_ID    -> secret (must match frontend VITE_WORKOS_CLIENT_ID)
 //   WORKOS_API_KEY      -> secret
@@ -37,6 +37,9 @@ import {
   classifyHostname,
   handleStorefrontRequest,
   proxyPagesAsset,
+  getSecurityTxtResponse,
+  resolveCustomDomainTenant,
+  isVerifiedCustomDomain,
 } from "./storefront.js";
 import {
   generateCanonicalStorefront,
@@ -62,6 +65,8 @@ import {
 } from "./media/mediaService.js";
 import { handleMediaCdnRequest } from "./media/mediaGateway.js";
 import { handleProStudioRoutes, handleProStorefrontResolution } from "./routes/proStudioRoutes.js";
+import { handleAnalyticsEvents } from "./analytics/ingestion.js";
+import { runDailyAggregation, pruneRawEvents } from "./analytics/aggregation.js";
 import { resolveSellablePrice } from "./catalog/priceResolver.js";
 import {
   registerShopSku,
@@ -82,7 +87,11 @@ import {
   backfillHistoricalOrderItems
 } from "./backfills/sliceABackfill.js";
 import { handleEmailRoutes } from "./routes/emailRoutes.js";
+import { handleDomainRoutes } from "./routes/domainRoutes.js";
 import { EmailService, ensureMerchantEmailProvisioning } from "./services/emailService.js";
+import { createCashfreeService, getCashfreeCredentials, classifyCashfreeError } from "./services/cashfreeService.js";
+import { createTurnstileService } from "./services/turnstileService.js";
+import { createAiGatewayService } from "./services/aiGatewayService.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -93,8 +102,8 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173"
 ];
 
-function isOriginAllowed(origin) {
-  if (!origin) return false;
+function isOriginAllowed(origin, request = null, env = null) {
+  if (!origin || typeof origin !== "string") return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   
   try {
@@ -115,16 +124,40 @@ function isOriginAllowed(origin) {
     if (classification.type === "platform_reserved" && (classification.subdomain === "app" || classification.subdomain === "www")) {
       return true;
     }
+
+    // For custom domains: NEVER allow arbitrary custom domains blindly.
+    // Allowed ONLY IF verified (via in-memory verified cache) or matching same-host.
+    if (classification.type === "custom_domain") {
+      let reqHost = null;
+      try {
+        if (request?.url) {
+          reqHost = new URL(request.url).hostname.toLowerCase();
+        }
+      } catch {}
+      if (!reqHost && request?.headers?.get) {
+        reqHost = request.headers.get("Host")?.split(":")[0]?.trim().toLowerCase();
+      }
+      if (reqHost && host === reqHost) {
+        return true;
+      }
+
+      if (isVerifiedCustomDomain(host)) {
+        return true;
+      }
+
+      return false;
+    }
+
     return false;
   } catch {
     return false;
   }
 }
 
-function getCorsHeaders(request) {
-  const origin = request ? request.headers?.get("Origin") : null;
-  const allowedOrigin = isOriginAllowed(origin) ? origin : "https://ferasetu.com";
-  const reqHeaders = request ? request.headers?.get("Access-Control-Request-Headers") : null;
+function getCorsHeaders(request, env = null) {
+  const origin = request ? (request.headers?.get("Origin") || request.headers?.get("origin")) : null;
+  const allowedOrigin = isOriginAllowed(origin, request, env) ? origin : "https://ferasetu.com";
+  const reqHeaders = request ? (request.headers?.get("Access-Control-Request-Headers") || request.headers?.get("access-control-request-headers")) : null;
   const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Idempotency-Key, X-Order-Idempotency, Cache-Control, Pragma";
   const allowedHeaders = reqHeaders ? `${baseHeaders}, ${reqHeaders}` : baseHeaders;
 
@@ -138,8 +171,8 @@ function getCorsHeaders(request) {
 }
 
 // JSON response helper — attaches dynamic CORS headers based on request origin.
-function json(data, status = 200, extraHeaders = {}, request = null) {
-  const corsHeaders = getCorsHeaders(request);
+function json(data, status = 200, extraHeaders = {}, request = null, env = null) {
+  const corsHeaders = getCorsHeaders(request, env);
 
   return new Response(JSON.stringify(data), {
     status,
@@ -149,6 +182,7 @@ function json(data, status = 200, extraHeaders = {}, request = null) {
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
       "X-Robots-Tag": "noindex, nofollow",
       ...corsHeaders,
       ...extraHeaders,
@@ -176,10 +210,10 @@ const PLAN_PRODUCT_LIMITS = {
   free:       25,
   beta:       25,   // beta users treated as free
   trial:      25,
+  starter:    100,  // Canonical Starter tier (100 products)
+  basic:      100,  // legacy alias for starter
   business:   500,  // canonical Business tier
   growth:     500,  // legacy aliases
-  basic:      500,
-  starter:    500,
   standard:   500,
   pro:        Infinity, // canonical Pro tier
   premium:    Infinity, // legacy aliases
@@ -235,8 +269,8 @@ async function getAuthenticatedUser(request, env) {
       permissions: Array.isArray(payload.permissions) ? payload.permissions : []
     };
   } catch (workosErr) {
-    // 2. Fallback: verify if token is a platform-signed HMAC JWT (via JWT_SECRET or ADMIN_JWT_SECRET)
-    const secret = env.JWT_SECRET || env.ADMIN_JWT_SECRET || "ferasetu-production-admin-secret-2026";
+    // 2. Fallback: verify if token is a platform-signed HMAC JWT (via dedicated user JWT_SECRET only)
+    const secret = env.JWT_SECRET;
     if (secret) {
       try {
         const { payload } = await jose.jwtVerify(jwt, new TextEncoder().encode(secret), { clockTolerance: 60 });
@@ -301,11 +335,12 @@ function resolveAuthoritativeMarket({ state, city, district, country, market, re
   const EU_COUNTRIES = new Set([
     'FR', 'DE', 'IT', 'ES', 'NL', 'BE', 'AT', 'PT', 'IE', 'FI',
     'GR', 'LU', 'CY', 'MT', 'SK', 'SI', 'EE', 'LV', 'LT', 'BG',
-    'HR', 'CZ', 'DK', 'HU', 'PL', 'RO', 'SE',
+    'HR', 'CZ', 'DK', 'HU', 'PL', 'RO', 'SE', 'GB', 'UK',
     'FRANCE', 'GERMANY', 'ITALY', 'SPAIN', 'NETHERLANDS', 'BELGIUM', 'AUSTRIA',
     'PORTUGAL', 'IRELAND', 'FINLAND', 'GREECE', 'LUXEMBOURG', 'CYPRUS', 'MALTA',
     'SLOVAKIA', 'SLOVENIA', 'ESTONIA', 'LATVIA', 'LITHUANIA', 'BULGARIA',
-    'CROATIA', 'CZECH REPUBLIC', 'DENMARK', 'HUNGARY', 'POLAND', 'ROMANIA', 'SWEDEN'
+    'CROATIA', 'CZECH REPUBLIC', 'DENMARK', 'HUNGARY', 'POLAND', 'ROMANIA', 'SWEDEN',
+    'UNITED KINGDOM', 'GREAT BRITAIN'
   ]);
 
   // 1. Explicit country
@@ -333,7 +368,7 @@ function resolveAuthoritativeMarket({ state, city, district, country, market, re
   if (cleanMarket === 'US') return 'US';
   if (cleanMarket === 'IN') return 'IN';
 
-  if (['FR', 'DE', 'ES', 'IT', 'NL', 'BE', 'AT', 'SE', 'DK', 'FI', 'IE', 'PL', 'PT'].includes(ipCountry)) {
+  if (['FR', 'DE', 'ES', 'IT', 'NL', 'BE', 'AT', 'SE', 'DK', 'FI', 'IE', 'PL', 'PT', 'GB', 'UK'].includes(ipCountry)) {
     return 'EU';
   }
 
@@ -466,6 +501,17 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
         shop = await env.DB.prepare(
           "SELECT * FROM shops WHERE hostname = ?"
         ).bind(hostname).first();
+
+        if (!shop) {
+          const domRow = await env.DB.prepare(
+            "SELECT organization_id FROM email_domains WHERE domain = ? AND verification_status = 'VERIFIED'"
+          ).bind(hostname).first();
+          if (domRow) {
+            shop = await env.DB.prepare(
+              "SELECT * FROM shops WHERE organization_id = ? ORDER BY created_at ASC"
+            ).bind(domRow.organization_id).first();
+          }
+        }
       }
     } catch {}
   }
@@ -633,12 +679,12 @@ export async function requireOrgContext(request, env, minRole = 'staff') {
     throw new HttpError(`Forbidden: Requires '${minRole}' role or higher`, 403);
   }
 
-  // Trial expiration gate for non-Indian accounts
-  if (orgRow.market !== 'IN' && (orgRow.plan === 'trial' || orgRow.plan === 'beta')) {
+  // Trial expiration gate for all trial / beta accounts
+  if (orgRow.plan === 'trial' || orgRow.plan === 'beta') {
     const ownerUser = await env.DB.prepare(
       "SELECT plan, plan_expires_at, trial_ends_at FROM users WHERE id = ?"
     ).bind(me.$id).first();
-    const expiry = ownerUser?.plan_expires_at || ownerUser?.trial_ends_at;
+    const expiry = ownerUser?.plan_expires_at || ownerUser?.trial_ends_at || orgRow.plan_expires_at;
     if (expiry && new Date(expiry).getTime() < Date.now()) {
       const url = new URL(request.url);
       const isUpgradePath = url.pathname.includes('/payment') || url.pathname.includes('/upgrade') || url.pathname.includes('/me') || url.pathname.includes('/organizations');
@@ -687,8 +733,8 @@ async function createOrganizationHandler(request, env) {
 
   // Authoritative market resolution: not trusted from client
   const market = resolveAuthoritativeMarket({ state, city, district, country, market: body.market, request });
-  const plan = market === 'IN' ? 'free' : 'trial';
-  const planExpiresAt = plan === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null;
+  const plan = 'trial';
+  const planExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
   // Check if user already owns an organization
   let existingOrg = null;
@@ -2065,15 +2111,11 @@ async function listOrders(request, env) {
     results = [];
   }
 
-  // Privacy: Redact customer email from ordinary merchant dashboard API response
-  const orders = results.map((o) => {
-    const safeOrder = {
-      ...o,
-      items: safeParseArray(o.items),
-    };
-    delete safeOrder.customer_email;
-    return safeOrder;
-  });
+  // Merchant order access: preserve customer details for legitimate fulfillment within merchant organization
+  const orders = results.map((o) => ({
+    ...o,
+    items: safeParseArray(o.items),
+  }));
   return json({ orders });
 }
 
@@ -2213,14 +2255,10 @@ async function getAnalyticsDashboard(request, env) {
   }
 
 
-  const orders = (rawOrders ?? []).map((o) => {
-    const safeO = {
-      ...o,
-      items: safeParseArray(o.items),
-    };
-    delete safeO.customer_email;
-    return safeO;
-  });
+  const orders = (rawOrders ?? []).map((o) => ({
+    ...o,
+    items: safeParseArray(o.items),
+  }));
 
   let rawProducts = [];
   try {
@@ -3072,12 +3110,14 @@ async function ensureTables(db) {
         status TEXT NOT NULL DEFAULT 'pending',
         plan TEXT NOT NULL,
         billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+        is_test_payment INTEGER NOT NULL DEFAULT 0,
         metadata TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_transactions_provider_order_id ON transactions (provider_order_id);`);
+    await safeExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_provider_order_unique ON transactions (provider_order_id) WHERE provider_order_id IS NOT NULL;`);
 
     // 9b. Authoritative Subscriptions Table
     await safeExec(`
@@ -3096,6 +3136,7 @@ async function ensureTables(db) {
         payment_provider TEXT,
         provider_order_id TEXT,
         provider_payment_id TEXT,
+        is_test_payment INTEGER NOT NULL DEFAULT 0,
         metadata TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -3145,6 +3186,22 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL
       );
     `);
+
+    // 11b. Meetings Table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_email TEXT NOT NULL,
+        meeting_date TEXT NOT NULL,
+        topic TEXT,
+        status TEXT NOT NULL DEFAULT 'scheduled',
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_meetings_user ON meetings(user_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_meetings_status ON meetings(status);`);
 
     // 12. Survey, SMTP & AI
     await safeExec(`
@@ -3448,8 +3505,11 @@ async function ensureTables(db) {
     await safeAddColumn('transactions', 'plan TEXT');
     await safeAddColumn('transactions', "billing_cycle TEXT DEFAULT 'monthly'");
     await safeAddColumn('transactions', 'metadata TEXT');
+    await safeAddColumn('transactions', 'is_test_payment INTEGER NOT NULL DEFAULT 0');
     await safeAddColumn('transactions', 'created_at TEXT');
     await safeAddColumn('transactions', 'updated_at TEXT');
+    await safeAddColumn('subscriptions', 'is_test_payment INTEGER NOT NULL DEFAULT 0');
+    await safeExec('CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_provider_order_unique ON transactions (provider_order_id) WHERE provider_order_id IS NOT NULL;');
 
     await safeAddColumn('smtp_settings', 'user_id TEXT');
     await safeAddColumn('smtp_settings', 'organization_id TEXT');
@@ -3811,19 +3871,56 @@ async function ensureTables(db) {
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_exec_logs_tenant ON site_execution_logs(tenant_id);`);
 
-    // 18. Analytics Events & Error Logs System
+    // 18. Analytics Events & Error Logs System (Privacy-First)
     await safeExec(`
       CREATE TABLE IF NOT EXISTS analytics_events (
         id TEXT PRIMARY KEY,
         user_id TEXT,
         organization_id TEXT,
-        event_type TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'platform',
+        visitor_id TEXT,
+        session_id TEXT,
+        event_name TEXT NOT NULL DEFAULT 'page_view',
+        event_type TEXT,
+        schema_version INTEGER NOT NULL DEFAULT 1,
+        properties TEXT,
         event_data TEXT,
+        country TEXT,
+        device_category TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'platform';`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN visitor_id TEXT;`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN session_id TEXT;`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN event_name TEXT NOT NULL DEFAULT 'page_view';`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1;`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN properties TEXT;`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN country TEXT;`);
+    await safeExec(`ALTER TABLE analytics_events ADD COLUMN device_category TEXT;`);
+
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_org ON analytics_events(organization_id, event_type);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_user ON analytics_events(user_id, event_type);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_tenant_time ON analytics_events(tenant_id, created_at);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_name_time ON analytics_events(event_name, created_at);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_session ON analytics_events(session_id);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS analytics_aggregates_daily (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        metric_name TEXT NOT NULL,
+        dimension TEXT NOT NULL DEFAULT 'all',
+        count INTEGER NOT NULL DEFAULT 0,
+        value REAL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_aggregates_unique ON analytics_aggregates_daily(tenant_id, date, metric_name, dimension);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_aggregates_lookup ON analytics_aggregates_daily(tenant_id, date);`);
 
     await safeExec(`
       CREATE TABLE IF NOT EXISTS error_logs (
@@ -3901,18 +3998,21 @@ const PLAN_ALIAS_MAP = {
   enterprise: 'scale',
 };
 
-function normalizePlan(plan, market = 'IN') {
+export function normalizePlan(plan, market = 'IN') {
   if (!plan) return market === 'IN' ? 'free' : 'trial';
   const clean = String(plan).toLowerCase().trim();
   const mapped = PLAN_ALIAS_MAP[clean] || clean;
   if (market === 'IN') {
-    if (mapped === 'starter' || mapped === 'growth') return 'business';
-    if (mapped === 'scale') return 'pro';
+    if (mapped === 'growth' || mapped === 'standard') return 'business';
+    if (mapped === 'scale' || mapped === 'premium' || mapped === 'enterprise') return 'pro';
+    if (mapped === 'basic') return 'starter';
     return mapped;
   }
   // US / EU / non-IN
   if (mapped === 'free' || mapped === 'beta') return 'trial';
-  if (mapped === 'business') return 'growth';
+  if (mapped === 'business' || mapped === 'standard') return 'growth';
+  if (mapped === 'basic') return 'starter';
+  if (mapped === 'enterprise') return 'scale';
   return mapped;
 }
 
@@ -3923,11 +4023,15 @@ const MARKET_PRICING = {
     trialDays: 0,
     plans: {
       free: { monthly: 0, yearly: 0 },
-      business: { monthly: 1, yearly: 1 },
-      pro: { monthly: 1, yearly: 1 },
-      growth: { monthly: 1, yearly: 1 },
-      scale: { monthly: 1, yearly: 1 },
-      starter: { monthly: 1, yearly: 1 },
+      starter: { monthly: 199, yearly: 1990 },
+      business: { monthly: 399, yearly: 3990 },
+      pro: { monthly: 999, yearly: 9990 },
+      basic: { monthly: 199, yearly: 1990 },
+      growth: { monthly: 399, yearly: 3990 },
+      standard: { monthly: 399, yearly: 3990 },
+      scale: { monthly: 999, yearly: 9990 },
+      premium: { monthly: 999, yearly: 9990 },
+      enterprise: { monthly: 999, yearly: 9990 },
     },
   },
   US: {
@@ -3954,7 +4058,77 @@ const MARKET_PRICING = {
       scale: { monthly: 179, yearly: 1790 },
     },
   },
+  UK: {
+    currency: 'GBP',
+    permanentFreePlan: false,
+    trialDays: 14,
+    plans: {
+      starter: { monthly: 19, yearly: 190 },
+      growth: { monthly: 39, yearly: 390 },
+      business: { monthly: 39, yearly: 390 },
+      pro: { monthly: 79, yearly: 790 },
+      scale: { monthly: 179, yearly: 1790 },
+    },
+  },
+  GLOBAL: {
+    currency: 'USD',
+    permanentFreePlan: false,
+    trialDays: 14,
+    plans: {
+      starter: { monthly: 19, yearly: 190 },
+      growth: { monthly: 39, yearly: 390 },
+      business: { monthly: 39, yearly: 390 },
+      pro: { monthly: 79, yearly: 790 },
+      scale: { monthly: 179, yearly: 1790 },
+    },
+  },
 };
+
+export function getAuthoritativePrice(market, plan, billingCycle = 'monthly', options = {}) {
+  const normMarket = ['IN', 'UK', 'US', 'EU', 'GLOBAL'].includes(market)
+    ? market
+    : (market === 'OTHER' ? 'GLOBAL' : 'GLOBAL');
+  const normPlan = normalizePlan(plan, normMarket);
+  const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+
+  // Server-side test payment mode check:
+  if (options.isTestPaymentRequested) {
+    if (!options.allowTestMode) {
+      throw new HttpError("Test payment mode is disabled on this server.", 403, {
+        code: "TEST_PAYMENT_DISABLED"
+      });
+    }
+    if (normMarket === 'IN' && normPlan !== 'free') {
+      return {
+        amount: 1,
+        currency: 'INR',
+        plan: normPlan,
+        billingCycle: cycle,
+        market: normMarket,
+        isTestPayment: true
+      };
+    }
+  }
+
+  const marketConfig = MARKET_PRICING[normMarket];
+  if (!marketConfig || !marketConfig.plans[normPlan]) {
+    throw new HttpError(`Invalid plan selected: "${plan}" for market "${normMarket}"`, 400);
+  }
+
+  const amount = marketConfig.plans[normPlan][cycle];
+  if (amount === undefined) {
+    throw new HttpError(`Invalid billing cycle "${billingCycle}" for plan "${normPlan}"`, 400);
+  }
+
+  return {
+    amount,
+    currency: marketConfig.currency,
+    plan: normPlan,
+    billingCycle: cycle,
+    market: normMarket,
+    isTestPayment: false
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Authoritative Subscriptions Engine & State Machine
@@ -4141,6 +4315,9 @@ export async function transitionSubscription({
   let nextProvider = provider || sub?.payment_provider || null;
   let nextOrderId = providerOrderId || sub?.provider_order_id || null;
   let nextPaymentId = providerPaymentId || sub?.provider_payment_id || null;
+  let nextIsTestPayment = (metadata && metadata.is_test_payment !== undefined)
+    ? (metadata.is_test_payment ? 1 : 0)
+    : (sub?.is_test_payment ? 1 : 0);
 
   let existingMeta = {};
   try {
@@ -4212,6 +4389,7 @@ export async function transitionSubscription({
       if (plan !== undefined) nextPlan = plan;
       if (metadata.status !== undefined) nextStatus = metadata.status;
       if (metadata.trial_used !== undefined) nextTrialUsed = metadata.trial_used ? 1 : 0;
+      if (metadata.is_test_payment !== undefined) nextIsTestPayment = metadata.is_test_payment ? 1 : 0;
       if (periodStart !== undefined) nextPeriodStart = periodStart;
       if (periodEnd !== undefined) nextPeriodEnd = periodEnd;
       if (provider !== undefined) nextProvider = provider;
@@ -4238,6 +4416,7 @@ export async function transitionSubscription({
         payment_provider = ?,
         provider_order_id = ?,
         provider_payment_id = ?,
+        is_test_payment = ?,
         metadata = ?,
         updated_at = ?
     WHERE user_id = ?
@@ -4254,6 +4433,7 @@ export async function transitionSubscription({
     nextProvider,
     nextOrderId,
     nextPaymentId,
+    nextIsTestPayment,
     JSON.stringify(nextMeta),
     now,
     userId
@@ -4384,14 +4564,14 @@ export async function handleSuccessfulCashfreePayment(paymentContext) {
   const isAiCredits = txMeta.type === 'ai_credits' || tx.plan === 'credits';
   const isExtraStorage = txMeta.type === 'extra_storage';
 
-  // Mark transaction completed
-  await env.DB.prepare(`
+  // Mark transaction completed atomically (only if currently pending)
+  const updateRes = await env.DB.prepare(`
     UPDATE transactions
     SET status = 'completed',
         provider_payment_id = ?,
         metadata = ?,
         updated_at = ?
-    WHERE id = ?
+    WHERE id = ? AND status = 'pending'
   `).bind(
     paymentId || tx.provider_payment_id || null,
     JSON.stringify({
@@ -4405,6 +4585,19 @@ export async function handleSuccessfulCashfreePayment(paymentContext) {
     now,
     tx.id
   ).run();
+
+  const changes = updateRes?.meta?.changes ?? (updateRes?.changes ?? 0);
+  if (changes === 0) {
+    const existingSub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(tx.user_id).first();
+    const user = await env.DB.prepare("SELECT plan FROM users WHERE id = ?").bind(tx.user_id).first();
+    return {
+      success: true,
+      plan: existingSub?.plan || user?.plan || tx.plan,
+      subscription: existingSub,
+      alreadyProcessed: true,
+      message: `Payment already processed and plan active: ${existingSub?.plan || user?.plan || tx.plan}`
+    };
+  }
 
   if (isAiCredits) {
     const credits = txMeta.credits || (CANONICAL_PLANS[tx.plan]?.monthlyCredits) || 250;
@@ -4511,7 +4704,8 @@ export async function handleSuccessfulCashfreePayment(paymentContext) {
       transaction_id: tx.id,
       amount: amount || tx.amount,
       currency: currency || tx.currency,
-      verified_via: source
+      verified_via: source,
+      is_test_payment: tx.is_test_payment ? 1 : 0
     }
   });
 
@@ -4580,29 +4774,7 @@ export async function handleSuccessfulCashfreePayment(paymentContext) {
 // ---------------------------------------------------------------------------
 // Payment Endpoints
 // ---------------------------------------------------------------------------
-function classifyCashfreeError(status, errText) {
-  if (status === 401 || status === 403) {
-    return 'cashfree_authentication_error';
-  }
-  if (status === 400 || status === 422) {
-    return 'cashfree_validation_error';
-  }
-  if (status >= 500) {
-    return 'cashfree_upstream_error';
-  }
-  return 'cashfree_upstream_error';
-}
 
-function getCashfreeCredentials(env) {
-  const appId = env.CASHFREE_APP_ID || env.CASHFREE_CLIENT_ID || null;
-  const secretKey = env.CASHFREE_SECRET_KEY || env.CASHFREE_CLIENT_SECRET || null;
-  const isDummy = !appId || !secretKey || appId.includes('your_app_id') || appId.includes('your_client_id') || secretKey.includes('your_secret_key');
-  const isValid = Boolean(appId && secretKey && !isDummy);
-  const isProd = env.CASHFREE_ENV === 'production';
-  const cashfreeEnv = isProd ? 'production' : 'sandbox';
-  const baseUrl = isProd ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
-  return { appId, secretKey, isValid, isProd, cashfreeEnv, baseUrl };
-}
 
 async function handlePaymentInitialize(request, env) {
   const me = await getAuthenticatedUser(request, env);
@@ -4721,22 +4893,23 @@ async function handlePaymentInitialize(request, env) {
   }
 
   // 2. Paid plan logic
-  const tierPricing = marketConfig.plans[targetPlan];
-  if (!tierPricing) {
-    throw new HttpError(`Invalid plan selected for market: ${targetPlan}`, 400);
-  }
+  const isProd = env.ENVIRONMENT === 'production' || env.NODE_ENV === 'production' || env.APP_ENV === 'production';
+  const allowTestMode = !isProd && (env.ALLOW_TEST_PAYMENT === 'true' || env.ENABLE_TEST_PAYMENT === 'true' || env.CASHFREE_ENV === 'sandbox');
+  const isTestPaymentRequested = Boolean(body.is_test_payment);
 
-  const expectedAmount = tierPricing[billingCycle];
-  let effectiveAmount = expectedAmount;
+  const priceInfo = getAuthoritativePrice(market, targetPlan, billingCycle, {
+    allowTestMode,
+    isTestPaymentRequested
+  });
+  const expectedAmount = priceInfo.amount;
+  const isTestPayment = priceInfo.isTestPayment;
+
   if (body.amount !== undefined) {
-    if (Math.abs(Number(body.amount) - expectedAmount) <= 0.01) {
-      effectiveAmount = expectedAmount;
-    } else if (market === 'IN' && [1, 399, 999, 3990, 9990].includes(Number(body.amount))) {
-      effectiveAmount = Number(body.amount);
-    } else {
+    if (Math.abs(Number(body.amount) - expectedAmount) > 0.01) {
       throw new HttpError(`Invalid amount for selected plan. Expected ${expectedAmount}, received ${body.amount}`, 400);
     }
   }
+  const effectiveAmount = expectedAmount;
 
   const cf = getCashfreeCredentials(env);
   const hasCashfree = cf.isValid;
@@ -4755,69 +4928,37 @@ async function handlePaymentInitialize(request, env) {
   const transactionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  // Route payment by market gateway
-  if (marketConfig.currency === 'INR' && cf.isValid) {
+  // FeraSetu's authoritative subscription billing gateway is Cashfree across ALL markets (IN, UK, US, EU, GLOBAL).
+  // Market determines currency (INR, GBP, USD, EUR), localized price, and tax/display, but the subscription gateway is Cashfree.
+  if (cf.isValid) {
     const cfBaseUrl = cf.baseUrl;
-    const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
+    const appBaseUrl = (env.PUBLIC_APP_URL || env.APP_URL || "https://ferasetu.com").replace(/\/$/, "");
+    const webhookUrl = env.PAYMENT_WEBHOOK_URL || `${appBaseUrl}/api/payment/webhook`;
 
     const requestId = crypto.randomUUID();
-    let cfOrderRes;
-    try {
-      cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
-        method: 'POST',
-        headers: {
-          'x-client-id': cf.appId,
-          'x-client-secret': cf.secretKey,
-          'x-api-version': '2023-08-01',
-          'Content-Type': 'application/json',
-        },
-
-        body: JSON.stringify({
-          order_id: transactionId,
-          order_amount: effectiveAmount,
-          order_currency: marketConfig.currency,
-          customer_details: {
-            customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
-            customer_email: user?.email || 'merchant@ferasetu.com',
-            customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
-          },
-          order_meta: {
-            return_url: `${requestOrigin}/upgrade?order_id=${transactionId}`,
-            notify_url: `${requestOrigin}/api/payment/webhook`,
-          },
-          order_note: `FeraSetu ${targetPlan} plan (${billingCycle})`,
-        }),
-      });
-    } catch (netErr) {
-      console.error(`[handlePaymentInitialize] Cashfree network connection error: classification=cashfree_upstream_error requestId=${requestId}`);
-      throw new HttpError("Unable to connect to Cashfree payment gateway. Please try again later.", 502, {
-        error_classification: 'cashfree_upstream_error',
-        request_id: requestId
-      });
-    }
-
-    if (!cfOrderRes.ok) {
-      const errText = await cfOrderRes.text();
-      const classification = classifyCashfreeError(cfOrderRes.status, errText);
-      console.error(`Cashfree order creation failed: status=${cfOrderRes.status} classification=${classification} requestId=${requestId}`);
-      let detail = 'Payment gateway error';
-      try {
-        const parsed = JSON.parse(errText);
-        detail = parsed.message || detail;
-      } catch {}
-      throw new HttpError(`Cashfree payment error: ${detail}`, cfOrderRes.status >= 500 ? 502 : 400, {
-        error_classification: classification,
-        request_id: requestId
-      });
-    }
-
+    const cashfreeService = createCashfreeService(env);
     let cfOrder;
     try {
-      cfOrder = await cfOrderRes.json();
-    } catch {
-      throw new HttpError("Invalid response received from Cashfree gateway", 502, {
-        error_classification: 'cashfree_upstream_error',
-        request_id: requestId
+      cfOrder = await cashfreeService.createOrder({
+        order_id: transactionId,
+        order_amount: effectiveAmount,
+        order_currency: marketConfig.currency,
+        customer_details: {
+          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+          customer_email: user?.email || 'merchant@ferasetu.com',
+          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+        },
+        order_meta: {
+          return_url: `${appBaseUrl}/upgrade?order_id=${transactionId}`,
+          notify_url: webhookUrl,
+        },
+        order_note: `FeraSetu ${targetPlan} plan (${billingCycle})`,
+      }, { requestId });
+    } catch (cfErr) {
+      if (cfErr instanceof HttpError) throw cfErr;
+      throw new HttpError(cfErr.message, cfErr.statusCode || 502, {
+        error_classification: cfErr.classification || 'cashfree_upstream_error',
+        request_id: cfErr.requestId || requestId
       });
     }
 
@@ -4834,19 +4975,19 @@ async function handlePaymentInitialize(request, env) {
 
     try {
       await env.DB.prepare(
-        `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
-         VALUES (?, ?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
+        `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, is_test_payment, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`
       ).bind(
-        transactionId, me.$id, orgId, cfOrder.order_id || transactionId, effectiveAmount, marketConfig.currency, targetPlan, billingCycle,
-        JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }), now, now
+        transactionId, me.$id, orgId, cfOrder.order_id || transactionId, effectiveAmount, marketConfig.currency, targetPlan, billingCycle, isTestPayment ? 1 : 0,
+        JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle, is_test_payment: isTestPayment ? 1 : 0 }), now, now
       ).run();
     } catch {
       await env.DB.prepare(
-        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
-         VALUES (?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
+        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, is_test_payment, metadata, created_at, updated_at)
+         VALUES (?, ?, 'cashfree', ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`
       ).bind(
-        transactionId, me.$id, cfOrder.order_id || transactionId, effectiveAmount, marketConfig.currency, targetPlan, billingCycle,
-        JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }), now, now
+        transactionId, me.$id, cfOrder.order_id || transactionId, effectiveAmount, marketConfig.currency, targetPlan, billingCycle, isTestPayment ? 1 : 0,
+        JSON.stringify({ market, cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle, is_test_payment: isTestPayment ? 1 : 0 }), now, now
       ).run();
     }
 
@@ -4859,7 +5000,7 @@ async function handlePaymentInitialize(request, env) {
       plan: targetPlan,
       provider: 'cashfree',
       providerOrderId: cfOrder.order_id || transactionId,
-      metadata: { billingCycle, amount: effectiveAmount, currency: marketConfig.currency }
+      metadata: { billingCycle, amount: effectiveAmount, currency: marketConfig.currency, is_test_payment: isTestPayment ? 1 : 0 }
     });
 
     return json({
@@ -4868,11 +5009,12 @@ async function handlePaymentInitialize(request, env) {
       gateway: 'cashfree',
       id: transactionId,
       plan: targetPlan,
-      amount: expectedAmount,
+      amount: effectiveAmount,
       currency: marketConfig.currency,
       paymentSessionId: cfOrder.payment_session_id,
       cashfreeOrderId: cfOrder.order_id || transactionId,
       cashfreeEnv: cf.cashfreeEnv,
+      isTestPayment,
       message: `Cashfree order created for plan: ${targetPlan}`
     }, 201, {}, request);
   }
@@ -5023,26 +5165,18 @@ async function handlePaymentVerify(request, env) {
     if (String(orderIdentifier).startsWith('cf_dev_') || String(orderIdentifier).startsWith('order_dev_') || String(orderIdentifier).startsWith('session_dev_') || String(orderIdentifier).startsWith('cf_test_')) {
       throw new HttpError("Unverified or dummy session identifier cannot activate paid plan.", 400);
     }
-    const cf = getCashfreeCredentials(env);
+    const cashfreeService = createCashfreeService(env);
+    const cf = cashfreeService.getCredentials();
     if (!cf.isValid) {
       throw new HttpError("Payment gateway configuration missing on server", 503);
     }
-    const cfBaseUrl = cf.baseUrl;
 
-    const cfRes = await fetch(`${cfBaseUrl}/orders/${encodeURIComponent(orderIdentifier)}`, {
-      method: 'GET',
-      headers: {
-        'x-client-id': cf.appId,
-        'x-client-secret': cf.secretKey,
-        'x-api-version': '2023-08-01',
-      }
-    });
-
-    if (!cfRes.ok) {
+    let cfData;
+    try {
+      cfData = await cashfreeService.getOrderStatus(orderIdentifier);
+    } catch {
       throw new HttpError("Failed to verify Cashfree order with payment gateway", 400);
     }
-
-    const cfData = await cfRes.json();
     if (cfData.order_status !== 'PAID') {
       throw new HttpError("Cashfree order has not been completed or paid", 400);
     }
@@ -5246,7 +5380,8 @@ async function handlePaymentWebhook(request, env) {
   const timestamp = request.headers.get("x-webhook-timestamp");
   const rawBody = await request.text();
 
-  const cf = getCashfreeCredentials(env);
+  const cashfreeService = createCashfreeService(env);
+  const cf = cashfreeService.getCredentials();
   if (!cf.secretKey) {
     throw new HttpError("Payment gateway configuration missing on server", 503);
   }
@@ -5255,48 +5390,16 @@ async function handlePaymentWebhook(request, env) {
     throw new HttpError("Missing required webhook signature headers", 401);
   }
 
-  // Replay protection: verify timestamp within 15 minutes
-  const ts = parseInt(timestamp, 10);
-  const parsedMs = ts > 1e11 ? ts : ts * 1000;
-  if (!isNaN(parsedMs) && Math.abs(Date.now() - parsedMs) > 15 * 60 * 1000) {
-    throw new HttpError("Webhook timestamp expired or clock skew too large", 401);
-  }
+  const verification = await cashfreeService.verifyWebhookSignature({
+    signature,
+    timestamp,
+    rawBody,
+  });
 
-  // Verify HMAC-SHA256 signature using Web Crypto API
-  try {
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(cf.secretKey);
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const dataToSign = encoder.encode(`${timestamp}${rawBody}`);
-    const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, dataToSign);
-    const expectedBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-
-    let valid = false;
-    try {
-      const sigBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
-      const expBytes = new Uint8Array(signatureBuffer);
-      if (sigBytes.length === expBytes.length) {
-        let diff = 0;
-        for (let i = 0; i < sigBytes.length; i++) {
-          diff |= sigBytes[i] ^ expBytes[i];
-        }
-        valid = diff === 0;
-      }
-    } catch {
-      valid = false;
+  if (!verification.valid) {
+    if (verification.reason === 'TIMESTAMP_EXPIRED') {
+      throw new HttpError("Webhook timestamp expired or clock skew too large", 401);
     }
-
-    if (!valid && expectedBase64 !== signature) {
-      throw new HttpError("Invalid webhook signature", 401);
-    }
-  } catch (sigErr) {
-    if (sigErr instanceof HttpError) throw sigErr;
     throw new HttpError("Webhook signature verification failed", 401);
   }
 
@@ -5319,36 +5422,34 @@ async function handlePaymentWebhook(request, env) {
 
   if (paymentStatus === 'SUCCESS' || paymentStatus === 'PAID') {
     const paymentId = paymentData?.cf_payment_id ? String(paymentData.cf_payment_id) : orderId;
-    
-    // Idempotency check via credit_transactions
-    const existingLedger = await env.DB.prepare(
-      "SELECT id FROM credit_transactions WHERE reference_id = ?"
-    ).bind(paymentId).first();
-
-    if (existingLedger) {
-      return json({ success: true, message: "Webhook already processed" }, 200, {}, request);
-    }
 
     const tx = await env.DB.prepare(
-      "SELECT * FROM transactions WHERE (provider_order_id = ? OR id = ?) AND status = 'pending'"
+      "SELECT * FROM transactions WHERE (provider_order_id = ? OR id = ?)"
     ).bind(orderId, orderId).first();
 
-    if (tx) {
-      if (amount > 0 && Math.abs(amount - tx.amount) > 0.01) {
-        console.error('[webhook] Payment amount mismatch:', amount, tx.amount);
-        throw new HttpError("Payment amount mismatch", 400);
-      }
-
-      await handleSuccessfulCashfreePayment({
-        env,
-        orderId,
-        paymentId,
-        amount,
-        currency: tx.currency,
-        tx,
-        source: 'cashfree_webhook'
-      });
+    if (!tx) {
+      console.warn(`[webhook] No transaction found for order ${orderId}`);
+      return json({ success: true, message: "Transaction not found, skipping" }, 200, {}, request);
     }
+
+    if (tx.status === 'completed') {
+      return json({ success: true, message: "Webhook already processed", already_processed: true }, 200, {}, request);
+    }
+
+    if (amount > 0 && Math.abs(amount - tx.amount) > 0.01) {
+      console.error('[webhook] Payment amount mismatch:', amount, tx.amount);
+      throw new HttpError("Payment amount mismatch", 400);
+    }
+
+    await handleSuccessfulCashfreePayment({
+      env,
+      orderId,
+      paymentId,
+      amount: amount || tx.amount,
+      currency: tx.currency,
+      tx,
+      source: 'cashfree_webhook'
+    });
   }
 
   return json({ success: true, message: "Webhook processed successfully" }, 200, {}, request);
@@ -5414,7 +5515,8 @@ async function handlePaymentAiCreditsPurchase(request, env) {
   const transactionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  const cf = getCashfreeCredentials(env);
+  const cashfreeService = createCashfreeService(env);
+  const cf = cashfreeService.getCredentials();
   if (!cf.isValid) {
     const requestId = crypto.randomUUID();
     console.warn(`[handlePaymentAiCreditsPurchase] Cashfree gateway credentials not configured. Request ID: ${requestId}`);
@@ -5424,67 +5526,32 @@ async function handlePaymentAiCreditsPurchase(request, env) {
     });
   }
 
-  const cfBaseUrl = cf.baseUrl;
   const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";
 
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.$id).first();
   const requestId = crypto.randomUUID();
 
-  let cfOrderRes;
-  try {
-    cfOrderRes = await fetch(`${cfBaseUrl}/orders`, {
-      method: 'POST',
-      headers: {
-        'x-client-id': cf.appId,
-        'x-client-secret': cf.secretKey,
-        'x-api-version': '2023-08-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        order_id: transactionId,
-        order_amount: pack.amount,
-        order_currency: 'INR',
-        customer_details: {
-          customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
-          customer_email: user?.email || 'merchant@ferasetu.com',
-          customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
-        },
-        order_meta: {
-          return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
-        },
-        order_note: `FeraSetu ${pack.label} purchase`,
-      }),
-    });
-  } catch (netErr) {
-    console.error(`[handlePaymentAiCreditsPurchase] Cashfree network connection error: classification=cashfree_upstream_error requestId=${requestId}`);
-    throw new HttpError("Unable to connect to Cashfree payment gateway. Please try again later.", 502, {
-      error_classification: 'cashfree_upstream_error',
-      request_id: requestId
-    });
-  }
-
-  if (!cfOrderRes.ok) {
-    const errText = await cfOrderRes.text();
-    const classification = classifyCashfreeError(cfOrderRes.status, errText);
-    console.error(`Cashfree credit order creation failed: status=${cfOrderRes.status} classification=${classification} requestId=${requestId}`);
-    let detail = 'Payment gateway error';
-    try {
-      const parsed = JSON.parse(errText);
-      detail = parsed.message || detail;
-    } catch {}
-    throw new HttpError(`Cashfree payment error: ${detail}`, cfOrderRes.status >= 500 ? 502 : 400, {
-      error_classification: classification,
-      request_id: requestId
-    });
-  }
-
   let cfOrder;
   try {
-    cfOrder = await cfOrderRes.json();
-  } catch {
-    throw new HttpError("Invalid response received from Cashfree gateway", 502, {
-      error_classification: 'cashfree_upstream_error',
-      request_id: requestId
+    cfOrder = await cashfreeService.createOrder({
+      order_id: transactionId,
+      order_amount: pack.amount,
+      order_currency: 'INR',
+      customer_details: {
+        customer_id: me.$id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
+        customer_email: user?.email || 'merchant@ferasetu.com',
+        customer_phone: user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '9999999999',
+      },
+      order_meta: {
+        return_url: `${requestOrigin}/ai-credits?order_id=${transactionId}`,
+      },
+      order_note: `FeraSetu ${pack.label} purchase`,
+    }, { requestId });
+  } catch (cfErr) {
+    if (cfErr instanceof HttpError) throw cfErr;
+    throw new HttpError(cfErr.message, cfErr.statusCode || 502, {
+      error_classification: cfErr.classification || 'cashfree_upstream_error',
+      request_id: cfErr.requestId || requestId
     });
   }
 
@@ -5600,54 +5667,14 @@ async function handleVoiceTextToSpeech(request, env) {
   }
 
   const language = body.language || 'en';
-  const sarvamLanguageMap = {
-    'en': 'en-IN',
-    'hi': 'hi-IN',
-    'bn': 'bn-IN',
-    'kn': 'kn-IN',
-    'ml': 'ml-IN',
-    'mr': 'mr-IN',
-    'or': 'or-IN',
-    'pa': 'pa-IN',
-    'ta': 'ta-IN',
-    'te': 'te-IN',
-    'gu': 'gu-IN'
-  };
-  const targetLanguageCode = sarvamLanguageMap[language] || 'hi-IN';
+  const aiGateway = createAiGatewayService(env);
+  const result = await aiGateway.textToSpeech({
+    text,
+    language,
+    speaker: "meera"
+  });
 
-  const sarvamKey = env.SARVAM_API_KEY || env.SARVAM_30B_API_KEY || '';
-  if (!sarvamKey) {
-    return json({ audio: null, format: 'wav', message: 'TTS provider key not configured' }, 200, {}, request);
-  }
-
-  try {
-    const ttsRes = await fetch("https://api.sarvam.ai/text-to-speech", {
-      method: "POST",
-      headers: {
-        "api-subscription-key": sarvamKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        inputs: [text],
-        target_language_code: targetLanguageCode,
-        speaker: "meera",
-        model: "bulbul:v1"
-      })
-    });
-
-    if (!ttsRes.ok) {
-      const errText = await ttsRes.text();
-      console.warn("Sarvam TTS API responded with non-200:", ttsRes.status, errText);
-      return json({ audio: null, format: 'wav', error: `TTS service error: ${ttsRes.status}` }, 200, {}, request);
-    }
-
-    const ttsData = await ttsRes.json();
-    const audioBase64 = ttsData.audios?.[0] || null;
-    return json({ audio: audioBase64, format: 'wav' }, 200, {}, request);
-  } catch (err) {
-    console.error("Sarvam TTS fetch error:", err);
-    return json({ audio: null, format: 'wav', error: err?.message || 'TTS failed' }, 200, {}, request);
-  }
+  return json(result, 200, {}, request);
 }
 
 async function handleGetSubscription(request, env) {
@@ -6644,6 +6671,10 @@ async function handlePublicCreateOrder(request, env) {
   const itemList = Array.isArray(items) ? items : [];
   if (itemList.length === 0) throw new HttpError("items must be a non-empty array", 422);
 
+  if (paymentMethod && String(paymentMethod).toLowerCase().trim() === 'online') {
+    throw new HttpError("Online payments are not yet enabled for this store. Please choose Cash on Delivery or UPI on Delivery.", 400);
+  }
+
   // P0 Correction 4: Resolve storefront tenant deterministically
   const tenant = await resolveStorefrontTenant(request, env, shopId);
   if (!tenant.organizationId) {
@@ -6885,7 +6916,7 @@ async function handlePublicCreateOrder(request, env) {
     customerPhone.trim(),
     JSON.stringify(resolvedItems),
     total,
-    paymentMethod === 'online' ? 'confirmed' : 'pending',
+    'pending',
     now,
     storeShopId,
     customerId,
@@ -6897,7 +6928,7 @@ async function handlePublicCreateOrder(request, env) {
     deliveryFeeMinor,
     totalMinor,
     'INR',
-    paymentMethod === 'online' ? 'paid' : 'unpaid',
+    'unpaid',
     invoiceNumber,
     deliveryCode,
     deliveryCode,
@@ -6950,8 +6981,8 @@ async function handlePublicCreateOrder(request, env) {
     `).bind(
       invoiceId, orgId, storeShopId, orderId, invoiceNumber,
       customerId, customerName, subtotal, deliveryFee,
-      total, paymentMethod === 'online' ? total : 0, paymentMethod === 'online' ? 0 : total,
-      paymentMethod === 'online' ? 'paid' : 'issued', deliveryAddress || null, deliveryAddress || null, now, now,
+      total, 0, total,
+      'issued', deliveryAddress || null, deliveryAddress || null, now, now,
       `Order ${orderId}`, now, now
     ).run();
   } catch (invErr) {
@@ -7068,8 +7099,8 @@ async function handlePublicCreateOrder(request, env) {
       subtotal,
       deliveryFee,
       deliveryCode,
-      status: paymentMethod === 'online' ? 'confirmed' : 'pending',
-      payment_status: paymentMethod === 'online' ? 'paid' : 'unpaid',
+      status: 'pending',
+      payment_status: 'unpaid',
       delivery_type: deliveryType,
       delivery_address: deliveryAddress || null,
       customer_name: customerName,
@@ -7191,6 +7222,23 @@ async function resolveStorefrontOrgId(request, env) {
     const tenant = await resolveStorefrontTenant(request, env, hostInfo.subdomain);
     if (tenant?.organizationId) return tenant.organizationId;
   }
+  if (hostInfo.type === "custom_domain") {
+    const customTenant = await resolveCustomDomainTenant(url.hostname, env);
+    if (customTenant?.organizationId) return customTenant.organizationId;
+  }
+
+  const hostHeader = request.headers.get("Host")?.split(":")[0]?.trim();
+  if (hostHeader && hostHeader.toLowerCase() !== url.hostname.toLowerCase()) {
+    const headerHostInfo = classifyHostname(hostHeader);
+    if (headerHostInfo.type === "merchant" && headerHostInfo.subdomain) {
+      const tenant = await resolveStorefrontTenant(request, env, headerHostInfo.subdomain);
+      if (tenant?.organizationId) return tenant.organizationId;
+    }
+    if (headerHostInfo.type === "custom_domain") {
+      const customTenant = await resolveCustomDomainTenant(hostHeader, env);
+      if (customTenant?.organizationId) return customTenant.organizationId;
+    }
+  }
 
   const referer = request.headers.get("Referer");
   if (referer) {
@@ -7200,6 +7248,10 @@ async function resolveStorefrontOrgId(request, env) {
       if (refHostInfo.type === "merchant" && refHostInfo.subdomain) {
         const tenant = await resolveStorefrontTenant(request, env, refHostInfo.subdomain);
         if (tenant?.organizationId) return tenant.organizationId;
+      }
+      if (refHostInfo.type === "custom_domain") {
+        const customTenant = await resolveCustomDomainTenant(refUrl.hostname, env);
+        if (customTenant?.organizationId) return customTenant.organizationId;
       }
       const match = refUrl.pathname.match(/\/shop\/([^/]+)/);
       if (match && match[1]) {
@@ -7583,7 +7635,6 @@ async function getOrder(orderId, request, env) {
     ...order,
     items: safeParseArray(order.items),
   };
-  delete safeOrder.customer_email;
   return json(safeOrder, 200, {}, request);
 }
 
@@ -8732,22 +8783,16 @@ async function handleVerifyTurnstile(request, env) {
   const token = body.token;
   if (!token) throw new HttpError("Turnstile token is required", 400);
 
-  if (!env.TURNSTILE_SECRET_KEY) {
-    return json({ success: true, message: "Turnstile skipped (no secret key configured)" }, 200, {}, request);
+  const turnstileService = createTurnstileService(env);
+  const clientIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for");
+  const result = await turnstileService.verifyToken(token, clientIp);
+
+  if (!result.success) {
+    throw new HttpError("Turnstile challenge failed", 403, result.errorCodes);
   }
 
-  const formData = new FormData();
-  formData.append("secret", env.TURNSTILE_SECRET_KEY);
-  formData.append("response", token);
-
-  const cfRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body: formData,
-  });
-
-  const outcome = await cfRes.json();
-  if (!outcome.success) {
-    throw new HttpError("Turnstile challenge failed", 403, outcome["error-codes"]);
+  if (result.skipped) {
+    return json({ success: true, message: result.message }, 200, {}, request);
   }
 
   return json({ success: true }, 200, {}, request);
@@ -9143,7 +9188,7 @@ async function route(request, env) {
   }
 
   // Payment Endpoints
-  if (path === "/api/payment/initialize" && method === "POST") {
+  if ((path === "/api/payment/initialize" || path === "/api/payment/create-order") && method === "POST") {
     return handlePaymentInitialize(request, env);
   }
   if (path === "/api/payment/verify" && method === "POST") {
@@ -9437,6 +9482,11 @@ async function route(request, env) {
     return handleEmailRoutes(request, env);
   }
 
+  // Domain Management & In-App Purchase Endpoints
+  if (path.startsWith("/api/domains")) {
+    return handleDomainRoutes(request, env);
+  }
+
   // SMTP Settings
   if (path === "/api/settings/smtp") {
     if (method === "GET") return getSmtpSettings(request, env);
@@ -9493,9 +9543,14 @@ async function route(request, env) {
     }, 200, {}, request);
   }
 
-  // Analytics Events Ingestion (Public storefront visits, views, clicks)
+  // Analytics Events Ingestion (Privacy-First, Tenant-Isolated, Rate-Limited)
   if (path === "/api/analytics/events" && method === "POST") {
-    return handleAnalyticsEvent(request, env);
+    return handleAnalyticsEvents(request, env, {
+      getAuthenticatedUser,
+      resolveStorefrontTenant,
+      jsonHelper: json,
+      errorResponseHelper: errorResponse
+    });
   }
 
   // Global Error Reporting Intake (From ErrorBoundary)
@@ -9503,8 +9558,8 @@ async function route(request, env) {
     return handleCreateErrorLog(request, env);
   }
 
-  // Admin Dashboard routes (accepts both /api/admin/* and /admin/*)
-  if (path.startsWith("/api/admin") || path.startsWith("/admin")) {
+  // Admin Dashboard routes & QA Control Plane (accepts both /api/admin/* and /admin/* and /api/qa/*)
+  if (path.startsWith("/api/admin") || path.startsWith("/admin") || path.startsWith("/api/qa")) {
     return handleAdminRoutes(request, env);
   }
 
@@ -9512,42 +9567,12 @@ async function route(request, env) {
 }
 
 async function handleAnalyticsEvent(request, env) {
-  try {
-    const body = await readJsonBody(request);
-    const eventType = body.event_type || body.eventType;
-    if (!eventType) {
-      throw new HttpError("event_type is required", 400);
-    }
-
-    const id = body.id || `evt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-    const userId = body.user_id || body.userId || null;
-    const orgId = body.organization_id || body.organizationId || null;
-    
-    // Enrich with Cloudflare geo metadata if available
-    let eventData = {};
-    if (typeof body.event_data === 'object') {
-      eventData = { ...body.event_data };
-    } else if (body.event_data) {
-      try { eventData = JSON.parse(body.event_data); } catch {}
-    }
-
-    if (!eventData.city && request.cf?.city) eventData.city = request.cf.city;
-    if (!eventData.region && request.cf?.region) eventData.region = request.cf.region;
-    if (!eventData.country && request.cf?.country) eventData.country = request.cf.country;
-    if (!eventData.referrer && request.headers.get("referer")) eventData.referrer = request.headers.get("referer");
-
-    if (env.DB) {
-      await env.DB.prepare(`
-        INSERT INTO analytics_events (id, user_id, organization_id, event_type, event_data, created_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
-      `).bind(id, userId, orgId, eventType, JSON.stringify(eventData)).run();
-    }
-
-    return json({ success: true, id, event_type: eventType }, 201, {}, request);
-  } catch (err) {
-    if (err instanceof HttpError) throw err;
-    return json({ error: err?.message || "Failed to log event" }, 500, {}, request);
-  }
+  return handleAnalyticsEvents(request, env, {
+    getAuthenticatedUser,
+    resolveStorefrontTenant,
+    jsonHelper: json,
+    errorResponseHelper: errorResponse
+  });
 }
 
 async function handleCreateErrorLog(request, env) {
@@ -9634,14 +9659,38 @@ async function handleCreateErrorLog(request, env) {
 // ---------------------------------------------------------------------------
 export default {
   async fetch(request, env, ctx) {
+    // Warm verified custom domain cache if request origin or host is a custom domain
+    try {
+      const originHeader = request.headers?.get("Origin") || request.headers?.get("origin");
+      if (originHeader) {
+        const oUrl = new URL(originHeader);
+        const oHost = oUrl.hostname.toLowerCase();
+        const oClass = classifyHostname(oHost);
+        if (oClass.type === "custom_domain" && !isVerifiedCustomDomain(oHost) && env?.DB) {
+          await resolveCustomDomainTenant(oHost, env);
+        }
+      }
+      const reqUrl = new URL(request.url);
+      const reqHost = reqUrl.hostname.toLowerCase();
+      const hClass = classifyHostname(reqHost);
+      if (hClass.type === "custom_domain" && !isVerifiedCustomDomain(reqHost) && env?.DB) {
+        await resolveCustomDomainTenant(reqHost, env);
+      }
+    } catch {}
+
     // CORS preflight — answer before doing any work.
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: getCorsHeaders(request) });
+      return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
     }
 
     try {
       const url = new URL(request.url);
       const hostClassification = classifyHostname(url.hostname);
+
+      // RFC 9116 Security.txt deterministic endpoint across all hosts
+      if (url.pathname === "/.well-known/security.txt" || url.pathname === "/security.txt") {
+        return getSecurityTxtResponse();
+      }
 
       // 0. Worker Custom Domain: cdn.ferasetu.com (or reserved 'cdn' subdomain or /cdn/ path)
       if (
@@ -9701,6 +9750,33 @@ export default {
         return await handleStorefrontRequest(request, env, ctx, hostClassification);
       }
 
+      // 3b. Custom merchant storefront domain (e.g. rohankirana.in, store.brand.com)
+      if (hostClassification.type === "custom_domain") {
+        if (url.pathname.startsWith("/api/")) {
+          return await route(request, env);
+        }
+        const customTenant = await resolveCustomDomainTenant(url.hostname, env);
+        if (customTenant) {
+          const customClassification = {
+            ...hostClassification,
+            slug: customTenant.slug,
+            organizationId: customTenant.organizationId,
+            domain: url.hostname,
+            customDomain: url.hostname,
+            isCustomDomain: true,
+          };
+          return await handleStorefrontRequest(request, env, ctx, customClassification);
+        }
+        return new Response("Domain not configured", {
+          status: 404,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "X-Robots-Tag": "noindex, nofollow",
+            "Cache-Control": "private, no-cache, no-store",
+          },
+        });
+      }
+
       // 4. Default / API Domain handling (api.ferasetu.com, *.workers.dev, localhost, etc.)
       if (!env.DB) {
         const p = url.pathname;
@@ -9724,6 +9800,18 @@ export default {
       console.error("Unhandled worker error:", err && err.stack ? err.stack : err);
       const errMsg = (err && typeof err.message === 'string' && err.message.trim()) ? err.message.trim() : "Internal server error";
       return errorResponse(errMsg, 500, undefined, request);
+    }
+  },
+  async scheduled(event, env, ctx) {
+    if (ctx && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil((async () => {
+        try {
+          await runDailyAggregation(env);
+          await pruneRawEvents(env, 30);
+        } catch (e) {
+          console.warn("[Analytics Scheduled Maintenance Error]", e?.message || e);
+        }
+      })());
     }
   },
 };

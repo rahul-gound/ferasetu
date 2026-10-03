@@ -26,7 +26,22 @@ import {
 const router = Router();
 
 function getTrackingHmacSecret(): string {
-  return process.env.JWT_SECRET || 'ferasetu-order-tracking-secret-2026';
+  const secret = process.env.ORDER_TRACKING_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ORDER_TRACKING_SECRET or JWT_SECRET must be set in production');
+    }
+    return 'dev-only-tracking-secret-ferasetu';
+  }
+  return secret;
+}
+
+function generateDeliveryCode(): string {
+  return crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
+function generatePaymentOtp(): string {
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 export function generateOrderTrackingToken(orderId: string, phone: string): string {
@@ -152,6 +167,11 @@ router.post('/create',
       deliveryType, shopId, items, paymentMethod = 'offline'
     } = req.body;
 
+    if (paymentMethod && String(paymentMethod).toLowerCase().trim() === 'online') {
+      res.status(400).json({ error: 'Online payments are not yet enabled for this store. Please choose Cash on Delivery or UPI on Delivery.' });
+      return;
+    }
+
     const db = getDatabase();
 
     // Resolve store market and currency
@@ -161,8 +181,8 @@ router.post('/create',
     // Calculate subtotal in minor units
     let subtotalMinor = 0;
     const resolvedItems = [];
-    const deliveryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const paymentOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const deliveryCode = generateDeliveryCode();
+    const paymentOtp = generatePaymentOtp();
 
     for (const item of items) {
       const product = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ? AND is_active = 1')
@@ -198,8 +218,8 @@ router.post('/create',
     const totalDecimal = fromMinorUnits(totalMinor, currency);
     const subtotalDecimal = fromMinorUnits(subtotalMinor, currency);
 
-    const isPaidOnline = paymentMethod === 'online';
-    const amountPaidMinor = isPaidOnline ? totalMinor : 0;
+    const isPaidOnline = false;
+    const amountPaidMinor = 0;
     const orderId = uuidv4();
 
     db.prepare(`
@@ -216,7 +236,7 @@ router.post('/create',
       subtotalDecimal, deliveryFeeDecimal, totalDecimal, currency,
       subtotalMinor, deliveryFeeMinor, totalMinor, amountPaidMinor,
       amountPaidMinor, `Code: ${deliveryCode} | OTP: ${paymentOtp}`,
-      isPaidOnline ? 'paid' : 'unpaid', paymentMethod
+      'unpaid', paymentMethod
     );
 
     // Generate authoritative immutable Invoice (idempotent)
@@ -226,7 +246,7 @@ router.post('/create',
 
     if (!existingInvoice) {
       invoiceId = `inv_${uuidv4()}`;
-      invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomInt(1000, 10000)}`;
 
       db.prepare(`
         INSERT INTO invoices (
@@ -576,7 +596,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
   const isPaid = payment_status === 'paid';
   const amountPaidMinor = isPaid ? totalMinor : 0;
   const orderId = uuidv4();
-  const deliveryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const deliveryCode = generateDeliveryCode();
   const trackingToken = generateOrderTrackingToken(orderId, finalCustomerPhone || '');
 
   db.prepare(`
@@ -601,7 +621,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
 
   if (!existingInvoice) {
     invoiceId = `inv_${uuidv4()}`;
-    invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    invoiceNumber = `FS-INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomInt(1000, 10000)}`;
 
     db.prepare(`
       INSERT INTO invoices (

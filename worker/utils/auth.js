@@ -199,7 +199,23 @@ export async function verifyPassword(password, encodedHash) {
     return false;
   }
   
-  return crypto.subtle.timingSafeEqual(hashBuffer, expectedHashBuffer);
+  return timingSafeEqual(hashBuffer, expectedHashBuffer);
+}
+
+/**
+ * Constant-time byte comparison to prevent timing attacks.
+ */
+export function timingSafeEqual(a, b) {
+  const bufA = a instanceof Uint8Array ? a : new Uint8Array(a);
+  const bufB = b instanceof Uint8Array ? b : new Uint8Array(b);
+  if (bufA.byteLength !== bufB.byteLength) {
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < bufA.byteLength; i++) {
+    diff |= bufA[i] ^ bufB[i];
+  }
+  return diff === 0;
 }
 
 /**
@@ -213,7 +229,11 @@ export async function requireAdminAuth(request, env) {
   }
 
   const token = authHeader.substring(7);
-  const jwtSecret = env.ADMIN_JWT_SECRET || env.JWT_SECRET || "ferasetu-production-admin-secret-2026";
+  const isProd = env.ENVIRONMENT === "production" || env.NODE_ENV === "production";
+  const jwtSecret = env.ADMIN_JWT_SECRET || (!isProd ? env.JWT_SECRET : "");
+  if (!jwtSecret) {
+    throw new Error("Admin JWT secret is not configured on this server");
+  }
 
   try {
     const payload = await verifyAdminJwt(token, jwtSecret);

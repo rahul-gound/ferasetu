@@ -3,6 +3,8 @@
 // Handles merchant subdomains, edge asset proxying from Cloudflare Pages,
 // host classification, SEO indexing guardrails, and page entitlement evaluation.
 
+import { resolvePricingRegion } from "./routes/geo.js";
+
 export const BASE_DOMAINS = ["ferasetu.com", "fera-search.tech"];
 
 export const DEFAULT_PAGES_ORIGIN = "https://ferasetu.com";
@@ -48,6 +50,28 @@ export const PLAN_PAGE_ENTITLEMENTS = {
   enterprise: { maxCustomPages: Infinity, allowedSystemPages: true },
 };
 
+export const FERASETU_CSP = "default-src 'self'; script-src 'self' https://sdk.cashfree.com https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ferasetu.com https://*.ferasetu.com https://api.workos.com https://*.cashfree.com https://challenges.cloudflare.com https://*.statsigapi.net https://*.statsig.com https://api.sarvam.ai; frame-src 'self' https://*.cashfree.com https://challenges.cloudflare.com https://api.workos.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://api.workos.com https://*.cashfree.com;";
+
+export const RFC9116_SECURITY_TXT = `Contact: mailto:security@ferasetu.com
+Expires: 2027-09-26T00:00:00.000Z
+Preferred-Languages: en, hi
+Policy: https://ferasetu.com/terms
+Canonical: https://ferasetu.com/.well-known/security.txt
+`;
+
+export function getSecurityTxtResponse() {
+  return new Response(RFC9116_SECURITY_TXT, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=86400",
+      "Access-Control-Allow-Origin": "*",
+      "X-Content-Type-Options": "nosniff",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    },
+  });
+}
+
 // In-memory module-level cache for the SPA HTML shell (index.html)
 let cachedSpaHtml = null;
 let cachedSpaHtmlTime = 0;
@@ -64,6 +88,8 @@ const MERCHANT_CACHE_TTL_MS = 60 * 1000;
 
 export function clearMerchantCache() {
   merchantCache.clear();
+  customDomainCache.clear();
+  verifiedCustomDomains.clear();
 }
 
 export function getCachedMerchant(slug) {
@@ -136,7 +162,103 @@ export function classifyHostname(hostname) {
     }
   }
 
+  // Custom domain classification (valid non-base domain with at least one dot)
+  if (host.includes(".") && !host.startsWith(".") && !host.endsWith(".")) {
+    return { type: "custom_domain", host };
+  }
+
   return { type: "unknown_host", host };
+}
+
+const customDomainCache = new Map();
+const verifiedCustomDomains = new Set();
+const CUSTOM_DOMAIN_CACHE_TTL_MS = 60 * 1000;
+
+/**
+ * Checks if a hostname is in the verified custom domain set or cache.
+ */
+export function isVerifiedCustomDomain(hostname) {
+  if (!hostname || typeof hostname !== "string") return false;
+  const cleanHost = hostname.toLowerCase().trim();
+  const cached = customDomainCache.get(cleanHost);
+  if (cached && Date.now() < cached.expiresAt) {
+    return Boolean(cached.data && cached.data.organizationId);
+  }
+  return verifiedCustomDomains.has(cleanHost);
+}
+
+export function markVerifiedCustomDomain(hostname) {
+  if (!hostname) return;
+  verifiedCustomDomains.add(hostname.toLowerCase().trim());
+}
+
+/**
+ * Resolves verified custom domain tenant mapping from D1 with in-memory caching.
+ */
+export async function resolveCustomDomainTenant(hostname, env) {
+  if (!hostname || !env?.DB) return null;
+  const cleanHost = hostname.toLowerCase().trim();
+
+  const cached = customDomainCache.get(cleanHost);
+  if (cached && Date.now() < cached.expiresAt) {
+    if (cached.data && cached.data.organizationId) {
+      verifiedCustomDomains.add(cleanHost);
+    }
+    return cached.data;
+  }
+
+  let result = null;
+  try {
+    // 1. Primary: Look up verified domain in email_domains
+    const domRow = await env.DB.prepare(`
+      SELECT ed.id, ed.organization_id, ed.domain, ed.verification_status,
+             s.id as shop_id, s.store_slug, s.name as shop_name,
+             u.id as user_id, u.subdomain, u.business_name
+      FROM email_domains ed
+      LEFT JOIN shops s ON s.organization_id = ed.organization_id
+      LEFT JOIN users u ON u.organization_id = ed.organization_id
+      WHERE ed.domain = ? AND ed.verification_status = 'VERIFIED'
+      LIMIT 1
+    `).bind(cleanHost).first();
+
+    if (domRow) {
+      const slug = domRow.store_slug || domRow.subdomain || (domRow.organization_id || '').replace(/_/g, '-');
+      result = {
+        organizationId: domRow.organization_id,
+        slug,
+        shopId: domRow.shop_id || domRow.user_id,
+        shopName: domRow.shop_name || domRow.business_name,
+        customDomain: domRow.domain,
+      };
+      verifiedCustomDomains.add(cleanHost);
+    } else {
+      // 2. Fallback: Look up custom domain in users table
+      const userRow = await env.DB.prepare(`
+        SELECT id, organization_id, subdomain, business_name FROM users WHERE LOWER(custom_domain) = ? LIMIT 1
+      `).bind(cleanHost).first();
+
+      if (userRow) {
+        const slug = userRow.subdomain || (userRow.organization_id || userRow.id || '').replace(/_/g, '-');
+        result = {
+          organizationId: userRow.organization_id || userRow.id,
+          slug,
+          shopId: userRow.id,
+          shopName: userRow.business_name,
+          customDomain: cleanHost,
+        };
+        verifiedCustomDomains.add(cleanHost);
+      }
+    }
+  } catch (err) {
+    console.warn("Custom domain resolution error:", err?.message);
+  }
+
+  customDomainCache.set(cleanHost, {
+    data: result,
+    expiresAt: Date.now() + CUSTOM_DOMAIN_CACHE_TTL_MS,
+  });
+
+  return result;
 }
 
 /**
@@ -159,17 +281,70 @@ export function isStaticAsset(pathname) {
   const lower = pathname.toLowerCase();
   return (
     lower.startsWith("/assets/") ||
+    lower.startsWith("/.well-known/") ||
+    lower === "/.well-known/security.txt" ||
+    lower === "/security.txt" ||
+    lower === "/robots.txt" ||
+    lower === "/sitemap.xml" ||
     lower === "/favicon.ico" ||
     lower === "/site.webmanifest" ||
-    lower === "/robots.txt" ||
     lower === "/og-default.png" ||
     lower === "/logo-official.png" ||
     lower === "/logo.png" ||
     lower === "/logo.webp" ||
-    /\.(?:js|css|json|map|svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|eot|ico)$/i.test(
+    /\.(?:js|css|json|map|svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|eot|ico|xml|txt)$/i.test(
       lower
     )
   );
+}
+
+/**
+ * Detects legacy regional marketing paths and returns the canonical target URL, or null if not legacy.
+ * Legacy patterns:
+ * /eu/uk(/.*)? -> /...
+ * /uk(/.*)?    -> /...
+ * /us(/.*)?    -> /...
+ * /in(/.*)?    -> /...
+ * /eu(/.*)?    -> /...
+ * /europe(/.*)?-> /...
+ */
+export function getLegacyRedirect(pathname, search = "") {
+  if (!pathname || typeof pathname !== "string") return null;
+
+  // Match leading legacy regional prefix
+  const match = pathname.match(/^\/(eu\/uk|uk|us|in|eu|europe)(?:$|\/(.*))/i);
+  if (!match) return null;
+
+  const subpath = match[2] ? match[2].trim() : "";
+  const subpathLower = subpath.toLowerCase().replace(/\/+$/, "");
+
+  let canonicalPath = "/";
+  if (!subpathLower || subpathLower === "") {
+    canonicalPath = "/";
+  } else if (subpathLower === "pricing") {
+    canonicalPath = "/pricing";
+  } else if (subpathLower === "shopify-alternative" || subpathLower === "shopify-alternative-india") {
+    canonicalPath = "/shopify-alternative-india";
+  } else if (subpathLower === "online-dukaan" || subpathLower === "online-dukaan-banaye") {
+    canonicalPath = "/online-dukaan-banaye";
+  } else if (subpathLower === "free-online-store") {
+    canonicalPath = "/free-online-store";
+  } else if (subpathLower === "kirana-store-online") {
+    canonicalPath = "/kirana-store-online";
+  } else if (subpathLower === "whatsapp-store") {
+    canonicalPath = "/";
+  } else if (subpathLower === "terms") {
+    canonicalPath = "/terms";
+  } else if (subpathLower === "privacy") {
+    canonicalPath = "/privacy";
+  } else if (subpathLower === "features") {
+    canonicalPath = "/";
+  } else {
+    // Preserve any deeper route relative to root canonical
+    canonicalPath = "/" + subpath;
+  }
+
+  return `${canonicalPath}${search || ""}`;
 }
 
 /**
@@ -213,19 +388,63 @@ export function isStoreEligibleForIndexing(merchant, productCount = 0) {
  * Proxies static assets from the Cloudflare Pages origin with Cloudflare Edge Cache.
  * Cross-tenant normalized cache keys ensure that fingerprinted assets (/assets/*.js, etc.)
  * are cached once at the Cloudflare edge POP and shared across all merchant storefronts.
+ *
+ * Edge Market Resolution:
+ * - 301 Permanent Redirects for legacy regional routes (/eu/uk, /uk, /us, /in, /eu, /europe)
+ * - Safe cache partitioning so HTML documents never cross-contaminate across markets
+ * - Response headers: X-FeraSetu-Market, X-FeraSetu-Country, X-FeraSetu-Source, Vary: Accept-Encoding, Cookie, CF-IPCountry
  */
 export async function proxyPagesAsset(request, env, ctx) {
   const url = new URL(request.url);
+
+  // 1. Intercept legacy regional marketing paths and redirect 301 to clean canonical root URLs
+  const legacyRedirectPath = getLegacyRedirect(url.pathname, url.search);
+  if (legacyRedirectPath) {
+    const redirectUrl = new URL(legacyRedirectPath, url.origin);
+    return new Response(null, {
+      status: 301,
+      headers: {
+        Location: redirectUrl.toString(),
+        "Cache-Control": "public, max-age=86400",
+        Vary: "Accept-Encoding",
+        "X-Robots-Tag": "noindex, follow",
+      },
+    });
+  }
+
   const pagesOrigin = (env?.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN).replace(
     /\/+$/,
     ""
   );
   const pagesHost = new URL(pagesOrigin).host;
 
+  // 2. Edge Market Resolution (Cookie preference -> CF-IPCountry -> GLOBAL)
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const cookieMatch = cookieHeader.match(/(?:^|;\s*)fera_market=([a-zA-Z]+)(?:;|$)/);
+  const cookieMarket = cookieMatch ? cookieMatch[1].toUpperCase() : null;
+  const cfCountry = request.headers.get("CF-IPCountry") || request.cf?.country || null;
+
+  let resolvedMarket = "GLOBAL";
+  let marketSource = "fallback";
+  if (cookieMarket && ["IN", "UK", "US", "EU", "GLOBAL"].includes(cookieMarket)) {
+    resolvedMarket = cookieMarket;
+    marketSource = "preference";
+  } else if (cfCountry) {
+    resolvedMarket = resolvePricingRegion(cfCountry, null);
+    marketSource = "geo";
+  }
+
+  const isStatic = isStaticAsset(url.pathname);
+
   // Normalized cross-tenant cache key: https://ferasetu.com/assets/...
-  // This allows all merchant subdomains (e.g. shop1, shop2) to share the exact same edge cache!
+  // Fingerprinted static assets (/assets/*) share cross-tenant edge cache.
+  // HTML document routes vary by commercial market, so partition cache key by market.
   const normalizedUrl = new URL(url.pathname + url.search, pagesOrigin);
-  const cacheKey = new Request(normalizedUrl.toString(), { method: "GET" });
+  const cacheKeyUrl = new URL(normalizedUrl.toString());
+  if (!isStatic) {
+    cacheKeyUrl.searchParams.set("__fs_mkt", resolvedMarket);
+  }
+  const cacheKey = new Request(cacheKeyUrl.toString(), { method: "GET" });
 
   const cache =
     typeof caches !== "undefined" && caches.default ? caches.default : null;
@@ -257,7 +476,7 @@ export async function proxyPagesAsset(request, env, ctx) {
     });
 
     // If a document route returned 404 from Pages, fallback to root / for SPA routing
-    if (!response.ok && response.status === 404 && !isStaticAsset(url.pathname)) {
+    if (!response.ok && response.status === 404 && !isStatic) {
       const spaUrl = new URL("/", pagesOrigin);
       response = await fetch(spaUrl.toString(), {
         method: "GET",
@@ -284,14 +503,25 @@ export async function proxyPagesAsset(request, env, ctx) {
     responseHeaders.set("X-Content-Type-Options", "nosniff");
     responseHeaders.set("X-Frame-Options", "SAMEORIGIN");
     responseHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    responseHeaders.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 
-    // Static fingerprinted assets get long-lived immutable caching; HTML gets revalidation
+    // Dynamic Edge Market Headers
+    responseHeaders.set("X-FeraSetu-Market", resolvedMarket);
+    responseHeaders.set("X-FeraSetu-Country", cfCountry || "UNKNOWN");
+    responseHeaders.set("X-FeraSetu-Source", marketSource);
+
+    if (url.pathname === "/" || url.pathname.endsWith(".html") || !isStatic) {
+      responseHeaders.set("Content-Security-Policy", FERASETU_CSP);
+    }
+
+    // Static fingerprinted assets get long-lived immutable caching; HTML gets must-revalidate + Vary
     if (url.pathname.startsWith("/assets/")) {
       responseHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
-    } else if (isStaticAsset(url.pathname)) {
+    } else if (isStatic) {
       responseHeaders.set("Cache-Control", "public, max-age=86400");
     } else {
       responseHeaders.set("Cache-Control", "public, max-age=0, must-revalidate");
+      responseHeaders.set("Vary", "Accept-Encoding, Cookie, CF-IPCountry");
     }
 
     const clientResponse = new Response(response.body, {
@@ -405,6 +635,8 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": FERASETU_CSP,
     "X-Robots-Tag": isEligibleForIndexing ? "index, follow" : "noindex, nofollow",
   });
 

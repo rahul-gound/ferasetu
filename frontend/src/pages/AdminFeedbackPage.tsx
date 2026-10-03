@@ -36,7 +36,7 @@ export default function AdminFeedbackPage() {
   const [filterSentiment, setFilterSentiment] = useState<'all' | 'positive' | 'neutral' | 'negative'>('all');
   const [selectedItem, setSelectedItem] = useState<FeedbackItem | null>(null);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('admin_token');
 
   const fetchFeedback = async () => {
     setLoading(true);

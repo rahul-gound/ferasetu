@@ -3,4 +3,18 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self)
-  Strict-Transport-Security: max-age=86400
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://sdk.cashfree.com https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ferasetu.com https://*.ferasetu.com https://api.workos.com https://*.cashfree.com https://challenges.cloudflare.com https://*.statsigapi.net https://*.statsig.com https://api.sarvam.ai; frame-src 'self' https://*.cashfree.com https://challenges.cloudflare.com https://api.workos.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://api.workos.com https://*.cashfree.com;
+
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400
+  Access-Control-Allow-Origin: *
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400
+
+/sitemap.xml
+  Content-Type: application/xml; charset=utf-8
+  Cache-Control: public, max-age=86400

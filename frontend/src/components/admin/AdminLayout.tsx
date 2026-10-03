@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, LayoutDashboard, LifeBuoy,
   ShoppingBag, Store, Bell, Calendar,
-  Menu, LogOut, ChevronRight, Zap, Terminal, Bug, MessageSquare
+  Menu, LogOut, ChevronRight, Zap, Terminal, Bug, MessageSquare, Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SEO from '../SEO';
@@ -25,6 +25,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     { id: 'dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Overview' },
+    { id: 'qa', path: '/admin/qa', icon: <Activity size={20} />, label: 'QA & Diagnostics' },
     { id: 'users', path: '/admin/users', icon: <Users size={20} />, label: 'Partners' },
     { id: 'shops', path: '/admin/shops', icon: <Store size={20} />, label: 'Shops' },
     { id: 'meetings', path: '/admin/meetings', icon: <Calendar size={20} />, label: 'Consultations' },
@@ -35,7 +36,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'system', path: '/admin/system', icon: <Terminal size={20} />, label: 'System Controls' },
   ];
 
-  const activeItem = navItems.find(item => location.pathname === item.path) || navItems[0];
+  const activeItem = navItems.find(item => location.pathname === item.path || location.pathname.startsWith(item.path + '/')) || navItems[0];
 
   return (
     <div className="flex min-h-screen bg-[#F4F7FE] font-sans">

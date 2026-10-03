@@ -29,18 +29,65 @@ async function test(name, fn) {
 // ---------------------------------------------------------------------------
 console.log('\n🌍 Suite: /api/geo Detection & Localization');
 
-await test('1. Default request resolves to India with Cashfree and INR', async () => {
+await test('1. Default unheadered request resolves to GLOBAL with Cashfree subscription and USD', async () => {
   const req = new Request('https://ferasetu.com/api/geo');
   const data = await handleGeoRoute(req, {});
+  assert.equal(data.market, 'GLOBAL');
+  assert.equal(data.currency, 'USD');
+  assert.equal(data.symbol, '$');
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.equal(data.permanentFreePlan, false);
+  assert.ok(data.plans.starter);
+  assert.ok(data.plans.growth);
+  assert.ok(data.plans.pro);
+});
+
+await test('1b. Explicit IN country header resolves to India with Cashfree and INR', async () => {
+  const req = new Request('https://ferasetu.com/api/geo', {
+    headers: { 'cf-ipcountry': 'IN' }
+  });
+  const data = await handleGeoRoute(req, {});
   assert.equal(data.country, 'IN');
+  assert.equal(data.market, 'IN');
   assert.equal(data.region, 'IN');
   assert.equal(data.currency, 'INR');
   assert.equal(data.symbol, '₹');
   assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.subscriptionGateway, 'cashfree');
   assert.equal(data.permanentFreePlan, true);
   assert.ok(data.plans.free);
   assert.ok(data.plans.business);
   assert.ok(data.plans.pro);
+});
+
+await test('1c. UK visitor (GB) resolves to UK market, GBP £, and Cashfree subscription gateway', async () => {
+  const req = new Request('https://ferasetu.com/api/geo', {
+    headers: { 'cf-ipcountry': 'GB' }
+  });
+  const data = await handleGeoRoute(req, {});
+  assert.equal(data.country, 'GB');
+  assert.equal(data.market, 'UK');
+  assert.equal(data.region, 'UK');
+  assert.equal(data.currency, 'GBP');
+  assert.equal(data.symbol, '£');
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.ok(data.supportedMerchantProviders.includes('stripe'));
+  assert.equal(data.suggestedLanguage, 'en-gb');
+});
+
+await test('1d. Saved cookie preference overrides IP geolocation', async () => {
+  const req = new Request('https://ferasetu.com/api/geo', {
+    headers: {
+      'cf-ipcountry': 'IN',
+      'cookie': 'fera_market=UK; other=1'
+    }
+  });
+  const data = await handleGeoRoute(req, {});
+  assert.equal(data.market, 'UK');
+  assert.equal(data.currency, 'GBP');
+  assert.equal(data.symbol, '£');
 });
 
 await test('2. Indian state code (MH) maps to Marathi (mr)', async () => {
@@ -79,7 +126,7 @@ await test('4. Indian state code (WB) maps to Bengali (bn)', async () => {
   assert.equal(data.suggestedLanguage, 'bn');
 });
 
-await test('5. EU country (FR) maps to Europe region, EUR, and French (fr)', async () => {
+await test('5. EU country (FR) maps to Europe region, EUR, Cashfree subscription, and French (fr)', async () => {
   const req = new Request('https://ferasetu.com/api/geo', {
     headers: {
       'cf-ipcountry': 'FR'
@@ -90,12 +137,13 @@ await test('5. EU country (FR) maps to Europe region, EUR, and French (fr)', asy
   assert.equal(data.region, 'EU');
   assert.equal(data.currency, 'EUR');
   assert.equal(data.symbol, '€');
-  assert.equal(data.gateway, 'stripe');
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.subscriptionGateway, 'cashfree');
   assert.equal(data.permanentFreePlan, false);
   assert.equal(data.suggestedLanguage, 'fr');
 });
 
-await test('6. US country maps to US region, USD, and English (en)', async () => {
+await test('6. US country maps to US region, USD, Cashfree subscription, and English (en)', async () => {
   const req = new Request('https://ferasetu.com/api/geo', {
     headers: {
       'cf-ipcountry': 'US'
@@ -106,7 +154,8 @@ await test('6. US country maps to US region, USD, and English (en)', async () =>
   assert.equal(data.region, 'US');
   assert.equal(data.currency, 'USD');
   assert.equal(data.symbol, '$');
-  assert.equal(data.gateway, 'stripe');
+  assert.equal(data.gateway, 'cashfree');
+  assert.equal(data.subscriptionGateway, 'cashfree');
   assert.equal(data.suggestedLanguage, 'en');
 });
 

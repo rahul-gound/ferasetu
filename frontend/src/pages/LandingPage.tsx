@@ -1,201 +1,90 @@
 /**
- * LandingPage — Complete AIDA narrative with Purple Cow positioning.
+ * LandingPage — Redesigned around the Start With Why / Golden Circle philosophy.
  *
- * STRUCTURE:
- * 1. ATTENTION — Hero (Purple Cow: zero-commission direct store + AI)
- * 2. ATTENTION — Dashboard preview
- * 3. INTEREST — Problem recognition (3 real shopkeeper problems)
- * 4. INTEREST — How FeraSetu works (3-step mechanism)
- * 5. DESIRE — Features as outcomes (Feature → Does → Matters)
- * 6. DESIRE — FeraSetu AI differentiator (real AI examples)
- * 7. TRUST — Proof section (replaces fake testimonial)
- * 8. DESIRE/ACTION — Pricing preview
- * 9. ACTION — FAQ (real objections, factual answers)
- * 10. ACTION — Final CTA
+ * PHILOSOPHY:
+ * 1. WHY (Belief & Purpose)
+ * 2. HOW (Principles & Architecture)
+ * 3. WHAT (Product & Evidence)
  *
- * Purple Cow positioning:
- * "Your own online store. Your customers. Your profits."
+ * Core Brand Idea:
+ * “Your business is yours. The internet should be too.”
  *
- * Ethical constraints:
- * - No fake testimonials
- * - No fake user counts
- * - No fake urgency
- * - No invented claims
- *
- * Psychology applied:
- * - AIDA framework (full page structure)
- * - Loss aversion (commission calculator)
- * - Endowment effect (shop name claim input)
- * - Foot-in-door (micro-commitment in hero)
- * - Risk reversal (data portability, cancel anytime)
- * - Authority + trust (payment logos, architecture guarantee)
- * - Color psychology (Blue=Trust, Orange=Action/Energy, White=Clarity)
- * - Contrast/anchoring (marketplace vs FeraSetu comparison)
- * - Chunking (steps in 3s, features in 3x2 grid)
- * - Specificity (real URLs, real product names, real numbers)
+ * Truth & Transparency:
+ * - 0% FeraSetu platform commission (third-party payment processing fees clearly noted)
+ * - FeraSetu does not own warehouses, physical inventory, riders, or delivery fleets
+ * - Real product demonstrations (no fake testimonials, no fake metrics, no fake urgency)
+ * - 14-day trial model with no credit card required to start
  */
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   CheckCircle2,
-  MessageSquare,
-  Zap,
-  BarChart3,
-  Store,
-  Globe,
-  Percent,
-  Smartphone,
   ShieldCheck,
-  Sparkles,
   Check,
-  LayoutDashboard,
   Lock,
-  Star,
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMarket } from '../contexts/MarketContext';
 import { getMarketPlans } from '../config/plans';
-import MarketingReveal from '../components/marketing/MarketingReveal';
 import SEO from '../components/SEO';
+import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
-// Lazy-loaded marketing sections for instant FCP/LCP and progressive chunk loading
-const HowItWorksSection = lazy(() => import('../components/marketing/HowItWorksSection'));
-const ProofSection = lazy(() => import('../components/marketing/ProofSection'));
+// Lazy-loaded specialized components for optimal performance & clean code-splitting
+const EvidenceShowcase = lazy(() => import('../components/marketing/EvidenceShowcase'));
+const JourneyDiagram = lazy(() => import('../components/marketing/JourneyDiagram'));
+const TransparencyTable = lazy(() => import('../components/marketing/TransparencyTable'));
+const ProductStoryWalkthrough = lazy(() => import('../components/marketing/ProductStoryWalkthrough'));
 const FAQSection = lazy(() => import('../components/marketing/FAQSection'));
-const FinalCTA = lazy(() => import('../components/marketing/FinalCTA'));
-const AIExamplePrompts = lazy(() => import('../components/marketing/AIExamplePrompts'));
-const TransformationFlow = lazy(() => import('../components/marketing/TransformationFlow'));
-const ValueCurveSection = lazy(() => import('../components/marketing/ValueCurveSection'));
-const HeroProductVisual = lazy(() => import('../components/marketing/HeroProductVisual'));
-const CommissionCalculator = lazy(() => import('../components/marketing/CommissionCalculator'));
 
 const SectionFallback = () => (
   <div className="w-full py-16 flex items-center justify-center">
-    <div className="w-6 h-6 rounded-full border-2 border-blue-100 border-t-blue-500 animate-spin" />
+    <div className="w-6 h-6 rounded-full border-2 border-blue-100 border-t-blue-600 animate-spin" />
   </div>
 );
 
-/** Outcome-oriented feature block: Feature → Does → Matters */
-const FEATURE_OUTCOMES = [
-  {
-    icon: <Globe size={20} />,
-    feature: 'Your own store URL',
-    does: 'Your catalog lives at yourshop.ferasetu.com — permanently yours to share anywhere.',
-    matters: 'Customers know exactly where to find you. No searching on a crowded marketplace or scrolling through chat.',
-    iconBg: 'bg-blue-100 text-blue-600',
-    accent: 'border-blue-200',
-  },
-  {
-    icon: <Percent size={20} />,
-    feature: 'Zero commissions',
-    does: 'We charge a flat subscription. You keep 100% of every sale.',
-    matters: 'Unlike marketplace platforms taking 15%–30% cuts on every order, 100% of your customer revenue stays yours.',
-    iconBg: 'bg-orange-100 text-orange-600',
-    accent: 'border-orange-200',
-  },
-  {
-    icon: <Zap size={20} />,
-    feature: 'Direct payments',
-    does: 'Customers pay via UPI, cards, and direct channels — money goes straight to your account.',
-    matters: 'No weeks of payout escrow. No merchant lock-in. Faster cash flow directly to your business.',
-    iconBg: 'bg-blue-100 text-blue-600',
-    accent: 'border-blue-200',
-  },
-  {
-    icon: <MessageSquare size={20} />,
-    feature: 'Streamlined ordering',
-    does: 'Customers build a cart in your store and submit clean, formatted orders instantly.',
-    matters: 'No chaotic back-and-forth messaging. Orders arrive structured and ready to fulfill.',
-    iconBg: 'bg-orange-100 text-orange-600',
-    accent: 'border-orange-200',
-  },
-  {
-    icon: <Store size={20} />,
-    feature: 'Product & inventory management',
-    does: 'Add products with photos, prices, and stock limits. Track levels automatically.',
-    matters: 'You\'ll know what\'s running low before you run out. No manual spreadsheets.',
-    iconBg: 'bg-blue-100 text-blue-600',
-    accent: 'border-blue-200',
-  },
-  {
-    icon: <BarChart3 size={20} />,
-    feature: 'Sales analytics',
-    does: 'See your revenue, top products, and order trends in one clear dashboard.',
-    matters: 'Know what\'s actually making you money instead of guessing.',
-    iconBg: 'bg-orange-100 text-orange-600',
-    accent: 'border-orange-200',
-  },
-];
-
 export default function LandingPage() {
-  const { getLocalizedLink, translate: t } = useLanguage();
+  const { getLocalizedLink } = useLanguage();
   const { user, register } = useAuth();
-  const { market, config } = useMarket();
+  const { market, config, trialPolicy, formatPrice } = useMarket();
   const navigate = useNavigate();
   const previewPlans = getMarketPlans(market);
 
-  const [claimShopName, setClaimShopName] = useState('');
+  const claimShopName = '';
 
   useEffect(() => {
-    // Zoho Zia Agents Chat Integration
-    const scriptId = 'zoho-agents-chat-sdk';
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://agents.zoho.in/resources/addon-chat/assets/js/agents-chat-sdk.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.25) {
+          trackSectionView(entry.target.id);
+        }
+      });
+    }, { threshold: [0.25] });
 
-    const containerId = 'zoho-agents-chatkit-wrap';
-    let container = document.getElementById(containerId);
-    if (!container) {
-      container = document.createElement('div');
-      container.id = containerId;
+    const sections = document.querySelectorAll('section[id]');
+    sections.forEach((s) => observer.observe(s));
 
-      const orgId = (import.meta as any).env?.VITE_ZOHO_CHAT_ORG_ID || '60088469696';
-      const entityId = (import.meta as any).env?.VITE_ZOHO_CHAT_ENTITY_ID || '12456000000002143';
-      const chatKey = (import.meta as any).env?.VITE_ZOHO_CHAT_KEY || '';
-
-      const ziaConfig: Record<string, string> = { orgId, entityId };
-      if (chatKey) {
-        ziaConfig.chatKey = chatKey;
-        ziaConfig.chatkey = chatKey;
-      }
-
-      const chatkit = document.createElement('agents-chatkit');
-      chatkit.setAttribute('ziaAgents', JSON.stringify(ziaConfig));
-      if (chatKey) {
-        chatkit.setAttribute('chatkey', chatKey);
-        chatkit.setAttribute('chatKey', chatKey);
-      }
-
-      container.appendChild(chatkit);
-      document.body.appendChild(container);
-    }
-
-    return () => {
-      const el = document.getElementById(containerId);
-      if (el) el.remove();
-    };
+    return () => observer.disconnect();
   }, []);
 
   const slugifiedClaim = claimShopName
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || (market === 'IN' ? 'sharmakirana' : 'apexroasters');
+    .replace(/^-|-$/g, '') || (market === 'IN' ? 'sharmageneral' : 'apexstore');
 
-  const handleClaimSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStart = (source: string) => {
+    trackCtaClick(source, 'Bring your business online', source, '/register');
+    trackSignupStart(market, source);
     if (claimShopName.trim()) {
       try {
         localStorage.setItem('ferasetu_claimed_shop_name', claimShopName.trim());
-      } catch {}
+      } catch {
+        // ignore localStorage access errors
+      }
     }
     if (user) {
       navigate('/dashboard');
@@ -207,8 +96,8 @@ export default function LandingPage() {
   return (
     <>
       <SEO
-        title={t('seo.landing.title') || "FeraSetu — Zero-Bloat Online Store Builder with Built-in AI"}
-        description={t('seo.landing.desc') || "Launch your independent online store in minutes. 0% commissions, no plugin bloat, and proactive AI assistance built-in."}
+        title="FeraSetu — Your business is yours. The internet should be too."
+        description="We believe independent businesses should be able to build an online presence, serve their customers and grow without losing control of the business they built."
         noindex={false}
         structuredData={{
           '@context': 'https://schema.org',
@@ -216,14 +105,14 @@ export default function LandingPage() {
           name: 'FeraSetu',
           applicationCategory: 'BusinessApplication',
           description:
-            'Online store builder. Zero commissions, direct ordering, fast payments, and FeraSetu AI assistant.',
+            'Digital infrastructure for independent commerce. Connects storefront, ordering, payments, and fulfillment with 0% FeraSetu platform commission.',
           offers: {
             '@type': 'Offer',
             price: '0',
-            priceCurrency: 'USD',
-            description: 'Free forever for up to 25 products',
+            priceCurrency: market === 'IN' ? 'INR' : 'USD',
+            description: '14-day trial · No credit card to start',
           },
-          operatingSystem: 'Web, iOS, Android',
+          operatingSystem: 'Web, Mobile',
           url: 'https://ferasetu.com',
         }}
       />
@@ -231,595 +120,662 @@ export default function LandingPage() {
       <PublicLayout>
 
         {/* ================================================================
-          SECTION 1 — HERO (ATTENTION)
-          Psychology: Endowment effect (shop name claim), Zero-risk anchor,
-          Foot-in-door (type name = micro commitment)
+          SECTION 1 — HERO / WHY
+          Headline: “Your business is yours. The internet should be too.”
+          Core Purpose: Why FeraSetu exists.
         ================================================================ */}
-        <section className="relative pt-12 pb-24 md:pt-18 md:pb-28 overflow-hidden">
-          {/* Warm layered gradient — white + blue + faint orange warmth */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-orange-50/40 pointer-events-none" />
-          {/* Subtle decorative circle */}
-          <div className="absolute -top-32 -right-32 w-[480px] h-[480px] rounded-full bg-blue-100/30 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-[320px] h-[320px] rounded-full bg-orange-100/25 blur-3xl pointer-events-none" />
+        <section id="why" className="relative pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden bg-white border-b border-slate-100">
+          <div className="max-w-[1100px] mx-auto px-6 relative z-10 text-center">
 
-          <div className="max-w-[1000px] mx-auto px-6 relative z-10 text-center">
-
-            {/* Badge */}
-            <div className="hero-card-enter inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-200 text-blue-700 text-xs sm:text-sm font-bold tracking-wide mb-6 uppercase shadow-sm">
-              <Store size={14} className="text-blue-600" />
-              <span>{t('hero.badge') || 'For Independent Shopkeepers & Small Businesses'}</span>
+            {/* Belief Tag */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-semibold mb-8">
+              <span className="w-2 h-2 rounded-full bg-blue-600" />
+              <span>The Independent Business Philosophy</span>
             </div>
 
-            {/* Main Headline — Psychology: Loss aversion + specificity */}
-            <h1 className="hero-card-enter hero-card-delay-1 text-4xl sm:text-5xl md:text-6xl font-black text-blue-950 tracking-tight leading-[1.08] mb-4">
-              Your own online store.{' '}
-              <span className="relative inline-block">
-                <span className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent">
-                  0% commission.
-                </span>
-              </span>
+            {/* Main Headline */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6 max-w-4xl mx-auto">
+              Your business is yours.{' '}
+              <span className="text-blue-600 block sm:inline">The internet should be too.</span>
             </h1>
 
-            {/* Subheadline — conversational, human */}
-            <p className="hero-card-enter hero-card-delay-2 text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Stop losing 15%–30% of your hard-earned margins to marketplaces. Launch your independent online store with your custom link, instant UPI payments, and FeraSetu AI — all built-in, free to start.
+            {/* Supporting Copy */}
+            <p className="text-lg sm:text-xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed font-normal">
+              We believe independent businesses should be able to build an online presence, serve their customers and grow without losing control of the business they built.
             </p>
 
-            {/* Interactive Hero Storefront Reservation Sandbox */}
-            {/* Psychology: Endowment effect — "your" shop URL makes it feel already theirs */}
-            <form onSubmit={handleClaimSubmit} className="hero-card-enter hero-card-delay-3 max-w-xl mx-auto mb-6">
-              <div className="flex flex-col sm:flex-row items-center gap-2 p-2 bg-white rounded-2xl sm:rounded-full border-2 border-blue-200 shadow-xl shadow-blue-500/10 focus-within:border-orange-400 focus-within:ring-4 focus-within:ring-orange-100 transition-all">
-                <div className="flex items-center gap-2 px-4 py-2 w-full sm:w-auto flex-1 min-w-0">
-                  <Store size={20} className="text-orange-500 shrink-0" />
-                  <input
-                    type="text"
-                    value={claimShopName}
-                    onChange={(e) => setClaimShopName(e.target.value)}
-                    placeholder={market === 'IN' ? 'Enter shop name (e.g. Sharma Kirana)' : 'Enter business name (e.g. Apex Roasters)'}
-                    className="w-full bg-transparent text-sm sm:text-base font-semibold text-blue-950 placeholder-slate-400 focus:outline-none"
-                    aria-label="Claim your store name"
-                  />
-                  <span className="text-xs font-mono font-bold text-slate-400 shrink-0 hidden sm:inline">
-                    .ferasetu.com
+            {/* Primary & Secondary CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={() => handleStart('hero_primary')}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Bring your business online</span>
+                <ArrowRight size={18} />
+              </button>
+
+              <a
+                href="#belief"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-50 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>See why FeraSetu exists</span>
+              </a>
+            </div>
+
+            {/* Trial & Trust Line */}
+            <div className="text-xs sm:text-sm text-slate-500 font-medium flex items-center justify-center gap-3">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-blue-600" />
+                14-day trial
+              </span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-blue-600" />
+                No credit card to start
+              </span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck size={15} className="text-blue-600" />
+                0% FeraSetu platform commission
+              </span>
+            </div>
+
+            {/* Visual: Transformation Flow from Physical Business to Customer */}
+            <div className="mt-16 pt-10 border-t border-slate-100">
+              <div className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 mb-6">
+                THE DIGITAL BRIDGE // FROM REAL WORLD TO RETURNING CUSTOMER
+              </div>
+
+              {/* 5-Node Connected Transformation Flow */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto text-left">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">01 / REAL-WORLD</span>
+                  <div className="font-bold text-slate-900 text-sm">Physical Business</div>
+                  <p className="text-xs text-slate-500 mt-1">Your shop, products, and years of hard work.</p>
+                </div>
+                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
+                  <span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">02 / STOREFRONT</span>
+                  <div className="font-bold text-blue-950 text-sm">FeraSetu Storefront</div>
+                  <p className="text-xs text-slate-600 mt-1">Your own permanent address on the web.</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">03 / INTAKE</span>
+                  <div className="font-bold text-slate-900 text-sm">Customer Order</div>
+                  <p className="text-xs text-slate-500 mt-1">Structured cart checkout and direct contact.</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">04 / DISPATCH</span>
+                  <div className="font-bold text-slate-900 text-sm">Fulfillment & Handshake</div>
+                  <p className="text-xs text-slate-500 mt-1">Packed by you; handed off with OTP verification.</p>
+                </div>
+                <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">05 / RETENTION</span>
+                  <div className="font-bold text-slate-900 text-sm">Returning Customer</div>
+                  <p className="text-xs text-slate-500 mt-1">Direct customer relationship owned by you.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Real Product UI Mockup */}
+            <div className="mt-12 max-w-4xl mx-auto rounded-2xl border-2 border-slate-200 bg-white shadow-2xl overflow-hidden text-left">
+              {/* Browser bar */}
+              <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                </div>
+                <div className="bg-white px-4 py-1 rounded-md border border-slate-200 text-slate-600 font-mono text-xs flex items-center gap-2">
+                  <Lock size={12} className="text-green-600" />
+                  <span>https://{slugifiedClaim}.ferasetu.com</span>
+                </div>
+                <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+                  Active Storefront
+                </span>
+              </div>
+
+              {/* Storefront Header */}
+              <div className="p-6 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Sharma General Store</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Online ordering · Instant UPI & Cards · Local Store Pickup or Delivery</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-bold text-xs">
+                    ● Accepting Orders
                   </span>
                 </div>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-7 py-3.5 rounded-xl sm:rounded-full bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-lg shadow-orange-500/25"
-                >
-                  <span>{market === 'IN' ? (t('hero.cta') || 'Claim Free Store (₹0)') : 'Claim 14-Day Free Trial'}</span>
-                  <ArrowRight size={16} />
-                </button>
               </div>
 
-              {/* Reactive Live URL Slug Indicator — Psychology: Makes it feel real/owned */}
-              <div className="text-xs text-slate-500 font-medium mt-3 flex items-center justify-center gap-1.5 font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span>Your store link:</span>
-                <strong className="text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
-                  {slugifiedClaim}.ferasetu.com
-                </strong>
-                {claimShopName.trim() && (
-                  <span className="text-orange-500 font-semibold ml-1">← reserving for you</span>
-                )}
+              {/* Real Catalog Line Items */}
+              <div className="p-6 divide-y divide-slate-100">
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-slate-800 text-sm">Farm Fresh Milk (500ml)</div>
+                    <div className="text-xs text-slate-400">Dairy Essentials · Real-time stock tracked</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-900 text-sm">₹34.00</span>
+                    <span className="block text-[11px] text-green-600 font-medium">In Stock</span>
+                  </div>
+                </div>
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-slate-800 text-sm">Whole Wheat Bread (400g)</div>
+                    <div className="text-xs text-slate-400">Fresh Daily Bakery · In-store packaging</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-900 text-sm">₹45.00</span>
+                    <span className="block text-[11px] text-green-600 font-medium">In Stock</span>
+                  </div>
+                </div>
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-slate-800 text-sm">Butter Marie Biscuits (250g)</div>
+                    <div className="text-xs text-slate-400">Pantry Essentials · Regular customer favorite</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-900 text-sm">₹30.00</span>
+                    <span className="block text-[11px] text-green-600 font-medium">In Stock</span>
+                  </div>
+                </div>
               </div>
-            </form>
 
-            {/* Secondary actions */}
-            <div className="hero-card-enter hero-card-delay-3 flex items-center justify-center gap-4 mb-8">
-              {user ? (
-                <Link
-                  to="/dashboard"
-                  className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-600/20"
-                >
-                  <LayoutDashboard size={16} />
-                  <span>Go to Dashboard</span>
-                </Link>
-              ) : (
-                <a
-                  href="#how-it-works"
-                  className="px-6 py-2.5 rounded-full bg-white border border-blue-200 text-blue-700 font-bold text-sm hover:bg-blue-50 transition-all shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <span>See how it works</span>
-                  <ArrowRight size={14} />
-                </a>
-              )}
+              {/* Bottom transparency notice */}
+              <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+                <span>Direct customer connection. FeraSetu does not run marketplace ads or divert your buyers.</span>
+                <span className="font-mono text-blue-700 font-semibold">0% Platform Cut</span>
+              </div>
             </div>
 
-            {/* Trust badges — Psychology: Zero-risk anchoring, authority */}
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm font-semibold text-slate-600">
-              {market === 'IN' ? (
-                <>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-blue-500 flex-shrink-0" />
-                    {t('hero.zeroStart') || '₹0 to start'}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-blue-500 flex-shrink-0" />
-                    {t('hero.noCreditCard') || 'No credit card required'}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-orange-500 flex-shrink-0" />
-                    0% commission on sales
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck size={15} className="text-blue-500 flex-shrink-0" />
-                    Instant UPI & WhatsApp
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-blue-500 flex-shrink-0" />
-                    14-Day Free Trial
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-blue-500 flex-shrink-0" />
-                    No credit card to start
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-orange-500 flex-shrink-0" />
-                    0% transaction fees
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck size={15} className="text-blue-500 flex-shrink-0" />
-                    Cancel anytime • No surprise charges
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Transformation Flow */}
-          <div className='mt-10 max-w-4xl mx-auto px-6'>
-            <Suspense fallback={<SectionFallback />}>
-              <TransformationFlow />
-            </Suspense>
-          </div>
-
-          {/* Hero Dashboard Visual */}
-          <div className='hero-card-enter hero-card-delay-3 mx-auto mt-14 max-w-[1100px] px-6'>
-            <Suspense fallback={<SectionFallback />}>
-              <HeroProductVisual
-                shopName={claimShopName}
-                storeSlug={slugifiedClaim}
-                market={market}
-                currencySymbol={config.symbol}
-              />
-            </Suspense>
           </div>
         </section>
 
+
         {/* ================================================================
-          SECTION 2 — PROBLEM RECOGNITION (INTEREST)
-          Psychology: Problem agitation — amplify pain before offering solution.
-          Three concrete, honest problems Indian shopkeepers actually face.
+          SECTION 2 — “YOU ALREADY BUILT SOMETHING REAL”
+          Empathy section: Recognition of merchant's hard work.
         ================================================================ */}
-        <section className="py-20 md:py-24 bg-white border-t border-slate-100">
-          <div className="max-w-[1200px] mx-auto px-6">
+        <section className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-[1000px] mx-auto px-6">
             <div className="text-center max-w-2xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold uppercase tracking-wider mb-4">
-                🤔 Sound familiar?
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/80 text-slate-700 text-xs font-bold uppercase tracking-wider mb-4">
+                Recognition
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-blue-950 tracking-tight mb-4">
-                {t('problem.title') || 'Running a shop is hard enough without fighting your own tools.'}
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-5">
+                You already built the hard part.
               </h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                {t('problem.subtitle') || 'Most shopkeepers lose lakhs every year to messy orders, massive commissions, and complicated digital tools. It doesn\'t have to be this way.'}
+              <p className="text-lg text-slate-600 leading-relaxed font-normal">
+                Before you ever opened a browser or looked at an online tool, you did what most software never understands:
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-7">
+            {/* The 6 Real Foundations */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
               {[
-                {
-                  icon: <MessageSquare size={22} className="text-orange-500" />,
-                  iconBg: 'bg-orange-50',
-                  accent: 'border-l-4 border-l-orange-400',
-                  label: 'The problem',
-                  title: t('problem.whatsapp.title') || 'Order chaos on WhatsApp',
-                  desc: t('problem.whatsapp.desc') || 'Customers order via personal WhatsApp. You chase 50 threads trying to remember who paid, who needs delivery, and what they ordered.',
-                },
-                {
-                  icon: <Percent size={22} className="text-red-500" />,
-                  iconBg: 'bg-red-50',
-                  accent: 'border-l-4 border-l-red-400',
-                  label: 'The problem',
-                  title: t('problem.marketplace.title') || 'Losing 15–30% to marketplaces',
-                  desc: t('problem.marketplace.desc') || 'Zomato, Swiggy, Amazon — every order you get through them costs you a chunk of your margin. Your shop, their commission.',
-                },
-                {
-                  icon: <Smartphone size={22} className="text-blue-500" />,
-                  iconBg: 'bg-blue-50',
-                  accent: 'border-l-4 border-l-blue-400',
-                  label: 'The problem',
-                  title: t('problem.digital.title') || 'Going online feels too complicated',
-                  desc: t('problem.digital.desc') || 'Building a website, setting up payment gateways, managing inventory — each part feels like a different project requiring a developer.',
-                },
-              ].map((problem, i) => (
-                <div
-                  key={i}
-                  className={`bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${problem.accent}`}
-                >
-                  <div className={`w-11 h-11 ${problem.iconBg} rounded-xl flex items-center justify-center mb-5`}>
-                    {problem.icon}
+                { title: 'A Respected Name', desc: 'A real identity that customers in your area know, trust, and search for.' },
+                { title: 'Curated Products', desc: 'Years spent learning exactly what your customers need and what quality looks like.' },
+                { title: 'Real Relationships', desc: 'Direct handshakes, familiar faces, and conversations built over time.' },
+                { title: 'Local Knowledge', desc: 'Knowing your neighborhood routes, customer preferences, and seasonal demands.' },
+                { title: 'Pricing & Trust', desc: 'Fair, transparent prices that people rely on without hidden platform surcharges.' },
+                { title: 'Years of Dedication', desc: 'The daily discipline of opening on time, solving issues, and keeping shelves stocked.' },
+              ].map((item, idx) => (
+                <div key={idx} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center mb-3">
+                    0{idx + 1}
                   </div>
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    {problem.label}
-                  </div>
-                  <h3 className="text-xl font-bold text-blue-950 mb-3">{problem.title}</h3>
-                  <p className="text-slate-600 leading-relaxed text-sm">{problem.desc}</p>
+                  <h3 className="font-bold text-base text-slate-900 mb-1.5">{item.title}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
                 </div>
               ))}
             </div>
+
+            {/* Punchline */}
+            <div className="p-8 rounded-2xl bg-white border-2 border-blue-100 shadow-md text-center max-w-2xl mx-auto">
+              <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
+                Going online shouldn’t make it feel less like your business.
+              </p>
+              <p className="text-slate-600 text-sm mt-3 leading-relaxed">
+                Platforms often demand that you surrender your customer contacts, give away 15%–30% of your margin, and hide your business behind their logo. We reject that trade-off entirely.
+              </p>
+            </div>
           </div>
         </section>
 
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <ValueCurveSection />
-          </Suspense>
-        </MarketingReveal>
 
         {/* ================================================================
-          SECTION 3 — HOW FERASETU WORKS (INTEREST → DESIRE)
-          3-step mechanism: Add → Share → Receive
+          SECTION 3 — THE BELIEF
+          Large Editorial Section: The Golden Circle WHY.
         ================================================================ */}
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <HowItWorksSection showCTA={false} />
-          </Suspense>
-        </MarketingReveal>
+        <section id="belief" className="py-20 md:py-28 bg-white border-b border-slate-200">
+          <div className="max-w-[1000px] mx-auto px-6">
+            <div className="max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-6">
+                Our First Principle
+              </div>
 
-        {/* ================================================================
-          SECTION 4 — SOLUTION DEMO (DESIRE)
-          Psychology: Social proof via real store mockup. Authority signals.
-        ================================================================ */}
-        <section className="py-20 md:py-24 bg-gradient-to-b from-blue-50/60 to-white border-t border-blue-100/60">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="grid lg:grid-cols-2 gap-14 items-center">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold uppercase tracking-wider mb-4">
-                  ✦ The FeraSetu Difference
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight mb-8">
+                We believe a business should belong to the person who built it.
+              </h2>
+
+              <p className="text-lg text-slate-600 leading-relaxed mb-12">
+                When you bring your business onto the internet, you should not be forced into digital tenant farming. You should not be an anonymous catalog item inside an aggregator that auctions your own customers to the highest bidder.
+              </p>
+
+              {/* Three Editorial Principles */}
+              <div className="space-y-8 border-l-2 border-blue-600 pl-6 sm:pl-8">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                    “Your identity should be yours.”
+                  </h3>
+                  <p className="text-slate-600 text-base leading-relaxed">
+                    Your storefront URL is your name, not our brand. Customers see your logo, your colors, and your story. You are never forced to compete against sponsored clones right on your own catalog.
+                  </p>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-blue-950 mb-5 tracking-tight leading-[1.15]">
-                  {t('solution.title') || 'Your shop. Your customers. Your profits.'}
-                </h2>
-                <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                  {t('solution.subtitle') || 'FeraSetu gives you everything to sell online professionally — without paying commissions, hiring developers, or dealing with marketplace rules.'}
-                </p>
 
-                <div className="space-y-5">
-                  {[
-                    { step: '1', title: t('solution.step1.title') || 'Add your products', desc: t('solution.step1.desc') || 'Upload your catalog with photos, prices, and stock limits in minutes, right from your phone.', time: '~ 5 min setup' },
-                    { step: '2', title: t('solution.step2.title') || 'Share your link', desc: t('solution.step2.desc') || 'Post your custom store link on WhatsApp, Instagram, or share via QR code at your shop counter.', time: 'Share instantly' },
-                    { step: '3', title: t('solution.step3.title') || 'Receive orders & direct UPI', desc: t('solution.step3.desc') || 'Customers buy directly. Money goes straight to your UPI account. You own 100% of the customer relationship.', time: 'Earn daily' },
-                  ].map((s, idx) => (
-                    <div key={s.step} className="flex gap-4 items-start group">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black flex-shrink-0 text-sm shadow-md transition-all ${idx === 2 ? 'bg-orange-500 shadow-orange-400/30 text-white' : 'bg-blue-600 shadow-blue-500/20 text-white'}`}>
-                        {s.step}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-blue-950 text-base mb-0.5">{s.title}</h4>
-                          <span className="text-[10px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full hidden sm:inline">{s.time}</span>
-                        </div>
-                        <p className="text-slate-600 text-sm leading-relaxed">{s.desc}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                    “Your customer relationship should be yours.”
+                  </h3>
+                  <p className="text-slate-600 text-base leading-relaxed">
+                    When someone buys from you, they are your customer. You have their contact details, order history, and direct communication channel. We never mask customer phone numbers or sell your buyer list.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                    “Your online presence should be yours.”
+                  </h3>
+                  <p className="text-slate-600 text-base leading-relaxed">
+                    You can export your complete catalog, customer list, and order history at any time. Your digital presence is an asset you own, not a rented lease that can be terminated without explanation.
+                  </p>
                 </div>
               </div>
 
-              {/* Live store mockup — Psychology: Authority via product demo */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-blue-500/6 rounded-3xl transform rotate-1 scale-105" />
-                <div className="bg-blue-950 text-white p-8 md:p-10 rounded-2xl border border-blue-900 shadow-2xl relative">
-                  <div className="flex items-center justify-between mb-7 pb-5 border-b border-blue-900/60">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center text-white">
-                        <Store size={18} />
-                      </div>
-                      <div>
-                        <div className="font-bold text-white text-sm">Sharma Kirana & General Store</div>
-                        <div className="text-xs text-blue-400 font-mono">sharmakirana.ferasetu.com</div>
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold">
-                      ● Live
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-blue-900/60 p-4 rounded-xl border border-blue-800/60 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
-                          <MessageSquare className="text-green-400 flex-shrink-0" size={16} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-white">New Order #1042</div>
-                          <div className="text-xs text-blue-300">
-                            {market === 'IN' ? 'Ramesh K. · 4 items · Paid via UPI' : 'Alex M. · 3 items · Paid direct'}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-green-400 font-bold text-sm">
-                        {market === 'IN' ? '₹1,240' : `${config.symbol}84`}
-                      </span>
-                    </div>
-
-                    <div className="bg-blue-900/60 p-4 rounded-xl border border-blue-800/60 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                          <Sparkles className="text-blue-300 flex-shrink-0" size={16} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-white">FeraSetu AI Alert</div>
-                          <div className="text-xs text-blue-300">
-                            {market === 'IN' ? 'Fortune Mustard Oil — 2 units left' : 'Artisan Roast Blend — 3 units left'}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-blue-300 text-xs font-semibold px-2 py-1 bg-blue-500/15 rounded-md">Restock</span>
-                    </div>
-
-                    <div className="bg-orange-500/10 p-4 rounded-xl border border-orange-400/20 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-400/15 flex items-center justify-center">
-                          <Percent className="text-orange-400 flex-shrink-0" size={16} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-white">Commission Saved</div>
-                          <div className="text-xs text-blue-300">100% credited to your bank</div>
-                        </div>
-                      </div>
-                      <span className="text-orange-400 font-bold text-sm">{config.symbol}0 Cut</span>
-                    </div>
-                  </div>
-
-                  {/* Trust line at bottom of mockup */}
-                  <div className="mt-5 pt-4 border-t border-blue-900/60 flex items-center gap-2 text-xs text-blue-400">
-                    <Lock size={12} />
-                    <span>Payments go directly to your bank — FeraSetu never holds your money</span>
-                  </div>
-                </div>
+              {/* Section Conclusion */}
+              <div className="mt-12 pt-8 border-t border-slate-200">
+                <p className="text-xl font-bold text-blue-900">
+                  FeraSetu exists to make that belief practical.
+                </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ================================================================
-          COMMISSION SAVINGS COMPARISON (Interactive Loss Calculator)
-          Psychology: Loss aversion — show exact rupees being "stolen"
-        ================================================================ */}
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <CommissionCalculator />
-          </Suspense>
-        </MarketingReveal>
 
         {/* ================================================================
-          SECTION 5 — FEATURES AS OUTCOMES (DESIRE)
-          Feature → What it does → Why it matters
+          SECTION 4 — TRUST THROUGH EVIDENCE
+          Headline: “Don't take our word for it. Look at how it works.”
         ================================================================ */}
-        <section className="py-20 md:py-24 bg-white" id="features" aria-label="FeraSetu features">
+        <section id="evidence" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200">
           <div className="max-w-[1200px] mx-auto px-6">
-            <div className="text-center max-w-2xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4">
-                🛒 Everything You Need
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
+                Verifiable Capability
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-blue-950 mb-4 tracking-tight">
-                {t('features.title') || 'Built for how shopkeepers actually work'}
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Don’t take our word for it.<br />
+                <span className="text-blue-600">Look at how it works.</span>
               </h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                {t('features.subtitle') || 'Every feature answers a real problem. No bloat, no complexity — just what your shop needs.'}
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                We don’t ask you to trust marketing claims. Here is the actual digital workflow running in FeraSetu today — from storefront link to delivery handshake.
+              </p>
+            </div>
+
+            <Suspense fallback={<SectionFallback />}>
+              <EvidenceShowcase />
+            </Suspense>
+          </div>
+        </section>
+
+
+        {/* ================================================================
+          SECTION 5 — THE END-TO-END JOURNEY
+          Headline: “From first click to front door.”
+        ================================================================ */}
+        <section id="journey" className="py-20 md:py-28 bg-white border-b border-slate-200">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider mb-4">
+                Connected Architecture
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                From first click to front door.
+              </h2>
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                FeraSetu is not merely a website builder that dumps you once a product page is generated. We connect the complete digital business journey while keeping you at the centre.
+              </p>
+            </div>
+
+            <Suspense fallback={<SectionFallback />}>
+              <JourneyDiagram />
+            </Suspense>
+          </div>
+        </section>
+
+
+        {/* ================================================================
+          SECTION 6 — HOW FERASETU WORKS
+          Headline: “We build differently.”
+          The 5 Core Principles.
+        ================================================================ */}
+        <section id="principles" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-[1100px] mx-auto px-6">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
+                How We Operate
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                We build differently.
+              </h2>
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                These five design principles govern every line of code and every workflow we ship.
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {FEATURE_OUTCOMES.map((item, i) => (
-                <div
-                  key={i}
-                  className={`bg-white border ${item.accent} rounded-2xl p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${item.iconBg}`}>
-                    {item.icon}
+              {/* Principle 1 */}
+              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
+                    01
                   </div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">{item.feature}</div>
-                  <h3 className="font-bold text-blue-950 text-base mb-2 leading-snug">{item.does}</h3>
-                  <p className="text-slate-500 text-sm leading-relaxed">{item.matters}</p>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">OWNERSHIP FIRST</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    The merchant stays permanently at the centre. You own your storefront, your brand name, your customer phone numbers, and your order history.
+                  </p>
                 </div>
-              ))}
+                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
+                  Zero Lock-In Guarantee
+                </div>
+              </div>
+
+              {/* Principle 2 */}
+              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
+                    02
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">SIMPLICITY FIRST</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Technology should remove daily work, not create more. A mobile-friendly system that sets up in minutes with no coding or server administration.
+                  </p>
+                </div>
+                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
+                  No Developers Required
+                </div>
+              </div>
+
+              {/* Principle 3 */}
+              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
+                    03
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">TRANSPARENCY FIRST</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    We clearly explain who does what. No confusing commission tiers, no hidden deductions, and no physical claims we cannot fulfill.
+                  </p>
+                </div>
+                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
+                  0% FeraSetu Sales Cut
+                </div>
+              </div>
+
+              {/* Principle 4 */}
+              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
+                    04
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">HUMAN-FIRST AI</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    FeraSetu AI assists the shop owner with catalog cleanup, translations, and low-stock alerts — without pretending to run or automate away the merchant.
+                  </p>
+                </div>
+                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
+                  Assistant, Not Replacement
+                </div>
+              </div>
+
+              {/* Principle 5 */}
+              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between md:col-span-2 lg:col-span-2">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
+                    05
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">CONNECTED WORKFLOW</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Storefront, cart checkout, payment settlement, fulfillment dispatch, invoice generation, and customer retention operate as one connected circuit. You don’t have to glue 5 different plugins together.
+                  </p>
+                </div>
+                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
+                  Unified Merchant Workspace
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ================================================================
-          SECTION 6 — FERASETU AI (DESIRE — Purple Cow differentiator)
-          Real AI examples with shop-specific context.
-        ================================================================ */}
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <AIExamplePrompts showCTA ctaHref="/register" ctaText="Try FeraSetu AI Free" />
-          </Suspense>
-        </MarketingReveal>
 
         {/* ================================================================
-          SECTION 7 — PROOF (TRUST — No fake testimonials)
-          Psychology: Social proof, authority, risk reversal
+          SECTION 7 — PRODUCT REVEAL
+          Headline: “This is what we built to make the belief real.”
         ================================================================ */}
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <ProofSection
-              title="What you get from day one"
-              subtitle="Every feature below works on the Free plan — no credit card, no trial period, no hidden costs."
-            />
-          </Suspense>
-        </MarketingReveal>
-
-        {/* ================================================================
-          SECTION 8 — PRICING PREVIEW (DESIRE → ACTION)
-          Psychology: Anchoring (popular plan), contrast, transparency
-        ================================================================ */}
-        <section className="py-20 md:py-24 bg-gradient-to-b from-blue-50/40 to-white border-t border-blue-100/60" id="pricing" aria-label="FeraSetu pricing plans">
+        <section id="product-reveal" className="py-20 md:py-28 bg-white border-b border-slate-200">
           <div className="max-w-[1200px] mx-auto px-6">
-            <div className="text-center mb-14 max-w-2xl mx-auto">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4">
-                💰 Transparent Pricing
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
+                The Product Journey
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight text-blue-950">
-                {t('pricingPreview.title') || 'Simple, honest pricing'}
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                This is what we built to make the belief real.
               </h2>
-              <p className="text-slate-600 text-lg">
-                {market === 'IN'
-                  ? (t('pricingPreview.subtitle') || 'Start for ₹0. Upgrade when your business needs more. No hidden charges — ever.')
-                  : 'Start your 14-day free trial. Choose a plan to continue after your trial. No surprise charges — ever.'}
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                Rather than an overwhelming pile of 30 isolated features, follow ONE coherent journey from product creation to the repeat customer order.
               </p>
             </div>
 
-            <div className={`grid gap-6 mx-auto mb-10 items-stretch ${
+            <Suspense fallback={<SectionFallback />}>
+              <ProductStoryWalkthrough />
+            </Suspense>
+          </div>
+        </section>
+
+
+        {/* ================================================================
+          SECTION 8 — WHO DOES WHAT
+          Headline: “Know who does what.”
+          Operational transparency table.
+        ================================================================ */}
+        <section id="transparency" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-[1100px] mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-200 text-slate-800 text-xs font-bold uppercase tracking-wider mb-4">
+                Radical Transparency
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Know who does what.
+              </h2>
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                Software companies often exaggerate what their tools physically do. We are explicit about our responsibilities, your control, and third-party integrations.
+              </p>
+            </div>
+
+            <Suspense fallback={<SectionFallback />}>
+              <TransparencyTable />
+            </Suspense>
+          </div>
+        </section>
+
+
+        {/* ================================================================
+          SECTION 9 — ECONOMICS
+          Headline: “We believe the value you create should stay with you.”
+          Real pricing from codebase with 0% FeraSetu platform commission.
+        ================================================================ */}
+        <section id="pricing" className="py-20 md:py-28 bg-white border-b border-slate-200" aria-label="FeraSetu pricing plans">
+          <div className="max-w-[1100px] mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
+                Platform Economics
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                We believe the value you create should stay with you.
+              </h2>
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                FeraSetu charges a predictable subscription. We charge <strong>0% platform commission</strong> on your sales.
+              </p>
+            </div>
+
+            {/* Commission Notice Card */}
+            <div className="mb-12 p-6 rounded-2xl bg-blue-50/70 border border-blue-200 max-w-2xl mx-auto text-center">
+              <h3 className="font-bold text-blue-950 text-base mb-1">
+                Technically Precise Fee Structure
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                When you make a sale on FeraSetu, our platform takes ₹0 / $0. Third-party payment providers (such as Cashfree in India or Stripe internationally) charge their own standard gateway processing fee directly to settle funds into your bank account.
+              </p>
+            </div>
+
+            {/* Real Plans Grid from Codebase */}
+            <div className={`grid gap-6 mx-auto mb-12 items-stretch ${
               previewPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl'
             }`}>
               {previewPlans.map((plan) => {
                 const isPopular = plan.id === 'business';
-                const isFree = plan.price.monthly === 0;
 
                 return (
                   <div
                     key={plan.id}
                     className={`rounded-2xl p-7 flex flex-col relative transition-all duration-200 ${
                       isPopular
-                        ? 'bg-white border-2 border-orange-500 transform md:-translate-y-3 shadow-2xl shadow-orange-500/10 text-blue-950'
-                        : 'bg-white border border-slate-200 shadow-md text-blue-950 hover:shadow-lg'
+                        ? 'bg-white border-2 border-blue-600 shadow-xl shadow-blue-600/10'
+                        : 'bg-white border border-slate-200 shadow-sm hover:border-slate-300'
                     }`}
                   >
                     {isPopular && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-orange-500 text-white text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
-                        {market === 'IN' ? (t('pricingPreview.recommended') || 'MOST POPULAR') : '14-DAY TRIAL • MOST POPULAR'}
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-600 text-white text-xs font-bold px-3.5 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                        Most Popular
                       </div>
                     )}
-                    {!isPopular && !isFree && market !== 'IN' && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-50 text-blue-700 text-xs font-bold px-3 py-0.5 rounded-full uppercase tracking-wider border border-blue-200">
-                        14-DAY FREE TRIAL
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="font-bold text-2xl text-blue-950 mb-1">{plan.displayName}</h3>
-                      <p className="text-sm mb-5 text-slate-600">
+
+                    <div className="mb-6">
+                      <h3 className="font-bold text-2xl text-slate-900 mb-1">{plan.displayName}</h3>
+                      <p className="text-sm text-slate-600 min-h-[40px] leading-relaxed">
                         {plan.tagline}
                       </p>
-                      <div className="mb-6">
-                        <span className="text-4xl font-black text-blue-950">
-                          {config.symbol}{plan.price.monthly}
-                        </span>
-                        <span className="text-sm ml-1.5 text-slate-500 font-semibold">
-                          /month
-                        </span>
-                        {market !== 'IN' && !isFree && (
-                          <div className={`text-xs mt-1 font-semibold ${isPopular ? 'text-orange-600' : 'text-slate-500'}`}>
-                            Free for 14 days, then {config.symbol}{plan.price.monthly}/mo
-                          </div>
-                        )}
+
+                      <div className="mt-5 pb-5 border-b border-slate-100">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-black text-slate-900">
+                            {formatPrice(plan.price.monthly)}
+                          </span>
+                          <span className="text-sm text-slate-500 font-semibold">
+                            {plan.price.monthly === 0 ? 'forever' : '/month'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-blue-700 font-semibold mt-1">
+                          {market === 'IN' && plan.price.monthly === 0
+                            ? 'Forever Free · No credit card needed'
+                            : `${config.trialDays}-day free trial · Cancel anytime`}
+                        </div>
                       </div>
-                      <ul className="text-sm space-y-3 mb-7 text-slate-700">
+
+                      <ul className="text-sm space-y-3 mt-5 text-slate-700">
                         {plan.features.filter(f => typeof f === 'string' || f.included).slice(0, 6).map((f, i) => (
                           <li key={i} className="flex items-start gap-2.5">
-                            <Check size={15} className={`flex-shrink-0 mt-0.5 ${isPopular ? 'text-orange-500' : 'text-blue-500'}`} />
-                            <span>{typeof f === 'string' ? f : f.label}</span>
+                            <Check size={16} className={`shrink-0 mt-0.5 ${isPopular ? 'text-blue-600 font-bold' : 'text-slate-500'}`} />
+                            <span className="leading-snug">{typeof f === 'string' ? f : f.label}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
-                    {user ? (
-                      <Link
-                        to={isFree ? "/dashboard" : "/upgrade"}
-                        className={`mt-auto w-full py-3.5 rounded-xl font-bold text-center transition-colors block text-sm ${
-                          isPopular
-                            ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/20'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
-                      >
-                        {isFree ? 'Go to Dashboard' : `Upgrade to ${plan.displayName}`}
-                      </Link>
-                    ) : (
+
+                    <div className="mt-auto pt-4">
                       <button
                         type="button"
-                        onClick={() => register()}
-                        className={`mt-auto w-full py-3.5 rounded-xl font-bold text-center transition-colors block text-sm cursor-pointer ${
+                        onClick={() => handleStart(`plan_${plan.id}`)}
+                        className={`w-full py-3 rounded-xl font-bold text-center text-sm transition-all cursor-pointer ${
                           isPopular
-                            ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/20'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white'
                         }`}
                       >
-                        {isFree
-                          ? 'Start Free (₹0)'
-                          : (market === 'IN' ? `Start ${plan.displayName} Plan` : `Start 14-Day Free Trial`)}
+                        {market === 'IN' && plan.price.monthly === 0
+                          ? 'Start Free Store'
+                          : (market === 'IN' ? `Get ${plan.displayName}` : `Start ${config.trialDays}-Day Free Trial`)}
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Trust and Policy notice */}
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500 font-medium text-center mb-6">
-              <span className="inline-flex items-center gap-1.5 text-slate-700 font-semibold">
-                <ShieldCheck size={14} className="text-blue-500" />
-                Secure 256-bit checkout via {market === 'IN' ? 'Cashfree' : 'Stripe'}
-              </span>
-              <span>•</span>
-              <span>0% sales commission</span>
-              <span>•</span>
-              <span>Cancel anytime to stop future renewals</span>
-              <span>•</span>
-              <span className="text-orange-700 font-semibold">Strictly non-refundable — no prorated refunds or money-back guarantee</span>
-            </div>
-
+            {/* Pricing Transparency & Terms */}
             <div className="text-center">
               <Link
                 to={getLocalizedLink('/pricing')}
-                className="text-blue-600 hover:text-blue-700 font-bold transition-colors inline-flex items-center gap-2 text-sm group"
+                className="text-blue-600 hover:text-blue-800 font-bold text-sm inline-flex items-center gap-1.5 transition-colors"
               >
-                <span>{t('pricingPreview.viewAll') || 'See full feature comparison'}</span>
-                <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                <span>Compare all plan features & limits in detail</span>
+                <ArrowRight size={15} />
               </Link>
             </div>
           </div>
         </section>
 
-        {/* ================================================================
-          SECTION 9 — FAQ (ACTION — objection handling)
-          Psychology: Objection handling, risk reversal, trust building
-        ================================================================ */}
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <FAQSection
-              title="Questions merchants ask"
-              subtitle="Honest answers — no fluff."
-            />
-          </Suspense>
-        </MarketingReveal>
 
         {/* ================================================================
-          SECTION 10 — FINAL CTA (ACTION)
-          Psychology: Summary of benefits, zero-risk message, urgency (honest)
+          FAQ SECTION (Objection handling & SEO preservation)
         ================================================================ */}
-        <MarketingReveal>
-          <Suspense fallback={<SectionFallback />}>
-            <FinalCTA
-              title={market === 'IN' ? "Your shop is already real.\nNow give it an online front door." : "Your business is already real.\nNow give it an online front door."}
-              subtitle={market === 'IN'
-                ? "Start free today. Your store URL is ready in minutes — no technical setup required."
-                : "Start your 14-day free trial today. Your store URL is ready in minutes — no technical setup required."}
-              primaryText={market === 'IN' ? "Start Free Store (₹0)" : "Start 14-Day Free Trial"}
-              primaryHref="/register"
-              secondaryText="See pricing"
-              secondaryHref="/pricing"
-              trustItems={market === 'IN'
-                ? ['₹0 to start', 'No credit card', '0% commission', 'Setup in minutes', 'Secure cloud hosted']
-                : ['14-day free trial', 'No credit card to start', '0% transaction fees', 'Setup in minutes', 'Cancel anytime']}
-            />
-          </Suspense>
-        </MarketingReveal>
+        <Suspense fallback={<SectionFallback />}>
+          <FAQSection
+            title="Questions merchants ask"
+            subtitle="Honest answers with complete operational clarity."
+          />
+        </Suspense>
+
+
+        {/* ================================================================
+          SECTION 10 — FINAL CTA
+          Headline: “You built the business. Now build its place on the internet.”
+        ================================================================ */}
+        <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden">
+          <div className="max-w-[900px] mx-auto px-6 text-center relative z-10">
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-semibold mb-6">
+              <span>Ready When You Are</span>
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-6">
+              You built the business.<br />
+              Now build its place on the internet.
+            </h2>
+
+            <p className="text-lg sm:text-xl text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed font-normal">
+              FeraSetu is for businesses that want to grow online without forgetting who their business belongs to.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6 max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={() => handleStart('final_cta')}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Bring your business online</span>
+                <ArrowRight size={18} />
+              </button>
+            </div>
+
+            {/* Secondary supporting line */}
+            <p className="text-sm font-medium text-slate-400">
+              14-day trial · No credit card to start
+            </p>
+          </div>
+        </section>
+
       </PublicLayout>
     </>
   );

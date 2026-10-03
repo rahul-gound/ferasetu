@@ -9,11 +9,16 @@
   ],
   "scripts": {
     "dev": "npm run dev:frontend",
-    "dev:backend": "cd backend && npm run dev",
+    "dev:worker": "cd worker && npx wrangler dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "build:backend": "cd backend && npm run build",
+    "dev:legacy:backend": "cd backend && npm run dev",
     "build:frontend": "cd frontend && npm run build",
-    "build": "npm run build:backend && npm run build:frontend",
+    "build": "npm run build:frontend",
+    "build:legacy:backend": "cd backend && npm run build",
+    "test": "node --test tests/*.test.mjs",
+    "test:qa": "node --test tests/qa-control-plane.test.mjs",
+    "qa:smoke": "node packages/qa-engine/src/cli.js --mode smoke",
+    "qa:full": "node packages/qa-engine/src/cli.js --mode full",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "keywords": [

@@ -121,7 +121,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     {
       groupLabel: 'SETTINGS',
       items: [
-        { path: '/settings/email', icon: <Mail size={17} />, label: 'Email Settings' },
+        { path: '/settings/email', icon: <Mail size={17} />, label: 'Domains & Email' },
       ],
     },
   ], [totalOrdersCount, user?.ai_credits_balance]);

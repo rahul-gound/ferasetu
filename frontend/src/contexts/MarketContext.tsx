@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import api from '../services/api';
 import {
@@ -8,7 +8,12 @@ import {
   getTrialPolicy,
   resolveMarket,
   formatMarketPrice,
-  DEFAULT_MARKET
+  getMarketCookie,
+  setMarketCookie,
+  isValidMarket,
+  normalizeMarket,
+  DEFAULT_MARKET,
+  MARKET_STORAGE_KEY
 } from '../config/pricing';
 
 export interface SubscriptionStatus {
@@ -40,21 +45,83 @@ interface MarketContextType {
   formatPrice: (amount: number) => string;
   subscription: SubscriptionStatus;
   refreshSubscription: () => Promise<void>;
+  isMarketOverridden: boolean;
 }
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
-const MARKET_STORAGE_KEY = 'fera_market';
 
 export function MarketProvider({ children }: { children: ReactNode }) {
   const { user, isLoading, authStatus } = useAuth();
   const [serverSub, setServerSub] = useState<any>(null);
 
+  // Check whether user has an explicit saved preference
+  const initialSavedPref = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const fromCookie = getMarketCookie();
+    if (fromCookie && isValidMarket(fromCookie)) return normalizeMarket(fromCookie);
+    try {
+      const fromStorage = localStorage.getItem(MARKET_STORAGE_KEY);
+      if (fromStorage && isValidMarket(fromStorage)) return normalizeMarket(fromStorage);
+    } catch {}
+    return null;
+  }, []);
+
+  const [isMarketOverridden, setIsMarketOverridden] = useState<boolean>(Boolean(initialSavedPref));
+
   const [market, setMarketState] = useState<Market>(() => {
-    return resolveMarket({
-      accountMarket: (user as any)?.market,
-      storedMarket: typeof window !== 'undefined' ? localStorage.getItem(MARKET_STORAGE_KEY) : null,
-    });
+    // 1. Explicit user override
+    if (initialSavedPref) return initialSavedPref;
+
+    // 2. Authenticated user's account market
+    const accMarket = (user as any)?.market;
+    if (accMarket && isValidMarket(accMarket)) {
+      return normalizeMarket(accMarket);
+    }
+
+    // 3. Edge-injected meta tag if present in SSR / Edge HTML
+    if (typeof document !== 'undefined') {
+      const metaEl = document.querySelector('meta[name="ferasetu-market"]');
+      const metaContent = metaEl?.getAttribute('content');
+      if (metaContent && isValidMarket(metaContent)) {
+        return normalizeMarket(metaContent);
+      }
+    }
+
+    // 4. Default fallback
+    return DEFAULT_MARKET;
   });
+
+  const hasGeoResolved = useRef(false);
+
+  // Background country resolution via /api/geo edge endpoint (Privacy-first: ZERO GPS prompts)
+  useEffect(() => {
+    // If user already has an explicit saved preference, never overwrite it with IP geolocation
+    if (initialSavedPref || isMarketOverridden || hasGeoResolved.current) {
+      return;
+    }
+
+    let isMounted = true;
+    hasGeoResolved.current = true;
+
+    fetch('/api/geo')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!isMounted || !data) return;
+        // Verify user hasn't toggled preference while request was in-flight
+        const currentSaved = getMarketCookie();
+        if (currentSaved && isValidMarket(currentSaved)) return;
+
+        const resolved = resolveMarket(data.country || data.region);
+        setMarketState(resolved);
+      })
+      .catch(() => {
+        // Safe offline / network fallback: retains existing resolved market
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialSavedPref, isMarketOverridden]);
 
   const refreshSubscription = useCallback(async () => {
     if (!user || isLoading || authStatus !== 'authenticated') {
@@ -77,24 +144,24 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isLoading, authStatus, refreshSubscription]);
 
-  // Sync if authenticated user's account has a specified market
+  // Sync if authenticated user's account has a specified market and user hasn't overridden
   useEffect(() => {
-    if ((user as any)?.market) {
+    if ((user as any)?.market && !isMarketOverridden) {
       const accMarket = String((user as any).market).toUpperCase();
-      if (accMarket === 'IN' || accMarket === 'US' || accMarket === 'EU' || accMarket === 'OTHER') {
-        setMarketState(accMarket as Market);
-        try {
-          localStorage.setItem(MARKET_STORAGE_KEY, accMarket);
-        } catch {}
+      if (isValidMarket(accMarket)) {
+        const normalized = normalizeMarket(accMarket);
+        setMarketState(normalized);
+        setMarketCookie(normalized);
       }
     }
-  }, [(user as any)?.market]);
+  }, [(user as any)?.market, isMarketOverridden]);
 
+  // Explicit user override action (via MarketSelector UI)
   const setMarket = useCallback((newMarket: Market) => {
-    setMarketState(newMarket);
-    try {
-      localStorage.setItem(MARKET_STORAGE_KEY, newMarket);
-    } catch {}
+    const normalized = normalizeMarket(newMarket);
+    setMarketState(normalized);
+    setIsMarketOverridden(true);
+    setMarketCookie(normalized);
   }, []);
 
   const config = useMemo(() => getMarketConfig(market), [market]);
@@ -193,6 +260,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         formatPrice,
         subscription,
         refreshSubscription,
+        isMarketOverridden,
       }}
     >
       {children}
@@ -211,6 +279,7 @@ export function useMarket(): MarketContextType {
       trialPolicy: getTrialPolicy(DEFAULT_MARKET),
       formatPrice: (amt: number) => formatMarketPrice(amt, DEFAULT_MARKET),
       refreshSubscription: async () => {},
+      isMarketOverridden: false,
       subscription: {
         isIndianFree: false,
         isTrialing: false,

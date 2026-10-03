@@ -22,6 +22,7 @@ import {
 import SEO from '../components/SEO';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useConsent } from '../contexts/ConsentContext';
 
 interface TocItem {
   id: string;
@@ -103,6 +104,7 @@ function EmailCopyButton({ email, label }: { email: string; label: string }) {
 
 export default function PrivacyPage() {
   const { getLocalizedLink, translate: t } = useLanguage();
+  const { consent, openPreferencesModal } = useConsent();
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -699,29 +701,89 @@ export default function PrivacyPage() {
                 <Eye size={18} /> Section 8
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                8. Cookies &amp; Tracking Technologies
+                8. Cookies, Storage &amp; Privacy Telemetry
               </h2>
               <p>
-                FeraSetu uses cookies and similar storage technologies (such as localStorage) solely to operate our
-                platform smoothly:
+                FeraSetu's core measurement principle is: <strong>"Measure behavior, don't manufacture identities."</strong>
+                We separate storage into three distinct categories and give you complete control:
               </p>
-              <ul className="list-disc pl-5 space-y-2 text-sm text-slate-600">
-                <li>
-                  <strong>Strictly Necessary Cookies:</strong> Essential for signing in, maintaining your active session,
-                  protecting against Cross-Site Request Forgery (CSRF), and remembering store configuration.
-                </li>
-                <li>
-                  <strong>Functional &amp; Preference Cookies:</strong> Remembering your chosen UI language, theme, and
-                  dashboard view preferences.
-                </li>
-                <li>
-                  <strong>Performance &amp; Diagnostics:</strong> Anonymous diagnostic telemetry to optimize page load speeds
-                  and identify runtime errors.
-                </li>
-              </ul>
+
+              {/* Interactive Privacy Preferences Dashboard Card */}
+              <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Your Current Privacy Preferences</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Policy Version: {consent.policy_version} · Last updated: {new Date(consent.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openPreferencesModal}
+                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-xs self-start sm:self-auto cursor-pointer"
+                  >
+                    Manage Cookie Preferences
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Essential Storage</span>
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                      Active
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Anonymous Analytics</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${consent.analytics ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-slate-500 bg-slate-100 border-slate-200'}`}>
+                      {consent.analytics ? 'Enabled' : 'Declined'}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Marketing &amp; Attribution</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${consent.marketing ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-slate-500 bg-slate-100 border-slate-200'}`}>
+                      {consent.marketing ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Collection Transparency Matrix */}
+              <div className="space-y-3 pt-4">
+                <h3 className="text-lg font-bold text-slate-900">What We Collect vs. What We Explicitly Never Collect</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider">
+                      <tr>
+                        <th className="p-3">Category</th>
+                        <th className="p-3">What FeraSetu Measures</th>
+                        <th className="p-3">What FeraSetu Strictly Does NOT Collect</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      <tr>
+                        <td className="p-3 font-semibold text-slate-900">Essential Storage</td>
+                        <td className="p-3 text-slate-600">Merchant auth state, session tokens, CSRF protection, chosen locale/currency.</td>
+                        <td className="p-3 text-slate-600">No passwords or authentication secrets stored insecurely.</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-semibold text-slate-900">Product Analytics</td>
+                        <td className="p-3 text-slate-600">Random pseudonymous visitor UUID, rolling session UUID, page view paths, funnel steps, coarse country/region, device category.</td>
+                        <td className="p-3 text-slate-600">NO canvas fingerprinting, NO keystroke capturing, NO form input recording, NO screen recordings, NO exact GPS coordinates.</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-semibold text-slate-900">Marketing &amp; Attribution</td>
+                        <td className="p-3 text-slate-600">Sanitized UTM parameters (utm_source, utm_medium, utm_campaign) only when consented.</td>
+                        <td className="p-3 text-slate-600">NO cross-site advertising networks, NO data selling, NO persistent tracking across unrelated websites.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <p className="text-sm text-slate-600">
-                You can manage or disable cookies through your web browser settings; however, disabling strictly
-                necessary cookies may prevent access to authenticated merchant dashboards.
+                You can reopen your preferences at any time by clicking the "Manage Cookie Preferences" button above
+                or in our website footer. Disabling analytics will never impact your ability to use FeraSetu or manage your store.
               </p>
             </section>
 

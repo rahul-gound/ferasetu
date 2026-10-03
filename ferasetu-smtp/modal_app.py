@@ -310,11 +310,15 @@ try:
             "sasl2-bin"
         )
         .pip_install(
-            "fastapi[standard]>=0.115.0",
-            "pydantic>=2.0.0",
-            "cryptography>=43.0.0",
-            "dkimpy>=1.1.0",
-            "aiosmtpd>=1.4.6"
+            "fastapi[standard]>=0.141.0",
+            "pydantic>=2.13.0",
+            "cryptography>=50.0.0",
+            "dkimpy>=1.1.8",
+            "aiosmtpd>=1.4.6",
+            "jinja2>=3.1.6",
+            "starlette>=1.6.0",
+            "python-multipart>=0.0.32",
+            "urllib3>=2.7.0"
         )
         .add_local_python_source(
             "config",

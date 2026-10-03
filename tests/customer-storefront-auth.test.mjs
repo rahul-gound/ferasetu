@@ -466,7 +466,7 @@ function createMockD1() {
           if (s.includes('insert into orders')) {
             let ordId, orgId, shopId, custId, cName, cPhone, total, subtotal, delFee, status, payStatus;
             if (this._params.length >= 21) {
-              [ordId, , orgId, cName, cPhone, , total, status, , shopId, custId, , , subtotal, delFee, payStatus] = this._params;
+              [ordId, , orgId, cName, , cPhone, , total, status, , shopId, custId, , , subtotal, delFee, , , , , payStatus] = this._params;
             } else {
               [ordId, orgId, shopId, custId, , total, subtotal, delFee, status, payStatus, cName, cPhone] = this._params;
             }

@@ -677,7 +677,7 @@ router.post('/orders/:orderId/return', (req: Request, res: Response): void => {
   }
 
   const returnId = `ret_${uuidv4()}`;
-  const returnNumber = `FS-RET-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const returnNumber = `FS-RET-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomInt(1000, 10000)}`;
 
   db.prepare(`
     INSERT INTO order_returns (

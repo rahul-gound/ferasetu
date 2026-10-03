@@ -19,44 +19,39 @@ export interface FAQItem {
 
 export const LANDING_FAQS: FAQItem[] = [
   {
-    question: 'Do I need any technical knowledge to use FeraSetu?',
+    question: 'Do I need technical skills or a developer to use FeraSetu?',
     answer:
-      'No. If you can use WhatsApp, you can use FeraSetu. You add products with photos and prices from your phone, share your store link, and manage orders from your dashboard. No coding, no server setup, nothing technical.',
+      'No. FeraSetu is designed for real merchants. You can add products with photos and prices directly from your phone, share your store link, and manage incoming orders from a clean dashboard without writing any code.',
   },
   {
-    question: 'How does a customer place an order?',
+    question: 'How does an order reach me from the customer?',
     answer:
-      'Customers open your store link, browse your products, add items to a cart, and complete the order via WhatsApp. They can also pay directly via UPI (Google Pay, PhonePe, Paytm, BHIM) or cards. The order appears in your dashboard immediately.',
+      'A customer opens your custom store URL (e.g. yourshop.ferasetu.com), selects products into a cart, and submits their order. You receive an organized order in your dashboard with item details, delivery choice, and customer contact information.',
   },
   {
-    question: 'Is there any commission on my sales?',
+    question: 'Does FeraSetu charge a commission on my sales?',
     answer:
-      'None. We charge a flat monthly fee. When a customer pays ₹1,000 or $100, you keep 100% of it. Zero percentage cut, ever.',
+      'FeraSetu charges 0% platform commission on your sales. We charge a predictable subscription fee. Your chosen third-party payment gateway (such as Cashfree or Stripe) charges their standard processing fees directly.',
   },
   {
-    question: 'What is FeraSetu AI and how does it help my shop?',
+    question: 'Does FeraSetu operate delivery riders, vehicles, or warehouses?',
     answer:
-      'FeraSetu AI is an AI assistant that knows your actual shop data — your products, inventory, and orders. You can use it to clean product photos to white studio backgrounds, write festive WhatsApp broadcasts, and monitor low stock before you run out.',
+      'No. FeraSetu is the digital workflow and coordination platform. We do not own delivery fleets or warehouses. You fulfill orders using your own store staff, local delivery riders, in-store pickup, or your chosen third-party courier. FeraSetu provides the status workflow and secure OTP handshake to confirm handoff.',
   },
   {
-    question: 'Can I try FeraSetu before paying?',
+    question: 'How do payments reach my bank account?',
     answer:
-      'Yes. In India, our Free plan is completely free forever for up to 25 products with no credit card required. In US and Europe, we provide a 14-day free trial with full business features and zero transaction fees.',
+      'Customer payments flow directly through your configured payment provider (Cashfree in India for instant UPI, cards, and netbanking, or Stripe internationally). Funds settle straight into your business bank account. FeraSetu never holds your money in an escrow pool.',
   },
   {
-    question: 'What is your cancellation and refund policy?',
+    question: 'Can I try FeraSetu before committing to a paid plan?',
     answer:
-      'Subscriptions are strictly non-refundable. You can cancel your subscription at any time with 1 click from your billing settings to prevent future renewals. We do not offer prorated refunds or money-back guarantees. Instead, we eliminate risk before you pay through our permanent Free plan in India and our 14-day zero-risk trial in US/EU so you can test everything before paying.',
+      'Yes. We provide a 14-day free trial so you can set up your store, test the ordering workflow, and explore FeraSetu with no credit card required to start. In India, a free entry tier is also available to help small merchants get started.',
   },
   {
-    question: 'Does FeraSetu hold or delay my customer payments?',
+    question: 'Can I export my customer and catalog data if I ever leave?',
     answer:
-      'Never. All customer payments flow directly into your own bank account via UPI, Cashfree, or Stripe. FeraSetu never holds, escrows, or delays your payouts.',
-  },
-  {
-    question: 'Can I export my data if I decide to leave?',
-    answer:
-      'Yes. You have 100% data ownership. You can export your complete product catalog, images, customer phone numbers, and order histories to CSV with 1 click at any time.',
+      'Yes. Your business is yours. You have complete data ownership and can export your entire product catalog, customer contact list, and order history to CSV at any time with a single click.',
   },
 ];
 

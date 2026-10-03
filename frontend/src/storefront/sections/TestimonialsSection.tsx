@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, CheckCircle } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { sanitizeText } from '../utilities/formatting';
 
 interface TestimonialItem {
@@ -20,26 +20,24 @@ export default function TestimonialsSection({
 }: TestimonialsSectionProps) {
   const title = sanitizeText((config.title as string) || 'Customer Experiences');
 
-  const defaultTestimonials: TestimonialItem[] = [
-    {
-      name: 'Pooja S.',
-      location: 'Ahmedabad',
-      quote: 'Exceptional quality and prompt WhatsApp dispatch updates. Received exactly as photographed.',
-      rating: 5,
-    },
-    {
-      name: 'Vikram Mehta',
-      location: 'Pune',
-      quote: 'Reliable Cash on Delivery delivery. Product finish exceeded expectations for this price point.',
-      rating: 5,
-    },
-    {
-      name: 'Ananya Roy',
-      location: 'Kolkata',
-      quote: 'Honest local merchant. Very responsive communication and careful packaging.',
-      rating: 5,
-    },
-  ];
+  const rawItems = Array.isArray(config.items)
+    ? config.items
+    : Array.isArray(config.testimonials)
+      ? config.testimonials
+      : [];
+
+  const validTestimonials: TestimonialItem[] = rawItems
+    .filter((item: any) => item && typeof item === 'object' && item.quote && item.name)
+    .map((item: any) => ({
+      name: sanitizeText(item.name || ''),
+      location: sanitizeText(item.location || ''),
+      quote: sanitizeText(item.quote || ''),
+      rating: Math.min(Math.max(Number(item.rating) || 5, 1), 5),
+    }));
+
+  if (validTestimonials.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-12 sm:py-16 px-4 sm:px-6 bg-[var(--theme-color-bg)] border-b border-[var(--theme-color-border)]">
@@ -54,7 +52,7 @@ export default function TestimonialsSection({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {defaultTestimonials.map((t, idx) => (
+          {validTestimonials.map((t, idx) => (
             <div
               key={idx}
               className="p-6 bg-[var(--theme-color-surface)] rounded-[var(--theme-radius-card)] border border-[var(--theme-color-border)] shadow-sm flex flex-col justify-between"
@@ -72,9 +70,11 @@ export default function TestimonialsSection({
 
               <div className="flex items-center justify-between pt-4 border-t border-[var(--theme-color-border-subtle)] text-xs">
                 <span className="font-bold text-[var(--theme-color-text)]">{t.name}</span>
-                <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
-                  <CheckCircle size={12} /> Verified Buyer
-                </span>
+                {t.location ? (
+                  <span className="text-[var(--theme-color-text-muted)]">
+                    {t.location}
+                  </span>
+                ) : null}
               </div>
             </div>
           ))}

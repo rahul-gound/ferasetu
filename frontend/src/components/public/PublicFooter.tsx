@@ -5,11 +5,13 @@
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sparkles } from 'lucide-react';
+import { useConsent } from '../../contexts/ConsentContext';
+import MarketSelector from '../marketing/MarketSelector';
 
 export default function PublicFooter() {
   const { getLocalizedLink, translate: t } = useLanguage();
   const { register, login } = useAuth();
+  const { openPreferencesModal } = useConsent();
   const year = new Date().getFullYear();
 
   return (
@@ -29,41 +31,48 @@ export default function PublicFooter() {
                 className="h-9 sm:h-10 w-auto max-w-[150px] object-contain opacity-95"
               />
             </Link>
-            <p className="text-sm text-slate-500 font-medium max-w-xs leading-relaxed mb-4">
-              Your own online store. Your customers. Your profits.
+            <p className="text-sm text-slate-700 font-semibold max-w-xs leading-relaxed mb-3">
+              “Your business is yours. The internet should be too.”
             </p>
-            <p className="text-xs text-slate-400 font-medium leading-relaxed">
-              Built for independent shopkeepers and small businesses ready to sell directly — without marketplace commissions or technical complexity.
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Digital infrastructure connecting your real-world store to online ordering, payments, and fulfillment with 0% FeraSetu platform commission.
             </p>
           </div>
 
           {/* Product links */}
           <div>
-            <h4 className="font-bold text-slate-900 text-sm mb-4">Product</h4>
+            <h4 className="font-bold text-slate-900 text-sm mb-4">Philosophy & Product</h4>
             <ul className="space-y-3">
               <li>
                 <a
-                  href="/#features"
+                  href="/#why"
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
-                  {t('nav.features')}
+                  Why FeraSetu
                 </a>
               </li>
               <li>
                 <a
-                  href="/#how-it-works"
+                  href="/#evidence"
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
-                  {t('nav.howItWorks')}
+                  How It Works
                 </a>
               </li>
               <li>
                 <a
-                  href="/#ferasetu-ai"
-                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium flex items-center gap-1.5"
+                  href="/#journey"
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
-                  <Sparkles size={12} className="text-purple-500" />
-                  FeraSetu AI
+                  Connected Journey
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#transparency"
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Transparency Matrix
                 </a>
               </li>
               <li>
@@ -71,7 +80,7 @@ export default function PublicFooter() {
                   to={getLocalizedLink('/pricing')}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
-                  {t('nav.pricing')}
+                  {t('nav.pricing') || 'Pricing'}
                 </Link>
               </li>
             </ul>
@@ -123,6 +132,15 @@ export default function PublicFooter() {
                 </Link>
               </li>
               <li>
+                <button
+                  type="button"
+                  onClick={openPreferencesModal}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium text-left cursor-pointer"
+                >
+                  Privacy &amp; Cookie Preferences
+                </button>
+              </li>
+              <li>
                 <Link
                   to={getLocalizedLink('/terms')}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
@@ -143,12 +161,15 @@ export default function PublicFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-slate-400 font-medium">
-            © {year} FeraSetu. All rights reserved. · Made with ❤️ in India 🇮🇳
-          </p>
-          <p className="text-xs text-slate-400 font-medium">
-            Transparent pricing · No commissions · Your data stays in India
+        <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <MarketSelector variant="footer" />
+            <p className="text-sm text-slate-400 font-medium">
+              © {year} FeraSetu. All rights reserved.
+            </p>
+          </div>
+          <p className="text-xs text-slate-400 font-medium text-center md:text-right">
+            Transparent pricing · 0% platform commission · Fast edge storefronts
           </p>
         </div>
       </div>

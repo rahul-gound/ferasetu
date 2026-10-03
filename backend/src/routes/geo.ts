@@ -11,16 +11,25 @@ const router = Router();
 
 /**
  * @route   GET /api/geo
- * @desc    Server-authoritative country & pricing region detection
+ * @desc    Server-authoritative country & market pricing region detection
  * @access  Public
  */
 router.get('/', (req: Request, res: Response): void => {
   // 1. Check Cloudflare Edge IP Country header (case-insensitive in Express)
   const cfCountry = req.headers['cf-ipcountry'] as string | undefined;
   const userCountryHeader = req.headers['x-user-country'] as string | undefined;
-  const clientCountry = cfCountry || userCountryHeader || (process.env.DEFAULT_COUNTRY || 'US');
+  const clientCountry = (userCountryHeader || cfCountry || 'US').toUpperCase().trim();
 
-  // 2. If user provides a Bearer token or cookie, check their stored account market
+  // 2. Check explicit user preference from cookie or query param
+  let cookieMarket: string | undefined;
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const match = cookieHeader.match(/(?:^|; )fera_market=([^;]*)/);
+    if (match) cookieMarket = decodeURIComponent(match[1]);
+  }
+  const queryMarket = (req.query.market as string | undefined)?.toUpperCase().trim();
+
+  // 3. If user provides a Bearer token, check their stored account market
   let accountMarket: string | undefined;
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
@@ -30,27 +39,28 @@ router.get('/', (req: Request, res: Response): void => {
     }
   }
 
-  const effectiveCountry = (accountMarket || clientCountry).toUpperCase().trim();
-  const region: PricingRegion = resolvePricingRegion(effectiveCountry);
-  const regionalConfig = REGIONAL_CONFIGS[region] || REGIONAL_CONFIGS.US;
+  const savedPreference = queryMarket || cookieMarket || accountMarket;
+  const region: PricingRegion = resolvePricingRegion(clientCountry, savedPreference);
+  const regionalConfig = REGIONAL_CONFIGS[region] || REGIONAL_CONFIGS.GLOBAL;
 
-  // 3. Check subdivision/region headers (Cloudflare CF-Region, CF-Region-Code, or test x-user-region)
+  // 4. Check subdivision/region headers (Cloudflare CF-Region, CF-Region-Code, or test x-user-region)
   const cfRegion = req.headers['cf-region'] as string | undefined;
   const cfRegionCode = (req.headers['cf-region-code'] || req.headers['x-user-region-code']) as string | undefined;
   const userRegionHeader = req.headers['x-user-region'] as string | undefined;
   const rawSubdivision = (cfRegion || userRegionHeader || '').trim();
   const rawSubdivisionCode = (cfRegionCode || (userRegionHeader && userRegionHeader.length <= 3 ? userRegionHeader : '')).trim().toUpperCase();
 
-  // 4. Resolve suggested language based on country, subdivision and Accept-Language
+  // 5. Resolve suggested language based on country, subdivision and Accept-Language (separate from commercial market)
   const suggestedLanguage = resolveSuggestedLanguage(
-    effectiveCountry,
+    clientCountry,
     rawSubdivision,
     rawSubdivisionCode,
     req.headers['accept-language'] as string | undefined
   );
 
   res.json({
-    country: effectiveCountry,
+    country: clientCountry,
+    market: region,
     region,
     subdivision: rawSubdivision || undefined,
     subdivisionCode: rawSubdivisionCode || undefined,
@@ -59,6 +69,8 @@ router.get('/', (req: Request, res: Response): void => {
     currency: regionalConfig.currency,
     symbol: regionalConfig.symbol,
     gateway: regionalConfig.gateway,
+    subscriptionGateway: regionalConfig.subscriptionGateway,
+    supportedMerchantProviders: regionalConfig.supportedMerchantProviders,
     permanentFreePlan: regionalConfig.permanentFreePlan,
     trialDays: regionalConfig.trialDays,
     plans: regionalConfig.plans,
@@ -157,9 +169,9 @@ const INDIAN_STATE_NAME_TO_LANG: Record<string, string> = {
 };
 
 /**
- * EU Country Code -> Primary Official Language mapping
+ * Country Code -> Primary Official Language mapping
  */
-const EU_COUNTRY_TO_LANG: Record<string, string> = {
+const COUNTRY_TO_LANG: Record<string, string> = {
   FR: 'fr', // France -> French
   DE: 'de', // Germany -> German
   AT: 'de', // Austria -> German
@@ -177,7 +189,7 @@ const EU_COUNTRY_TO_LANG: Record<string, string> = {
   CZ: 'cs', // Czech Republic -> Czech
   RO: 'ro', // Romania -> Romanian
   HU: 'hu', // Hungary -> Hungarian
-  IE: 'en-gb', // Ireland -> English (Europe) / Irish
+  IE: 'en', // Ireland -> English
   BG: 'bg', // Bulgaria -> Bulgarian
   HR: 'hr', // Croatia -> Croatian
   EE: 'et', // Estonia -> Estonian
@@ -187,6 +199,9 @@ const EU_COUNTRY_TO_LANG: Record<string, string> = {
   SK: 'sk', // Slovakia -> Slovak
   SI: 'sl', // Slovenia -> Slovenian
   LU: 'fr', // Luxembourg -> French
+  GB: 'en-gb', // United Kingdom -> English (GB)
+  UK: 'en-gb', // UK alias -> English (GB)
+  US: 'en', // United States -> English (US)
 };
 
 function resolveSuggestedLanguage(
@@ -195,7 +210,7 @@ function resolveSuggestedLanguage(
   subdivisionCode: string,
   acceptLanguage?: string
 ): string {
-  // 1. If India, attempt high-precision state resolution
+  // 1. If India, attempt state resolution
   if (country === 'IN') {
     if (subdivisionCode && INDIAN_STATE_TO_LANG[subdivisionCode]) {
       return INDIAN_STATE_TO_LANG[subdivisionCode];
@@ -206,13 +221,12 @@ function resolveSuggestedLanguage(
         return INDIAN_STATE_NAME_TO_LANG[normalizedSub];
       }
     }
-    // Fallback for India if state is not identified
     return 'hi';
   }
 
-  // 2. If EU country, map to official language
-  if (EU_COUNTRY_TO_LANG[country]) {
-    return EU_COUNTRY_TO_LANG[country];
+  // 2. Specific country mapping
+  if (COUNTRY_TO_LANG[country]) {
+    return COUNTRY_TO_LANG[country];
   }
 
   // 3. Check Accept-Language header if available
@@ -224,7 +238,7 @@ function resolveSuggestedLanguage(
     }
   }
 
-  // Default to US English
+  // Default to English
   return 'en';
 }
 

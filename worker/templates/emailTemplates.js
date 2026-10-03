@@ -241,7 +241,7 @@ export const EMAIL_TEMPLATES = {
       const brand = branding?.storeName || 'Store';
       const trackingUrl = data.tracking_url;
 
-      const subject = `Order Confirmed #${orderId.slice(0, 8).toUpperCase()} • ${brand}`;
+      const subject = `Order Confirmed #${orderId.toUpperCase()} • ${brand}`;
 
       const itemsHtml = items.map(item => `
         <tr>
@@ -284,7 +284,7 @@ export const EMAIL_TEMPLATES = {
         ${trackingUrl ? renderButton(trackingUrl, 'Track Your Order', branding?.primaryColor) : ''}
       `;
 
-      const text = `Thank you for your order with ${brand}!\nOrder #${orderId.slice(0, 8).toUpperCase()}\nTotal: ${total}\n${otp ? `Delivery Code: ${otp}\n` : ''}${trackingUrl ? `Track order: ${trackingUrl}\n` : ''}`;
+      const text = `Hello ${name},\n\nThank you for your order with ${brand}!\nOrder #${orderId.toUpperCase()}\nTotal: ${total}\n${otp ? `Delivery Code: ${otp}\n` : ''}${trackingUrl ? `Track order: ${trackingUrl}\n` : ''}`;
       return { subject, contentHtml, text };
     }
   },

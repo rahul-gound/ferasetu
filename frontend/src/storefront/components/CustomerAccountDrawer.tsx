@@ -7,7 +7,7 @@ import {
 import { useStorefront } from '../runtime/StorefrontProvider';
 import InvoiceDocumentModal from '../../components/orders/InvoiceDocumentModal';
 
-const rawApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const rawApi = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
 const API = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
 
 export default function CustomerAccountDrawer() {

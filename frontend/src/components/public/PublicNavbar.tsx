@@ -3,30 +3,33 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Menu, X, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useMarket } from '../../contexts/MarketContext';
 import LanguageSelector from '../LanguageSelector';
+import MarketSelector from '../marketing/MarketSelector';
 
 export default function PublicNavbar() {
   const { user, login, register, logout, isLoading } = useAuth();
   const { translate: t, getLocalizedLink } = useLanguage();
-  const { market } = useMarket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const primaryLinks = [
     {
-      label: t('nav.howItWorks'),
-      to: `${getLocalizedLink('/')}#how-it-works`
+      label: 'Why FeraSetu',
+      to: `${getLocalizedLink('/')}#why`
     },
     {
-      label: 'FeraSetu AI',
-      to: `${getLocalizedLink('/')}#ferasetu-ai`
+      label: 'How It Works',
+      to: `${getLocalizedLink('/')}#evidence`
     },
     {
-      label: t('nav.features'),
-      to: `${getLocalizedLink('/')}#features`
+      label: 'Connected Journey',
+      to: `${getLocalizedLink('/')}#journey`
     },
     {
-      label: t('nav.pricing'),
+      label: 'Transparency',
+      to: `${getLocalizedLink('/')}#transparency`
+    },
+    {
+      label: t('nav.pricing') || 'Pricing',
       to: getLocalizedLink('/pricing')
     }
   ];
@@ -67,6 +70,7 @@ export default function PublicNavbar() {
 
           <div className='flex items-center gap-3'>
             <div className='hidden items-center gap-2 md:flex'>
+              <MarketSelector variant='header' />
               <LanguageSelector variant='light' />
             </div>
 
@@ -106,7 +110,7 @@ export default function PublicNavbar() {
                   onClick={() => register()}
                   className='inline-flex cursor-pointer items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
                 >
-                  {market === 'IN' ? t('nav.startFree') : 'Start Trial'}
+                  Bring your business online
                   <ArrowRight size={15} aria-hidden='true' />
                 </button>
               </div>
@@ -160,7 +164,8 @@ export default function PublicNavbar() {
             </div>
 
             <div className='mt-8 flex flex-col gap-4 border-t border-slate-100 pt-6'>
-              <div className='w-full'>
+              <div className='flex flex-col gap-2 w-full'>
+                <MarketSelector variant='header' className='w-full' />
                 <LanguageSelector variant='light' />
               </div>
               {isLoading ? (
@@ -207,7 +212,7 @@ export default function PublicNavbar() {
                     }}
                     className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
                   >
-                    {market === 'IN' ? t('nav.startFree') : 'Start 14-Day Trial'}
+                    Bring your business online
                   </button>
                 </>
               )}

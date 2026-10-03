@@ -123,6 +123,15 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 };
 
+const secureRandomDigits = (count: number): string => {
+  if (typeof crypto !== 'undefined' && 'getRandomValues' in (crypto as any)) {
+    const array = new Uint32Array(count);
+    (crypto as any).getRandomValues(array);
+    return Array.from(array, n => (n % 10).toString()).join('');
+  }
+  return Math.floor(Math.pow(10, count - 1) + Math.random() * 9 * Math.pow(10, count - 1)).toString();
+};
+
 const parseSalePrice = (value: unknown): number | null =>
   value === null || value === undefined || value === '' ? null : Number(value);
 
@@ -720,7 +729,7 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw createHttpError(400, 'A valid email is required');
     }
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = secureRandomDigits(6);
     const raw = localStorage.getItem(LOCAL_OTP_KEY) || '{}';
     const map = (() => { try { return JSON.parse(raw); } catch { return {}; } })();
     map[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
@@ -752,7 +761,7 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw createHttpError(400, 'A valid email is required');
     }
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = secureRandomDigits(6);
     const raw = localStorage.getItem(LOCAL_OTP_KEY) || '{}';
     const map = (() => { try { return JSON.parse(raw); } catch { return {}; } })();
     map[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
@@ -918,7 +927,7 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     return createResponse({
       order: {
         ...order,
-        deliveryCode: Math.floor(1000 + Math.random() * 9000).toString(),
+        deliveryCode: secureRandomDigits(4),
         paymentOtp: undefined,
       },
       invoiceNumber: `FERA-${order.id.slice(0, 8).toUpperCase()}`,
@@ -1035,23 +1044,23 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
       }, 201);
     }
 
-    // Regional pricing calculation
+    // Regional pricing calculation for FeraSetu subscriptions (Cashfree billing)
     let expectedAmount: number;
     let currency: string;
-    let gateway: 'razorpay' | 'stripe';
+    const gateway = 'cashfree';
 
     if (region === 'IN') {
       currency = 'INR';
-      gateway = 'razorpay';
       expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 9990 : 999) : (billingCycle === 'yearly' ? 3990 : 399);
+    } else if (region === 'UK') {
+      currency = 'GBP';
+      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 790 : 79) : plan === 'business' ? (billingCycle === 'yearly' ? 390 : 39) : (billingCycle === 'yearly' ? 190 : 19);
     } else if (region === 'EU') {
       currency = 'EUR';
-      gateway = 'stripe';
-      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 490 : 49) : plan === 'business' ? (billingCycle === 'yearly' ? 190 : 19) : (billingCycle === 'yearly' ? 90 : 9);
+      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 790 : 79) : plan === 'business' ? (billingCycle === 'yearly' ? 390 : 39) : (billingCycle === 'yearly' ? 190 : 19);
     } else {
       currency = 'USD';
-      gateway = 'stripe';
-      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 490 : 49) : plan === 'business' ? (billingCycle === 'yearly' ? 190 : 19) : (billingCycle === 'yearly' ? 90 : 9);
+      expectedAmount = plan === 'pro' ? (billingCycle === 'yearly' ? 790 : 79) : plan === 'business' ? (billingCycle === 'yearly' ? 390 : 39) : (billingCycle === 'yearly' ? 190 : 19);
     }
 
     const txId = createId();
@@ -1063,13 +1072,13 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
       plan,
       amount: expectedAmount,
       currency,
-      razorpayOrderId: gateway === 'razorpay' ? `order_${txId.substring(0, 14)}` : undefined,
-      razorpayKeyId: gateway === 'razorpay' ? 'rzp_test_mock_key' : undefined,
-      stripeSessionId: gateway === 'stripe' ? `cs_sess_${txId}` : undefined,
+      paymentSessionId: `session_mock_${txId.substring(0, 14)}`,
+      cashfreeOrderId: `order_mock_${txId.substring(0, 14)}`,
+      cashfreeEnv: 'sandbox',
       key: LOCAL_PAYMENT_PROVIDER_KEY,
       keyId: 'mock_key',
       status: 'created',
-      message: `Checkout session created for plan: ${plan}`
+      message: `Cashfree checkout session created for plan: ${plan}`
     }, 201);
   }
 
@@ -1438,7 +1447,7 @@ async function localDelete(url: string) {
   throw createHttpError(404, `Unknown DELETE endpoint: ${path}`);
 }
 
-const rawBaseUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const rawBaseUrl = (import.meta.env?.VITE_API_URL || '/api').replace(/\/+$/, '');
 const normalizedBaseUrl = rawBaseUrl.endsWith('/api') ? rawBaseUrl : (rawBaseUrl + '/api');
 
 export const remoteApi = axios.create({
@@ -1459,12 +1468,7 @@ remoteApi.interceptors.request.use(async (config) => {
     }
   }
   if (config.headers && !config.headers.Authorization) {
-    let token = await getWorkOSToken();
-    if (!token && typeof window !== 'undefined') {
-      try {
-        token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('admin_token');
-      } catch {}
-    }
+    const token = await getWorkOSToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

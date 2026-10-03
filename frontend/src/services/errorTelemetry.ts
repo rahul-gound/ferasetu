@@ -10,6 +10,20 @@
 // =============================================================================
 
 import axios from 'axios';
+import { trackSafeError } from '../lib/analytics/tracker';
+
+function redactSensitiveData(input: string | null | undefined): string {
+  if (!input) return '';
+  return input
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi, '[REDACTED_EMAIL]')
+    .replace(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, '[REDACTED_PHONE]')
+    .replace(/Bearer\s+[A-Za-z0-9-_.~+/]+=*/gi, 'Bearer [REDACTED_TOKEN]')
+    .replace(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9-_]*)?/g, '[REDACTED_JWT]')
+    .replace(/\b(?:\d{4}[ -]?){3}\d{4}\b/g, '[REDACTED_CARD]')
+    .replace(/cookie:\s*[^;\n\r]+/gi, 'cookie: [REDACTED_COOKIE]')
+    .replace(/(?:password|secret|token|apiKey|api_key)\s*[:=]\s*[^\s,;&]+/gi, '$1=[REDACTED]')
+    .replace(/([?&](?:token|code|auth|session|key|secret|password|access_token|jwt)=)[^&]+/gi, '$1[REDACTED]');
+}
 
 export interface UserSpecification {
   user_id: string | null;
@@ -83,8 +97,8 @@ export function getStoredUserSpecifications(): UserSpecification {
 
     return {
       user_id: u.id || u.$id || null,
-      user_email: u.email || null,
-      user_name: u.name || null,
+      user_email: null, // Redacted for privacy
+      user_name: null, // Redacted for privacy
       plan_tier: planTier,
       is_paid: isPaid,
       store_slug: storeSlug && storeSlug !== 'www' && storeSlug !== 'localhost' ? storeSlug : null,
@@ -111,7 +125,7 @@ function captureNetworkPerformance(): any[] {
     if (typeof window !== 'undefined' && window.performance && window.performance.getEntriesByType) {
       const resources = window.performance.getEntriesByType('resource') as PerformanceResourceTiming[];
       return resources.slice(-15).map((r) => ({
-        name: r.name,
+        name: redactSensitiveData(r.name),
         initiatorType: r.initiatorType,
         duration: Math.round(r.duration),
         transferSize: r.transferSize,
@@ -126,15 +140,21 @@ function captureNetworkPerformance(): any[] {
 /**
  * Automatically sends a structured client crash report to the FeraSetu backend.
  * Enforces deduplication to prevent flooding on component render loops.
+ * Redacts any PII or secrets before transmission.
  *
  * @param report Partial error report details
  * @returns Ticket ID
  */
 export async function reportClientError(report: Partial<ClientErrorReport>): Promise<string> {
   const userSpecs = getStoredUserSpecifications();
-  const errorMessage = report.error_message || 'Unknown client crash';
+  const errorMessage = redactSensitiveData(report.error_message || 'Unknown client crash');
   const errorName = report.error_name || 'Error';
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
+  const currentUrl = typeof window !== 'undefined' ? redactSensitiveData(window.location.href) : 'unknown';
+
+  // Track safe error in first-party analytics
+  try {
+    trackSafeError(errorName, 'client_runtime', undefined, typeof window !== 'undefined' ? window.location.pathname : undefined);
+  } catch {}
 
   // Deduplication check
   const dedupKey = `${errorName}:${errorMessage.slice(0, 100)}:${typeof window !== 'undefined' ? window.location.pathname : ''}`;
@@ -154,14 +174,14 @@ export async function reportClientError(report: Partial<ClientErrorReport>): Pro
   const payload: ClientErrorReport = {
     error_message: errorMessage,
     error_name: errorName,
-    stack: report.stack || null,
-    component_stack: report.component_stack || null,
+    stack: report.stack ? redactSensitiveData(report.stack) : null,
+    component_stack: report.component_stack ? redactSensitiveData(report.component_stack) : null,
     url: currentUrl,
     user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
     network_log: report.network_log || captureNetworkPerformance(),
     user_id: report.user_id !== undefined ? report.user_id : userSpecs.user_id,
-    user_email: report.user_email !== undefined ? report.user_email : userSpecs.user_email,
-    user_name: report.user_name !== undefined ? report.user_name : userSpecs.user_name,
+    user_email: null, // PII minimization: email redacted over wire
+    user_name: null,  // PII minimization: name redacted over wire
     plan_tier: report.plan_tier !== undefined ? report.plan_tier : userSpecs.plan_tier,
     is_paid: report.is_paid !== undefined ? report.is_paid : userSpecs.is_paid,
     store_slug: report.store_slug !== undefined ? report.store_slug : userSpecs.store_slug,

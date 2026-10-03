@@ -2,7 +2,7 @@
  * UpgradePage — In-app upgrade flow with Market Awareness,
  * 14-day trial management, and trust-first cancellation.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Check, ArrowRight, Loader2, ShieldCheck, Zap, Sparkles, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -65,11 +65,18 @@ export default function UpgradePage() {
   const nextPlan = getNextPlan(user?.plan);
   const marketPlans = getMarketPlans(market);
 
+  const verifiedOrderIds = useRef<Set<string>>(new Set());
+
   // Handle return from Cashfree checkout via ?order_id=
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id');
     if (!orderId || !user) return;
+    if (verifiedOrderIds.current.has(orderId)) return;
+    verifiedOrderIds.current.add(orderId);
+
+    // Clean URL parameter immediately to prevent duplicate runs on re-renders
+    window.history.replaceState({}, '', window.location.pathname);
 
     let isMounted = true;
     const verifyCashfree = async () => {
@@ -86,8 +93,6 @@ export default function UpgradePage() {
           toast.success(verifyRes.data.message || 'Payment verified and plan activated!', { id: toastId });
           if (refreshSubscription) await refreshSubscription();
           if (updateUser) await updateUser({ plan: verifyRes.data.plan });
-          // Clean URL parameter
-          window.history.replaceState({}, '', window.location.pathname);
           navigate('/dashboard');
         } else {
           toast.error(verifyRes.data.error || 'Payment verification failed.', { id: toastId });
@@ -109,10 +114,8 @@ export default function UpgradePage() {
 
     setUpgrading(plan.id);
     try {
-      const price = billing === 'yearly' ? plan.price.yearly : plan.price.monthly;
       const res = await api.post('/payment/initialize', {
         plan: plan.id,
-        amount: price,
         billingCycle: billing,
       });
 

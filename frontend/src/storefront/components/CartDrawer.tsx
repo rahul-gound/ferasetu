@@ -216,7 +216,7 @@ export default function CartDrawer() {
                 type="button"
                 onClick={() => {
                   const token = orderSuccess.trackingToken || '';
-                  const rawApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+                  const rawApi = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
                   const apiBase = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
                   window.open(`${apiBase}/orders/public/${orderSuccess.id}/invoice/pdf?token=${encodeURIComponent(token)}`, '_blank');
                 }}

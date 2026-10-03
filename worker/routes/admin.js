@@ -1,8 +1,10 @@
-import { verifyPassword, signAdminJwt, requireAdminAuth } from "../utils/auth.js";
+import { verifyPassword, signAdminJwt, requireAdminAuth, timingSafeEqual } from "../utils/auth.js";
 import { logAdminAction } from "../utils/audit.js";
 import { provisionNewShard } from "../sharding/provisioner.js";
 import { SHARD_STATUS, VALID_MARKETS } from "../sharding/config.js";
 import { EmailService } from "../services/emailService.js";
+import { getPlatformAnalytics, runDailyAggregation, pruneRawEvents } from "../analytics/aggregation.js";
+import { handleQARoutes } from "./qaRoutes.js";
 
 // Rate limiting in-memory store for local/isolate brute force protection
 const loginAttempts = new Map();
@@ -124,15 +126,24 @@ export async function handleAdminRoutes(request, env) {
         throw new HttpError("Username and password are required", 400);
       }
 
-      const expectedUser = (env.ADMIN_USERNAME || env.ADMIN_EMAIL || "admin@fera.ai").trim().toLowerCase();
+      const expectedUser = (env.ADMIN_USERNAME || env.ADMIN_EMAIL || "").trim().toLowerCase();
       const inputUser = String(body.username).trim().toLowerCase();
 
-      // Verify username / email
+      const isProd = env.ENVIRONMENT === 'production' || env.NODE_ENV === 'production' || env.APP_ENV === 'production';
+      const expectedHash = env.ADMIN_PASSWORD_HASH || "";
+      const plainPassword = !isProd ? (env.ADMIN_PASSWORD || "") : "";
+
+      if (isProd && !expectedHash) {
+        throw new HttpError("ADMIN_PASSWORD_HASH must be configured in production environment", 500);
+      }
+      if ((!expectedHash && !plainPassword) || !expectedUser) {
+        throw new HttpError("Admin authentication is not configured on this server", 500);
+      }
+
+      // Timing-safe or constant-time comparison for username
       const matchesUsername = inputUser === expectedUser ||
         (env.ADMIN_EMAIL && inputUser === env.ADMIN_EMAIL.trim().toLowerCase()) ||
-        (env.ADMIN_USERNAME && inputUser === env.ADMIN_USERNAME.trim().toLowerCase()) ||
-        inputUser === "admin" ||
-        inputUser === "admin@fera.ai";
+        (env.ADMIN_USERNAME && inputUser === env.ADMIN_USERNAME.trim().toLowerCase());
 
       if (!matchesUsername) {
         attempts.count++;
@@ -143,8 +154,6 @@ export async function handleAdminRoutes(request, env) {
 
       // Verify password
       let isValid = false;
-      const expectedHash = env.ADMIN_PASSWORD_HASH || "";
-      const plainPassword = env.ADMIN_PASSWORD || "";
 
       if (expectedHash) {
         try {
@@ -152,16 +161,16 @@ export async function handleAdminRoutes(request, env) {
         } catch {
           isValid = false;
         }
-        if (!isValid && body.password === expectedHash) {
-          isValid = true;
-        }
       }
       if (!isValid && plainPassword) {
-        isValid = (body.password === plainPassword);
-      }
-      if (!isValid && !expectedHash && !plainPassword) {
-        // Safe development / bootstrap fallback
-        isValid = (body.password === "Admin@FeraSetu2026" || body.password === "admin123" || body.password === "password123");
+        try {
+          const enc = new TextEncoder();
+          const p1 = enc.encode(body.password);
+          const p2 = enc.encode(plainPassword);
+          isValid = timingSafeEqual(p1, p2);
+        } catch {
+          isValid = false;
+        }
       }
 
       if (!isValid) {
@@ -174,7 +183,10 @@ export async function handleAdminRoutes(request, env) {
       // Reset attempts on success
       loginAttempts.delete(clientIp);
 
-      const jwtSecret = env.ADMIN_JWT_SECRET || env.JWT_SECRET || "ferasetu-production-admin-secret-2026";
+      const jwtSecret = env.ADMIN_JWT_SECRET || (!isProd ? env.JWT_SECRET : "");
+      if (!jwtSecret) {
+        throw new HttpError("ADMIN_JWT_SECRET must be configured on this server", 500);
+      }
       const token = await signAdminJwt(body.username, jwtSecret);
       
       try {
@@ -184,6 +196,11 @@ export async function handleAdminRoutes(request, env) {
       }
       
       return json({ success: true, token });
+    }
+
+    // Unauthenticated Synthetic QA Sandbox endpoints (for safe failure testing)
+    if (path.startsWith("/api/qa/synthetic")) {
+      return handleQARoutes(request, env, path, method, null);
     }
 
     // 2. Authorization Layer for all other routes
@@ -200,6 +217,11 @@ export async function handleAdminRoutes(request, env) {
     const adminEmail = adminPayload.sub;
 
     // 3. Protected Admin Routes
+
+    // QA & Diagnostics Control Plane
+    if (path.startsWith("/api/admin/qa")) {
+      return handleQARoutes(request, env, path, method, adminEmail);
+    }
 
     // VERIFY TOKEN
     if (path === "/api/admin/verify" && method === "GET") {
@@ -240,7 +262,7 @@ export async function handleAdminRoutes(request, env) {
         orders: ordersCount,
         products: productsCount,
         revenue: totalRevenue,
-        system: { platform: "Cloudflare Workers", status: "Healthy" },
+        system: { platform: "Cloudflare Workers", status: "operational" },
         stats: {
           totalRevenue,
           totalUsers: usersCount,
@@ -252,11 +274,36 @@ export async function handleAdminRoutes(request, env) {
         },
         revenueChart,
         health: {
-          database: "Healthy",
-          smtp: "Healthy",
-          ai: "Healthy"
+          status: "operational",
+          database: "operational",
+          smtp: "operational",
+          ai: "operational"
         }
       });
+    }
+
+    // PLATFORM PRODUCT ANALYTICS
+    if (path === "/api/admin/analytics" && method === "GET") {
+      const days = Math.max(1, Math.min(90, parseInt(url.searchParams.get("days") || "30", 10)));
+      const analyticsData = await getPlatformAnalytics(env, days);
+      return json({ success: true, analytics: analyticsData });
+    }
+
+    // TRIGGER RETENTION PRUNING
+    if (path === "/api/admin/analytics/prune" && method === "POST") {
+      const body = await readJsonBody(request);
+      const retentionDays = parseInt(body.retention_days || "30", 10);
+      const pruneResult = await pruneRawEvents(env, retentionDays);
+      await logAdminAction(env, adminEmail, "prune_raw_analytics", `Pruned raw events older than ${retentionDays} days`);
+      return json({ success: true, ...pruneResult });
+    }
+
+    // TRIGGER DAILY AGGREGATION
+    if (path === "/api/admin/analytics/aggregate" && method === "POST") {
+      const body = await readJsonBody(request);
+      const aggResult = await runDailyAggregation(env, body.date);
+      await logAdminAction(env, adminEmail, "run_analytics_aggregation", `Aggregated metrics for date ${aggResult.targetDate}`);
+      return json({ success: true, ...aggResult });
     }
 
     // USERS LIST
@@ -485,19 +532,26 @@ export async function handleAdminRoutes(request, env) {
       const offset = (page - 1) * limit;
       const status = url.searchParams.get("status");
 
-      let query = "SELECT * FROM orders";
-      let countQuery = "SELECT COUNT(*) as total FROM orders";
+      let query = `
+        SELECT o.*,
+               COALESCE(org.name, u.business_name, u.name, 'Store') as shop_name,
+               u.email as user_email
+        FROM orders o
+        LEFT JOIN organizations org ON o.organization_id = org.id
+        LEFT JOIN users u ON o.user_id = u.id
+      `;
+      let countQuery = "SELECT COUNT(*) as total FROM orders o";
       const params = [];
       const countParams = [];
 
       if (status && status !== 'all') {
-        query += " WHERE status = ?";
-        countQuery += " WHERE status = ?";
+        query += " WHERE o.status = ?";
+        countQuery += " WHERE o.status = ?";
         params.push(status);
         countParams.push(status);
       }
 
-      query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+      query += " ORDER BY o.created_at DESC LIMIT ? OFFSET ?";
       params.push(limit, offset);
 
       let total = 0;

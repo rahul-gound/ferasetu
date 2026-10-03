@@ -23,13 +23,14 @@ const PLAN_CONFIG: Record<string, { amount: number; monthlyCredits: number; tria
   free: { amount: 0, monthlyCredits: 20 },
   beta: { amount: 0, monthlyCredits: 20, trialDays: 3650 },
   trial: { amount: 0, monthlyCredits: 20, trialDays: 7 },
-  starter: { amount: 299, monthlyCredits: 100 },
+  starter: { amount: 199, monthlyCredits: 50 },
   business: { amount: 399, monthlyCredits: 200 },
   growth: { amount: 399, monthlyCredits: 200 },
-  basic: { amount: 299, monthlyCredits: 100 },
-  standard: { amount: 699, monthlyCredits: 500 },
+  basic: { amount: 199, monthlyCredits: 50 },
+  standard: { amount: 399, monthlyCredits: 200 },
   pro: { amount: 999, monthlyCredits: 1000 },
-  premium: { amount: 999, monthlyCredits: 1000 }
+  premium: { amount: 999, monthlyCredits: 1000 },
+  scale: { amount: 999, monthlyCredits: 1000 }
 };
 
 const CREDIT_PACKS: Record<string, { credits: number; amount: number; label: string }> = {
@@ -58,6 +59,7 @@ function isPaidPlan(planId: string): boolean {
 async function createCashfreeOrder(params: {
   orderId: string;
   amount: number;
+  currency?: string;
   customerId: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -69,7 +71,7 @@ async function createCashfreeOrder(params: {
     {
       order_id: params.orderId,
       order_amount: params.amount,
-      order_currency: 'INR',
+      order_currency: params.currency || 'INR',
       customer_details: {
         customer_id: params.customerId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50),
         customer_email: params.customerEmail || 'merchant@ferasetu.com',
@@ -736,7 +738,7 @@ router.post('/initialize',
         return;
       }
 
-      // Cashfree Checkout session for India
+      // Cashfree Checkout session for FeraSetu Subscriptions (All Markets)
       if (gateway === 'cashfree') {
         const hasCashfreeCredentials = CASHFREE_APP_ID && CASHFREE_SECRET_KEY && !CASHFREE_APP_ID.includes('your_app_id');
 
@@ -747,8 +749,8 @@ router.post('/initialize',
           }
           db.prepare(`
             INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
-            VALUES (?, ?, ?, ?, 'INR', ?, 'pending', ?)
-          `).run(transactionId, userId, `cf_test_${transactionId}`, expectedAmount, plan, JSON.stringify({ provider: 'cashfree_mock', billingCycle }));
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+          `).run(transactionId, userId, `cf_test_${transactionId}`, expectedAmount, currency, plan, JSON.stringify({ provider: 'cashfree_mock', billingCycle, region }));
 
           res.status(201).json({
             success: true,
@@ -757,7 +759,7 @@ router.post('/initialize',
             id: transactionId,
             plan,
             amount: expectedAmount,
-            currency: 'INR',
+            currency,
             paymentSessionId: `session_test_${transactionId.substring(0, 14)}`,
             cashfreeOrderId: `order_test_${transactionId.substring(0, 14)}`,
             cashfreeEnv: CASHFREE_ENV === 'production' ? 'production' : 'sandbox',
@@ -770,6 +772,7 @@ router.post('/initialize',
         const cfOrder = await createCashfreeOrder({
           orderId: transactionId,
           amount: expectedAmount,
+          currency,
           customerId: userId,
           customerEmail: user?.email,
           customerPhone: user?.phone,
@@ -779,8 +782,8 @@ router.post('/initialize',
 
         db.prepare(`
           INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
-          VALUES (?, ?, ?, ?, 'INR', ?, 'pending', ?)
-        `).run(transactionId, userId, cfOrder.order_id, expectedAmount, plan, JSON.stringify({ provider: 'cashfree', cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle }));
+          VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+        `).run(transactionId, userId, cfOrder.order_id, expectedAmount, currency, plan, JSON.stringify({ provider: 'cashfree', cashfree_order_id: cfOrder.order_id, cf_order_id: cfOrder.cf_order_id, billingCycle, region }));
 
         res.status(201).json({
           success: true,
@@ -789,7 +792,7 @@ router.post('/initialize',
           id: transactionId,
           plan,
           amount: expectedAmount,
-          currency: 'INR',
+          currency,
           paymentSessionId: cfOrder.payment_session_id,
           cashfreeOrderId: cfOrder.order_id,
           cashfreeEnv: CASHFREE_ENV === 'production' ? 'production' : 'sandbox',
@@ -801,6 +804,14 @@ router.post('/initialize',
       // Razorpay Checkout session for India
       if (gateway === 'razorpay') {
         if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET || RAZORPAY_KEY_ID.includes('your_key_id')) {
+          if (process.env.NODE_ENV === 'production') {
+            res.status(503).json({
+              error: 'Razorpay payment gateway is not configured for production.',
+              code: 'RAZORPAY_NOT_CONFIGURED'
+            });
+            return;
+          }
+
           db.prepare(`
             INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
             VALUES (?, ?, ?, ?, 'INR', ?, 'pending', ?)
@@ -815,7 +826,7 @@ router.post('/initialize',
             amount: expectedAmount,
             currency: 'INR',
             razorpayOrderId: `order_dev_${transactionId.substring(0, 14)}`,
-            razorpayKeyId: 'rzp_test_mock_key',
+            razorpayKeyId: RAZORPAY_KEY_ID || 'rzp_test_mock_key',
             message: `Razorpay order created for plan: ${plan}`
           });
           return;
@@ -843,23 +854,70 @@ router.post('/initialize',
       }
 
       // Stripe Checkout session for US / EU / OTHER
-      const stripeSessionId = `cs_sess_${transactionId}`;
-      db.prepare(`
-        INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
-      `).run(transactionId, userId, stripeSessionId, expectedAmount, currency, plan, JSON.stringify({ provider: 'stripe', stripeSessionId, billingCycle, region }));
+      if (!STRIPE_SECRET_KEY) {
+        res.status(503).json({
+          error: 'Stripe checkout is currently unavailable. Stripe API credentials are not configured on the server.',
+          code: 'STRIPE_NOT_CONFIGURED'
+        });
+        return;
+      }
 
-      res.status(201).json({
-        success: true,
-        requiresPayment: true,
-        gateway: 'stripe',
-        id: transactionId,
-        plan,
-        amount: expectedAmount,
-        currency,
-        stripeSessionId,
-        message: `Stripe checkout created for plan: ${plan}`
-      });
+      try {
+        const params = new URLSearchParams();
+        params.append('payment_method_types[]', 'card');
+        params.append('mode', 'payment');
+        params.append('line_items[0][price_data][currency]', currency.toLowerCase());
+        params.append('line_items[0][price_data][unit_amount]', Math.round(expectedAmount * 100).toString());
+        params.append('line_items[0][price_data][product_data][name]', `FeraSetu ${plan.toUpperCase()} Plan (${billingCycle})`);
+        params.append('line_items[0][quantity]', '1');
+        params.append('client_reference_id', userId);
+        params.append('metadata[transaction_id]', transactionId);
+        params.append('metadata[user_id]', userId);
+        params.append('metadata[plan]', plan);
+        params.append('metadata[billing_cycle]', billingCycle);
+        params.append('metadata[region]', region);
+        const appUrl = process.env.APP_URL || 'https://app.ferasetu.com';
+        params.append('success_url', `${appUrl}/settings/billing?session_id={CHECKOUT_SESSION_ID}&status=success`);
+        params.append('cancel_url', `${appUrl}/settings/billing?status=cancelled`);
+
+        const stripeRes = await axios.post('https://api.stripe.com/v1/checkout/sessions', params.toString(), {
+          headers: {
+            Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
+
+        const session = stripeRes.data;
+        const stripeSessionId = session.id;
+        const checkoutUrl = session.url;
+
+        db.prepare(`
+          INSERT INTO transactions (id, user_id, provider_order_id, amount, currency, plan, status, metadata)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+        `).run(transactionId, userId, stripeSessionId, expectedAmount, currency, plan, JSON.stringify({ provider: 'stripe', stripeSessionId, billingCycle, region, checkoutUrl }));
+
+        res.status(201).json({
+          success: true,
+          requiresPayment: true,
+          gateway: 'stripe',
+          id: transactionId,
+          plan,
+          amount: expectedAmount,
+          currency,
+          stripeSessionId,
+          checkoutUrl,
+          url: checkoutUrl,
+          message: `Stripe checkout created for plan: ${plan}`
+        });
+        return;
+      } catch (stripeErr: any) {
+        console.error('Failed to create Stripe checkout session:', stripeErr?.response?.data || stripeErr.message);
+        res.status(503).json({
+          error: 'Failed to create Stripe checkout session with payment provider',
+          details: stripeErr?.response?.data?.error?.message || stripeErr.message
+        });
+        return;
+      }
     } catch (error: any) {
       console.error('Failed to initialize payment:', error);
       res.status(500).json({ error: error.message || 'Failed to initialize payment' });

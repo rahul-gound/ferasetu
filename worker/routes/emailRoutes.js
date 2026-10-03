@@ -9,6 +9,8 @@ import { normalizeDomain, generateDnsInstructions, verifyDomainDns, provisionClo
 import { encryptSecret } from '../services/emailCrypto.js';
 import { testSmtpConnection } from '../services/externalSmtpClient.js';
 import { EmailService, ensureMerchantEmailProvisioning } from '../services/emailService.js';
+import { EMAIL_TEMPLATES, validateTemplateVariables, renderEmailTemplate } from '../templates/emailTemplates.js';
+import { AiEmailAssistantService } from '../ai/emailAssistantActions.js';
 
 async function readJsonBody(request) {
   try {
@@ -476,7 +478,7 @@ export async function handleEmailRoutes(request, env) {
         }
       }
 
-      const masterKey = env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
+      const masterKey = env?.DATA_ENCRYPTION_KEY || env?.SMTP_ENCRYPTION_KEY || env?.ENCRYPTION_SECRET || env?.ADMIN_JWT_SECRET;
       const encryptedSecret = password ? await encryptSecret(password, masterKey) : existingConn?.encrypted_secret_reference;
       const now = new Date().toISOString();
 
@@ -609,6 +611,166 @@ export async function handleEmailRoutes(request, env) {
     `).bind(orgId).all();
 
     return json({ events: rows.results || [] }, 200, {}, request);
+  }
+
+  // ---------------------------------------------------------------------------
+  // TEMPLATES API (Milestone 4)
+  // ---------------------------------------------------------------------------
+
+  // GET /api/email/templates
+  if (path === "/api/email/templates" && method === "GET") {
+    const assistant = new AiEmailAssistantService(env.DB);
+    const result = await assistant.list_email_templates({ organizationId: orgId });
+    return json(result, 200, {}, request);
+  }
+
+  // POST /api/email/templates/undo
+  if (path === "/api/email/templates/undo" && method === "POST") {
+    const assistant = new AiEmailAssistantService(env.DB);
+    try {
+      const result = await assistant.undo_last_action({ organizationId: orgId });
+      return json(result, 200, {}, request);
+    } catch (err) {
+      throw new HttpError(err?.message || "Failed to undo template action", 400);
+    }
+  }
+
+  // /api/email/templates/:key (GET, PUT, DELETE)
+  // /api/email/templates/:key/preview (POST)
+  // /api/email/templates/:key/test (POST)
+  // /api/email/templates/:key/undo (POST)
+  if (path.startsWith("/api/email/templates/")) {
+    const subpath = path.slice("/api/email/templates/".length);
+    const parts = subpath.split("/");
+    const templateKey = decodeURIComponent(parts[0]);
+    const action = parts[1] || null;
+
+    const tpl = EMAIL_TEMPLATES[templateKey];
+    if (!tpl) {
+      throw new HttpError(`Template '${templateKey}' is not registered in the catalog`, 404);
+    }
+
+    const assistant = new AiEmailAssistantService(env.DB);
+
+    if (!action) {
+      if (method === "GET") {
+        const override = await env.DB.prepare(
+          "SELECT * FROM merchant_email_templates WHERE organization_id = ? AND template_key = ?"
+        ).bind(orgId, templateKey).first();
+
+        return json({
+          templateKey,
+          version: override?.version || tpl.version,
+          requiredVariables: tpl.requiredVariables,
+          optionalVariables: tpl.optionalVariables,
+          status: tpl.status,
+          override: override || null
+        }, 200, {}, request);
+      }
+
+      if (method === "PUT") {
+        const body = await readJsonBody(request);
+        try {
+          const result = await assistant.update_email_template({
+            organizationId: orgId,
+            templateKey,
+            subject: body.subject || null,
+            contentHtml: body.contentHtml || body.content_html || ""
+          });
+          return json(result, 200, {}, request);
+        } catch (err) {
+          throw new HttpError(err?.message || "Failed to update template", 400);
+        }
+      }
+
+      if (method === "DELETE") {
+        await env.DB.prepare(
+          "DELETE FROM merchant_email_templates WHERE organization_id = ? AND template_key = ?"
+        ).bind(orgId, templateKey).run();
+        return json({ success: true, message: `Custom override for '${templateKey}' removed` }, 200, {}, request);
+      }
+
+      throw new HttpError("Method not allowed", 405);
+    }
+
+    if (action === "preview" && method === "POST") {
+      const body = await readJsonBody(request);
+      const sampleData = body.sampleData || {};
+      const override = await env.DB.prepare(
+        "SELECT * FROM merchant_email_templates WHERE organization_id = ? AND template_key = ?"
+      ).bind(orgId, templateKey).first();
+
+      const subject = body.subject ?? override?.subject ?? null;
+      const contentHtml = body.contentHtml ?? body.content_html ?? override?.content_html ?? null;
+
+      try {
+        let rendered;
+        if (contentHtml) {
+          // Render custom content with variable replacement
+          let interpolatedHtml = contentHtml;
+          let interpolatedSubject = subject || templateKey;
+          const mergedData = { ...sampleData, storeName: orgName, brandName: orgName };
+
+          for (const [k, v] of Object.entries(mergedData)) {
+            const regex = new RegExp(`\\{\\{${k}\\}\\}`, 'g');
+            interpolatedHtml = interpolatedHtml.replace(regex, escapeHtml(v));
+            interpolatedSubject = interpolatedSubject.replace(regex, String(v));
+          }
+
+          rendered = {
+            subject: interpolatedSubject,
+            html: interpolatedHtml,
+            text: interpolatedSubject
+          };
+        } else {
+          // Render default registered template
+          rendered = renderEmailTemplate({
+            templateKey,
+            locale: body.locale || 'en',
+            data: sampleData,
+            branding: { storeName: orgName },
+            isPlatform: false
+          });
+        }
+
+        return json({ success: true, ...rendered }, 200, {}, request);
+      } catch (err) {
+        throw new HttpError(`Template preview failed: ${err?.message || err}`, 400);
+      }
+    }
+
+    if (action === "test" && method === "POST") {
+      const body = await readJsonBody(request);
+      const to = String(body.to || '').trim();
+      if (!to || !to.includes('@')) {
+        throw new HttpError("Valid recipient email (to) is required for test send", 422);
+      }
+
+      try {
+        const result = await assistant.send_test_email({
+          organizationId: orgId,
+          to,
+          templateKey,
+          sampleData: body.sampleData || {},
+          confirmed: true,
+          env
+        });
+        return json({ success: true, message: "Test template email dispatched successfully", result }, 200, {}, request);
+      } catch (err) {
+        throw new HttpError(`Test template email failed: ${err?.message || err}`, 500);
+      }
+    }
+
+    if (action === "undo" && method === "POST") {
+      try {
+        const result = await assistant.undo_last_action({ organizationId: orgId });
+        return json(result, 200, {}, request);
+      } catch (err) {
+        throw new HttpError(err?.message || "Failed to undo template action", 400);
+      }
+    }
+
+    throw new HttpError(`Unknown template action: ${action}`, 404);
   }
 
   throw new HttpError(`Unknown email endpoint: ${path}`, 404);
