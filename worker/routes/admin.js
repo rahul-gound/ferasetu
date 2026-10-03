@@ -313,19 +313,31 @@ export async function handleAdminRoutes(request, env) {
       const offset = (page - 1) * limit;
       const search = (url.searchParams.get("search") || "").trim();
 
-      let query = "SELECT id, email, name, plan, created_at, is_blocked FROM users";
+      let query = `
+        SELECT
+          u.id, u.email, u.name, u.plan, u.plan_expires_at, u.created_at, u.is_blocked,
+          (SELECT COUNT(*) FROM websites w WHERE w.user_id = u.id) as shopsCount,
+          (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as ordersCount,
+          (SELECT COUNT(*) FROM products p WHERE p.user_id = u.id) as productsCount,
+          s.status as sub_status,
+          s.current_period_end as sub_end,
+          s.plan as sub_plan,
+          s.payment_provider as sub_provider
+        FROM users u
+        LEFT JOIN subscriptions s ON s.user_id = u.id
+      `;
       let countQuery = "SELECT COUNT(*) as total FROM users";
       const params = [];
       const countParams = [];
 
       if (search) {
-        query += " WHERE email LIKE ? OR name LIKE ?";
+        query += " WHERE u.email LIKE ? OR u.name LIKE ?";
         countQuery += " WHERE email LIKE ? OR name LIKE ?";
         params.push(`%${search}%`, `%${search}%`);
         countParams.push(`%${search}%`, `%${search}%`);
       }
 
-      query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+      query += " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
       params.push(limit, offset);
 
       let total = 0;
@@ -340,41 +352,36 @@ export async function handleAdminRoutes(request, env) {
 
       const { results } = await env.DB.prepare(query).bind(...params).all();
       
-      // Enrich with counts and subscription data
-      for (const user of (results || [])) {
-        try {
-          user.shopsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM websites WHERE user_id = ?").bind(user.id).first("count")) || 0;
-          user.ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders WHERE user_id = ?").bind(user.id).first("count")) || 0;
-          user.productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products WHERE user_id = ?").bind(user.id).first("count")) || 0;
+      const formattedResults = (results || []).map(row => {
+        const user = {
+          id: row.id,
+          email: row.email,
+          name: row.name,
+          plan: row.plan,
+          created_at: row.created_at,
+          is_blocked: row.is_blocked,
+          shopsCount: row.shopsCount || 0,
+          ordersCount: row.ordersCount || 0,
+          productsCount: row.productsCount || 0,
+          subscription_status: 'free',
+          subscription_expires_at: row.plan_expires_at || null,
+          subscription_plan: row.plan || 'free',
+          payment_provider: null
+        };
 
-          try {
-            const sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE user_id = ?").bind(user.id).first();
-            if (sub) {
-              user.subscription_status = sub.status || 'free';
-              user.subscription_expires_at = sub.current_period_end || user.plan_expires_at || null;
-              user.subscription_plan = sub.plan || user.plan || 'free';
-              user.payment_provider = sub.payment_provider || null;
-            } else {
-              user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
-              user.subscription_expires_at = user.plan_expires_at || null;
-              user.subscription_plan = user.plan || 'free';
-            }
-          } catch {
-            user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
-            user.subscription_expires_at = user.plan_expires_at || null;
-            user.subscription_plan = user.plan || 'free';
-          }
-        } catch {
-          user.shopsCount = 0;
-          user.ordersCount = 0;
-          user.productsCount = 0;
-          user.subscription_status = (user.plan && user.plan !== 'free') ? 'active' : 'free';
-          user.subscription_expires_at = user.plan_expires_at || null;
-          user.subscription_plan = user.plan || 'free';
+        if (row.sub_status) {
+          user.subscription_status = row.sub_status;
+          user.subscription_expires_at = row.sub_end || user.subscription_expires_at;
+          user.subscription_plan = row.sub_plan || user.subscription_plan;
+          user.payment_provider = row.sub_provider;
+        } else if (user.plan && user.plan !== 'free') {
+          user.subscription_status = 'active';
         }
-      }
+
+        return user;
+      });
       
-      return json({ users: results || [], total, page, limit });
+      return json({ users: formattedResults, total, page, limit });
     }
 
     // USER STATUS (Block/Unblock)
