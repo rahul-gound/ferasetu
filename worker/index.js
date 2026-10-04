@@ -92,6 +92,7 @@ import { EmailService, ensureMerchantEmailProvisioning } from "./services/emailS
 import { createCashfreeService, getCashfreeCredentials, classifyCashfreeError } from "./services/cashfreeService.js";
 import { createTurnstileService } from "./services/turnstileService.js";
 import { createAiGatewayService } from "./services/aiGatewayService.js";
+import { isProduction } from "./utils/env.js";
 
 // ---------------------------------------------------------------------------
 // Allowed origins for CORS validation (exact match)
@@ -253,6 +254,9 @@ async function getAuthenticatedUser(request, env) {
   const jwt = authHeader.substring(7);
   const clientId = env.WORKOS_CLIENT_ID || "client_01KZRE47KGSPK84HEP9WNBG9YY";
 
+  // Environment policy: HMAC/JWT_SECRET fallback is disabled in production.
+  const isProd = isProduction(env);
+
   const keySet = env.JWKS || (jwksCache = jwksCache || jose.createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${clientId}`)));
 
   try {
@@ -269,7 +273,13 @@ async function getAuthenticatedUser(request, env) {
       permissions: Array.isArray(payload.permissions) ? payload.permissions : []
     };
   } catch (workosErr) {
-    // 2. Fallback: verify if token is a platform-signed HMAC JWT (via dedicated user JWT_SECRET only)
+    // Production: fail closed. WorkOS verification failure is final — no fallback.
+    if (isProd) {
+      console.error("JWT verification error (WorkOS failed in production):", workosErr);
+      throw new HttpError("Unauthorized: Invalid session signature or expired token", 401);
+    }
+
+    // 2. Development/test fallback only: verify if token is a platform-signed HMAC JWT (JWT_SECRET).
     const secret = env.JWT_SECRET;
     if (secret) {
       try {

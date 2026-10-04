@@ -97,7 +97,8 @@ export default function AnalyticsShowcase({ stats }: { stats: PlatformStats }) {
               >
                 {stat.value}
               </div>
-              <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.3)', fontWeight: 700, marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: stat.color }}></span>
                 {stat.label}
               </div>
             </motion.div>

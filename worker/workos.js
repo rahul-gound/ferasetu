@@ -13,7 +13,13 @@ const WORKOS_API_BASE = "https://api.workos.com";
  */
 export function isLiveWorkOS(env) {
   const key = env?.WORKOS_API_KEY;
-  return typeof key === "string" && key.startsWith("sk_") && !key.includes("test_placeholder");
+  const isProduction = env.ENVIRONMENT === "production" || env.NODE_ENV === "production";
+
+  if (isProduction) {
+    return typeof key === "string" && key.startsWith("sk_live_");
+  }
+
+  return typeof key === "string" && key.startsWith("sk_");
 }
 
 /**

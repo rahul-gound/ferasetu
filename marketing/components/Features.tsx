@@ -7,44 +7,50 @@ const features = [
   {
     title: 'Real-time Analytics Dashboard',
     desc: 'Track revenue, orders, top products & customer trends live. Know your profit instantly.',
-    icon: <TrendingUp size={24} />,
+    icon: <TrendingUp size={20} />,
     color: '#0052FF',
     glow: 'rgba(0, 82, 255, 0.2)',
+    badge: 'Live',
   },
   {
     title: 'WhatsApp Sales Engine',
     desc: 'Share product links on WhatsApp. Customers order directly. No app download needed for buyers.',
-    icon: <MessageCircle size={24} />,
+    icon: <MessageCircle size={20} />,
     color: '#10B981',
     glow: 'rgba(16, 185, 129, 0.2)',
+    badge: 'Ready',
   },
   {
     title: 'AI Profit Insights',
     desc: 'Smart AI analyzes your sales & suggests what to stock, when to discount, and how to increase margins.',
-    icon: <BarChart3 size={24} />,
+    icon: <BarChart3 size={20} />,
     color: '#6366F1',
     glow: 'rgba(99, 102, 241, 0.2)',
+    badge: 'Active',
   },
   {
     title: 'Smart Inventory',
     desc: 'Auto low-stock alerts, cost tracking, profit per item, and bulk import. Never run out of bestsellers.',
-    icon: <Smartphone size={24} />,
+    icon: <Smartphone size={20} />,
     color: '#F59E0B',
     glow: 'rgba(245, 158, 11, 0.2)',
+    badge: 'Synced',
   },
   {
     title: 'UPI & Card Payments',
     desc: 'Accept online payments via UPI, cards, net banking. Auto reconciliation. Zero setup fees.',
-    icon: <CreditCard size={24} />,
+    icon: <CreditCard size={20} />,
     color: '#EC4899',
     glow: 'rgba(236, 72, 153, 0.2)',
+    badge: 'Enabled',
   },
   {
     title: '22+ Indian Languages',
     desc: 'Run your shop in Hindi, Gujarati, Tamil, Telugu, Bengali, Marathi, and 16 more. Voice support included.',
-    icon: <Globe size={24} />,
+    icon: <Globe size={20} />,
     color: '#06B6D4',
     glow: 'rgba(6, 182, 212, 0.2)',
+    badge: 'Localized',
   },
 ];
 
@@ -119,33 +125,38 @@ export default function Features() {
               />
               <div
                 style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 18,
+                  width: 48,
+                  height: 48,
+                  borderRadius: 16,
                   background: feature.glow,
                   border: `1px solid ${feature.color}30`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: feature.color,
-                  marginBottom: 28,
-                  boxShadow: `0 8px 24px ${feature.glow}`,
-                  transform: 'translateZ(40px)',
+                  marginBottom: 24,
+                  boxShadow: `0 4px 12px ${feature.glow}`,
+                  transform: 'translateZ(20px)',
                 }}
               >
                 {feature.icon}
               </div>
-              <h3
-                className="font-display"
-                style={{ fontSize: 22, fontWeight: 900, marginBottom: 12, letterSpacing: '-0.02em' }}
-              >
-                {feature.title}
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3
+                  className="font-display"
+                  style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}
+                >
+                  {feature.title}
+                </h3>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider" style={{ background: `${feature.color}15`, color: feature.color }}>
+                  {feature.badge}
+                </span>
+              </div>
               <p
                 style={{
-                  fontSize: 15,
+                  fontSize: 14,
                   color: 'rgba(255, 255, 255, 0.45)',
-                  lineHeight: 1.7,
+                  lineHeight: 1.6,
                   fontWeight: 500,
                 }}
               >

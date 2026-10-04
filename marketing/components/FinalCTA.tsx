@@ -64,19 +64,25 @@ export default function FinalCTA() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 12,
-                padding: '20px 52px',
-                borderRadius: 24,
-                background: 'linear-gradient(135deg, #0052FF, #4D7CFF)',
+                padding: '18px 40px',
+                borderRadius: 20,
+                background: '#0052FF',
                 color: '#fff',
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: 900,
-                boxShadow: '0 16px 60px rgba(0, 82, 255, 0.5)',
+                boxShadow: '0 8px 32px rgba(0, 82, 255, 0.3)',
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 textDecoration: 'none',
+                marginBottom: 24,
               }}
             >
-              Create Your Store <ArrowRight size={22} />
+              Create Your Store <ArrowRight size={20} />
             </a>
+            <div className="flex items-center justify-center gap-6 text-xs font-bold text-white/40 uppercase tracking-wider">
+              <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-blue-500" /> 14-day trial</span>
+              <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-blue-500" /> No credit card</span>
+              <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-blue-500" /> 0% commission</span>
+            </div>
           </div>
         </motion.div>
       </div>
