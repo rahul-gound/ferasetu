@@ -111,10 +111,6 @@ export default function Hero({ stats }: { stats: PlatformStats }) {
               4.9/5 Rating
             </span>
           </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255, 255, 255, 0.6)' }}>
-              4.9/5 Rating
-            </span>
-          </div>
         </div>
 
         {/* Real-time Data Visualization Dashboard Mockup */}
