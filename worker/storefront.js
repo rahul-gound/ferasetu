@@ -50,7 +50,7 @@ export const PLAN_PAGE_ENTITLEMENTS = {
   enterprise: { maxCustomPages: Infinity, allowedSystemPages: true },
 };
 
-export const FERASETU_CSP = "default-src 'self'; script-src 'self' https://sdk.cashfree.com https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ferasetu.com https://*.ferasetu.com https://api.workos.com https://*.cashfree.com https://challenges.cloudflare.com https://*.statsigapi.net https://*.statsig.com https://api.sarvam.ai; frame-src 'self' https://*.cashfree.com https://challenges.cloudflare.com https://api.workos.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://api.workos.com https://*.cashfree.com;";
+export const FERASETU_CSP = "default-src 'self'; script-src 'self' https://sdk.cashfree.com https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ferasetu.com https://*.ferasetu.com https://api.workos.com https://*.cashfree.com https://challenges.cloudflare.com https://*.statsigapi.net https://*.statsig.com https://api.sarvam.ai https://cloudflareinsights.com; frame-src 'self' https://*.cashfree.com https://challenges.cloudflare.com https://api.workos.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://api.workos.com https://*.cashfree.com;";
 
 export const RFC9116_SECURITY_TXT = `Contact: mailto:security@ferasetu.com
 Expires: 2027-09-26T00:00:00.000Z

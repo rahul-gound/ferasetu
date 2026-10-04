@@ -14,6 +14,10 @@ export default defineConfig({
       transformMixedEsModules: true
     },
     rollupOptions: {
+      input: {
+        main: 'index.html',
+        telemetry: 'src/telemetry-bootstrap.ts'
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules/recharts') || id.includes('node_modules/chart.js')) {
