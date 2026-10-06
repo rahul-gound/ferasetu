@@ -190,14 +190,14 @@ export default function ProductStoryWalkthrough() {
               key={scene.step}
               type="button"
               onClick={() => setActiveStep(scene.step)}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`p-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer ${
                 isActive
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm ring-1 ring-blue-600'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
-              <div className={`text-[10px] font-mono font-bold uppercase mb-1 ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
-                Step {scene.step}
+              <div className={`text-[10px] font-mono font-bold uppercase mb-0.5 ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
+                Step 0{scene.step}
               </div>
               <div className="text-xs font-bold truncate">
                 {scene.actor}
@@ -208,11 +208,11 @@ export default function ProductStoryWalkthrough() {
       </div>
 
       {/* Main Story Stage */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sm:p-10 grid lg:grid-cols-12 gap-8 items-center">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-md p-6 sm:p-9 grid lg:grid-cols-12 gap-8 items-center">
         {/* Narrative Side */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider">
-            <Icon size={14} className="text-blue-600" />
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider">
+            <Icon size={14} className="text-blue-600" aria-hidden="true" />
             <span>{currentScene.label}</span>
           </div>
 
@@ -220,16 +220,16 @@ export default function ProductStoryWalkthrough() {
             {currentScene.headline}
           </h3>
 
-          <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+          <p className="text-slate-600 text-base leading-relaxed">
             {currentScene.summary}
           </p>
 
-          <div className="pt-4 flex items-center gap-3">
+          <div className="pt-3 flex items-center gap-3">
             <button
               type="button"
               disabled={activeStep === 1}
               onClick={() => setActiveStep((prev) => Math.max(1, prev - 1))}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50"
+              className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 font-semibold text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer transition-colors"
             >
               ← Previous Step
             </button>
@@ -237,7 +237,7 @@ export default function ProductStoryWalkthrough() {
               type="button"
               disabled={activeStep === STORY_SCENES.length}
               onClick={() => setActiveStep((prev) => Math.min(STORY_SCENES.length, prev + 1))}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:bg-blue-700 shadow-sm"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed shadow-sm cursor-pointer transition-colors"
             >
               Next Step →
             </button>
@@ -246,30 +246,31 @@ export default function ProductStoryWalkthrough() {
 
         {/* Visual Card Side */}
         <div className="lg:col-span-5">
-          <div className={`p-6 rounded-xl bg-slate-50 border-2 ${currentScene.visual.accentColor} shadow-md`}>
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+          <div className="p-5 rounded-xl bg-slate-50/70 border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-3.5">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  Product State
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Product State Machine
                 </span>
-                <h4 className="text-base font-bold text-slate-900">
+                <h4 className="text-sm font-bold text-slate-900 mt-0.5">
                   {currentScene.visual.title}
                 </h4>
               </div>
-              <span className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">
-                #{activeStep}
+              <span className="w-7 h-7 rounded-md bg-white border border-slate-200 text-blue-700 flex items-center justify-center font-bold text-xs shadow-sm font-mono">
+                0{activeStep}
               </span>
             </div>
 
-            <p className="text-xs font-semibold text-blue-900 font-mono mb-4 bg-white p-2.5 rounded border border-slate-200">
-              {currentScene.visual.sub}
+            <p className="text-xs font-semibold text-slate-800 font-mono mb-3 bg-white p-2.5 rounded-lg border border-slate-200 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+              <span>{currentScene.visual.sub}</span>
             </p>
 
-            <div className="space-y-2 text-xs">
+            <div className="space-y-1.5 text-xs bg-white rounded-lg border border-slate-200 p-3">
               {currentScene.visual.details.map((d) => (
                 <div key={d.label} className="flex justify-between items-center py-1 border-b border-slate-100 last:border-0">
                   <span className="text-slate-500 font-medium">{d.label}</span>
-                  <span className="font-bold text-slate-800">{d.value}</span>
+                  <span className="font-bold text-slate-900 font-mono">{d.value}</span>
                 </div>
               ))}
             </div>

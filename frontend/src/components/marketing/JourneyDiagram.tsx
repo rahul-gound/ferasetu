@@ -6,7 +6,9 @@ import {
   CreditCard,
   PackageCheck,
   Truck,
-  RotateCcw
+  RotateCcw,
+  CheckCircle2,
+  ArrowRight
 } from 'lucide-react';
 
 interface JourneyStep {
@@ -15,6 +17,7 @@ interface JourneyStep {
   title: string;
   role: string;
   actor: string;
+  badge: string;
   description: string;
   icon: typeof Compass;
 }
@@ -26,6 +29,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'DISCOVER',
     role: 'Local Outreach',
     actor: 'Customer',
+    badge: 'WhatsApp & QR',
     description: 'Finds your shop via shared WhatsApp link, QR code on your storefront, or direct link.',
     icon: Compass,
   },
@@ -35,6 +39,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'VISIT',
     role: 'Digital Storefront',
     actor: 'FeraSetu System',
+    badge: 'Unique URL',
     description: 'Opens your fast, responsive store at your unique link (yourshop.ferasetu.com).',
     icon: Store,
   },
@@ -44,6 +49,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'CHOOSE',
     role: 'Catalog & Inventory',
     actor: 'Customer',
+    badge: 'Live Stock',
     description: 'Browses real products, checks real-time prices, and adds items to their shopping cart.',
     icon: CheckSquare,
   },
@@ -53,6 +59,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'ORDER',
     role: 'Structured Cart',
     actor: 'FeraSetu Workflow',
+    badge: 'Cart Checkout',
     description: 'Submits a structured order with exact quantities, notes, and delivery address.',
     icon: ShoppingCart,
   },
@@ -62,6 +69,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'PAY',
     role: 'Payment Gateway',
     actor: 'Payment Provider',
+    badge: '0% Commission',
     description: 'Customer pays directly via UPI or card. 0% FeraSetu cut; settles to merchant bank.',
     icon: CreditCard,
   },
@@ -71,6 +79,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'FULFILL',
     role: 'Order Preparation',
     actor: 'Merchant Team',
+    badge: 'Tax Invoice',
     description: 'Merchant receives instant notification, prints invoice, and packs physical goods.',
     icon: PackageCheck,
   },
@@ -80,6 +89,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'DELIVER',
     role: 'Last-Mile Transit',
     actor: 'Rider / Pickup',
+    badge: 'OTP Handshake',
     description: 'Merchant rider or chosen carrier delivers package with secure OTP handshake.',
     icon: Truck,
   },
@@ -89,6 +99,7 @@ const JOURNEY_STEPS: JourneyStep[] = [
     title: 'RETURN',
     role: 'Repeat Relationship',
     actor: 'Merchant & Customer',
+    badge: 'Owned Customer',
     description: 'Customer reorders directly. Merchant owns customer history and relationship.',
     icon: RotateCcw,
   },
@@ -98,34 +109,34 @@ export default function JourneyDiagram() {
   return (
     <div className="w-full">
       {/* 8-step connected timeline */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-10">
         {JOURNEY_STEPS.map((step, idx) => {
           const Icon = step.icon;
           const isFinal = idx === JOURNEY_STEPS.length - 1;
           return (
             <div
               key={step.key}
-              className="relative bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between"
+              className="relative bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                    {step.stepNumber}
+                  <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                    STEP {step.stepNumber}
                   </span>
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
                     {step.actor}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                    <Icon size={18} />
+                <div className="flex items-center gap-3 mb-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+                    <Icon size={17} aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 tracking-tight">
                       {step.title}
                     </h3>
-                    <p className="text-[11px] text-blue-600 font-medium">
+                    <p className="text-[11px] text-blue-700 font-semibold">
                       {step.role}
                     </p>
                   </div>
@@ -136,10 +147,18 @@ export default function JourneyDiagram() {
                 </p>
               </div>
 
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                  {step.badge}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">0{idx + 1}/08</span>
+              </div>
+
               {!isFinal && (
-                <div className="hidden lg:block absolute -right-2.5 top-1/2 -translate-y-1/2 z-10">
-                  <span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center text-[10px]">
-                    →
+                <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                  <span className="w-4 h-4 rounded-full bg-white border border-slate-300 text-slate-400 flex items-center justify-center text-[10px] shadow-sm">
+                    <ArrowRight size={9} aria-hidden="true" />
                   </span>
                 </div>
               )}
@@ -149,11 +168,15 @@ export default function JourneyDiagram() {
       </div>
 
       {/* Differentiator Banner */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 sm:p-8 text-center max-w-3xl mx-auto">
-        <h4 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 sm:p-7 text-center max-w-3xl mx-auto shadow-sm">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-3">
+          <CheckCircle2 size={13} className="text-blue-600" aria-hidden="true" />
+          <span>Connected Digital Workflow</span>
+        </div>
+        <h4 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
           One connected journey. One business relationship.
         </h4>
-        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
+        <p className="text-slate-600 text-sm leading-relaxed max-w-2xl mx-auto">
           FeraSetu is not merely a website builder that leaves you stranded after the catalog is uploaded. It provides the digital workflow that connects your real-world store to ordering, payment, fulfillment, and customer retention.
         </p>
       </div>

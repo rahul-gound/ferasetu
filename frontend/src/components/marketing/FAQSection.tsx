@@ -10,7 +10,7 @@
  * - Open state uses blue-50 background for positive association
  */
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { HelpCircle, Plus } from 'lucide-react';
 
 export interface FAQItem {
   question: string;
@@ -65,7 +65,7 @@ interface FAQSectionProps {
 export default function FAQSection({
   faqs = LANDING_FAQS,
   title = 'Questions merchants ask',
-  subtitle = "Honest answers. No marketing language.",
+  subtitle = 'Honest answers with complete operational clarity.',
   dark = false,
 }: FAQSectionProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -74,22 +74,25 @@ export default function FAQSection({
 
   return (
     <section
-      className={`py-20 md:py-24 ${dark ? 'bg-blue-950' : 'bg-blue-50/40 border-t border-blue-100/60'}`}
+      className={`py-20 md:py-24 ${dark ? 'bg-slate-900 border-t border-slate-800' : 'bg-slate-50/70 border-t border-slate-200'}`}
       aria-label="Frequently asked questions"
     >
       <div className="max-w-[800px] mx-auto px-6">
         <div className="text-center mb-12">
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 ${
-            dark
-              ? 'bg-blue-800/60 border border-blue-700 text-blue-300'
-              : 'bg-blue-50 border border-blue-200 text-blue-700'
-          }`}>
-            💬 FAQ
+          <div
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mb-4 border ${
+              dark
+                ? 'bg-slate-800 border-slate-700 text-blue-300'
+                : 'bg-white border-slate-200 text-slate-700 shadow-sm'
+            }`}
+          >
+            <HelpCircle size={13} className="text-blue-600" aria-hidden="true" />
+            <span>Frequently Asked Questions</span>
           </div>
-          <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight mb-3 ${dark ? 'text-white' : 'text-blue-950'}`}>
+          <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight mb-3 ${dark ? 'text-white' : 'text-slate-900'}`}>
             {title}
           </h2>
-          <p className={`text-base leading-relaxed ${dark ? 'text-blue-300' : 'text-slate-600'}`}>
+          <p className={`text-base leading-relaxed ${dark ? 'text-slate-400' : 'text-slate-600'}`}>
             {subtitle}
           </p>
         </div>
@@ -100,32 +103,47 @@ export default function FAQSection({
             return (
               <div
                 key={i}
-                className={`rounded-2xl border transition-all duration-200 ${
+                className={`rounded-xl border transition-all duration-200 ${
                   dark
-                    ? isOpen ? 'border-blue-600 bg-blue-900/60' : 'border-blue-800 bg-blue-900/40'
-                    : isOpen ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200'
+                    ? isOpen
+                      ? 'border-blue-500/60 bg-slate-800/90 shadow-sm'
+                      : 'border-slate-800 bg-slate-800/40 hover:border-slate-700'
+                    : isOpen
+                    ? 'border-blue-300 bg-white shadow-sm ring-1 ring-blue-500/10'
+                    : 'border-slate-200 bg-white hover:border-slate-300 shadow-[0_1px_2px_rgba(0,0,0,0.03)]'
                 }`}
                 role="listitem"
               >
                 <button
+                  type="button"
                   onClick={() => toggle(i)}
                   aria-expanded={isOpen}
-                  className={`w-full text-left px-6 py-5 flex items-start justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-2xl ${
-                    dark ? 'text-white' : 'text-blue-950'
+                  className={`w-full text-left px-5 sm:px-6 py-4 sm:py-4.5 flex items-center justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl cursor-pointer ${
+                    dark ? 'text-white' : 'text-slate-900'
                   }`}
                 >
-                  <span className="font-bold text-base leading-snug">{faq.question}</span>
-                  <ChevronDown
-                    size={18}
-                    className={`flex-shrink-0 mt-0.5 transition-transform duration-200 ${
-                      isOpen ? 'rotate-180 text-orange-500' : 'text-slate-400'
+                  <span className="font-bold text-sm sm:text-base leading-snug">{faq.question}</span>
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-200 ${
+                      isOpen
+                        ? 'bg-blue-600 border-blue-600 text-white rotate-45'
+                        : dark
+                        ? 'bg-slate-700 border-slate-600 text-slate-300'
+                        : 'bg-slate-50 border-slate-200 text-slate-500'
                     }`}
-                    aria-hidden="true"
-                  />
+                  >
+                    <Plus size={15} aria-hidden="true" />
+                  </div>
                 </button>
 
                 {isOpen && (
-                  <div className={`px-6 pb-5 text-sm leading-relaxed font-medium ${dark ? 'text-blue-200' : 'text-slate-600'}`}>
+                  <div
+                    className={`px-5 sm:px-6 pb-5 pt-1 text-sm leading-relaxed border-t ${
+                      dark
+                        ? 'text-slate-300 border-slate-700/60'
+                        : 'text-slate-600 border-slate-100'
+                    }`}
+                  >
                     {faq.answer}
                   </div>
                 )}

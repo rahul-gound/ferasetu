@@ -3,6 +3,7 @@
  * support info, and dynamic copyright year.
  */
 import { Link } from 'react-router-dom';
+import { ShieldCheck, Lock } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConsent } from '../../contexts/ConsentContext';
@@ -21,7 +22,7 @@ export default function PublicFooter() {
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
-            <Link to="/" className="inline-block mb-5">
+            <Link to="/" className="inline-block mb-3">
               <img
                 src="/logo-official.png"
                 alt="FeraSetu"
@@ -31,6 +32,10 @@ export default function PublicFooter() {
                 className="h-9 sm:h-10 w-auto max-w-[150px] object-contain opacity-95"
               />
             </Link>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[11px] font-semibold text-slate-700 mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Independent Commerce</span>
+            </div>
             <p className="text-sm text-slate-700 font-semibold max-w-xs leading-relaxed mb-3">
               “Your business is yours. The internet should be too.”
             </p>
@@ -164,13 +169,23 @@ export default function PublicFooter() {
         <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <MarketSelector variant="footer" />
-            <p className="text-sm text-slate-400 font-medium">
-              © {year} FeraSetu. All rights reserved.
+            <p className="text-xs text-slate-400 font-medium">
+              © {year} FeraSetu Technologies. All rights reserved.
             </p>
           </div>
-          <p className="text-xs text-slate-400 font-medium text-center md:text-right">
-            Transparent pricing · 0% platform commission · Fast edge storefronts
-          </p>
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 text-xs text-slate-500 font-medium">
+            <span className="inline-flex items-center gap-1">
+              <ShieldCheck size={12} className="text-emerald-600" />
+              <span>Direct Bank Settlement</span>
+            </span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1">
+              <Lock size={12} className="text-blue-600" />
+              <span>256-Bit SSL Encrypted</span>
+            </span>
+            <span>·</span>
+            <span>0% Platform Commission</span>
+          </div>
         </div>
       </div>
     </footer>

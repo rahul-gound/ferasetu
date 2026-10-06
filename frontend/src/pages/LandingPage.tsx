@@ -23,6 +23,28 @@ import {
   ShieldCheck,
   Check,
   Lock,
+  Store,
+  Globe,
+  ShoppingCart,
+  Truck,
+  Users,
+  PackageCheck,
+  MapPin,
+  CreditCard,
+  TrendingUp,
+  MessageSquare,
+  Building2,
+  Database,
+  Smartphone,
+  Percent,
+  Bot,
+  Workflow,
+  Zap,
+  Sparkles,
+  ExternalLink,
+  ChevronRight,
+  Clock,
+  Receipt
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -128,7 +150,7 @@ export default function LandingPage() {
           <div className="max-w-[1100px] mx-auto px-6 relative z-10 text-center">
 
             {/* Belief Tag */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-semibold mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-semibold mb-8 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-blue-600" />
               <span>The Independent Business Philosophy</span>
             </div>
@@ -144,148 +166,301 @@ export default function LandingPage() {
               We believe independent businesses should be able to build an online presence, serve their customers and grow without losing control of the business they built.
             </p>
 
-            {/* Primary & Secondary CTAs */}
+            {/* Primary & Secondary CTAs with micro-interactions */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 max-w-md mx-auto">
               <button
                 type="button"
                 onClick={() => handleStart('hero_primary')}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 cursor-pointer"
+                className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all duration-150 hover:-translate-y-0.5 shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Bring your business online</span>
-                <ArrowRight size={18} />
+                <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
               </button>
 
               <a
                 href="#belief"
-                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-50 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-1.5"
               >
                 <span>See why FeraSetu exists</span>
               </a>
             </div>
 
             {/* Trial & Trust Line */}
-            <div className="text-xs sm:text-sm text-slate-500 font-medium flex items-center justify-center gap-3">
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 size={15} className="text-blue-600" />
-                14-day trial
+            <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-3">
+              <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                <CheckCircle2 size={14} className="text-emerald-600" aria-hidden="true" />
+                <span>14-day trial</span>
               </span>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 size={15} className="text-blue-600" />
-                No credit card to start
+              <span className="text-slate-300 hidden sm:inline">•</span>
+              <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                <CheckCircle2 size={14} className="text-emerald-600" aria-hidden="true" />
+                <span>No credit card to start</span>
               </span>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={15} className="text-blue-600" />
-                0% FeraSetu platform commission
+              <span className="text-slate-300 hidden sm:inline">•</span>
+              <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
+                <span>0% FeraSetu platform commission</span>
               </span>
             </div>
 
             {/* Visual: Transformation Flow from Physical Business to Customer */}
             <div className="mt-16 pt-10 border-t border-slate-100">
-              <div className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 mb-6">
-                THE DIGITAL BRIDGE // FROM REAL WORLD TO RETURNING CUSTOMER
+              <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-6 flex items-center justify-center gap-2">
+                <Workflow size={13} className="text-blue-600" aria-hidden="true" />
+                <span>THE DIGITAL BRIDGE // FROM REAL WORLD TO RETURNING CUSTOMER</span>
               </div>
 
               {/* 5-Node Connected Transformation Flow */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto text-left">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">01 / REAL-WORLD</span>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono font-bold text-slate-400">01 / REAL-WORLD</span>
+                    <Building2 size={13} className="text-slate-500" aria-hidden="true" />
+                  </div>
                   <div className="font-bold text-slate-900 text-sm">Physical Business</div>
                   <p className="text-xs text-slate-500 mt-1">Your shop, products, and years of hard work.</p>
                 </div>
-                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
-                  <span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">02 / STOREFRONT</span>
+                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 hover:border-blue-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono font-bold text-blue-600">02 / STOREFRONT</span>
+                    <Globe size={13} className="text-blue-600" aria-hidden="true" />
+                  </div>
                   <div className="font-bold text-blue-950 text-sm">FeraSetu Storefront</div>
                   <p className="text-xs text-slate-600 mt-1">Your own permanent address on the web.</p>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">03 / INTAKE</span>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono font-bold text-slate-400">03 / INTAKE</span>
+                    <ShoppingCart size={13} className="text-slate-500" aria-hidden="true" />
+                  </div>
                   <div className="font-bold text-slate-900 text-sm">Customer Order</div>
                   <p className="text-xs text-slate-500 mt-1">Structured cart checkout and direct contact.</p>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">04 / DISPATCH</span>
-                  <div className="font-bold text-slate-900 text-sm">Fulfillment & Handshake</div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono font-bold text-slate-400">04 / DISPATCH</span>
+                    <Truck size={13} className="text-slate-500" aria-hidden="true" />
+                  </div>
+                  <div className="font-bold text-slate-900 text-sm">Fulfillment &amp; Handshake</div>
                   <p className="text-xs text-slate-500 mt-1">Packed by you; handed off with OTP verification.</p>
                 </div>
-                <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 block mb-1">05 / RETENTION</span>
+                <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono font-bold text-slate-400">05 / RETENTION</span>
+                    <Users size={13} className="text-slate-500" aria-hidden="true" />
+                  </div>
                   <div className="font-bold text-slate-900 text-sm">Returning Customer</div>
                   <p className="text-xs text-slate-500 mt-1">Direct customer relationship owned by you.</p>
                 </div>
               </div>
             </div>
 
+            {/* Micro-signals bar around hero */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-10 mb-6 text-xs">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Store live</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
+                <CreditCard size={13} className="text-blue-600" aria-hidden="true" />
+                <span>Direct Payments (₹0 Cut)</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
+                <ShoppingCart size={13} className="text-blue-600" aria-hidden="true" />
+                <span>128 Orders Today</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
+                <Users size={13} className="text-blue-600" aria-hidden="true" />
+                <span>842 Customers Owned</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
+                <Globe size={13} className="text-blue-600" aria-hidden="true" />
+                <span>37+ Languages</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
+                <MessageSquare size={13} className="text-emerald-600" aria-hidden="true" />
+                <span>WhatsApp Order Flow</span>
+              </div>
+            </div>
+
             {/* Real Product UI Mockup */}
-            <div className="mt-12 max-w-4xl mx-auto rounded-2xl border-2 border-slate-200 bg-white shadow-2xl overflow-hidden text-left">
+            <div className="max-w-4xl mx-auto rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden text-left">
               {/* Browser bar */}
-              <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+              <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                 </div>
-                <div className="bg-white px-4 py-1 rounded-md border border-slate-200 text-slate-600 font-mono text-xs flex items-center gap-2">
-                  <Lock size={12} className="text-green-600" />
-                  <span>https://{slugifiedClaim}.ferasetu.com</span>
+                <div className="bg-white px-3.5 py-1 rounded-md border border-slate-200 text-slate-600 font-mono text-xs flex items-center gap-2 max-w-[260px] truncate">
+                  <Lock size={11} className="text-emerald-600 shrink-0" aria-hidden="true" />
+                  <span className="truncate">https://{slugifiedClaim}.ferasetu.com</span>
                 </div>
-                <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                  Active Storefront
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  Live Storefront
                 </span>
               </div>
 
-              {/* Storefront Header */}
-              <div className="p-6 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Storefront / Merchant Dashboard Header */}
+              <div className="p-5 sm:p-6 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Sharma General Store</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Online ordering · Instant UPI & Cards · Local Store Pickup or Delivery</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Sharma General Store</h3>
+                    <span className="text-[11px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">ID: FS-8841</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">Online ordering · Instant UPI &amp; Cards · Local Store Pickup or Delivery</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-bold text-xs">
-                    ● Accepting Orders
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full font-bold text-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Accepting Orders
                   </span>
                 </div>
               </div>
 
-              {/* Real Catalog Line Items */}
-              <div className="p-6 divide-y divide-slate-100">
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-slate-800 text-sm">Farm Fresh Milk (500ml)</div>
-                    <div className="text-xs text-slate-400">Dairy Essentials · Real-time stock tracked</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-900 text-sm">₹34.00</span>
-                    <span className="block text-[11px] text-green-600 font-medium">In Stock</span>
+              {/* Realistic Operational Metrics Bar */}
+              <div className="grid grid-cols-3 divide-x divide-slate-200 border-b border-slate-200 bg-white text-xs">
+                <div className="p-3.5 sm:p-4">
+                  <div className="text-[11px] font-mono font-semibold uppercase text-slate-400">Today's Orders</div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-lg sm:text-2xl font-black text-slate-900 font-mono">128</span>
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">↑ 12% today</span>
                   </div>
                 </div>
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-slate-800 text-sm">Whole Wheat Bread (400g)</div>
-                    <div className="text-xs text-slate-400">Fresh Daily Bakery · In-store packaging</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-900 text-sm">₹45.00</span>
-                    <span className="block text-[11px] text-green-600 font-medium">In Stock</span>
+                <div className="p-3.5 sm:p-4">
+                  <div className="text-[11px] font-mono font-semibold uppercase text-slate-400">Settled Revenue</div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-lg sm:text-2xl font-black text-slate-900 font-mono">₹48,920</span>
+                    <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">100% Payout</span>
                   </div>
                 </div>
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-slate-800 text-sm">Butter Marie Biscuits (250g)</div>
-                    <div className="text-xs text-slate-400">Pantry Essentials · Regular customer favorite</div>
+                <div className="p-3.5 sm:p-4">
+                  <div className="text-[11px] font-mono font-semibold uppercase text-slate-400">Total Customers</div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-lg sm:text-2xl font-black text-slate-900 font-mono">842</span>
+                    <span className="text-[10px] text-slate-700 font-semibold bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">Owned List</span>
                   </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-900 text-sm">₹30.00</span>
-                    <span className="block text-[11px] text-green-600 font-medium">In Stock</span>
+                </div>
+              </div>
+
+              {/* Realistic Dashboard Split: Recent Orders & Catalog Preview */}
+              <div className="grid md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+                {/* Recent Orders Table (7 cols) */}
+                <div className="md:col-span-7 p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock size={13} className="text-blue-600" aria-hidden="true" />
+                      Recent Live Orders
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">Real-time sync</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-slate-900">#FS-1028</span>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold">
+                            <Check size={9} aria-hidden="true" /> Paid
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Amul Taaza Milk (×2), Bread · 2m ago</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 font-mono">₹1,299</span>
+                        <span className="block text-[10px] text-slate-400 font-mono">UPI Instant</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-slate-900">#FS-1027</span>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" /> Processing
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Pantry Essentials Bundle · 14m ago</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 font-mono">₹749</span>
+                        <span className="block text-[10px] text-slate-400 font-mono">Local Pickup</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-slate-900">#FS-1026</span>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-semibold">
+                            <CheckCircle2 size={9} aria-hidden="true" /> Delivered
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Fresh Daily Essentials · 1h ago</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 font-mono">₹2,499</span>
+                        <span className="block text-[10px] text-slate-400 font-mono">OTP Verified</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Catalog Stock (5 cols) */}
+                <div className="md:col-span-5 p-4 sm:p-5 bg-slate-50/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Store size={13} className="text-blue-600" aria-hidden="true" />
+                      Live Catalog &amp; Stock
+                    </span>
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold">Active</span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-slate-800 text-[11px]">Farm Fresh Milk (500ml)</div>
+                        <div className="text-[10px] text-slate-400">Dairy Essentials</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 font-mono">₹34.00</span>
+                        <span className="block text-[10px] text-emerald-700 font-semibold">In Stock (42)</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-slate-800 text-[11px]">Whole Wheat Bread (400g)</div>
+                        <div className="text-[10px] text-slate-400">Fresh Daily Bakery</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 font-mono">₹45.00</span>
+                        <span className="block text-[10px] text-emerald-700 font-semibold">In Stock (18)</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-slate-800 text-[11px]">Butter Marie Biscuits (250g)</div>
+                        <div className="text-[10px] text-slate-400">Pantry Essentials</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900 font-mono">₹30.00</span>
+                        <span className="block text-[10px] text-emerald-700 font-semibold">In Stock (60)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Bottom transparency notice */}
-              <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-                <span>Direct customer connection. FeraSetu does not run marketplace ads or divert your buyers.</span>
-                <span className="font-mono text-blue-700 font-semibold">0% Platform Cut</span>
+              <div className="bg-slate-50 px-5 sm:px-6 py-3 border-t border-slate-200 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
+                  <span>Direct customer connection. FeraSetu does not run marketplace ads or divert your buyers.</span>
+                </span>
+                <span className="font-mono text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">0% Platform Cut</span>
               </div>
             </div>
 
@@ -300,8 +475,8 @@ export default function LandingPage() {
         <section className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
           <div className="max-w-[1000px] mx-auto px-6">
             <div className="text-center max-w-2xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/80 text-slate-700 text-xs font-bold uppercase tracking-wider mb-4">
-                Recognition
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/80 text-slate-700 text-xs font-bold uppercase tracking-wider mb-4 border border-slate-300/60">
+                <span>Recognition</span>
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-5">
                 You already built the hard part.
@@ -314,25 +489,38 @@ export default function LandingPage() {
             {/* The 6 Real Foundations */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
               {[
-                { title: 'A Respected Name', desc: 'A real identity that customers in your area know, trust, and search for.' },
-                { title: 'Curated Products', desc: 'Years spent learning exactly what your customers need and what quality looks like.' },
-                { title: 'Real Relationships', desc: 'Direct handshakes, familiar faces, and conversations built over time.' },
-                { title: 'Local Knowledge', desc: 'Knowing your neighborhood routes, customer preferences, and seasonal demands.' },
-                { title: 'Pricing & Trust', desc: 'Fair, transparent prices that people rely on without hidden platform surcharges.' },
-                { title: 'Years of Dedication', desc: 'The daily discipline of opening on time, solving issues, and keeping shelves stocked.' },
-              ].map((item, idx) => (
-                <div key={idx} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center mb-3">
-                    0{idx + 1}
+                { icon: Store, tag: 'STOREFRONT IDENTITY', title: 'A Respected Name', desc: 'A real identity that customers in your area know, trust, and search for.' },
+                { icon: PackageCheck, tag: 'CURATED CATALOG', title: 'Curated Products', desc: 'Years spent learning exactly what your customers need and what quality looks like.' },
+                { icon: Users, tag: 'CUSTOMER RELATIONSHIPS', title: 'Real Relationships', desc: 'Direct handshakes, familiar faces, and conversations built over time.' },
+                { icon: MapPin, tag: 'LOCAL FULFILLMENT', title: 'Local Knowledge', desc: 'Knowing your neighborhood routes, customer preferences, and seasonal demands.' },
+                { icon: CreditCard, tag: 'DIRECT ECONOMICS', title: 'Pricing & Trust', desc: 'Fair, transparent prices that people rely on without hidden platform surcharges.' },
+                { icon: TrendingUp, tag: 'SUSTAINED GROWTH', title: 'Years of Dedication', desc: 'The daily discipline of opening on time, solving issues, and keeping shelves stocked.' },
+              ].map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">
+                          <Icon size={16} aria-hidden="true" />
+                        </div>
+                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                          0{idx + 1}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold font-mono text-blue-700 tracking-wider block mb-1">
+                        {item.tag}
+                      </span>
+                      <h3 className="font-bold text-base text-slate-900 mb-1.5">{item.title}</h3>
+                      <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-base text-slate-900 mb-1.5">{item.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Punchline */}
-            <div className="p-8 rounded-2xl bg-white border-2 border-blue-100 shadow-md text-center max-w-2xl mx-auto">
+            <div className="p-8 rounded-2xl bg-white border border-blue-200 shadow-md text-center max-w-2xl mx-auto">
               <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
                 Going online shouldn’t make it feel less like your business.
               </p>
@@ -366,30 +554,51 @@ export default function LandingPage() {
               {/* Three Editorial Principles */}
               <div className="space-y-8 border-l-2 border-blue-600 pl-6 sm:pl-8">
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                    “Your identity should be yours.”
-                  </h3>
-                  <p className="text-slate-600 text-base leading-relaxed">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe size={18} className="text-blue-600 shrink-0" aria-hidden="true" />
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+                      “Your identity should be yours.”
+                    </h3>
+                  </div>
+                  <p className="text-slate-600 text-base leading-relaxed mb-2.5">
                     Your storefront URL is your name, not our brand. Customers see your logo, your colors, and your story. You are never forced to compete against sponsored clones right on your own catalog.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+                    <CheckCircle2 size={12} className="text-blue-600" aria-hidden="true" />
+                    100% Brand Ownership
+                  </span>
                 </div>
 
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                    “Your customer relationship should be yours.”
-                  </h3>
-                  <p className="text-slate-600 text-base leading-relaxed">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users size={18} className="text-blue-600 shrink-0" aria-hidden="true" />
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+                      “Your customer relationship should be yours.”
+                    </h3>
+                  </div>
+                  <p className="text-slate-600 text-base leading-relaxed mb-2.5">
                     When someone buys from you, they are your customer. You have their contact details, order history, and direct communication channel. We never mask customer phone numbers or sell your buyer list.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+                    <CheckCircle2 size={12} className="text-blue-600" aria-hidden="true" />
+                    Unmasked Direct Contacts
+                  </span>
                 </div>
 
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                    “Your online presence should be yours.”
-                  </h3>
-                  <p className="text-slate-600 text-base leading-relaxed">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Database size={18} className="text-blue-600 shrink-0" aria-hidden="true" />
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+                      “Your online presence should be yours.”
+                    </h3>
+                  </div>
+                  <p className="text-slate-600 text-base leading-relaxed mb-2.5">
                     You can export your complete catalog, customer list, and order history at any time. Your digital presence is an asset you own, not a rented lease that can be terminated without explanation.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+                    <CheckCircle2 size={12} className="text-blue-600" aria-hidden="true" />
+                    Permanent Data Portability
+                  </span>
                 </div>
               </div>
 
@@ -474,84 +683,114 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* Principle 1 */}
-              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
-                    01
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
+                      <ShieldCheck size={18} aria-hidden="true" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      01 / OWNERSHIP
+                    </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">OWNERSHIP FIRST</h3>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">OWNERSHIP FIRST</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">
                     The merchant stays permanently at the centre. You own your storefront, your brand name, your customer phone numbers, and your order history.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
-                  Zero Lock-In Guarantee
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
+                  <span>Zero Lock-In Guarantee</span>
+                  <ArrowRight size={12} aria-hidden="true" />
                 </div>
               </div>
 
               {/* Principle 2 */}
-              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
-                    02
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
+                      <Smartphone size={18} aria-hidden="true" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      02 / SIMPLICITY
+                    </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">SIMPLICITY FIRST</h3>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">SIMPLICITY FIRST</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">
                     Technology should remove daily work, not create more. A mobile-friendly system that sets up in minutes with no coding or server administration.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
-                  No Developers Required
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
+                  <span>No Developers Required</span>
+                  <ArrowRight size={12} aria-hidden="true" />
                 </div>
               </div>
 
               {/* Principle 3 */}
-              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
-                    03
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
+                      <Percent size={18} aria-hidden="true" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      03 / TRANSPARENCY
+                    </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">TRANSPARENCY FIRST</h3>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">TRANSPARENCY FIRST</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">
                     We clearly explain who does what. No confusing commission tiers, no hidden deductions, and no physical claims we cannot fulfill.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
-                  0% FeraSetu Sales Cut
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
+                  <span>0% FeraSetu Sales Cut</span>
+                  <ArrowRight size={12} aria-hidden="true" />
                 </div>
               </div>
 
               {/* Principle 4 */}
-              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between">
+              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
-                    04
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
+                      <Bot size={18} aria-hidden="true" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      04 / HUMAN-FIRST AI
+                    </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">HUMAN-FIRST AI</h3>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">HUMAN-FIRST AI</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">
                     FeraSetu AI assists the shop owner with catalog cleanup, translations, and low-stock alerts — without pretending to run or automate away the merchant.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
-                  Assistant, Not Replacement
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
+                  <span>Assistant, Not Replacement</span>
+                  <ArrowRight size={12} aria-hidden="true" />
                 </div>
               </div>
 
               {/* Principle 5 */}
-              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between md:col-span-2 lg:col-span-2">
+              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between md:col-span-2 lg:col-span-2">
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-4">
-                    05
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
+                      <Workflow size={18} aria-hidden="true" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      05 / CONNECTIVITY
+                    </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">CONNECTED WORKFLOW</h3>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">CONNECTED WORKFLOW</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">
                     Storefront, cart checkout, payment settlement, fulfillment dispatch, invoice generation, and customer retention operate as one connected circuit. You don’t have to glue 5 different plugins together.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-slate-100 text-xs font-mono text-blue-700 font-semibold">
-                  Unified Merchant Workspace
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
+                  <span>Unified Merchant Workspace</span>
+                  <ArrowRight size={12} aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -645,6 +884,7 @@ export default function LandingPage() {
             }`}>
               {previewPlans.map((plan) => {
                 const isPopular = plan.id === 'business';
+                const PlanIcon = plan.id === 'pro' ? Sparkles : plan.id === 'business' ? Zap : Store;
 
                 return (
                   <div
@@ -656,20 +896,28 @@ export default function LandingPage() {
                     }`}
                   >
                     {isPopular && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-600 text-white text-xs font-bold px-3.5 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                        Most Popular
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                        <Zap size={11} aria-hidden="true" />
+                        <span>Most Popular</span>
                       </div>
                     )}
 
                     <div className="mb-6">
-                      <h3 className="font-bold text-2xl text-slate-900 mb-1">{plan.displayName}</h3>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-sm ${
+                          isPopular ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-slate-50 border-slate-200 text-slate-700'
+                        }`}>
+                          <PlanIcon size={16} aria-hidden="true" />
+                        </div>
+                        <h3 className="font-bold text-2xl text-slate-900">{plan.displayName}</h3>
+                      </div>
                       <p className="text-sm text-slate-600 min-h-[40px] leading-relaxed">
                         {plan.tagline}
                       </p>
 
                       <div className="mt-5 pb-5 border-b border-slate-100">
                         <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-black text-slate-900">
+                          <span className="text-4xl font-black text-slate-900 font-mono">
                             {formatPrice(plan.price.monthly)}
                           </span>
                           <span className="text-sm text-slate-500 font-semibold">
@@ -686,8 +934,8 @@ export default function LandingPage() {
                       <ul className="text-sm space-y-3 mt-5 text-slate-700">
                         {plan.features.filter(f => typeof f === 'string' || f.included).slice(0, 6).map((f, i) => (
                           <li key={i} className="flex items-start gap-2.5">
-                            <Check size={16} className={`shrink-0 mt-0.5 ${isPopular ? 'text-blue-600 font-bold' : 'text-slate-500'}`} />
-                            <span className="leading-snug">{typeof f === 'string' ? f : f.label}</span>
+                            <Check size={15} className={`shrink-0 mt-0.5 ${isPopular ? 'text-blue-600 font-bold' : 'text-slate-500'}`} aria-hidden="true" />
+                            <span className="leading-snug text-xs sm:text-sm">{typeof f === 'string' ? f : f.label}</span>
                           </li>
                         ))}
                       </ul>
@@ -697,15 +945,18 @@ export default function LandingPage() {
                       <button
                         type="button"
                         onClick={() => handleStart(`plan_${plan.id}`)}
-                        className={`w-full py-3 rounded-xl font-bold text-center text-sm transition-all cursor-pointer ${
+                        className={`group w-full py-3 rounded-xl font-bold text-center text-sm transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 hover:-translate-y-0.5 ${
                           isPopular
                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
-                            : 'bg-slate-900 hover:bg-slate-800 text-white'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
                         }`}
                       >
-                        {market === 'IN' && plan.price.monthly === 0
-                          ? 'Start Free Store'
-                          : (market === 'IN' ? `Get ${plan.displayName}` : `Start ${config.trialDays}-Day Free Trial`)}
+                        <span>
+                          {market === 'IN' && plan.price.monthly === 0
+                            ? 'Start Free Store'
+                            : (market === 'IN' ? `Get ${plan.displayName}` : `Start ${config.trialDays}-Day Free Trial`)}
+                        </span>
+                        <ArrowRight size={14} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -717,10 +968,10 @@ export default function LandingPage() {
             <div className="text-center">
               <Link
                 to={getLocalizedLink('/pricing')}
-                className="text-blue-600 hover:text-blue-800 font-bold text-sm inline-flex items-center gap-1.5 transition-colors"
+                className="group text-blue-600 hover:text-blue-800 font-bold text-sm inline-flex items-center gap-1.5 transition-colors"
               >
-                <span>Compare all plan features & limits in detail</span>
-                <ArrowRight size={15} />
+                <span>Compare all plan features &amp; limits in detail</span>
+                <ArrowRight size={14} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </div>
           </div>
@@ -742,10 +993,11 @@ export default function LandingPage() {
           SECTION 10 — FINAL CTA
           Headline: “You built the business. Now build its place on the internet.”
         ================================================================ */}
-        <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden">
+        <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden border-t border-slate-800">
           <div className="max-w-[900px] mx-auto px-6 text-center relative z-10">
 
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-semibold mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-blue-300 text-xs sm:text-sm font-semibold mb-6 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Ready When You Are</span>
             </div>
 
@@ -754,25 +1006,47 @@ export default function LandingPage() {
               Now build its place on the internet.
             </h2>
 
-            <p className="text-lg sm:text-xl text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed font-normal">
+            <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
               FeraSetu is for businesses that want to grow online without forgetting who their business belongs to.
             </p>
+
+            {/* Subtle product-language details */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-10 text-xs sm:text-sm text-slate-300 font-medium">
+              <span className="inline-flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700">
+                <Check size={13} className="text-emerald-400" aria-hidden="true" />
+                <span>Your business</span>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <span className="inline-flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700">
+                <Check size={13} className="text-emerald-400" aria-hidden="true" />
+                <span>Your customers</span>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <span className="inline-flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700">
+                <Check size={13} className="text-emerald-400" aria-hidden="true" />
+                <span>Your store</span>
+              </span>
+            </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6 max-w-md mx-auto">
               <button
                 type="button"
                 onClick={() => handleStart('final_cta')}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all duration-150 shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5"
               >
                 <span>Bring your business online</span>
-                <ArrowRight size={18} />
+                <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
               </button>
             </div>
 
-            {/* Secondary supporting line */}
-            <p className="text-sm font-medium text-slate-400">
-              14-day trial · No credit card to start
-            </p>
+            {/* Secondary supporting line with micro-badges */}
+            <div className="text-xs sm:text-sm text-slate-400 font-medium flex flex-wrap items-center justify-center gap-2.5">
+              <span className="bg-slate-800/60 px-2 py-0.5 rounded border border-slate-800">14-day trial</span>
+              <span className="text-slate-600">•</span>
+              <span className="bg-slate-800/60 px-2 py-0.5 rounded border border-slate-800">No credit card to start</span>
+              <span className="text-slate-600">•</span>
+              <span className="bg-slate-800/60 px-2 py-0.5 rounded border border-slate-800">0% platform commission</span>
+            </div>
           </div>
         </section>
 

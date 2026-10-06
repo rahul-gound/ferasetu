@@ -1,4 +1,4 @@
-import { Check, X, ArrowRight, Loader2 } from 'lucide-react';
+import { Check, X, ArrowRight, Loader2, Store, Zap, Sparkles } from 'lucide-react';
 import type { PlanDefinition } from '../../config/plans';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useMarket } from '../../contexts/MarketContext';
@@ -145,12 +145,23 @@ export default function PricingCard({
 
       {/* Plan header */}
       <div style={{ marginBottom: 20, paddingTop: badgeText ? 8 : 0 }}>
-        <h2 style={{
-          fontSize: 22, fontWeight: 900, color: '#0f172a',
-          letterSpacing: '-0.03em', margin: '0 0 6px',
-        }}>
-          {plan.displayName}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            background: plan.id === 'pro' ? '#f1f5f9' : plan.id === 'business' || plan.id === 'growth' ? '#eff6ff' : '#f8fafc',
+            border: `1px solid ${plan.id === 'pro' ? '#cbd5e1' : plan.id === 'business' || plan.id === 'growth' ? '#bfdbfe' : '#e2e8f0'}`,
+            color: plan.id === 'pro' ? '#0f172a' : plan.id === 'business' || plan.id === 'growth' ? '#2563eb' : '#64748b'
+          }}>
+            {plan.id === 'pro' ? <Sparkles size={15} /> : plan.id === 'business' || plan.id === 'growth' ? <Zap size={15} /> : <Store size={15} />}
+          </div>
+          <h2 style={{
+            fontSize: 22, fontWeight: 900, color: '#0f172a',
+            letterSpacing: '-0.03em', margin: 0,
+          }}>
+            {plan.displayName}
+          </h2>
+        </div>
         <p style={{ fontSize: 13, color: '#64748b', margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
           {plan.tagline}
         </p>

@@ -108,10 +108,10 @@ export default function PublicNavbar() {
                 <button
                   type='button'
                   onClick={() => register()}
-                  className='inline-flex cursor-pointer items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+                  className='group inline-flex cursor-pointer items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 transition-all duration-150 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
                 >
-                  Bring your business online
-                  <ArrowRight size={15} aria-hidden='true' />
+                  <span>Bring your business online</span>
+                  <ArrowRight size={15} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden='true' />
                 </button>
               </div>
             )}
@@ -210,9 +210,10 @@ export default function PublicNavbar() {
                       setMobileMenuOpen(false);
                       register();
                     }}
-                    className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
+                    className='group flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-blue-600 text-base font-bold text-white shadow-md shadow-blue-600/20 transition-all duration-150 hover:bg-blue-700'
                   >
-                    Bring your business online
+                    <span>Bring your business online</span>
+                    <ArrowRight size={16} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden='true' />
                   </button>
                 </>
               )}
