@@ -8946,40 +8946,81 @@ async function getPublicShop(shopName, request, env) {
 
   // Attach options & variants for each product
   try {
+    const productMap = new Map();
     for (const p of products) {
       p.price_minor = p.price_minor != null ? Number(p.price_minor) : Math.round((Number(p.sale_price) || Number(p.price) || 0) * 100);
-      try {
-        const optRes = await env.DB.prepare(
-          "SELECT id, name, position, values_json FROM product_options WHERE product_id = ? ORDER BY position ASC, created_at ASC"
-        ).bind(p.id).all();
-        p.options = (optRes?.results || []).map(o => ({
-          id: o.id,
-          name: o.name,
-          position: o.position,
-          values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
-        }));
-      } catch {
-        p.options = [];
+      p.options = [];
+      p.variants = [];
+      p.has_variants = false;
+      productMap.set(p.id, p);
+    }
+
+    if (products.length > 0) {
+      const allProductIds = products.map(p => p.id);
+      const chunkSize = 100;
+
+      for (let i = 0; i < allProductIds.length; i += chunkSize) {
+        const chunk = allProductIds.slice(i, i + chunkSize);
+        const placeholders = chunk.map(() => '?').join(',');
+
+        try {
+          const optRes = await env.DB.prepare(
+            `SELECT id, product_id, name, position, values_json FROM product_options WHERE product_id IN (${placeholders}) ORDER BY position ASC, created_at ASC`
+          ).bind(...chunk).all();
+
+          for (const o of optRes?.results || []) {
+            const p = productMap.get(o.product_id);
+            if (p) {
+              let values = [];
+              try {
+                values = typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || []);
+              } catch {}
+              p.options.push({
+                id: o.id,
+                name: o.name,
+                position: o.position,
+                values
+              });
+            }
+          }
+        } catch (optErr) {
+          console.warn("Failed to fetch product_options in batch:", optErr);
+        }
+
+        try {
+          const varRes = await env.DB.prepare(
+            `SELECT id, product_id, title, option_signature, sku, barcode, currency, price_minor,
+                    compare_at_price_minor, image_url, status, option_values_json
+             FROM product_variants WHERE product_id IN (${placeholders}) AND status = 'active' ORDER BY created_at ASC`
+          ).bind(...chunk).all();
+
+          for (const v of varRes?.results || []) {
+            const p = productMap.get(v.product_id);
+            if (p) {
+              let option_values = {};
+              try {
+                option_values = typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {});
+              } catch {}
+              p.variants.push({
+                ...v,
+                price: v.price_minor ? v.price_minor / 100 : 0,
+                compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
+                option_values
+              });
+            }
+          }
+        } catch (varErr) {
+          console.warn("Failed to fetch product_variants in batch:", varErr);
+        }
       }
 
-      try {
-        const varRes = await env.DB.prepare(
-          `SELECT id, title, option_signature, sku, barcode, currency, price_minor,
-                  compare_at_price_minor, image_url, status, option_values_json
-           FROM product_variants WHERE product_id = ? AND status = 'active' ORDER BY created_at ASC`
-        ).bind(p.id).all();
-        p.variants = (varRes?.results || []).map(v => ({
-          ...v,
-          price: v.price_minor ? v.price_minor / 100 : 0,
-          compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
-          option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
-        }));
-      } catch {
-        p.variants = [];
+      for (const p of products) {
+        p.has_variants = p.variants.length > 0;
       }
-      p.has_variants = (p.variants || []).length > 0;
     }
-  } catch {}
+  } catch (err) {
+    console.warn("Failed to attach options & variants:", err);
+  }
 
   let config = {};
   try {
