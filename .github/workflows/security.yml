@@ -102,9 +102,9 @@ jobs:
           fetch-depth: 0
       
       - name: Run TruffleHog
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.81.9
         with:
           path: ./
           base: ""
           head: HEAD
-          extra_args: --only-verified
+          extra_args: --results=verified --fail
