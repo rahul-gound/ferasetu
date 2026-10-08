@@ -21,7 +21,7 @@ export default function PublicNavbar() {
       to: `${getLocalizedLink('/')}#how-it-works`
     },
     {
-      label: t('nav.pricing') || 'Pricing',
+      label: 'Pricing',
       to: `${getLocalizedLink('/')}#pricing`
     }
   ];
@@ -95,12 +95,12 @@ export default function PublicNavbar() {
                   onClick={() => login()}
                   className='cursor-pointer rounded-full px-3 py-2 text-sm font-bold text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
                 >
-                  {t('nav.signIn') || 'Sign In'}
+                  Sign In
                 </button>
                 <button
                   type='button'
                   onClick={() => register()}
-                  className='group inline-flex cursor-pointer items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 transition-all duration-150 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+                  className='group inline-flex cursor-pointer items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-orange-500/20 transition-all duration-150 hover:-translate-y-0.5 hover:bg-orange-600 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2'
                 >
                   <span>Bring your business online</span>
                   <ArrowRight size={15} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden='true' />
@@ -194,7 +194,7 @@ export default function PublicNavbar() {
                     }}
                     className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-50 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100'
                   >
-                    {t('nav.signIn') || 'Sign In'}
+                    Sign In
                   </button>
                   <button
                     type='button'
@@ -202,7 +202,7 @@ export default function PublicNavbar() {
                       setMobileMenuOpen(false);
                       register();
                     }}
-                    className='group flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-blue-600 text-base font-bold text-white shadow-md shadow-blue-600/20 transition-all duration-150 hover:bg-blue-700'
+                    className='group flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-orange-500 text-base font-bold text-white shadow-md shadow-orange-500/20 transition-all duration-150 hover:bg-orange-600'
                   >
                     <span>Bring your business online</span>
                     <ArrowRight size={16} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden='true' />

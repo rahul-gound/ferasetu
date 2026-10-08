@@ -105,8 +105,11 @@ export default function LandingPage() {
 
             {/* Top Eyebrow, Headline & Value Statement */}
             <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-12">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-bold uppercase tracking-wider mb-6">
-                <span>YOUR BUSINESS IS YOURS.</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-200/90 text-orange-950 text-xs sm:text-sm font-semibold mb-6 shadow-xs">
+                <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+                <span className="font-mono text-[11px] font-black tracking-wider uppercase text-orange-700">INDEPENDENT COMMERCE</span>
+                <span className="text-orange-300">|</span>
+                <span className="font-extrabold text-orange-600">0% Commission</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6">
@@ -123,7 +126,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => handleStart('hero_primary')}
-                  className="group w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all duration-150 hover:-translate-y-0.5 shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                  className="group w-full sm:w-auto px-7 py-3.5 rounded-xl bg-orange-500 text-white font-bold text-base hover:bg-orange-600 transition-all duration-150 hover:-translate-y-0.5 shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                 >
                   <span>Bring my business online</span>
                   <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
@@ -149,8 +152,8 @@ export default function LandingPage() {
                   <span>No credit card to start</span>
                 </span>
                 <span className="text-slate-300 hidden sm:inline">•</span>
-                <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                  <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
+                <span className="inline-flex items-center gap-1.5 bg-orange-50/80 px-2.5 py-1 rounded-md border border-orange-200/80 text-orange-950 font-semibold">
+                  <ShieldCheck size={14} className="text-orange-600" aria-hidden="true" />
                   <span>0% FeraSetu platform commission</span>
                 </span>
               </div>
@@ -171,11 +174,11 @@ export default function LandingPage() {
                   <span className="font-bold text-slate-800 ml-2">FeraSetu Commerce System</span>
                 </div>
                 <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-50 text-orange-900 border border-orange-200 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
                     Direct Conduit Active
                   </span>
-                  <span className="font-semibold text-slate-800">0% Platform Cut</span>
+                  <span className="font-bold text-orange-600 bg-white px-2 py-0.5 rounded border border-slate-200">0% Platform Cut</span>
                 </div>
               </div>
 
@@ -229,7 +232,7 @@ export default function LandingPage() {
                       <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Order Total</div>
                       <div className="text-base font-black text-slate-900 font-mono tabular-nums">{demo.formattedOrderTotal}</div>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm">
+                    <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-500/20">
                       <ShoppingCart size={13} aria-hidden="true" />
                       <span>{demo.paymentMethod}</span>
                     </div>
@@ -256,7 +259,7 @@ export default function LandingPage() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-xs text-blue-700 tabular-nums">{demo.orderId}</span>
-                          <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          <span className="text-[10px] font-bold text-orange-800 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
                             {market === 'IN' ? 'Paid via UPI' : 'Paid via Card'}
                           </span>
                         </div>
@@ -285,7 +288,7 @@ export default function LandingPage() {
                         </div>
                         <div className="text-right">
                           <span className="text-slate-400 text-[10px] block">FeraSetu Commission</span>
-                          <span className="font-bold text-blue-700">{demo.commissionText}</span>
+                          <span className="font-bold text-orange-600">{demo.commissionText}</span>
                         </div>
                       </div>
                     </div>
@@ -315,7 +318,7 @@ export default function LandingPage() {
                   <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
                   <span>Direct customer connection. FeraSetu does not run marketplace ads or divert your buyers.</span>
                 </span>
-                <span className="font-mono text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                <span className="font-mono text-orange-700 font-bold bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
                   0% FeraSetu Platform Commission
                 </span>
               </div>
@@ -378,11 +381,11 @@ export default function LandingPage() {
 
               {/* Pillar 3: Your Money */}
               <div className="flex flex-col">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm mb-4 border border-orange-200 shadow-xs">
                   <span className="tabular-nums font-mono">03</span>
                 </div>
-                <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
-                  HONEST COMMERCE
+                <div className="text-[11px] font-mono font-bold text-orange-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  HONEST COMMERCE · 0% TOLL
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3">
                   Your Money (0% Commission)
@@ -438,7 +441,8 @@ export default function LandingPage() {
 
             {/* Layer 1: Dominant Headline */}
             <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold uppercase tracking-wider mb-4 border border-slate-200">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-800 text-xs font-bold uppercase tracking-wider mb-4 border border-orange-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                 <span>WHY FERASETU EXISTS</span>
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-6">
@@ -527,7 +531,12 @@ export default function LandingPage() {
                     <tr>
                       <th scope="col" className="px-5 py-4 w-1/4">Commercial Dimension</th>
                       <th scope="col" className="px-5 py-4 w-1/3 bg-blue-50/70 text-blue-900 font-black border-x border-blue-100">
-                        FeraSetu Commerce
+                        <div className="flex items-center justify-between">
+                          <span>FeraSetu Commerce</span>
+                          <span className="px-2 py-0.5 rounded bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider">
+                            0% Toll
+                          </span>
+                        </div>
                       </th>
                       <th scope="col" className="px-5 py-4 w-1/3 text-slate-600">
                         Aggregator / Marketplace
@@ -538,7 +547,12 @@ export default function LandingPage() {
                     <tr>
                       <td className="px-5 py-4 font-bold text-slate-900">Platform Commission</td>
                       <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-bold border-x border-blue-100">
-                        0% (Flat software subscription only)
+                        <div className="flex items-center justify-between gap-2">
+                          <span>0% (Flat subscription only)</span>
+                          <span className="text-[11px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded border border-orange-200 shrink-0">
+                            100% Margin
+                          </span>
+                        </div>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         15% to 25% deducted from every order
@@ -649,12 +663,12 @@ export default function LandingPage() {
                     key={plan.id}
                     className={`rounded-2xl p-6 sm:p-7 flex flex-col relative transition-all duration-200 ${
                       isPopular
-                        ? 'bg-white border-2 border-blue-600 shadow-xl shadow-blue-600/10'
+                        ? 'bg-white border-2 border-orange-500 shadow-xl shadow-orange-500/10'
                         : 'bg-white border border-slate-200 shadow-sm hover:border-slate-300'
                     }`}
                   >
                     {isPopular && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-orange-500 text-white text-[11px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
                         <Zap size={11} aria-hidden="true" />
                         <span>Most Popular</span>
                       </div>
@@ -663,7 +677,7 @@ export default function LandingPage() {
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-1.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-xs ${
-                          isPopular ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-slate-50 border-slate-200 text-slate-700'
+                          isPopular ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-slate-50 border-slate-200 text-slate-700'
                         }`}>
                           <PlanIcon size={16} aria-hidden="true" />
                         </div>
@@ -692,7 +706,7 @@ export default function LandingPage() {
                       <ul className="text-sm space-y-3 mt-5 text-slate-700">
                         {plan.features.filter(f => typeof f === 'string' || f.included).slice(0, 6).map((f, i) => (
                           <li key={i} className="flex items-start gap-2.5">
-                            <Check size={15} className={`shrink-0 mt-0.5 ${isPopular ? 'text-blue-600 font-bold' : 'text-slate-500'}`} aria-hidden="true" />
+                            <Check size={15} className={`shrink-0 mt-0.5 ${isPopular ? 'text-orange-600 font-bold' : 'text-slate-500'}`} aria-hidden="true" />
                             <span className="leading-snug text-xs sm:text-sm">{typeof f === 'string' ? f : f.label}</span>
                           </li>
                         ))}
@@ -705,7 +719,7 @@ export default function LandingPage() {
                         onClick={() => handleStart(`plan_${plan.id}`)}
                         className={`group w-full py-3 rounded-xl font-bold text-center text-sm transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 hover:-translate-y-0.5 ${
                           isPopular
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
+                            ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/25'
                             : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
                         }`}
                       >
@@ -752,14 +766,14 @@ export default function LandingPage() {
         <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden border-t border-slate-800">
           <div className="max-w-[800px] mx-auto px-4 sm:px-6 text-center relative z-10">
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-blue-300 text-xs sm:text-sm font-semibold mb-6 shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-orange-500/30 text-orange-400 text-xs sm:text-sm font-semibold mb-6 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
               <span>Ready When You Are</span>
             </div>
 
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-5">
               Bring your business online.<br />
-              <span className="text-blue-400">Keep it yours.</span>
+              <span className="text-orange-400">Keep it yours.</span>
             </h2>
 
             <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-xl mx-auto leading-relaxed font-normal">
@@ -770,7 +784,7 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={() => handleStart('final_cta')}
-                className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all duration-150 shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5"
+                className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-orange-500 text-white font-bold text-base hover:bg-orange-600 transition-all duration-150 shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5"
               >
                 <span>Bring my business online</span>
                 <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
@@ -784,7 +798,9 @@ export default function LandingPage() {
               <span className="text-slate-600">•</span>
               <span className="bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700">No credit card to start</span>
               <span className="text-slate-600">•</span>
-              <span className="bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700">0% FeraSetu platform commission</span>
+              <span className="bg-slate-800/80 px-2.5 py-1 rounded border border-orange-500/30 text-orange-300 font-semibold">
+                0% FeraSetu platform commission
+              </span>
             </div>
           </div>
         </section>

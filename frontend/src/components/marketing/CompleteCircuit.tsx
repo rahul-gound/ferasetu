@@ -93,10 +93,11 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
       <div
         role="tablist"
         aria-label="FeraSetu four-stage commerce circuit"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8"
       >
         {STAGES.map((stage, idx) => {
           const isActive = idx === activeStepIndex;
+          const isPaymentStage = idx === 2;
           const Icon = stage.icon;
 
           return (
@@ -113,7 +114,9 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
               type="button"
               className={`text-left p-4 sm:p-5 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between ${
                 isActive
-                  ? 'bg-white border-blue-600 shadow-md ring-2 ring-blue-600/10'
+                  ? isPaymentStage
+                    ? 'bg-white border-orange-500 shadow-md ring-2 ring-orange-500/10'
+                    : 'bg-white border-blue-600 shadow-md ring-2 ring-blue-600/10'
                   : 'bg-white/80 border-slate-200 hover:border-slate-300 hover:bg-white shadow-xs'
               }`}
             >
@@ -121,7 +124,11 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
                 <div className="flex items-center justify-between mb-3">
                   <span
                     className={`text-xs font-mono font-bold px-2 py-0.5 rounded tabular-nums tracking-normal ${
-                      isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                      isActive
+                        ? isPaymentStage
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-700'
                     }`}
                   >
                     <span>{stage.step}</span>
@@ -133,7 +140,13 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
                 <div className="flex items-center gap-2 mb-1">
                   <Icon
                     size={16}
-                    className={isActive ? 'text-blue-600' : 'text-slate-500'}
+                    className={
+                      isActive
+                        ? isPaymentStage
+                          ? 'text-orange-600'
+                          : 'text-blue-600'
+                        : 'text-slate-500'
+                    }
                     aria-hidden="true"
                   />
                   <h3 className="font-bold text-sm sm:text-base text-slate-900">
@@ -168,7 +181,11 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
         {/* Left Column: Stage Explanation */}
         <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/60">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4">
+            <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-bold uppercase tracking-wider mb-4 ${
+              activeStepIndex === 2
+                ? 'bg-orange-50 border-orange-200 text-orange-800'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+            }`}>
               <span className="tabular-nums font-mono">STAGE {currentStage.step}</span>
               <span>·</span>
               <span>{currentStage.tagline}</span>
@@ -291,11 +308,11 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
             <div className="w-full max-w-md bg-white text-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-700 font-sans text-xs">
               <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex items-center justify-between">
                 <span className="font-bold text-slate-800 text-[11px] flex items-center gap-1.5">
-                  <CreditCard size={13} className="text-blue-600" aria-hidden="true" />
+                  <CreditCard size={13} className="text-orange-500" aria-hidden="true" />
                   <span>Settlement Breakdown</span>
                 </span>
-                <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                  Direct Payout
+                <span className="text-[10px] font-bold text-orange-800 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                  Direct Payout · 0% Cut
                 </span>
               </div>
               <div className="p-4 bg-white space-y-3 font-mono">
@@ -305,7 +322,7 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500 font-sans">FeraSetu Commission Cut:</span>
-                  <span className="font-bold text-blue-700">{demo.commissionText}</span>
+                  <span className="font-bold text-orange-600">{demo.commissionText}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500 font-sans">Gateway Provider:</span>
@@ -313,7 +330,7 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
                   <span className="font-bold text-slate-900 font-sans">Net Payout to Your Bank:</span>
-                  <span className="text-sm font-black text-blue-700">{demo.formattedOrderTotal}*</span>
+                  <span className="text-sm font-black text-slate-900">{demo.formattedOrderTotal}*</span>
                 </div>
                 <p className="text-[10px] text-slate-400 font-sans leading-relaxed pt-1">
                   *Third-party processor charges their standard processing fee directly. FeraSetu adds zero commission surcharge.

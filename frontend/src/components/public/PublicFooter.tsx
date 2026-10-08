@@ -33,7 +33,7 @@ export default function PublicFooter() {
               />
             </Link>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[11px] font-semibold text-slate-700 mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
               <span>Independent Commerce</span>
             </div>
             <p className="text-sm text-slate-700 font-semibold max-w-xs leading-relaxed mb-3">
@@ -85,7 +85,7 @@ export default function PublicFooter() {
                   to={getLocalizedLink('/pricing')}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
-                  {t('nav.pricing') || 'Pricing'}
+                  Pricing
                 </Link>
               </li>
             </ul>
@@ -110,7 +110,7 @@ export default function PublicFooter() {
                   onClick={() => login()}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium text-left cursor-pointer"
                 >
-                  {t('nav.signIn') || 'Sign In'}
+                  Sign In
                 </button>
               </li>
             </ul>
@@ -176,7 +176,7 @@ export default function PublicFooter() {
               <span>256-Bit SSL Encrypted</span>
             </span>
             <span>·</span>
-            <span>0% Platform Commission</span>
+            <span className="font-bold text-orange-600">0% Platform Commission</span>
           </div>
         </div>
       </div>
