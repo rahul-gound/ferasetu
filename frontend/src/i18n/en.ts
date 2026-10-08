@@ -123,7 +123,7 @@ export default {
   "nav.features": "Features",
   "nav.pricing": "Pricing",
   "nav.dashboard": "Dashboard",
-  "nav.signIn": "Sign in",
+  "nav.signIn": "Sign In",
   "nav.startFree": "Start Free",
   "footer.tagline": "Independent digital commerce for small businesses and merchants. Own your customers, keep your profits.",
   "footer.product": "Product",

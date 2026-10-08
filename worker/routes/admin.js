@@ -208,13 +208,13 @@ export async function handleAdminRoutes(request, env) {
     try {
       adminPayload = await requireAdminAuth(request, env);
     } catch (authErr) {
-      if (authErr.message.includes("Insufficient permissions")) {
+      if (authErr.message.includes("Forbidden") || authErr.message.includes("Insufficient permissions")) {
         throw new HttpError(authErr.message, 403);
       }
       throw new HttpError(authErr.message, 401);
     }
 
-    const adminEmail = adminPayload.sub;
+    const adminEmail = adminPayload.email || adminPayload.sub;
 
     // 3. Protected Admin Routes
 
@@ -225,7 +225,16 @@ export async function handleAdminRoutes(request, env) {
 
     // VERIFY TOKEN
     if (path === "/api/admin/verify" && method === "GET") {
-      return json({ success: true, user: { email: adminEmail } });
+      return json({ 
+        success: true, 
+        authorized: true,
+        user: { 
+          id: adminPayload.sub,
+          email: adminPayload.email || adminPayload.sub,
+          role: "ADMIN",
+          method: adminPayload.method || "WORKOS"
+        } 
+      });
     }
     
     // DASHBOARD STATS

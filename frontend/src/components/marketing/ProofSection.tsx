@@ -44,7 +44,7 @@ const MERCHANT_SHOWCASE = [
     city: 'Portland & Global',
     category: 'Specialty Beverages',
     catalogSize: '18 products',
-    url: 'apexroasters.ferasetu.com',
+    url: 'apexstore.ferasetu.com',
     paymentMethod: 'Direct Stripe Checkout',
     badge: 'Verified Merchant',
     highlight: '100% Customer Ownership',

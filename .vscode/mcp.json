@@ -8,6 +8,15 @@
 			],
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.0.1-seed"
+		},
+		"cloudflare": {
+			"type": "http",
+			"url": "https://mcp.cloudflare.com/mcp"
+		}
+	},
+	"mcpServers": {
+		"cloudflare": {
+			"url": "https://mcp.cloudflare.com/mcp"
 		}
 	},
 	"inputs": []

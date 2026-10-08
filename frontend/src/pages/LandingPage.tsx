@@ -1,64 +1,33 @@
-/**
- * LandingPage — Redesigned around the Start With Why / Golden Circle philosophy.
- *
- * PHILOSOPHY:
- * 1. WHY (Belief & Purpose)
- * 2. HOW (Principles & Architecture)
- * 3. WHAT (Product & Evidence)
- *
- * Core Brand Idea:
- * “Your business is yours. The internet should be too.”
- *
- * Truth & Transparency:
- * - 0% FeraSetu platform commission (third-party payment processing fees clearly noted)
- * - FeraSetu does not own warehouses, physical inventory, riders, or delivery fleets
- * - Real product demonstrations (no fake testimonials, no fake metrics, no fake urgency)
- * - 14-day trial model with no credit card required to start
- */
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
-  CheckCircle2,
   ShieldCheck,
   Check,
   Lock,
   Store,
-  Globe,
   ShoppingCart,
-  Truck,
-  Users,
-  PackageCheck,
-  MapPin,
-  CreditCard,
-  TrendingUp,
-  MessageSquare,
-  Building2,
-  Database,
-  Smartphone,
-  Percent,
-  Bot,
-  Workflow,
-  Zap,
+  CheckCircle2,
+  ChevronDown,
   Sparkles,
-  ExternalLink,
-  ChevronRight,
-  Clock,
-  Receipt
+  Zap,
+  Globe,
+  Users,
+  CreditCard,
+  Building2,
+  X
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMarket } from '../contexts/MarketContext';
 import { getMarketPlans } from '../config/plans';
+import { getMarketDemoConfig } from '../config/marketDemo';
+import CompleteCircuit from '../components/marketing/CompleteCircuit';
 import SEO from '../components/SEO';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
-// Lazy-loaded specialized components for optimal performance & clean code-splitting
-const EvidenceShowcase = lazy(() => import('../components/marketing/EvidenceShowcase'));
-const JourneyDiagram = lazy(() => import('../components/marketing/JourneyDiagram'));
 const TransparencyTable = lazy(() => import('../components/marketing/TransparencyTable'));
-const ProductStoryWalkthrough = lazy(() => import('../components/marketing/ProductStoryWalkthrough'));
 const FAQSection = lazy(() => import('../components/marketing/FAQSection'));
 
 const SectionFallback = () => (
@@ -70,11 +39,11 @@ const SectionFallback = () => (
 export default function LandingPage() {
   const { getLocalizedLink } = useLanguage();
   const { user, register } = useAuth();
-  const { market, config, trialPolicy, formatPrice } = useMarket();
+  const { market, config, formatPrice } = useMarket();
   const navigate = useNavigate();
   const previewPlans = getMarketPlans(market);
-
-  const claimShopName = '';
+  const demo = getMarketDemoConfig(market);
+  const [philosophyExpanded, setPhilosophyExpanded] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
@@ -92,22 +61,9 @@ export default function LandingPage() {
     return () => observer.disconnect();
   }, []);
 
-  const slugifiedClaim = claimShopName
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || (market === 'IN' ? 'sharmageneral' : 'apexstore');
-
   const handleStart = (source: string) => {
-    trackCtaClick(source, 'Bring your business online', source, '/register');
+    trackCtaClick(source, 'Bring my business online', source, '/register');
     trackSignupStart(market, source);
-    if (claimShopName.trim()) {
-      try {
-        localStorage.setItem('ferasetu_claimed_shop_name', claimShopName.trim());
-      } catch {
-        // ignore localStorage access errors
-      }
-    }
     if (user) {
       navigate('/dashboard');
     } else {
@@ -119,7 +75,7 @@ export default function LandingPage() {
     <>
       <SEO
         title="FeraSetu — Your business is yours. The internet should be too."
-        description="We believe independent businesses should be able to build an online presence, serve their customers and grow without losing control of the business they built."
+        description="Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. 0% FeraSetu platform commission."
         noindex={false}
         structuredData={{
           '@context': 'https://schema.org',
@@ -127,12 +83,12 @@ export default function LandingPage() {
           name: 'FeraSetu',
           applicationCategory: 'BusinessApplication',
           description:
-            'Digital infrastructure for independent commerce. Connects storefront, ordering, payments, and fulfillment with 0% FeraSetu platform commission.',
+            'Independent digital commerce infrastructure. Connects storefront, ordering, payments, and fulfillment with 0% FeraSetu platform commission.',
           offers: {
             '@type': 'Offer',
             price: '0',
-            priceCurrency: market === 'IN' ? 'INR' : 'USD',
-            description: '14-day trial · No credit card to start',
+            priceCurrency: market === 'IN' ? 'INR' : market === 'EU' ? 'EUR' : 'USD',
+            description: market === 'IN' ? 'Permanent Free plan · No credit card to start' : '14-day trial · No credit card to start',
           },
           operatingSystem: 'Web, Mobile',
           url: 'https://ferasetu.com',
@@ -142,325 +98,226 @@ export default function LandingPage() {
       <PublicLayout>
 
         {/* ================================================================
-          SECTION 1 — HERO / WHY
-          Headline: “Your business is yours. The internet should be too.”
-          Core Purpose: Why FeraSetu exists.
+          SECTION 1 — HERO: IMMEDIATE UNDERSTANDING & IMMEDIATE PROOF
         ================================================================ */}
-        <section id="why" className="relative pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden bg-white border-b border-slate-100">
-          <div className="max-w-[1100px] mx-auto px-6 relative z-10 text-center">
+        <section id="hero" className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden bg-white border-b border-slate-100">
+          <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
 
-            {/* Belief Tag */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-semibold mb-8 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-blue-600" />
-              <span>The Independent Business Philosophy</span>
-            </div>
-
-            {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6 max-w-4xl mx-auto">
-              Your business is yours.{' '}
-              <span className="text-blue-600 block sm:inline">The internet should be too.</span>
-            </h1>
-
-            {/* Supporting Copy */}
-            <p className="text-lg sm:text-xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed font-normal">
-              We believe independent businesses should be able to build an online presence, serve their customers and grow without losing control of the business they built.
-            </p>
-
-            {/* Primary & Secondary CTAs with micro-interactions */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 max-w-md mx-auto">
-              <button
-                type="button"
-                onClick={() => handleStart('hero_primary')}
-                className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all duration-150 hover:-translate-y-0.5 shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Bring your business online</span>
-                <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
-              </button>
-
-              <a
-                href="#belief"
-                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-1.5"
-              >
-                <span>See why FeraSetu exists</span>
-              </a>
-            </div>
-
-            {/* Trial & Trust Line */}
-            <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-3">
-              <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                <CheckCircle2 size={14} className="text-emerald-600" aria-hidden="true" />
-                <span>14-day trial</span>
-              </span>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                <CheckCircle2 size={14} className="text-emerald-600" aria-hidden="true" />
-                <span>No credit card to start</span>
-              </span>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
-                <span>0% FeraSetu platform commission</span>
-              </span>
-            </div>
-
-            {/* Visual: Transformation Flow from Physical Business to Customer */}
-            <div className="mt-16 pt-10 border-t border-slate-100">
-              <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-6 flex items-center justify-center gap-2">
-                <Workflow size={13} className="text-blue-600" aria-hidden="true" />
-                <span>THE DIGITAL BRIDGE // FROM REAL WORLD TO RETURNING CUSTOMER</span>
+            {/* Top Eyebrow, Headline & Value Statement */}
+            <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-12">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-bold uppercase tracking-wider mb-6">
+                <span>YOUR BUSINESS IS YOURS.</span>
               </div>
 
-              {/* 5-Node Connected Transformation Flow */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto text-left">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono font-bold text-slate-400">01 / REAL-WORLD</span>
-                    <Building2 size={13} className="text-slate-500" aria-hidden="true" />
-                  </div>
-                  <div className="font-bold text-slate-900 text-sm">Physical Business</div>
-                  <p className="text-xs text-slate-500 mt-1">Your shop, products, and years of hard work.</p>
-                </div>
-                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 hover:border-blue-300 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono font-bold text-blue-600">02 / STOREFRONT</span>
-                    <Globe size={13} className="text-blue-600" aria-hidden="true" />
-                  </div>
-                  <div className="font-bold text-blue-950 text-sm">FeraSetu Storefront</div>
-                  <p className="text-xs text-slate-600 mt-1">Your own permanent address on the web.</p>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono font-bold text-slate-400">03 / INTAKE</span>
-                    <ShoppingCart size={13} className="text-slate-500" aria-hidden="true" />
-                  </div>
-                  <div className="font-bold text-slate-900 text-sm">Customer Order</div>
-                  <p className="text-xs text-slate-500 mt-1">Structured cart checkout and direct contact.</p>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono font-bold text-slate-400">04 / DISPATCH</span>
-                    <Truck size={13} className="text-slate-500" aria-hidden="true" />
-                  </div>
-                  <div className="font-bold text-slate-900 text-sm">Fulfillment &amp; Handshake</div>
-                  <p className="text-xs text-slate-500 mt-1">Packed by you; handed off with OTP verification.</p>
-                </div>
-                <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono font-bold text-slate-400">05 / RETENTION</span>
-                    <Users size={13} className="text-slate-500" aria-hidden="true" />
-                  </div>
-                  <div className="font-bold text-slate-900 text-sm">Returning Customer</div>
-                  <p className="text-xs text-slate-500 mt-1">Direct customer relationship owned by you.</p>
-                </div>
-              </div>
-            </div>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6">
+                Your business is yours.{' '}
+                <span className="text-blue-600 block sm:inline">The internet should be too.</span>
+              </h1>
 
-            {/* Micro-signals bar around hero */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-10 mb-6 text-xs">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>Store live</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
-                <CreditCard size={13} className="text-blue-600" aria-hidden="true" />
-                <span>Direct Payments (₹0 Cut)</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
-                <ShoppingCart size={13} className="text-blue-600" aria-hidden="true" />
-                <span>128 Orders Today</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
-                <Users size={13} className="text-blue-600" aria-hidden="true" />
-                <span>842 Customers Owned</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
-                <Globe size={13} className="text-blue-600" aria-hidden="true" />
-                <span>37+ Languages</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold shadow-sm">
-                <MessageSquare size={13} className="text-emerald-600" aria-hidden="true" />
-                <span>WhatsApp Order Flow</span>
-              </div>
-            </div>
+              <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
+                Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. <strong>0% FeraSetu platform commission.</strong>
+              </p>
 
-            {/* Real Product UI Mockup */}
-            <div className="max-w-4xl mx-auto rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden text-left">
-              {/* Browser bar */}
-              <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                </div>
-                <div className="bg-white px-3.5 py-1 rounded-md border border-slate-200 text-slate-600 font-mono text-xs flex items-center gap-2 max-w-[260px] truncate">
-                  <Lock size={11} className="text-emerald-600 shrink-0" aria-hidden="true" />
-                  <span className="truncate">https://{slugifiedClaim}.ferasetu.com</span>
-                </div>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  Live Storefront
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-8 max-w-md mx-auto">
+                <button
+                  type="button"
+                  onClick={() => handleStart('hero_primary')}
+                  className="group w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all duration-150 hover:-translate-y-0.5 shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Bring my business online</span>
+                  <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
+                </button>
+
+                <a
+                  href="#complete-circuit"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-1.5"
+                >
+                  <span>See how it works</span>
+                </a>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+                <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                  <CheckCircle2 size={14} className="text-blue-600" aria-hidden="true" />
+                  <span>{market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}</span>
+                </span>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                  <CheckCircle2 size={14} className="text-blue-600" aria-hidden="true" />
+                  <span>No credit card to start</span>
+                </span>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                  <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
+                  <span>0% FeraSetu platform commission</span>
                 </span>
               </div>
+            </div>
 
-              {/* Storefront / Merchant Dashboard Header */}
-              <div className="p-5 sm:p-6 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Sharma General Store</h3>
-                    <span className="text-[11px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">ID: FS-8841</span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">Online ordering · Instant UPI &amp; Cards · Local Store Pickup or Delivery</p>
-                </div>
+            {/* ================================================================
+              SECTION 2 — PRODUCT PROOF: DUAL-STATE REAL PRODUCT UI
+            ================================================================ */}
+            <div id="product-proof" className="max-w-5xl mx-auto rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden text-left">
+              {/* Top System Bar */}
+              <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full font-bold text-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Accepting Orders
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                  </div>
+                  <span className="font-bold text-slate-800 ml-2">FeraSetu Commerce System</span>
+                </div>
+                <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                    Direct Conduit Active
                   </span>
+                  <span className="font-semibold text-slate-800">0% Platform Cut</span>
                 </div>
               </div>
 
-              {/* Realistic Operational Metrics Bar */}
-              <div className="grid grid-cols-3 divide-x divide-slate-200 border-b border-slate-200 bg-white text-xs">
-                <div className="p-3.5 sm:p-4">
-                  <div className="text-[11px] font-mono font-semibold uppercase text-slate-400">Today's Orders</div>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-lg sm:text-2xl font-black text-slate-900 font-mono">128</span>
-                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">↑ 12% today</span>
-                  </div>
-                </div>
-                <div className="p-3.5 sm:p-4">
-                  <div className="text-[11px] font-mono font-semibold uppercase text-slate-400">Settled Revenue</div>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-lg sm:text-2xl font-black text-slate-900 font-mono">₹48,920</span>
-                    <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">100% Payout</span>
-                  </div>
-                </div>
-                <div className="p-3.5 sm:p-4">
-                  <div className="text-[11px] font-mono font-semibold uppercase text-slate-400">Total Customers</div>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-lg sm:text-2xl font-black text-slate-900 font-mono">842</span>
-                    <span className="text-[10px] text-slate-700 font-semibold bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">Owned List</span>
-                  </div>
-                </div>
-              </div>
+              {/* Dual-Pane View: Customer Storefront (Left) -> Merchant Live Control Desk (Right) */}
+              <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
 
-              {/* Realistic Dashboard Split: Recent Orders & Catalog Preview */}
-              <div className="grid md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-slate-200">
-                {/* Recent Orders Table (7 cols) */}
-                <div className="md:col-span-7 p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock size={13} className="text-blue-600" aria-hidden="true" />
-                      Recent Live Orders
+                {/* PANE 1: CUSTOMER STOREFRONT */}
+                <div className="p-5 sm:p-7 bg-white flex flex-col justify-between">
+                  <div>
+                    {/* Customer Browser URL Bar (Single continuous URL, no artificial spaces) */}
+                    <div className="mb-4 p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono text-slate-600 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Lock size={12} className="text-blue-600 shrink-0" aria-hidden="true" />
+                        <span className="font-semibold text-slate-900 font-mono tracking-tight whitespace-nowrap">
+                          {demo.storeUrl}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Storefront</span>
+                    </div>
+
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">{demo.storeName}</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">{demo.storeCategory}</p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
+                        Open Now
+                      </span>
+                    </div>
+
+                    {/* Regional Demo Product Catalog */}
+                    <div className="space-y-2.5">
+                      {demo.products.map((prod, idx) => (
+                        <div key={idx} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-xs text-slate-900">{prod.name}</div>
+                            <div className="text-[11px] text-slate-500">{prod.subtitle}</div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-mono font-bold text-sm text-slate-900 tabular-nums">{prod.formattedPrice}</span>
+                            <span className="block text-[10px] text-blue-700 font-semibold">In Cart (×1)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Customer Checkout Action */}
+                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Order Total</div>
+                      <div className="text-base font-black text-slate-900 font-mono tabular-nums">{demo.formattedOrderTotal}</div>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm">
+                      <ShoppingCart size={13} aria-hidden="true" />
+                      <span>{demo.paymentMethod}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PANE 2: MERCHANT LIVE ORDER DESK */}
+                <div className="p-5 sm:p-7 bg-slate-50/60 flex flex-col justify-between">
+                  <div>
+                    {/* Merchant Desk Header */}
+                    <div className="mb-4 p-2 rounded-lg bg-white border border-slate-200 text-xs font-mono flex items-center justify-between">
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <Store size={13} className="text-blue-600" aria-hidden="true" />
+                        Merchant Control Desk
+                      </span>
+                      <span className="text-blue-700 font-bold text-[11px] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                        Real-time Sync
+                      </span>
+                    </div>
+
+                    {/* Incoming Order Card */}
+                    <div className="p-4 rounded-xl border border-blue-200 bg-white shadow-xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-blue-700 tabular-nums">{demo.orderId}</span>
+                          <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            {market === 'IN' ? 'Paid via UPI' : 'Paid via Card'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-mono">{demo.orderTime}</span>
+                      </div>
+
+                      <div className="text-xs text-slate-700 space-y-1 mb-3">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Customer:</span>
+                          <span className="font-semibold text-slate-900">{demo.customerName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Direct Contact:</span>
+                          <span className="font-mono text-slate-800">{demo.customerPhone}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Items:</span>
+                          <span className="font-medium text-slate-800">2 items ({demo.products.map(p => p.name.split(' (')[0]).join(', ')})</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono">
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Net Order Amount</span>
+                          <span className="font-bold text-slate-900 tabular-nums">{demo.formattedOrderTotal}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-slate-400 text-[10px] block">FeraSetu Commission</span>
+                          <span className="font-bold text-blue-700">{demo.commissionText}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Merchant Action Bar */}
+                  <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+                    <span className="text-slate-600 flex items-center gap-1 font-medium text-[11px] sm:text-xs">
+                      <CheckCircle2 size={13} className="text-blue-600 shrink-0" aria-hidden="true" />
+                      <span>{demo.settlementText}</span>
                     </span>
-                    <span className="text-[11px] text-slate-500 font-medium">Real-time sync</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-slate-900">#FS-1028</span>
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold">
-                            <Check size={9} aria-hidden="true" /> Paid
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">Amul Taaza Milk (×2), Bread · 2m ago</div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 font-mono">₹1,299</span>
-                        <span className="block text-[10px] text-slate-400 font-mono">UPI Instant</span>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-slate-900">#FS-1027</span>
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" /> Processing
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">Pantry Essentials Bundle · 14m ago</div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 font-mono">₹749</span>
-                        <span className="block text-[10px] text-slate-400 font-mono">Local Pickup</span>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-slate-900">#FS-1026</span>
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-semibold">
-                            <CheckCircle2 size={9} aria-hidden="true" /> Delivered
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">Fresh Daily Essentials · 1h ago</div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 font-mono">₹2,499</span>
-                        <span className="block text-[10px] text-slate-400 font-mono">OTP Verified</span>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleStart('hero_demo_pack')}
+                      className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold cursor-pointer transition-colors shadow-xs shrink-0"
+                    >
+                      Mark as Packed
+                    </button>
                   </div>
                 </div>
 
-                {/* Live Catalog Stock (5 cols) */}
-                <div className="md:col-span-5 p-4 sm:p-5 bg-slate-50/30">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Store size={13} className="text-blue-600" aria-hidden="true" />
-                      Live Catalog &amp; Stock
-                    </span>
-                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold">Active</span>
-                  </div>
-
-                  <div className="space-y-2 text-xs">
-                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-800 text-[11px]">Farm Fresh Milk (500ml)</div>
-                        <div className="text-[10px] text-slate-400">Dairy Essentials</div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 font-mono">₹34.00</span>
-                        <span className="block text-[10px] text-emerald-700 font-semibold">In Stock (42)</span>
-                      </div>
-                    </div>
-
-                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-800 text-[11px]">Whole Wheat Bread (400g)</div>
-                        <div className="text-[10px] text-slate-400">Fresh Daily Bakery</div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 font-mono">₹45.00</span>
-                        <span className="block text-[10px] text-emerald-700 font-semibold">In Stock (18)</span>
-                      </div>
-                    </div>
-
-                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-800 text-[11px]">Butter Marie Biscuits (250g)</div>
-                        <div className="text-[10px] text-slate-400">Pantry Essentials</div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 font-mono">₹30.00</span>
-                        <span className="block text-[10px] text-emerald-700 font-semibold">In Stock (60)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
-              {/* Bottom transparency notice */}
+              {/* Bottom Proof Strip */}
               <div className="bg-slate-50 px-5 sm:px-6 py-3 border-t border-slate-200 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck size={14} className="text-blue-600" aria-hidden="true" />
                   <span>Direct customer connection. FeraSetu does not run marketplace ads or divert your buyers.</span>
                 </span>
-                <span className="font-mono text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">0% Platform Cut</span>
+                <span className="font-mono text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  0% FeraSetu Platform Commission
+                </span>
               </div>
             </div>
 
@@ -469,143 +326,69 @@ export default function LandingPage() {
 
 
         {/* ================================================================
-          SECTION 2 — “YOU ALREADY BUILT SOMETHING REAL”
-          Empathy section: Recognition of merchant's hard work.
+          SECTION 3 — THREE OWNERSHIP PILLARS: OPEN COMPOSITION
         ================================================================ */}
-        <section className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-[1000px] mx-auto px-6">
+        <section id="ownership-pillars" className="py-20 md:py-24 bg-white border-b border-slate-200">
+          <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/80 text-slate-700 text-xs font-bold uppercase tracking-wider mb-4 border border-slate-300/60">
-                <span>Recognition</span>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
+                <span>OWNERSHIP PRINCIPLES</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-5">
-                You already built the hard part.
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Three pillars of digital independence.
               </h2>
-              <p className="text-lg text-slate-600 leading-relaxed font-normal">
-                Before you ever opened a browser or looked at an online tool, you did what most software never understands:
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+                Infrastructure designed so you never have to trade your identity, your customer list, or your margins to be on the internet.
               </p>
             </div>
 
-            {/* The 6 Real Foundations */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
-              {[
-                { icon: Store, tag: 'STOREFRONT IDENTITY', title: 'A Respected Name', desc: 'A real identity that customers in your area know, trust, and search for.' },
-                { icon: PackageCheck, tag: 'CURATED CATALOG', title: 'Curated Products', desc: 'Years spent learning exactly what your customers need and what quality looks like.' },
-                { icon: Users, tag: 'CUSTOMER RELATIONSHIPS', title: 'Real Relationships', desc: 'Direct handshakes, familiar faces, and conversations built over time.' },
-                { icon: MapPin, tag: 'LOCAL FULFILLMENT', title: 'Local Knowledge', desc: 'Knowing your neighborhood routes, customer preferences, and seasonal demands.' },
-                { icon: CreditCard, tag: 'DIRECT ECONOMICS', title: 'Pricing & Trust', desc: 'Fair, transparent prices that people rely on without hidden platform surcharges.' },
-                { icon: TrendingUp, tag: 'SUSTAINED GROWTH', title: 'Years of Dedication', desc: 'The daily discipline of opening on time, solving issues, and keeping shelves stocked.' },
-              ].map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <div key={idx} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-3.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">
-                          <Icon size={16} aria-hidden="true" />
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                          0{idx + 1}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold font-mono text-blue-700 tracking-wider block mb-1">
-                        {item.tag}
-                      </span>
-                      <h3 className="font-bold text-base text-slate-900 mb-1.5">{item.title}</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Punchline */}
-            <div className="p-8 rounded-2xl bg-white border border-blue-200 shadow-md text-center max-w-2xl mx-auto">
-              <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
-                Going online shouldn’t make it feel less like your business.
-              </p>
-              <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                Platforms often demand that you surrender your customer contacts, give away 15%–30% of your margin, and hide your business behind their logo. We reject that trade-off entirely.
-              </p>
-            </div>
-          </div>
-        </section>
-
-
-        {/* ================================================================
-          SECTION 3 — THE BELIEF
-          Large Editorial Section: The Golden Circle WHY.
-        ================================================================ */}
-        <section id="belief" className="py-20 md:py-28 bg-white border-b border-slate-200">
-          <div className="max-w-[1000px] mx-auto px-6">
-            <div className="max-w-3xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-6">
-                Our First Principle
+            {/* Open Composition: 3 Balanced Columns (Not repetitive boxed cards) */}
+            <div className="grid md:grid-cols-3 gap-8 sm:gap-10 max-w-5xl mx-auto">
+              {/* Pillar 1: Your Name & Domain */}
+              <div className="flex flex-col">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
+                  <span className="tabular-nums font-mono">01</span>
+                </div>
+                <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
+                  STOREFRONT IDENTITY
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">
+                  Your Name &amp; Domain
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed font-normal">
+                  Your store lives on your terms — with a permanent branded address or your own custom domain. No competitor banners, no algorithmic demotions, and zero competing stores suggested next to your products.
+                </p>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight mb-8">
-                We believe a business should belong to the person who built it.
-              </h2>
-
-              <p className="text-lg text-slate-600 leading-relaxed mb-12">
-                When you bring your business onto the internet, you should not be forced into digital tenant farming. You should not be an anonymous catalog item inside an aggregator that auctions your own customers to the highest bidder.
-              </p>
-
-              {/* Three Editorial Principles */}
-              <div className="space-y-8 border-l-2 border-blue-600 pl-6 sm:pl-8">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe size={18} className="text-blue-600 shrink-0" aria-hidden="true" />
-                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-                      “Your identity should be yours.”
-                    </h3>
-                  </div>
-                  <p className="text-slate-600 text-base leading-relaxed mb-2.5">
-                    Your storefront URL is your name, not our brand. Customers see your logo, your colors, and your story. You are never forced to compete against sponsored clones right on your own catalog.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                    <CheckCircle2 size={12} className="text-blue-600" aria-hidden="true" />
-                    100% Brand Ownership
-                  </span>
+              {/* Pillar 2: Your Customer Relationship */}
+              <div className="flex flex-col">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
+                  <span className="tabular-nums font-mono">02</span>
                 </div>
-
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users size={18} className="text-blue-600 shrink-0" aria-hidden="true" />
-                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-                      “Your customer relationship should be yours.”
-                    </h3>
-                  </div>
-                  <p className="text-slate-600 text-base leading-relaxed mb-2.5">
-                    When someone buys from you, they are your customer. You have their contact details, order history, and direct communication channel. We never mask customer phone numbers or sell your buyer list.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                    <CheckCircle2 size={12} className="text-blue-600" aria-hidden="true" />
-                    Unmasked Direct Contacts
-                  </span>
+                <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
+                  DIRECT CONDUIT
                 </div>
-
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Database size={18} className="text-blue-600 shrink-0" aria-hidden="true" />
-                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-                      “Your online presence should be yours.”
-                    </h3>
-                  </div>
-                  <p className="text-slate-600 text-base leading-relaxed mb-2.5">
-                    You can export your complete catalog, customer list, and order history at any time. Your digital presence is an asset you own, not a rented lease that can be terminated without explanation.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                    <CheckCircle2 size={12} className="text-blue-600" aria-hidden="true" />
-                    Permanent Data Portability
-                  </span>
-                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">
+                  Your Customer Relationship
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed font-normal">
+                  When a customer orders from you, their phone number, email, and order history belong to your merchant ledger. We never mask buyer details or intercept your relationships for advertising.
+                </p>
               </div>
 
-              {/* Section Conclusion */}
-              <div className="mt-12 pt-8 border-t border-slate-200">
-                <p className="text-xl font-bold text-blue-900">
-                  FeraSetu exists to make that belief practical.
+              {/* Pillar 3: Your Money */}
+              <div className="flex flex-col">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
+                  <span className="tabular-nums font-mono">03</span>
+                </div>
+                <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
+                  HONEST COMMERCE
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">
+                  Your Money (0% Commission)
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed font-normal">
+                  You pay an honest, predictable subscription for software that works. We never take a percentage toll on your gross sales. Every order settles directly into your bank account through your configured payment gateway.
                 </p>
               </div>
             </div>
@@ -614,231 +397,217 @@ export default function LandingPage() {
 
 
         {/* ================================================================
-          SECTION 4 — TRUST THROUGH EVIDENCE
-          Headline: “Don't take our word for it. Look at how it works.”
+          SECTION 4 — THE COMPLETE CIRCUIT: ONE MAIN INTERACTIVE PRODUCT JOURNEY
         ================================================================ */}
-        <section id="evidence" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
-                Verifiable Capability
+        <section id="complete-circuit" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
+                <span>THE PRODUCT CIRCUIT</span>
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                Don’t take our word for it.<br />
-                <span className="text-blue-600">Look at how it works.</span>
+                One connected workflow from physical shop to returning customer.
               </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-                We don’t ask you to trust marketing claims. Here is the actual digital workflow running in FeraSetu today — from storefront link to delivery handshake.
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+                No fragmented plugins. No middleman holding your inventory hostage. Four clear stages connect your business to the web.
               </p>
             </div>
 
-            <Suspense fallback={<SectionFallback />}>
-              <EvidenceShowcase />
-            </Suspense>
-          </div>
-        </section>
+            {/* Consolidated Interactive 4-Stage Stepper */}
+            <CompleteCircuit demo={demo} market={market} />
 
-
-        {/* ================================================================
-          SECTION 5 — THE END-TO-END JOURNEY
-          Headline: “From first click to front door.”
-        ================================================================ */}
-        <section id="journey" className="py-20 md:py-28 bg-white border-b border-slate-200">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider mb-4">
-                Connected Architecture
-              </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                From first click to front door.
-              </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-                FeraSetu is not merely a website builder that dumps you once a product page is generated. We connect the complete digital business journey while keeping you at the centre.
-              </p>
-            </div>
-
-            <Suspense fallback={<SectionFallback />}>
-              <JourneyDiagram />
-            </Suspense>
-          </div>
-        </section>
-
-
-        {/* ================================================================
-          SECTION 6 — HOW FERASETU WORKS
-          Headline: “We build differently.”
-          The 5 Core Principles.
-        ================================================================ */}
-        <section id="principles" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-[1100px] mx-auto px-6">
-            <div className="text-center max-w-2xl mx-auto mb-16">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
-                How We Operate
-              </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                We build differently.
-              </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-                These five design principles govern every line of code and every workflow we ship.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* Principle 1 */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
-                      <ShieldCheck size={18} aria-hidden="true" />
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                      01 / OWNERSHIP
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2">OWNERSHIP FIRST</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    The merchant stays permanently at the centre. You own your storefront, your brand name, your customer phone numbers, and your order history.
-                  </p>
-                </div>
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
-                  <span>Zero Lock-In Guarantee</span>
-                  <ArrowRight size={12} aria-hidden="true" />
-                </div>
-              </div>
-
-              {/* Principle 2 */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
-                      <Smartphone size={18} aria-hidden="true" />
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                      02 / SIMPLICITY
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2">SIMPLICITY FIRST</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Technology should remove daily work, not create more. A mobile-friendly system that sets up in minutes with no coding or server administration.
-                  </p>
-                </div>
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
-                  <span>No Developers Required</span>
-                  <ArrowRight size={12} aria-hidden="true" />
-                </div>
-              </div>
-
-              {/* Principle 3 */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
-                      <Percent size={18} aria-hidden="true" />
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                      03 / TRANSPARENCY
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2">TRANSPARENCY FIRST</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    We clearly explain who does what. No confusing commission tiers, no hidden deductions, and no physical claims we cannot fulfill.
-                  </p>
-                </div>
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
-                  <span>0% FeraSetu Sales Cut</span>
-                  <ArrowRight size={12} aria-hidden="true" />
-                </div>
-              </div>
-
-              {/* Principle 4 */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
-                      <Bot size={18} aria-hidden="true" />
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                      04 / HUMAN-FIRST AI
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2">HUMAN-FIRST AI</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    FeraSetu AI assists the shop owner with catalog cleanup, translations, and low-stock alerts — without pretending to run or automate away the merchant.
-                  </p>
-                </div>
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
-                  <span>Assistant, Not Replacement</span>
-                  <ArrowRight size={12} aria-hidden="true" />
-                </div>
-              </div>
-
-              {/* Principle 5 */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between md:col-span-2 lg:col-span-2">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm">
-                      <Workflow size={18} aria-hidden="true" />
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                      05 / CONNECTIVITY
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2">CONNECTED WORKFLOW</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Storefront, cart checkout, payment settlement, fulfillment dispatch, invoice generation, and customer retention operate as one connected circuit. You don’t have to glue 5 different plugins together.
-                  </p>
-                </div>
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-blue-700 font-semibold">
-                  <span>Unified Merchant Workspace</span>
-                  <ArrowRight size={12} aria-hidden="true" />
-                </div>
-              </div>
+            <div className="text-center mt-10">
+              <button
+                type="button"
+                onClick={() => handleStart('circuit_start')}
+                className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+              >
+                <span>Ready to start? Launch your store in minutes</span>
+                <ArrowRight size={15} aria-hidden="true" />
+              </button>
             </div>
           </div>
         </section>
 
 
         {/* ================================================================
-          SECTION 7 — PRODUCT REVEAL
-          Headline: “This is what we built to make the belief real.”
+          SECTION 5 — THE PHILOSOPHY: DIGESTIBLE LAYERS WITH DEPTH
         ================================================================ */}
-        <section id="product-reveal" className="py-20 md:py-28 bg-white border-b border-slate-200">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
-                The Product Journey
+        <section id="philosophy" className="py-20 md:py-24 bg-white border-b border-slate-200">
+          <div className="max-w-[900px] mx-auto px-4 sm:px-6">
+
+            {/* Layer 1: Dominant Headline */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold uppercase tracking-wider mb-4 border border-slate-200">
+                <span>WHY FERASETU EXISTS</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                This is what we built to make the belief real.
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-6">
+                You already built the hard part.
               </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-                Rather than an overwhelming pile of 30 isolated features, follow ONE coherent journey from product creation to the repeat customer order.
+            </div>
+
+            {/* Layer 2: Concise Core Explanation */}
+            <div className="max-w-2xl mx-auto text-center mb-8">
+              <p className="text-base sm:text-lg text-slate-700 leading-relaxed font-normal">
+                A real business is built on physical inventory, customer trust, and years of daily craft. That is the hard part. Putting that business online should be quiet, reliable software — not an excuse for an aggregator platform to extract a permanent 20% commission or take ownership of your customers. We reject that trade-off entirely.
               </p>
             </div>
 
-            <Suspense fallback={<SectionFallback />}>
-              <ProductStoryWalkthrough />
-            </Suspense>
+            {/* Layer 3: Progressive Disclosure / Expandable Deeper Reading */}
+            <div className="max-w-2xl mx-auto">
+              <button
+                type="button"
+                onClick={() => setPhilosophyExpanded(!philosophyExpanded)}
+                className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 font-bold text-sm transition-colors cursor-pointer"
+                aria-expanded={philosophyExpanded}
+              >
+                <span>Read our core operational beliefs</span>
+                <ChevronDown
+                  size={16}
+                  className={`text-slate-500 transition-transform duration-200 ${philosophyExpanded ? 'rotate-180 text-blue-600' : ''}`}
+                />
+              </button>
+
+              {philosophyExpanded && (
+                <div className="mt-4 p-6 sm:p-7 rounded-2xl bg-slate-50 border border-slate-200 space-y-5 text-sm text-slate-700 leading-relaxed animate-fade-in">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-base mb-1">
+                      1. We reject digital tenant farming.
+                    </h4>
+                    <p className="text-slate-600">
+                      Marketplaces promised customer discovery but quietly turned independent retailers into interchangeable fulfillment units. When you don&apos;t own your customer relationship, you are working for the platform, not yourself. FeraSetu provides the digital software bridge to stand on your own feet.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-base mb-1">
+                      2. Software should be a tool, not a partner taking equity.
+                    </h4>
+                    <p className="text-slate-600">
+                      You pay a predictable subscription for software that works. When your sales double, your software bill does not. FeraSetu charges 0% platform commission on your transactions.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-base mb-1">
+                      3. Your customer list is your balance sheet.
+                    </h4>
+                    <p className="text-slate-600">
+                      Every customer who buys from your storefront belongs in your ledger. Their phone numbers, emails, and order histories remain yours to keep, export, and nurture permanently.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </section>
 
 
         {/* ================================================================
-          SECTION 8 — WHO DOES WHAT
-          Headline: “Know who does what.”
-          Operational transparency table.
+          SECTION 6 — COMPARISON / DIFFERENTIATION: HONEST ECONOMIC MATRIX
         ================================================================ */}
-        <section id="transparency" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-[1100px] mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-200 text-slate-800 text-xs font-bold uppercase tracking-wider mb-4">
-                Radical Transparency
+        <section id="comparison" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
+                <span>HONEST COMPARISON</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Flat software vs. percentage tolls.
+              </h2>
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+                Compare the economics of direct ownership against traditional aggregators and generic website builders.
+              </p>
+            </div>
+
+            {/* Scannable Comparison Matrix Table */}
+            <div className="max-w-4xl mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100/80 border-b border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider">
+                    <tr>
+                      <th scope="col" className="px-5 py-4 w-1/4">Commercial Dimension</th>
+                      <th scope="col" className="px-5 py-4 w-1/3 bg-blue-50/70 text-blue-900 font-black border-x border-blue-100">
+                        FeraSetu Commerce
+                      </th>
+                      <th scope="col" className="px-5 py-4 w-1/3 text-slate-600">
+                        Aggregator / Marketplace
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="px-5 py-4 font-bold text-slate-900">Platform Commission</td>
+                      <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-bold border-x border-blue-100">
+                        0% (Flat software subscription only)
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        15% to 25% deducted from every order
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-5 py-4 font-bold text-slate-900">Customer Data Ownership</td>
+                      <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
+                        100% unmasked (phone, email &amp; history in your ledger)
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        Masked or completely withheld from seller
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-5 py-4 font-bold text-slate-900">Storefront Identity</td>
+                      <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
+                        Your brand &amp; products only. Zero competitor ads
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        Competitor and sponsored ads placed on your listings
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-5 py-4 font-bold text-slate-900">Payout Mechanism</td>
+                      <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
+                        Direct settlement into your business bank account
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        7 to 14-day platform escrow hold periods
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-5 py-4 font-bold text-slate-900">Data Portability</td>
+                      <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
+                        1-click CSV export of all products, stock &amp; contacts
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        Locked into platform ecosystem
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Technical Payment Processing Fee Note */}
+            <div className="mt-6 p-4 rounded-xl bg-slate-100 border border-slate-200 text-center max-w-3xl mx-auto text-xs text-slate-600 leading-relaxed">
+              <span className="font-semibold text-slate-800">Payment Processor Note: </span>
+              Standard merchant gateway processing fees apply directly from your payment processor ({market === 'IN' ? 'Cashfree' : 'Stripe'}). FeraSetu charges 0% commission surcharge.
+            </div>
+          </div>
+        </section>
+
+
+        {/* ================================================================
+          SECTION 7 — TRANSPARENCY: OPERATIONAL BOUNDARIES
+        ================================================================ */}
+        <section id="transparency" className="py-20 md:py-24 bg-white border-b border-slate-200">
+          <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold uppercase tracking-wider mb-4 border border-slate-200">
+                <span>OPERATIONAL BOUNDARIES</span>
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
                 Know who does what.
               </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-                Software companies often exaggerate what their tools physically do. We are explicit about our responsibilities, your control, and third-party integrations.
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+                We are explicit about our responsibilities, your control, and third-party integrations.
               </p>
             </div>
 
@@ -850,36 +619,25 @@ export default function LandingPage() {
 
 
         {/* ================================================================
-          SECTION 9 — ECONOMICS
-          Headline: “We believe the value you create should stay with you.”
-          Real pricing from codebase with 0% FeraSetu platform commission.
+          SECTION 8 — PREDICTABLE PRICING
         ================================================================ */}
-        <section id="pricing" className="py-20 md:py-28 bg-white border-b border-slate-200" aria-label="FeraSetu pricing plans">
-          <div className="max-w-[1100px] mx-auto px-6">
-            <div className="text-center max-w-3xl mx-auto mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4">
-                Platform Economics
+        <section id="pricing" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200" aria-label="FeraSetu pricing plans">
+          <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
+                <span>PREDICTABLE PRICING</span>
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                We believe the value you create should stay with you.
+                Simple software subscription.<br />
+                <span className="text-blue-600">0% sales commission.</span>
               </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
                 FeraSetu charges a predictable subscription. We charge <strong>0% platform commission</strong> on your sales.
               </p>
             </div>
 
-            {/* Commission Notice Card */}
-            <div className="mb-12 p-6 rounded-2xl bg-blue-50/70 border border-blue-200 max-w-2xl mx-auto text-center">
-              <h3 className="font-bold text-blue-950 text-base mb-1">
-                Technically Precise Fee Structure
-              </h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                When you make a sale on FeraSetu, our platform takes ₹0 / $0. Third-party payment providers (such as Cashfree in India or Stripe internationally) charge their own standard gateway processing fee directly to settle funds into your bank account.
-              </p>
-            </div>
-
-            {/* Real Plans Grid from Codebase */}
-            <div className={`grid gap-6 mx-auto mb-12 items-stretch ${
+            {/* Plans Grid */}
+            <div className={`grid gap-6 mx-auto mb-10 items-stretch ${
               previewPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl'
             }`}>
               {previewPlans.map((plan) => {
@@ -889,14 +647,14 @@ export default function LandingPage() {
                 return (
                   <div
                     key={plan.id}
-                    className={`rounded-2xl p-7 flex flex-col relative transition-all duration-200 ${
+                    className={`rounded-2xl p-6 sm:p-7 flex flex-col relative transition-all duration-200 ${
                       isPopular
                         ? 'bg-white border-2 border-blue-600 shadow-xl shadow-blue-600/10'
                         : 'bg-white border border-slate-200 shadow-sm hover:border-slate-300'
                     }`}
                   >
                     {isPopular && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                      <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-blue-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
                         <Zap size={11} aria-hidden="true" />
                         <span>Most Popular</span>
                       </div>
@@ -904,7 +662,7 @@ export default function LandingPage() {
 
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-sm ${
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-xs ${
                           isPopular ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-slate-50 border-slate-200 text-slate-700'
                         }`}>
                           <PlanIcon size={16} aria-hidden="true" />
@@ -917,7 +675,7 @@ export default function LandingPage() {
 
                       <div className="mt-5 pb-5 border-b border-slate-100">
                         <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-black text-slate-900 font-mono">
+                          <span className="text-4xl font-black text-slate-900 font-mono tabular-nums">
                             {formatPrice(plan.price.monthly)}
                           </span>
                           <span className="text-sm text-slate-500 font-semibold">
@@ -926,8 +684,8 @@ export default function LandingPage() {
                         </div>
                         <div className="text-xs text-blue-700 font-semibold mt-1">
                           {market === 'IN' && plan.price.monthly === 0
-                            ? 'Forever Free · No credit card needed'
-                            : `${config.trialDays}-day free trial · Cancel anytime`}
+                            ? 'Permanent Free Plan · No credit card required'
+                            : `${config.trialDays || 14}-day free trial · Cancel anytime`}
                         </div>
                       </div>
 
@@ -948,13 +706,13 @@ export default function LandingPage() {
                         className={`group w-full py-3 rounded-xl font-bold text-center text-sm transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 hover:-translate-y-0.5 ${
                           isPopular
                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'
-                            : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
                         }`}
                       >
                         <span>
                           {market === 'IN' && plan.price.monthly === 0
                             ? 'Start Free Store'
-                            : (market === 'IN' ? `Get ${plan.displayName}` : `Start ${config.trialDays}-Day Free Trial`)}
+                            : (market === 'IN' ? `Get ${plan.displayName}` : `Start ${config.trialDays || 14}-Day Free Trial`)}
                         </span>
                         <ArrowRight size={14} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
                       </button>
@@ -964,7 +722,6 @@ export default function LandingPage() {
               })}
             </div>
 
-            {/* Pricing Transparency & Terms */}
             <div className="text-center">
               <Link
                 to={getLocalizedLink('/pricing')}
@@ -979,73 +736,55 @@ export default function LandingPage() {
 
 
         {/* ================================================================
-          FAQ SECTION (Objection handling & SEO preservation)
+          SECTION 9 — SKEPTICISM RESOLUTION: FAQ
         ================================================================ */}
         <Suspense fallback={<SectionFallback />}>
           <FAQSection
-            title="Questions merchants ask"
+            title="Questions independent merchants ask"
             subtitle="Honest answers with complete operational clarity."
           />
         </Suspense>
 
 
         {/* ================================================================
-          SECTION 10 — FINAL CTA
-          Headline: “You built the business. Now build its place on the internet.”
+          SECTION 10 — FINAL CTA: THE SOVEREIGN SUMMONS
         ================================================================ */}
         <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden border-t border-slate-800">
-          <div className="max-w-[900px] mx-auto px-6 text-center relative z-10">
+          <div className="max-w-[800px] mx-auto px-4 sm:px-6 text-center relative z-10">
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-blue-300 text-xs sm:text-sm font-semibold mb-6 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-blue-300 text-xs sm:text-sm font-semibold mb-6 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
               <span>Ready When You Are</span>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-6">
-              You built the business.<br />
-              Now build its place on the internet.
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-5">
+              Bring your business online.<br />
+              <span className="text-blue-400">Keep it yours.</span>
             </h2>
 
-            <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
-              FeraSetu is for businesses that want to grow online without forgetting who their business belongs to.
+            <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-xl mx-auto leading-relaxed font-normal">
+              Direct customer orders. 0% FeraSetu platform commission. Your own branded web address.
             </p>
 
-            {/* Subtle product-language details */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-10 text-xs sm:text-sm text-slate-300 font-medium">
-              <span className="inline-flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700">
-                <Check size={13} className="text-emerald-400" aria-hidden="true" />
-                <span>Your business</span>
-              </span>
-              <span className="text-slate-600 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700">
-                <Check size={13} className="text-emerald-400" aria-hidden="true" />
-                <span>Your customers</span>
-              </span>
-              <span className="text-slate-600 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700">
-                <Check size={13} className="text-emerald-400" aria-hidden="true" />
-                <span>Your store</span>
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6 max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 max-w-md mx-auto">
               <button
                 type="button"
                 onClick={() => handleStart('final_cta')}
                 className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all duration-150 shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5"
               >
-                <span>Bring your business online</span>
+                <span>Bring my business online</span>
                 <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
               </button>
             </div>
 
-            {/* Secondary supporting line with micro-badges */}
             <div className="text-xs sm:text-sm text-slate-400 font-medium flex flex-wrap items-center justify-center gap-2.5">
-              <span className="bg-slate-800/60 px-2 py-0.5 rounded border border-slate-800">14-day trial</span>
+              <span className="bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700">
+                {market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}
+              </span>
               <span className="text-slate-600">•</span>
-              <span className="bg-slate-800/60 px-2 py-0.5 rounded border border-slate-800">No credit card to start</span>
+              <span className="bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700">No credit card to start</span>
               <span className="text-slate-600">•</span>
-              <span className="bg-slate-800/60 px-2 py-0.5 rounded border border-slate-800">0% platform commission</span>
+              <span className="bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700">0% FeraSetu platform commission</span>
             </div>
           </div>
         </section>

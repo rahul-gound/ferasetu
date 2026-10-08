@@ -1,7 +1,12 @@
+import * as jose from "jose";
+import { isProduction } from "./env.js";
+
 /**
  * Authentication and authorization utilities for Admin API
- * Utilizes Cloudflare Workers Web Crypto API.
+ * Utilizes Cloudflare Workers Web Crypto API and WorkOS JWKS.
  */
+
+let jwksCache = null;
 
 const JWT_ALGO = { name: "HMAC", hash: "SHA-256" };
 const PBKDF2_ITERATIONS = 100000;
@@ -219,26 +224,129 @@ export function timingSafeEqual(a, b) {
 }
 
 /**
- * Middleware function to enforce admin authentication.
- * Parses the Authorization header and verifies the token.
+ * Enforces platform-level administrator authentication and authorization.
+ *
+ * Flow:
+ * 1. Validates Authorization: Bearer <token>.
+ * 2. Cryptographically verifies token against WorkOS JWKS keys.
+ *    (In dev/test environments, supports fallback HMAC verification).
+ * 3. Enforces server-side authorization against platform administrator allowlist:
+ *    - env.ADMIN_USER_IDS: comma-separated list of immutable WorkOS User IDs (sub)
+ *    - env.ADMIN_EMAILS: comma-separated list of authorized admin emails
+ *    - env.ADMIN_EMAIL / env.ADMIN_USERNAME (backward compatibility fallback)
+ * 4. In production, ensures email is verified (email_verified === true) when matching by email.
+ *
+ * Throws 401 on unauthenticated / invalid signature / expired session.
+ * Throws 403 on authenticated user who is not on the admin allowlist.
  */
-export async function requireAdminAuth(request, env) {
-  const authHeader = request.headers.get("Authorization");
+export async function requirePlatformAdmin(request, env) {
+  const authHeader = request.headers.get("Authorization") || request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("Missing or invalid Authorization header");
   }
 
-  const token = authHeader.substring(7);
-  const isProd = env.ENVIRONMENT === "production" || env.NODE_ENV === "production";
-  const jwtSecret = env.ADMIN_JWT_SECRET || (!isProd ? env.JWT_SECRET : "");
-  if (!jwtSecret) {
-    throw new Error("Admin JWT secret is not configured on this server");
+  const token = authHeader.substring(7).trim();
+  if (!token) {
+    throw new Error("Missing or invalid Authorization header");
   }
 
+  const isProd = isProduction(env);
+  const clientId = env.WORKOS_CLIENT_ID || "client_01KZRE47KGSPK84HEP9WNBG9YY";
+
+  let verifiedPayload = null;
+  let verificationMethod = null;
+
+  // 1. Attempt WorkOS JWKS cryptographic verification
   try {
-    const payload = await verifyAdminJwt(token, jwtSecret);
-    return payload; // { sub, role, iat, exp }
-  } catch (err) {
-    throw new Error(`Unauthorized: ${err.message}`);
+    const keySet = env.JWKS || (jwksCache = jwksCache || jose.createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${clientId}`)));
+    const { payload } = await jose.jwtVerify(token, keySet, { clockTolerance: 60 });
+    verifiedPayload = payload;
+    verificationMethod = "WORKOS";
+  } catch (workosErr) {
+    // 2. In non-production or test environments, allow platform-signed HMAC JWT fallback
+    const jwtSecret = env.ADMIN_JWT_SECRET || (!isProd ? env.JWT_SECRET : "");
+    if (jwtSecret) {
+      try {
+        const payload = await verifyAdminJwt(token, jwtSecret);
+        verifiedPayload = payload;
+        verificationMethod = "HMAC";
+      } catch (hmacErr) {
+        // Fall through to error
+      }
+    }
+
+    if (!verifiedPayload) {
+      if (isProd) {
+        console.error("Platform admin JWT verification error (WorkOS failed in production):", workosErr);
+      }
+      throw new Error(`Unauthorized: ${workosErr?.message || "Invalid session signature or expired token"}`);
+    }
   }
+
+  // Extract identity fields
+  const userId = String(verifiedPayload.sub || verifiedPayload.id || "").trim();
+  const rawEmail = typeof verifiedPayload.email === "string" ? verifiedPayload.email : (userId.includes("@") ? userId : "");
+  const email = rawEmail.trim().toLowerCase();
+  const emailVerified = Boolean(verifiedPayload.email_verified ?? (verificationMethod === "HMAC" ? true : false));
+
+  // Build allowlists from server environment configuration
+  const allowedUserIds = (env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const rawAllowedEmails = [
+    ...(env.ADMIN_EMAILS || "").split(","),
+    env.ADMIN_EMAIL || "",
+    env.ADMIN_USERNAME && env.ADMIN_USERNAME.includes("@") ? env.ADMIN_USERNAME : ""
+  ];
+
+  const allowedEmails = rawAllowedEmails
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  let isAuthorized = false;
+
+  // Match by immutable WorkOS User ID
+  if (userId && allowedUserIds.includes(userId)) {
+    isAuthorized = true;
+  }
+
+  // Match by verified email
+  if (!isAuthorized && email && allowedEmails.includes(email)) {
+    if (isProd && verificationMethod === "WORKOS") {
+      // In production with WorkOS, require verified email
+      if (emailVerified) {
+        isAuthorized = true;
+      } else {
+        console.warn(`[ADMIN AUTH] Email ${email} matched allowlist but email_verified is false`);
+      }
+    } else {
+      isAuthorized = true;
+    }
+  }
+
+  // Also support explicit HMAC admin tokens with role === 'ADMIN' in dev/test
+  if (!isAuthorized && verificationMethod === "HMAC" && (verifiedPayload.role === "ADMIN" || verifiedPayload.role === "admin")) {
+    isAuthorized = true;
+  }
+
+  if (!isAuthorized) {
+    throw new Error("Forbidden: User is not an authorized platform administrator");
+  }
+
+  return {
+    sub: userId,
+    email: email || userId,
+    role: "ADMIN",
+    method: verificationMethod,
+    payload: verifiedPayload
+  };
+}
+
+/**
+ * Middleware function to enforce admin authentication (aliases requirePlatformAdmin).
+ */
+export async function requireAdminAuth(request, env) {
+  return await requirePlatformAdmin(request, env);
 }

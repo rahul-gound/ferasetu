@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SEO from '../SEO';
+import { useAuth } from '../../contexts/AuthContext';
+import { clearAdminSession } from '../../services/adminAuth';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -16,9 +18,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_token');
+    clearAdminSession();
+    logout();
     toast.success('Logged out from CEO Command Center');
     navigate('/admin');
   };

@@ -120,7 +120,7 @@ export default function JourneyDiagram() {
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 tabular-nums tracking-normal">
                     STEP {step.stepNumber}
                   </span>
                   <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
@@ -152,7 +152,9 @@ export default function JourneyDiagram() {
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
                   {step.badge}
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">0{idx + 1}/08</span>
+                <span className="text-[10px] font-mono text-slate-400 tabular-nums tracking-normal">
+                  {`0${idx + 1}/08`}
+                </span>
               </div>
 
               {!isFinal && (

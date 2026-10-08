@@ -24,8 +24,8 @@ export default function HeroProductVisual({
 }: HeroProductVisualProps) {
   const { translate } = useLanguage();
 
-  const effectiveShopName = shopName?.trim() || (market === 'IN' ? 'Sharma Kirana & General Store' : 'Apex Artisan Roasters');
-  const effectiveSlug = storeSlug?.trim() || (market === 'IN' ? 'sharmakirana' : 'apexroasters');
+  const effectiveShopName = shopName?.trim() || (market === 'IN' ? 'Sharma Kirana & General Store' : 'Apex Specialty Goods');
+  const effectiveSlug = storeSlug?.trim() || (market === 'IN' ? 'sharmakirana' : 'apexstore');
   const displayUrl = `${effectiveSlug}.ferasetu.com`;
 
   const previewCards = [

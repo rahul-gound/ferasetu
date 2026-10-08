@@ -53,10 +53,13 @@ function getBrowserLanguage(): string {
   return 'en';
 }
 
-function getStoredLanguage(): string {
+function getStoredLanguage(isCanonicalPublic = false): string {
   const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
   if (stored !== null && isSupportedLanguage(stored)) {
     return resolveLanguageCode(stored);
+  }
+  if (isCanonicalPublic) {
+    return 'en';
   }
   return getBrowserLanguage();
 }
@@ -70,9 +73,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const urlLanguage = location.pathname.split('/')[1];
   const isValidUrlLanguage = isSupportedLanguage(urlLanguage);
   const isPublicRoute = PUBLIC_ROUTES.includes(cleanPath);
+  const isCanonicalPublic = isPublicRoute && !isValidUrlLanguage;
 
   const [localLanguage, setLocalLanguage] = useState(() => (
-    isPublicRoute && isValidUrlLanguage ? resolveLanguageCode(urlLanguage) : getStoredLanguage()
+    isPublicRoute && isValidUrlLanguage ? resolveLanguageCode(urlLanguage) : getStoredLanguage(isCanonicalPublic)
   ));
   const [dictionaries, setDictionaries] = useState<Record<string, Dictionary>>({
     en: fallbackDictionary

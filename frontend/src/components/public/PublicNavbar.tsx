@@ -18,19 +18,11 @@ export default function PublicNavbar() {
     },
     {
       label: 'How It Works',
-      to: `${getLocalizedLink('/')}#evidence`
-    },
-    {
-      label: 'Connected Journey',
-      to: `${getLocalizedLink('/')}#journey`
-    },
-    {
-      label: 'Transparency',
-      to: `${getLocalizedLink('/')}#transparency`
+      to: `${getLocalizedLink('/')}#how-it-works`
     },
     {
       label: t('nav.pricing') || 'Pricing',
-      to: getLocalizedLink('/pricing')
+      to: `${getLocalizedLink('/')}#pricing`
     }
   ];
 
@@ -103,7 +95,7 @@ export default function PublicNavbar() {
                   onClick={() => login()}
                   className='cursor-pointer rounded-full px-3 py-2 text-sm font-bold text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
                 >
-                  {t('nav.signIn')}
+                  {t('nav.signIn') || 'Sign In'}
                 </button>
                 <button
                   type='button'
@@ -202,7 +194,7 @@ export default function PublicNavbar() {
                     }}
                     className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-50 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100'
                   >
-                    {t('nav.signIn')}
+                    {t('nav.signIn') || 'Sign In'}
                   </button>
                   <button
                     type='button'

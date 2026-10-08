@@ -110,16 +110,8 @@ export default function PublicFooter() {
                   onClick={() => login()}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium text-left cursor-pointer"
                 >
-                  {t('nav.signIn')}
+                  {t('nav.signIn') || 'Sign In'}
                 </button>
-              </li>
-              <li>
-                <Link
-                  to={getLocalizedLink('/pricing')}
-                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
-                >
-                  View Pricing
-                </Link>
               </li>
             </ul>
           </div>

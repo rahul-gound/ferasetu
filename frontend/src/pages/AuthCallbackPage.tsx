@@ -11,6 +11,36 @@ function callbackLog(event: string, detail?: string) {
   console.log(`[AUTH ${ts}] ${event}${detail ? ` — ${detail}` : ''}`);
 }
 
+function getSafeReturnDestination(searchParams: URLSearchParams): string {
+  let target: string | null = null;
+  try {
+    target = sessionStorage.getItem('fera_auth_return_to');
+    sessionStorage.removeItem('fera_auth_return_to');
+  } catch {}
+
+  if (!target) {
+    target = searchParams.get('return_to');
+  }
+
+  if (!target || typeof target !== 'string') {
+    return '/dashboard';
+  }
+
+  target = target.trim();
+
+  // Security: prevent open redirects. Must start with '/' and NOT '//' or '/\'
+  if (!target.startsWith('/') || target.startsWith('//') || target.startsWith('/\\')) {
+    return '/dashboard';
+  }
+
+  // Reject URI scheme prefixes (e.g. javascript:, http:, https:)
+  if (target.includes(':')) {
+    return '/dashboard';
+  }
+
+  return target;
+}
+
 export default function AuthCallbackPage() {
   const { user, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
@@ -32,7 +62,9 @@ export default function AuthCallbackPage() {
       errorHandledRef.current = true;
       callbackLog('AUTH_CALLBACK_FAILURE', `provider error: ${error}`);
       toast.error(errorDesc || 'Authentication cancelled or failed. Please sign in again.');
-      navigate('/login', { replace: true });
+      const dest = getSafeReturnDestination(searchParams);
+      const fallbackLogin = dest.startsWith('/admin') ? '/admin' : '/login';
+      navigate(fallbackLogin, { replace: true });
       return;
     }
 
@@ -40,8 +72,9 @@ export default function AuthCallbackPage() {
     const code = searchParams.get('code');
     if (!code && !isLoading) {
       if (user) {
-        callbackLog('AUTH_CALLBACK_SUCCESS', 'no code — user already authenticated, redirecting to dashboard');
-        navigate('/dashboard', { replace: true });
+        const dest = getSafeReturnDestination(searchParams);
+        callbackLog('AUTH_CALLBACK_SUCCESS', `no code — user already authenticated, redirecting to ${dest}`);
+        navigate(dest, { replace: true });
       } else if (!errorHandledRef.current) {
         errorHandledRef.current = true;
         callbackLog('AUTH_CALLBACK_FAILURE', 'no code and no session — redirecting to login');
@@ -54,11 +87,12 @@ export default function AuthCallbackPage() {
     // 3. WorkOS has processed the code (isLoading settled):
     if (!isLoading) {
       if (user) {
-        callbackLog('AUTH_CALLBACK_SUCCESS', `session established for ${user.email} — redirecting to dashboard`);
+        const dest = getSafeReturnDestination(searchParams);
+        callbackLog('AUTH_CALLBACK_SUCCESS', `session established for ${user.email} — redirecting to ${dest}`);
         try {
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch {}
-        navigate('/dashboard', { replace: true });
+        navigate(dest, { replace: true });
       } else if (!errorHandledRef.current) {
         errorHandledRef.current = true;
         callbackLog('AUTH_CALLBACK_FAILURE', 'WorkOS returned no user after code exchange');
