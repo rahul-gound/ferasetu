@@ -359,18 +359,29 @@ export async function runBackupWorkflow(operationId, params, adapter, env) {
       });
     }
 
-    // Persist backup items in D1
+    // Persist backup items in D1 (batch-optimized)
     if (env?.DB) {
-      for (const item of backupItems) {
+      const nowTs = new Date().toISOString();
+      const stmts = backupItems.map(item => {
         const itemId = `sbi_${Math.random().toString(36).slice(2, 12)}`;
-        await env.DB.prepare(`
+        return env.DB.prepare(`
           INSERT INTO site_backup_items (id, snapshot_id, source_path, item_type, size_bytes, content_hash, b2_object_key, metadata, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           itemId, snapshotId, item.source_path, item.item_type,
           item.sizeBytes, item.content_hash, item.b2_object_key,
-          item.metadata || null, new Date().toISOString()
-        ).run();
+          item.metadata || null, nowTs
+        );
+      });
+
+      if (typeof env.DB.batch === 'function') {
+        for (let i = 0; i < stmts.length; i += 50) {
+          await env.DB.batch(stmts.slice(i, i + 50));
+        }
+      } else {
+        for (const stmt of stmts) {
+          await stmt.run();
+        }
       }
     }
 
