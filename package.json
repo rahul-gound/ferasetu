@@ -19,6 +19,7 @@
     "test:qa": "node --test tests/qa-control-plane.test.mjs",
     "qa:smoke": "node packages/qa-engine/src/cli.js --mode smoke",
     "qa:full": "node packages/qa-engine/src/cli.js --mode full",
+    "lint:copy": "python tools/lint-marketing-copy.py",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "keywords": [

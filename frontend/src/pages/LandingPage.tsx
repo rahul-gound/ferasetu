@@ -10,12 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Sparkles,
-  Zap,
-  Globe,
-  Users,
-  CreditCard,
-  Building2,
-  X
+  Zap
 } from 'lucide-react';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
