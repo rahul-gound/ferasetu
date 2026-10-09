@@ -25,6 +25,8 @@ import { getMarketPlans } from '../config/plans';
 import { getMarketDemoConfig } from '../config/marketDemo';
 import CompleteCircuit from '../components/marketing/CompleteCircuit';
 import SEO from '../components/SEO';
+import SplitText from '../components/ui/SplitText';
+import SpotlightCard from '../components/ui/SpotlightCard';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
 const TransparencyTable = lazy(() => import('../components/marketing/TransparencyTable'));
@@ -112,10 +114,12 @@ export default function LandingPage() {
                 <span className="font-extrabold text-orange-600">0% Commission</span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6">
-                Your business is yours.{' '}
-                <span className="text-blue-600 block sm:inline">The internet should be too.</span>
-              </h1>
+              <SplitText
+                text="Your business is yours."
+                highlightText="The internet should be too."
+                highlightClassName="text-blue-600 block sm:inline"
+                className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6"
+              />
 
               <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
                 Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. <strong>0% FeraSetu platform commission.</strong>
@@ -345,55 +349,70 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Open Composition: 3 Balanced Columns (Not repetitive boxed cards) */}
-            <div className="grid md:grid-cols-3 gap-8 sm:gap-10 max-w-5xl mx-auto">
+            {/* Interactive Feature Cards using SpotlightCard */}
+            <div className="grid md:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto">
               {/* Pillar 1: Your Name & Domain */}
-              <div className="flex flex-col">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
-                  <span className="tabular-nums font-mono">01</span>
+              <SpotlightCard
+                className="p-6 sm:p-7 flex flex-col justify-between hover:border-slate-300 shadow-sm"
+                spotlightColor="rgba(0, 82, 255, 0.08)"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
+                    <span className="tabular-nums font-mono">01</span>
+                  </div>
+                  <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
+                    STOREFRONT IDENTITY
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">
+                    Your Name &amp; Domain
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed font-normal">
+                    Your store runs under your own business name, using your permanent store address or your own custom domain. No third-party ads, no search ranking games, and no competing shops pushed alongside your goods.
+                  </p>
                 </div>
-                <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
-                  STOREFRONT IDENTITY
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  Your Name &amp; Domain
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed font-normal">
-                  Your store lives on your terms — with a permanent branded address or your own custom domain. No competitor banners, no algorithmic demotions, and zero competing stores suggested next to your products.
-                </p>
-              </div>
+              </SpotlightCard>
 
-              {/* Pillar 2: Your Customer Relationship */}
-              <div className="flex flex-col">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
-                  <span className="tabular-nums font-mono">02</span>
+              {/* Pillar 2: Direct Customer Relationships */}
+              <SpotlightCard
+                className="p-6 sm:p-7 flex flex-col justify-between hover:border-slate-300 shadow-sm"
+                spotlightColor="rgba(0, 82, 255, 0.08)"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-sm mb-4 border border-blue-100 shadow-xs">
+                    <span className="tabular-nums font-mono">02</span>
+                  </div>
+                  <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
+                    DIRECT CONDUIT
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">
+                    Direct Customer Relationships
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed font-normal">
+                    When someone orders from your storefront, you receive their direct phone number and full order history. We never hide buyer details or use your customer list to sell ads.
+                  </p>
                 </div>
-                <div className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wider mb-1">
-                  DIRECT CONDUIT
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  Your Customer Relationship
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed font-normal">
-                  When a customer orders from you, their phone number, email, and order history belong to your merchant ledger. We never mask buyer details or intercept your relationships for advertising.
-                </p>
-              </div>
+              </SpotlightCard>
 
-              {/* Pillar 3: Your Money */}
-              <div className="flex flex-col">
-                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm mb-4 border border-orange-200 shadow-xs">
-                  <span className="tabular-nums font-mono">03</span>
+              {/* Pillar 3: Your Money (0% Commission) */}
+              <SpotlightCard
+                className="p-6 sm:p-7 flex flex-col justify-between border-orange-200/80 hover:border-orange-300 shadow-sm"
+                spotlightColor="rgba(249, 115, 22, 0.08)"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm mb-4 border border-orange-200 shadow-xs">
+                    <span className="tabular-nums font-mono">03</span>
+                  </div>
+                  <div className="text-[11px] font-mono font-bold text-orange-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    HONEST COMMERCE · 0% TOLL
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">
+                    Your Money: 0% Platform Commission
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed font-normal">
+                    You pay a predictable subscription for software that keeps running. We do not take a percentage cut of your sales. Every payment settles directly into your bank account through your chosen gateway.
+                  </p>
                 </div>
-                <div className="text-[11px] font-mono font-bold text-orange-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  HONEST COMMERCE · 0% TOLL
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  Your Money (0% Commission)
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed font-normal">
-                  You pay an honest, predictable subscription for software that works. We never take a percentage toll on your gross sales. Every order settles directly into your bank account through your configured payment gateway.
-                </p>
-              </div>
+              </SpotlightCard>
             </div>
           </div>
         </section>
@@ -412,7 +431,7 @@ export default function LandingPage() {
                 One connected workflow from physical shop to returning customer.
               </h2>
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
-                No fragmented plugins. No middleman holding your inventory hostage. Four clear stages connect your business to the web.
+                No messy plugins. No middleman holding your inventory hostage. Four clear stages connect your business to the web.
               </p>
             </div>
 
@@ -453,7 +472,7 @@ export default function LandingPage() {
             {/* Layer 2: Concise Core Explanation */}
             <div className="max-w-2xl mx-auto text-center mb-8">
               <p className="text-base sm:text-lg text-slate-700 leading-relaxed font-normal">
-                A real business is built on physical inventory, customer trust, and years of daily craft. That is the hard part. Putting that business online should be quiet, reliable software — not an excuse for an aggregator platform to extract a permanent 20% commission or take ownership of your customers. We reject that trade-off entirely.
+                A physical store takes real work: finding inventory, earning neighbor trust, and opening the door every single morning. Putting that store online should be dependable software, not a toll booth taking 15% to 25% of your turnover or walling off your customers. We built FeraSetu so shopkeepers can sell online without giving away their business.
               </p>
             </div>
 
@@ -476,26 +495,26 @@ export default function LandingPage() {
                 <div className="mt-4 p-6 sm:p-7 rounded-2xl bg-slate-50 border border-slate-200 space-y-5 text-sm text-slate-700 leading-relaxed animate-fade-in">
                   <div>
                     <h4 className="font-bold text-slate-900 text-base mb-1">
-                      1. We reject digital tenant farming.
+                      1. Marketplaces turn independent shops into packing stations.
                     </h4>
                     <p className="text-slate-600">
-                      Marketplaces promised customer discovery but quietly turned independent retailers into interchangeable fulfillment units. When you don&apos;t own your customer relationship, you are working for the platform, not yourself. FeraSetu provides the digital software bridge to stand on your own feet.
+                      Marketplaces promised new buyers but quietly turned local merchants into replaceable packing stations. When a platform hides customer contacts from you, you are working for their catalog instead of building your own goodwill. FeraSetu gives you an independent storefront so your customers stay yours.
                     </p>
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 text-base mb-1">
-                      2. Software should be a tool, not a partner taking equity.
+                      2. Software is an operating tool, not an equity partner.
                     </h4>
                     <p className="text-slate-600">
-                      You pay a predictable subscription for software that works. When your sales double, your software bill does not. FeraSetu charges 0% platform commission on your transactions.
+                      You pay a clear subscription. If your shop has a record-breaking weekend, your software cost stays unchanged. FeraSetu takes 0% platform commission on your sales.
                     </p>
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 text-base mb-1">
-                      3. Your customer list is your balance sheet.
+                      3. Customer records are your shop's long-term asset.
                     </h4>
                     <p className="text-slate-600">
-                      Every customer who buys from your storefront belongs in your ledger. Their phone numbers, emails, and order histories remain yours to keep, export, and nurture permanently.
+                      When repeat buyers order, their numbers and purchase records stay in your private dashboard. You can download your entire customer list whenever you want.
                     </p>
                   </div>
                 </div>

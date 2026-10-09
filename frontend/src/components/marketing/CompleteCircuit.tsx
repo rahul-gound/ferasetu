@@ -6,13 +6,12 @@ import {
   PackageCheck,
   CheckCircle2,
   Lock,
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  Globe,
-  Users
 } from 'lucide-react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { type MarketDemoConfig } from '../../config/marketDemo';
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface CompleteCircuitProps {
   demo: MarketDemoConfig;
@@ -34,7 +33,7 @@ const STAGES: CircuitStage[] = [
     step: '01',
     name: 'Get Online',
     tagline: 'STOREFRONT & CATALOG',
-    description: 'Add products with photos, prices, and stock limits right from your phone. Your branded web address is live immediately with zero server setup.',
+    description: 'Add products with photos and prices right from your phone. Your store address is live right away with zero server setup.',
     actor: 'Merchant',
     icon: Store,
     keyAction: 'Instant Catalog Setup',
@@ -43,7 +42,7 @@ const STAGES: CircuitStage[] = [
     step: '02',
     name: 'Get Orders',
     tagline: 'CUSTOMER DISCOVERY & CART',
-    description: 'Customers open your link from WhatsApp, QR codes, or social media. They browse live stock, add items to their cart, and submit structured orders.',
+    description: 'Customers open your link from WhatsApp, printed QR codes, or social channels. They browse current inventory, choose items, and send an organized order.',
     actor: 'Customer',
     icon: ShoppingCart,
     keyAction: 'Direct Order Intake',
@@ -52,7 +51,7 @@ const STAGES: CircuitStage[] = [
     step: '03',
     name: 'Get Paid',
     tagline: 'DIRECT SETTLEMENT',
-    description: 'Payments process directly through your configured gateway. FeraSetu charges 0% platform commission — funds settle directly to your bank account.',
+    description: 'Payments process directly through your own payment gateway. FeraSetu charges 0% platform commission, and payouts settle straight to your bank account.',
     actor: 'Payment Gateway',
     icon: CreditCard,
     keyAction: '0% Platform Commission',
@@ -61,17 +60,80 @@ const STAGES: CircuitStage[] = [
     step: '04',
     name: 'Complete the Order',
     tagline: 'FULFILLMENT & RETENTION',
-    description: 'You pack the order from your shelves. Customer receives status updates and direct receipts. You retain 100% ownership of their contact information.',
+    description: 'Pack the order from your shelves. Customers receive direct status updates and receipts, while their contact details stay in your own customer list.',
     actor: 'Store Team',
     icon: PackageCheck,
     keyAction: 'Owned Customer Data',
   },
 ];
 
-export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) {
+export default function CompleteCircuit({ demo }: CompleteCircuitProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const currentStage = STAGES[activeStepIndex];
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const circuitContainerRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // GSAP + ScrollTrigger restrained reveal animation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion || !circuitContainerRef.current) return;
+
+    const ctx = gsap.context(() => {
+      // Reveal the 4 merchant journey tabs with small translation and opacity
+      gsap.from('.circuit-stage-tab', {
+        opacity: 0,
+        y: 14,
+        duration: 0.4,
+        stagger: 0.08,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: circuitContainerRef.current,
+          start: 'top 85%',
+          once: true,
+        },
+      });
+
+      // Reveal the main presentation panel
+      gsap.from('.circuit-main-panel', {
+        opacity: 0,
+        y: 18,
+        duration: 0.45,
+        delay: 0.15,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: circuitContainerRef.current,
+          start: 'top 80%',
+          once: true,
+        },
+      });
+    }, circuitContainerRef);
+
+    // Refresh ScrollTrigger on font load to avoid late layout shifts
+    if (document.fonts) {
+      document.fonts.ready.then(() => {
+        ScrollTrigger.refresh();
+      });
+    }
+
+    return () => {
+      ctx.revert();
+    };
+  }, []);
+
+  // Subtle crossfade when switching active stage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion || !panelRef.current) return;
+
+    gsap.fromTo(
+      panelRef.current,
+      { opacity: 0.85, y: 4 },
+      { opacity: 1, y: 0, duration: 0.22, ease: 'power1.out' }
+    );
+  }, [activeStepIndex]);
 
   const handleKeyDown = (e: KeyboardEvent, index: number) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -88,7 +150,7 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
   };
 
   return (
-    <div className="w-full">
+    <div ref={circuitContainerRef} className="w-full">
       {/* 4-Stage Stepper Buttons (Accessible Tabs) */}
       <div
         role="tablist"
@@ -112,7 +174,7 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
               onClick={() => setActiveStepIndex(idx)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
               type="button"
-              className={`text-left p-4 sm:p-5 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+              className={`circuit-stage-tab text-left p-4 sm:p-5 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between ${
                 isActive
                   ? isPaymentStage
                     ? 'bg-white border-orange-500 shadow-md ring-2 ring-orange-500/10'
@@ -176,7 +238,8 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
         id={`circuit-panel-${currentStage.step}`}
         role="tabpanel"
         aria-labelledby={`circuit-tab-${currentStage.step}`}
-        className="rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden grid lg:grid-cols-12"
+        ref={panelRef}
+        className="circuit-main-panel rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden grid lg:grid-cols-12"
       >
         {/* Left Column: Stage Explanation */}
         <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/60">
@@ -203,19 +266,19 @@ export default function CompleteCircuit({ demo, market }: CompleteCircuitProps) 
               <div className="flex items-start gap-2.5 text-slate-700">
                 <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
                 <span>
-                  {activeStepIndex === 0 && 'Instant cloud edge hosting with automatic SSL and responsive mobile catalog.'}
-                  {activeStepIndex === 1 && 'Structured cart checkout avoids chaotic lost chats and transcription errors.'}
-                  {activeStepIndex === 2 && 'Non-custodial settlement: FeraSetu does not hold or delay your payouts.'}
-                  {activeStepIndex === 3 && 'Unmasked customer phone and order history saved in your merchant ledger.'}
+                  {activeStepIndex === 0 && 'Fast cloud hosting with automatic SSL and clean mobile layout.'}
+                  {activeStepIndex === 1 && 'Structured shopping cart avoids lost chat messages and missed details.'}
+                  {activeStepIndex === 2 && 'Direct settlement: FeraSetu does not hold or delay your payouts.'}
+                  {activeStepIndex === 3 && 'Direct customer phone numbers and order history stay in your own records.'}
                 </span>
               </div>
               <div className="flex items-start gap-2.5 text-slate-700">
                 <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
                 <span>
-                  {activeStepIndex === 0 && 'Permanent store link (e.g. ' + demo.displayUrl + ') or your custom domain.'}
-                  {activeStepIndex === 1 && 'Customers order directly without downloading a dedicated app or creating an account.'}
+                  {activeStepIndex === 0 && `Permanent store link (${demo.displayUrl}) or your own custom domain.`}
+                  {activeStepIndex === 1 && 'Buyers order directly without downloading an app or creating an account.'}
                   {activeStepIndex === 2 && 'Zero commission surcharge from FeraSetu on any order.'}
-                  {activeStepIndex === 3 && '1-click export of customer contacts, invoices, and product data anytime.'}
+                  {activeStepIndex === 3 && 'Export your customer records and product catalog anytime.'}
                 </span>
               </div>
             </div>

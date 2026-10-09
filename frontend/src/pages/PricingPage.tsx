@@ -26,22 +26,22 @@ const OUTCOMES = [
   {
     icon: <ShoppingBag size={22} color="#2563EB" aria-hidden="true" />,
     title: 'Sell without being there all day',
-    desc: 'Your store takes orders 24 hours a day, even when you\'re at home, sleeping, or doing other work. Customers browse your products and place orders — you just manage and fulfill.',
+    desc: 'Your store takes orders 24 hours a day, even when you\'re at home, resting, or busy with other work. Customers browse your catalog and place orders, while you handle fulfillment.',
   },
   {
     icon: <BarChart3 size={22} color="#2563EB" aria-hidden="true" />,
-    title: 'Know what\'s actually making you money',
-    desc: 'See which products sell, which sit on the shelf, and what your profit looks like — all in one clear dashboard. No spreadsheets, no guesswork.',
+    title: 'Know what is actually making money',
+    desc: 'See which products sell quickly, which stay on shelves, and what your daily profit looks like in one clear dashboard.',
   },
   {
     icon: <Package size={22} color="#2563EB" aria-hidden="true" />,
-    title: 'Streamline order and customer workflows',
-    desc: 'When orders come in, you get a clear centralized list — not scattered chat threads. Update status, print invoices, track inventory, all in one place.',
+    title: 'Keep orders and customer records organized',
+    desc: 'When orders come in, you get a clean centralized list instead of scattered chat messages. Update statuses, print invoices, and monitor inventory from one place.',
   },
   {
     icon: <Bot size={22} color="#2563EB" aria-hidden="true" />,
-    title: 'An AI that understands your business',
-    desc: 'FeraSetu AI uses your actual store data. Ask it "what should I restock?", "write a product description", or "create a seasonal promotion" and get contextual answers.',
+    title: 'Store assistant powered by your own catalog data',
+    desc: 'FeraSetu AI reads your real store records to answer questions like what to restock, generate product details, or plan promotions around your actual sales patterns.',
   },
 ];
 

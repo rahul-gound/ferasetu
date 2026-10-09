@@ -13,7 +13,9 @@ import {
   isValidMarket,
   normalizeMarket,
   DEFAULT_MARKET,
-  MARKET_STORAGE_KEY
+  MARKET_STORAGE_KEY,
+  isUserMarketOverride,
+  setUserMarketOverride,
 } from '../config/pricing';
 
 export interface SubscriptionStatus {
@@ -57,6 +59,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   // Check whether user has an explicit saved preference
   const initialSavedPref = useMemo(() => {
     if (typeof window === 'undefined') return null;
+    // Only treat cookie/storage as an intentional preference if the user manually selected it
+    if (!isUserMarketOverride()) return null;
     const fromCookie = getMarketCookie();
     if (fromCookie && isValidMarket(fromCookie)) return normalizeMarket(fromCookie);
     try {
@@ -93,30 +97,70 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const hasGeoResolved = useRef(false);
 
-  // Background country resolution via /api/geo edge endpoint (Privacy-first: ZERO GPS prompts)
+  // Background country resolution via edge endpoints (Privacy-first: ZERO GPS prompts)
   useEffect(() => {
-    // If user already has an explicit saved preference, never overwrite it with IP geolocation
-    if (initialSavedPref || isMarketOverridden || hasGeoResolved.current) {
+    // If user already has an explicit manual preference, never overwrite it with IP geolocation
+    if (initialSavedPref || isMarketOverridden || isUserMarketOverride() || hasGeoResolved.current) {
       return;
     }
 
     let isMounted = true;
     hasGeoResolved.current = true;
 
-    fetch('/api/geo')
-      .then(res => (res.ok ? res.json() : null))
-      .then(data => {
-        if (!isMounted || !data) return;
-        // Verify user hasn't toggled preference while request was in-flight
-        const currentSaved = getMarketCookie();
-        if (currentSaved && isValidMarket(currentSaved)) return;
+    async function detectGeo() {
+      // Prioritized endpoint hierarchy:
+      // 1. Authoritative production Worker API (always returns JSON with country, market, currency)
+      // 2. Relative /api/geo (proxied via Cloudflare Pages _redirects and local dev proxy)
+      // 3. Fallback worker hostname
+      // 4. Privacy-first public IP-country fallback (api.country.is)
+      const endpoints = [
+        'https://api.ferasetu.com/api/geo',
+        '/api/geo',
+        'https://ferasetu.singhantima203.workers.dev/api/geo',
+        'https://api.country.is/',
+      ];
 
-        const resolved = resolveMarket(data.country || data.region);
-        setMarketState(resolved);
-      })
-      .catch(() => {
-        // Safe offline / network fallback: retains existing resolved market
-      });
+      for (const endpoint of endpoints) {
+        if (!isMounted || isUserMarketOverride()) return;
+
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 4000);
+
+          const res = await fetch(endpoint, {
+            signal: controller.signal,
+            headers: { Accept: 'application/json' },
+            credentials: 'omit',
+          });
+          clearTimeout(timer);
+
+          if (!res.ok) continue;
+
+          // Reject SPA HTML fallback (e.g. index.html from Cloudflare Pages)
+          const contentType = res.headers.get('content-type') || '';
+          if (!contentType.includes('application/json') && !contentType.includes('+json')) {
+            continue;
+          }
+
+          const data = await res.json();
+          if (!data || typeof data !== 'object') continue;
+
+          const rawCountry = data.country || data.region || data.country_code || data.market;
+          if (rawCountry && typeof rawCountry === 'string') {
+            if (!isMounted || isUserMarketOverride()) return;
+            const resolved = resolveMarket(rawCountry);
+            setMarketState(resolved);
+            setMarketCookie(resolved);
+            return; // Geo resolved successfully
+          }
+        } catch {
+          // Fall through to next endpoint
+          continue;
+        }
+      }
+    }
+
+    detectGeo();
 
     return () => {
       isMounted = false;
@@ -161,6 +205,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeMarket(newMarket);
     setMarketState(normalized);
     setIsMarketOverridden(true);
+    setUserMarketOverride(true);
     setMarketCookie(normalized);
   }, []);
 

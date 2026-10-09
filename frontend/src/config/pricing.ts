@@ -19,7 +19,40 @@ export type CurrencyCode = 'INR' | 'GBP' | 'USD' | 'EUR';
 
 export const MARKET_STORAGE_KEY = 'fera_market';
 export const MARKET_COOKIE_KEY = 'fera_market';
+export const MARKET_OVERRIDE_KEY = 'fera_market_override';
 export const DEFAULT_MARKET: Market = 'GLOBAL';
+
+/**
+ * Checks whether the visitor has explicitly chosen a market via the MarketSelector UI.
+ * Distinct from automated Geo-IP detection to prevent default / stale cookies from
+ * permanently blocking IP geolocation for new or returning visitors.
+ */
+export function isUserMarketOverride(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (localStorage.getItem(MARKET_OVERRIDE_KEY) === 'true') return true;
+    if (typeof document !== 'undefined' && document.cookie.includes(`${MARKET_OVERRIDE_KEY}=true`)) return true;
+  } catch {}
+  return false;
+}
+
+export function setUserMarketOverride(isOverridden: boolean): void {
+  if (typeof window !== 'undefined') {
+    try {
+      if (isOverridden) {
+        localStorage.setItem(MARKET_OVERRIDE_KEY, 'true');
+        if (typeof document !== 'undefined') {
+          document.cookie = `${MARKET_OVERRIDE_KEY}=true; Path=/; Max-Age=31536000; SameSite=Lax`;
+        }
+      } else {
+        localStorage.removeItem(MARKET_OVERRIDE_KEY);
+        if (typeof document !== 'undefined') {
+          document.cookie = `${MARKET_OVERRIDE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+        }
+      }
+    } catch {}
+  }
+}
 
 /**
  * All 27 European Union (EU) sovereign member states (ISO 3166-1 alpha-2 codes).
@@ -258,7 +291,32 @@ export function resolveMarket(
     return normalizeMarket(accountMarket);
   }
 
-  // Check browser cookie / localStorage if running clientside
+  // 3. User manual override explicitly chosen via MarketSelector UI
+  if (typeof document !== 'undefined' && typeof window !== 'undefined' && isUserMarketOverride()) {
+    const cookieMarket = getMarketCookie();
+    if (cookieMarket && isValidMarket(cookieMarket)) {
+      return normalizeMarket(cookieMarket);
+    }
+    try {
+      const stored = localStorage.getItem(MARKET_STORAGE_KEY);
+      if (stored && isValidMarket(stored)) {
+        return normalizeMarket(stored);
+      }
+    } catch {}
+  }
+
+  // 4. Cloudflare visitor-country detection
+  if (country) {
+    const clean = country.toUpperCase().trim();
+    if (clean === 'IN') return 'IN';
+    // IMPORTANT: GB is the ISO 3166-1 alpha-2 code for United Kingdom. Also tolerate 'UK' alias.
+    if (clean === 'GB' || clean === 'UK') return 'UK';
+    if (clean === 'US') return 'US';
+    if (EU_COUNTRY_SET.has(clean)) return 'EU';
+    return 'GLOBAL';
+  }
+
+  // 5. Unconfirmed cookie / localStorage fallback (only if country was not provided)
   if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     const cookieMarket = getMarketCookie();
     if (cookieMarket && isValidMarket(cookieMarket)) {
@@ -272,18 +330,7 @@ export function resolveMarket(
     } catch {}
   }
 
-  // 3. Cloudflare visitor-country detection
-  if (country) {
-    const clean = country.toUpperCase().trim();
-    if (clean === 'IN') return 'IN';
-    // IMPORTANT: GB is the ISO 3166-1 alpha-2 code for United Kingdom. Also tolerate 'UK' alias.
-    if (clean === 'GB' || clean === 'UK') return 'UK';
-    if (clean === 'US') return 'US';
-    if (EU_COUNTRY_SET.has(clean)) return 'EU';
-    return 'GLOBAL';
-  }
-
-  // 4. Default global fallback
+  // 6. Default global fallback
   return DEFAULT_MARKET;
 }
 

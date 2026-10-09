@@ -1,0 +1,3 @@
+# Cloudflare Pages Redirects & Proxies
+# Proxy all /api/* requests to the production Cloudflare Worker API
+/api/*  https://api.ferasetu.com/api/:splat  200
