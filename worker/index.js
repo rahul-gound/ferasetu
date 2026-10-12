@@ -6953,9 +6953,10 @@ async function handlePublicCreateOrder(request, env) {
   ).run();
 
   // Insert authoritative order items snapshot
+  const oiStmts = [];
   for (const oi of orderItemsToInsert) {
-    try {
-      await env.DB.prepare(`
+    oiStmts.push(
+      env.DB.prepare(`
         INSERT INTO order_items (
           id, shop_id, organization_id, order_id, product_id, variant_id,
           title_snapshot, variant_title_snapshot, sku_snapshot, option_values_snapshot,
@@ -6965,10 +6966,16 @@ async function handlePublicCreateOrder(request, env) {
         oi.id, oi.shop_id, oi.organization_id, orderId, oi.product_id, oi.variant_id,
         oi.title_snapshot, oi.variant_title_snapshot, oi.sku_snapshot, oi.option_values_snapshot,
         oi.quantity, oi.unit_price_minor, oi.total_minor, oi.currency, now
-      ).run();
-    } catch (oiErr) {
-      console.warn("Order item insert notice:", oiErr?.message);
+      )
+    );
+  }
+
+  try {
+    for (let i = 0; i < oiStmts.length; i += 50) {
+      await env.DB.batch(oiStmts.slice(i, i + 50));
     }
+  } catch (oiErr) {
+    console.warn("Order item batch insert notice:", oiErr?.message);
   }
 
   // P0 Correction 13 & 14: Comprehensive invoice record with 21 columns
