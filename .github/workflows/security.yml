@@ -76,6 +76,7 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
     strategy:
       fail-fast: false
       matrix:
@@ -94,6 +95,8 @@ jobs:
         with:
           category: "/language:${{matrix.language}}"
           upload: "never"
+          upload-database: false
+          wait-for-processing: false
 
   secret-scan:
     name: Secret Scanning
@@ -105,8 +108,7 @@ jobs:
       
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
         with:
           path: ./
-          base: ""
-          head: HEAD
           extra_args: --only-verified

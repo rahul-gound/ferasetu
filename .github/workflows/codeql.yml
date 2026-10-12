@@ -100,3 +100,5 @@ jobs:
       with:
         category: "/language:${{matrix.language}}"
         upload: "never"
+        upload-database: false
+        wait-for-processing: false
