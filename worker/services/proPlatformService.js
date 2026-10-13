@@ -406,11 +406,18 @@ export async function getSiteQuotas(tenantId, env) {
     quota = await env.DB.prepare("SELECT * FROM site_quotas WHERE tenant_id = ?").bind(tenantId).first();
   }
 
-  // Count live resources
-  const pageCountRow = await env.DB.prepare("SELECT COUNT(*) as count FROM site_pages WHERE tenant_id = ?").bind(tenantId).first();
-  const routeCountRow = await env.DB.prepare("SELECT COUNT(*) as count FROM site_routes WHERE tenant_id = ?").bind(tenantId).first();
-  const funcCountRow = await env.DB.prepare("SELECT COUNT(*) as count FROM site_functions WHERE tenant_id = ?").bind(tenantId).first();
-  const storageSizeRow = await env.DB.prepare("SELECT COALESCE(SUM(bytes_size), 0) as total_bytes FROM site_storage WHERE tenant_id = ?").bind(tenantId).first();
+  // Count live resources in a single batch request
+  const [pageCountRes, routeCountRes, funcCountRes, storageSizeRes] = await env.DB.batch([
+    env.DB.prepare("SELECT COUNT(*) as count FROM site_pages WHERE tenant_id = ?").bind(tenantId),
+    env.DB.prepare("SELECT COUNT(*) as count FROM site_routes WHERE tenant_id = ?").bind(tenantId),
+    env.DB.prepare("SELECT COUNT(*) as count FROM site_functions WHERE tenant_id = ?").bind(tenantId),
+    env.DB.prepare("SELECT COALESCE(SUM(bytes_size), 0) as total_bytes FROM site_storage WHERE tenant_id = ?").bind(tenantId)
+  ]);
+
+  const pageCountRow = pageCountRes?.results?.[0] || { count: 0 };
+  const routeCountRow = routeCountRes?.results?.[0] || { count: 0 };
+  const funcCountRow = funcCountRes?.results?.[0] || { count: 0 };
+  const storageSizeRow = storageSizeRes?.results?.[0] || { total_bytes: 0 };
 
   return {
     limits: {
