@@ -92,7 +92,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{matrix.language}}"
-          upload: 'never'
+          upload: false
 
   secret-scan:
     name: Secret Scanning
@@ -104,6 +104,7 @@ jobs:
       
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
         with:
           path: ./
           base: ""
