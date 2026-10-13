@@ -86,6 +86,7 @@ export function createProMockD1() {
       { id: 'org_pro_active', name: 'Pro Flagship Store', store_slug: 'proshop' },
       { id: 'org_tenant_b', name: 'Tenant B Store', store_slug: 'tenantb' },
     ],
+    organization_members: [],
     products: [
       {
         id: 'prod_1',
@@ -267,8 +268,22 @@ export function createProMockD1() {
           }
 
           // Organizations
+          if (s.includes('from organizations where id = ? or workos_organization_id = ?')) {
+            const row = tables.organizations.find(x => x.id === this._params[0] || x.workos_organization_id === this._params[1]);
+            return row ? { ...row } : null;
+          }
+          if (s.includes('from organizations where workos_organization_id = ?')) {
+            const row = tables.organizations.find(x => x.workos_organization_id === this._params[0]);
+            return row ? { ...row } : null;
+          }
           if (s.includes('from organizations where id = ?')) {
             const row = tables.organizations.find(x => x.id === this._params[0]);
+            return row ? { ...row } : null;
+          }
+
+          // Organization Members
+          if (s.includes('from organization_members where organization_id = ? and user_id = ?')) {
+            const row = tables.organization_members.find(x => x.organization_id === this._params[0] && x.user_id === this._params[1]);
             return row ? { ...row } : null;
           }
 
@@ -425,8 +440,10 @@ export function createProMockD1() {
           }
 
           // Products
-          if (s.includes('from products where (organization_id = ? or user_id = ?)')) {
-            const results = tables.products.filter(x => (x.organization_id === this._params[0] || x.user_id === this._params[1]) && x.is_active);
+          if (s.includes('from products where (organization_id = ?')) {
+            const orgId = this._params[0];
+            const userId = this._params[1];
+            const results = tables.products.filter(x => (x.organization_id === orgId || (userId && x.user_id === userId)));
             return { results };
           }
 
@@ -530,6 +547,27 @@ export function createProMockD1() {
         },
         async run() {
           const s = sql.toLowerCase().replace(/\s+/g, ' ');
+
+          // Insert Organizations
+          if (s.includes('insert into organizations') || s.includes('insert or ignore into organizations')) {
+            const org = { id: this._params[0], workos_organization_id: this._params[1], name: this._params[2] };
+            tables.organizations.push(org);
+            return { success: true };
+          }
+
+          // Insert Organization Members
+          if (s.includes('insert into organization_members') || s.includes('insert or ignore into organization_members')) {
+            const mem = { id: this._params[0], organization_id: this._params[1], user_id: this._params[2], role: this._params[3] };
+            tables.organization_members.push(mem);
+            return { success: true };
+          }
+
+          // Insert Products
+          if (s.includes('insert into products')) {
+            const prod = { id: this._params[0], organization_id: this._params[1], name: this._params[2] };
+            tables.products.push(prod);
+            return { success: true };
+          }
 
           // Insert / Update Pages
           if (s.includes('insert into site_pages')) {

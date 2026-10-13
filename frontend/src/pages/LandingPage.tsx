@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -12,6 +12,8 @@ import {
   Sparkles,
   Zap
 } from 'lucide-react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import PublicLayout from '../components/public/PublicLayout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,10 +21,13 @@ import { useMarket } from '../contexts/MarketContext';
 import { getMarketPlans } from '../config/plans';
 import { getMarketDemoConfig } from '../config/marketDemo';
 import CompleteCircuit from '../components/marketing/CompleteCircuit';
+import StorefrontShowcase from '../components/marketing/StorefrontShowcase';
 import SEO from '../components/SEO';
 import SplitText from '../components/ui/SplitText';
 import SpotlightCard from '../components/ui/SpotlightCard';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const TransparencyTable = lazy(() => import('../components/marketing/TransparencyTable'));
 const FAQSection = lazy(() => import('../components/marketing/FAQSection'));
@@ -41,6 +46,44 @@ export default function LandingPage() {
   const previewPlans = getMarketPlans(market);
   const demo = getMarketDemoConfig(market);
   const [philosophyExpanded, setPhilosophyExpanded] = useState(false);
+  const landingRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion || !landingRef.current) return;
+
+    const ctx = gsap.context(() => {
+      // Subtle scroll reveal for product proof
+      gsap.from('#product-proof', {
+        opacity: 0,
+        y: 24,
+        duration: 0.6,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: '#product-proof',
+          start: 'top 85%',
+          once: true,
+        },
+      });
+
+      // Staggered row reveal for comparison table
+      gsap.from('.comparison-row', {
+        opacity: 0,
+        y: 16,
+        duration: 0.45,
+        stagger: 0.08,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: '#comparison table',
+          start: 'top 80%',
+          once: true,
+        },
+      });
+    }, landingRef);
+
+    return () => ctx.revert();
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
@@ -93,6 +136,7 @@ export default function LandingPage() {
       />
 
       <PublicLayout>
+        <div ref={landingRef}>
 
         {/* ================================================================
           SECTION 1 — HERO: IMMEDIATE UNDERSTANDING & IMMEDIATE PROOF
@@ -414,6 +458,12 @@ export default function LandingPage() {
 
 
         {/* ================================================================
+          SECTION 3.5 — STOREFRONT SHOWCASE: LIVE MERCHANT CONDUITS
+        ================================================================ */}
+        <StorefrontShowcase />
+
+
+        {/* ================================================================
           SECTION 4 — THE COMPLETE CIRCUIT: ONE MAIN INTERACTIVE PRODUCT JOURNEY
         ================================================================ */}
         <section id="complete-circuit" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
@@ -558,7 +608,7 @@ export default function LandingPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    <tr>
+                    <tr className="comparison-row">
                       <td className="px-5 py-4 font-bold text-slate-900">Platform Commission</td>
                       <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-bold border-x border-blue-100">
                         <div className="flex items-center justify-between gap-2">
@@ -572,7 +622,7 @@ export default function LandingPage() {
                         15% to 25% deducted from every order
                       </td>
                     </tr>
-                    <tr>
+                    <tr className="comparison-row">
                       <td className="px-5 py-4 font-bold text-slate-900">Customer Data Ownership</td>
                       <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
                         100% unmasked (phone, email &amp; history in your ledger)
@@ -581,7 +631,7 @@ export default function LandingPage() {
                         Masked or completely withheld from seller
                       </td>
                     </tr>
-                    <tr>
+                    <tr className="comparison-row">
                       <td className="px-5 py-4 font-bold text-slate-900">Storefront Identity</td>
                       <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
                         Your brand &amp; products only. Zero competitor ads
@@ -590,7 +640,7 @@ export default function LandingPage() {
                         Competitor and sponsored ads placed on your listings
                       </td>
                     </tr>
-                    <tr>
+                    <tr className="comparison-row">
                       <td className="px-5 py-4 font-bold text-slate-900">Payout Mechanism</td>
                       <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
                         Direct settlement into your business bank account
@@ -599,7 +649,7 @@ export default function LandingPage() {
                         7 to 14-day platform escrow hold periods
                       </td>
                     </tr>
-                    <tr>
+                    <tr className="comparison-row">
                       <td className="px-5 py-4 font-bold text-slate-900">Data Portability</td>
                       <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
                         1-click CSV export of all products, stock &amp; contacts
@@ -819,6 +869,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        </div>
       </PublicLayout>
     </>
   );

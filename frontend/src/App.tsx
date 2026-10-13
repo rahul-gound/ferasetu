@@ -37,7 +37,6 @@ const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const AICreditsPage = lazy(() => import('./pages/AICreditsPage'));
 const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
-const ProStudioPage = lazy(() => import('./pages/ProStudioPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
 const SurveyFeedbackPage = lazy(() => import('./pages/SurveyFeedbackPage'));
 const EmailSettingsPage = lazy(() => import('./pages/EmailSettingsPage'));
@@ -179,8 +178,8 @@ function AppRoutes() {
           <Route path="/ai-assistant" element={<Navigate to="/ferasetu-ai" replace />} />
           <Route path="/ai-credits" element={<AICreditsPage />} />
           <Route path="/website-builder" element={<WebsiteBuilderPage />} />
-          <Route path="/pro-studio" element={<ProStudioPage />} />
-          <Route path="/pro" element={<Navigate to="/pro-studio" replace />} />
+          <Route path="/pro-studio" element={<Navigate to="/website-builder" replace />} />
+          <Route path="/pro" element={<Navigate to="/website-builder" replace />} />
           <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
           <Route path="/settings/email" element={<EmailSettingsPage />} />
           <Route path="/refer-earn" element={<ReferEarnPage />} />

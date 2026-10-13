@@ -12,10 +12,6 @@ import {
   ExternalLink,
   Layers,
   Settings,
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
-  Wand2,
   Smartphone,
   Tablet,
   Monitor,
@@ -26,6 +22,11 @@ import {
   Type,
   Maximize2,
   Upload,
+  History,
+  Zap,
+  Link2,
+  Image as ImageIconLucide,
+  Wand2,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,10 +34,18 @@ import { getStorefrontUrl } from '../utils/canonicalHostname';
 import { useLanguage } from '../contexts/LanguageContext';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
 import WebsiteAIBuilder from '../components/WebsiteAIBuilder';
+import DesignPanel from '../builder/panels/DesignPanel';
+import LogicPanel from '../builder/panels/LogicPanel';
+import ConnectionsPanel from '../builder/panels/ConnectionsPanel';
+import AssetsPanel from '../builder/panels/AssetsPanel';
+import VersionHistoryModal from '../builder/modals/VersionHistoryModal';
+import { builderApi } from '../builder/services/builderApi';
+import { createDefaultSignupWorkflow } from '../builder/workflows/workflowSchema';
 import type { ShopProduct, TemplateSection } from '../types/template';
 import type { ThemeId, StorefrontSection, MerchantThemeOverrides } from '../storefront/theme/themeTypes';
 import { THEMES_LIST, THEME_REGISTRY } from '../storefront/theme/themeDefinitions';
 import { normalizeLegacySections } from '../storefront/compatibility/legacySectionAdapter';
+import type { WorkflowDefinition, ConnectionConfig } from '../builder/types/builderTypes';
 
 // Realistic deterministic demo products for preview
 const DEMO_PRODUCTS: ShopProduct[] = [
@@ -100,67 +109,7 @@ const DEMO_PRODUCTS: ShopProduct[] = [
   },
 ];
 
-const AVAILABLE_SECTIONS = [
-  { type: 'announcement', label: 'Announcement Bar', emoji: '📢', defaultVariant: 'ticker' },
-  { type: 'header', label: 'Header Navigation', emoji: '🧭', defaultVariant: 'commerce' },
-  { type: 'hero', label: 'Hero Showcase', emoji: '🦸', defaultVariant: 'split' },
-  { type: 'trust-strip', label: 'Trust & Guarantees', emoji: '🛡️', defaultVariant: 'commerce-badges' },
-  { type: 'category-grid', label: 'Category Explorer', emoji: '🏷️', defaultVariant: 'pill-slider' },
-  { type: 'product-grid', label: 'Product Catalog', emoji: '🛍️', defaultVariant: 'clean' },
-  { type: 'featured-product', label: 'Flagship Spotlight', emoji: '⭐', defaultVariant: 'spotlight' },
-  { type: 'brand-story', label: 'Brand Story / Maker Note', emoji: '📖', defaultVariant: 'split-right-image' },
-  { type: 'testimonials', label: 'Customer Reviews', emoji: '💬', defaultVariant: 'verified-buyer-feed' },
-  { type: 'faq', label: 'FAQ Accordion', emoji: '❓', defaultVariant: 'accordion' },
-  { type: 'newsletter', label: 'Newsletter / Updates', emoji: '✉️', defaultVariant: 'minimal' },
-  { type: 'footer', label: 'Store Footer', emoji: '🦶', defaultVariant: 'commerce' },
-];
-
-const SECTION_VARIANTS_MAP: Record<string, { id: string; label: string }[]> = {
-  announcement: [
-    { id: 'ticker', label: 'Scrolling Marquee Ticker' },
-    { id: 'static-center', label: 'Centered Editorial' },
-    { id: 'split-promos', label: 'Split Dual Offers' },
-    { id: 'minimal', label: 'Minimal One-Liner' },
-  ],
-  header: [
-    { id: 'commerce', label: 'Commerce Practical (Search & Categories)' },
-    { id: 'editorial', label: 'Editorial Centered Logo' },
-    { id: 'minimal', label: 'Swiss Grid Minimal' },
-    { id: 'bold', label: 'Bold Pill Navigation' },
-    { id: 'artisan', label: 'Artisan Heritage Emblem' },
-  ],
-  hero: [
-    { id: 'commerce-banner', label: 'Commerce Banner with Trust Highlights' },
-    { id: 'editorial', label: 'Quiet Luxury Editorial' },
-    { id: 'product-focused', label: 'Product Spotlight Card' },
-    { id: 'artisan-story', label: 'Maker Workshop Story' },
-    { id: 'minimal', label: 'Typographic Swiss Statement' },
-    { id: 'split', label: 'Asymmetric Split Media' },
-  ],
-  'trust-strip': [
-    { id: 'commerce-badges', label: 'Retail Badges (COD, Dispatch, Return)' },
-    { id: 'luxury-guarantee', label: 'Luxury Assurance & Bespoke Packaging' },
-    { id: 'artisan-values', label: 'Artisan Values (Handmade, Fair Trade)' },
-  ],
-  'product-grid': [
-    { id: 'clean', label: 'Clean Retail (Instant Cart & WhatsApp)' },
-    { id: 'editorial', label: 'Editorial 3:4 Luxury' },
-    { id: 'mono', label: 'Mono Swiss 1px Grid' },
-    { id: 'bold', label: 'Bold Rounded with Pill Badges' },
-    { id: 'artisan', label: 'Artisan Tactile Linen' },
-  ],
-  'brand-story': [
-    { id: 'split-right-image', label: 'Split Text & Image' },
-    { id: 'quote-center', label: 'Centered Manifesto Quote' },
-    { id: 'heritage-story', label: 'Artisan Heritage Note' },
-  ],
-  footer: [
-    { id: 'commerce', label: 'Retail Complete (Contact & WhatsApp)' },
-    { id: 'editorial', label: 'Editorial Multi-Column' },
-    { id: 'minimal', label: 'Minimalist Single Row' },
-    { id: 'artisan', label: 'Artisan Heritage Warmth' },
-  ],
-};
+type UnifiedTab = 'design' | 'logic' | 'connections' | 'assets' | 'ai';
 
 interface WebsiteRecord {
   id: string;
@@ -177,48 +126,49 @@ export default function WebsiteBuilderPage() {
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'gallery' | 'customize' | 'sections' | 'ai'>('gallery');
+  const [activeTab, setActiveTab] = useState<UnifiedTab>('design');
   const [deviceView, setDeviceView] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [mobileMode, setMobileMode] = useState<'controls' | 'preview'>('controls');
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
 
-  // Store metadata
+  // Store metadata & Canvas state
   const [shopName, setShopName] = useState('');
   const [shopPhone, setShopPhone] = useState('');
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId>('market');
   const [sections, setSections] = useState<StorefrontSection[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<number>(1);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
-  // Authoritative Branding State
+  // Authoritative Branding & Token Overrides
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [faviconUrl, setFaviconUrl] = useState<string>('');
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
-
-  // Overrides state
   const [overrides, setOverrides] = useState<MerchantThemeOverrides>({
+    primaryColor: '#2563eb',
+    accentColor: '#1e293b',
+    fontFamily: 'Inter, sans-serif',
     radiusStyle: 'soft',
     density: 'balanced',
   });
 
-  // Modal preview state for gallery
-  const [previewModalTheme, setPreviewModalTheme] = useState<ThemeId | null>(null);
+  // Declarative Workflows state
+  const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([createDefaultSignupWorkflow()]);
 
-  // Fetch authoritative merchant branding
-  const { data: brandingData } = useQuery({
-    queryKey: ['branding'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/branding');
-        return res.data?.branding || null;
-      } catch {
-        return null;
-      }
-    },
+  // Fetch website draft
+  const { data: draftResponse, refetch: refetchDraft } = useQuery({
+    queryKey: ['builder-draft'],
+    queryFn: builderApi.getDraft,
   });
 
-  // Fetch website data
+  // Fetch connections
+  const { data: connectionsData, refetch: refetchConnections } = useQuery({
+    queryKey: ['builder-connections'],
+    queryFn: builderApi.getConnections,
+  });
+
+  // Fetch website fallback data
   const { data: websiteData } = useQuery<WebsiteRecord | null>({
     queryKey: ['website'],
     queryFn: async () => {
@@ -230,33 +180,6 @@ export default function WebsiteBuilderPage() {
       }
     },
   });
-
-  // Dynamic favicon update in active browser tab
-  useEffect(() => {
-    if (faviconUrl) {
-      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-      }
-      link.href = faviconUrl;
-    }
-  }, [faviconUrl]);
-
-  // Sync from authoritative branding
-  useEffect(() => {
-    if (brandingData) {
-      if (brandingData.logo_url) setLogoUrl(brandingData.logo_url);
-      if (brandingData.favicon_url) setFaviconUrl(brandingData.favicon_url);
-      if (brandingData.primary_color) {
-        setOverrides((prev) => ({ ...prev, primaryColor: brandingData.primary_color }));
-      }
-      if (brandingData.secondary_color) {
-        setOverrides((prev) => ({ ...prev, accentColor: brandingData.secondary_color }));
-      }
-    }
-  }, [brandingData]);
 
   // Fetch merchant products for live preview
   const { data: merchantProducts = [] } = useQuery<ShopProduct[]>({
@@ -271,275 +194,53 @@ export default function WebsiteBuilderPage() {
     },
   });
 
-  // Initialize from existing store data
+  // Initialize draft / store data
   useEffect(() => {
-    if (websiteData) {
+    if (draftResponse?.draft) {
+      const d = draftResponse.draft;
+      setShopName(d.name || user?.business_name || 'My Store');
+      if (d.template && THEME_REGISTRY[d.template as ThemeId]) {
+        setSelectedThemeId(d.template as ThemeId);
+      }
+      if (d.tokens) {
+        setOverrides((prev) => ({
+          ...prev,
+          primaryColor: d.tokens?.colors?.primary || prev.primaryColor,
+          accentColor: d.tokens?.colors?.secondary || prev.accentColor,
+          fontFamily: d.tokens?.typography?.fontFamily || prev.fontFamily,
+        }));
+      }
+      if (d.pages && d.pages.length > 0 && d.pages[0].nodes) {
+        setSections(normalizeLegacySections(d.pages[0].nodes, d.name));
+      }
+      if (d.workflows && d.workflows.length > 0) {
+        setWorkflows(d.workflows);
+      }
+      setCurrentVersion(draftResponse.version || 1);
+    } else if (websiteData) {
       setShopName(websiteData.name || user?.business_name || 'My Store');
       const savedThemeId = (websiteData.theme?.id || websiteData.theme || websiteData.template) as ThemeId;
       if (THEME_REGISTRY[savedThemeId]) {
         setSelectedThemeId(savedThemeId);
       }
-
-      if (websiteData.theme?.overrides || websiteData.config?.overrides) {
-        setOverrides(websiteData.theme?.overrides || websiteData.config?.overrides || {});
+      if (websiteData.theme?.overrides) {
+        setOverrides((prev) => ({ ...prev, ...websiteData.theme.overrides }));
       }
-
-      if (!logoUrl && websiteData.config?.logo) {
-        setLogoUrl(websiteData.config.logo);
-      }
-      if (!faviconUrl && websiteData.config?.favicon) {
-        setFaviconUrl(websiteData.config.favicon);
-      }
-
       if (Array.isArray(websiteData.sections) && websiteData.sections.length > 0) {
-        const normalized = normalizeLegacySections(websiteData.sections, websiteData.name);
-        setSections(normalized);
+        setSections(normalizeLegacySections(websiteData.sections, websiteData.name));
       } else {
-        const defaultSecs = (THEME_REGISTRY[savedThemeId] || THEME_REGISTRY.market).defaultSections;
-        setSections(defaultSecs);
+        setSections(THEME_REGISTRY.market.defaultSections);
       }
-
       setIsPublished(websiteData.is_published === 1);
     } else {
       setShopName(user?.business_name || 'My Store');
-      setShopPhone(user?.phone || '');
       setSections(THEME_REGISTRY.market.defaultSections);
     }
-  }, [websiteData, user]);
+  }, [draftResponse, websiteData, user]);
 
-  // Upload Logo
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const MAX_LOGO_SIZE = 5 * 1024 * 1024;
-    if (file.size > MAX_LOGO_SIZE) {
-      toast.error('Logo image must be smaller than 5MB');
-      return;
-    }
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Supported logo formats: PNG, JPEG, WebP, GIF, SVG');
-      return;
-    }
-
-    setIsUploadingLogo(true);
-    try {
-      let uploadedUrl = '';
-      try {
-        const res = await api.post('/media/upload', file, {
-          headers: {
-            'Content-Type': file.type,
-            'X-File-Name': file.name,
-            'X-Category': 'logos',
-          },
-        });
-        if (res.data?.media_file?.url) {
-          uploadedUrl = res.data.media_file.url;
-        }
-      } catch {
-        // Fallback to dataURL reader
-      }
-
-      if (!uploadedUrl) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          setLogoUrl(dataUrl);
-          setIsUploadingLogo(false);
-          toast.success('Logo updated and applied to preview!');
-        };
-        reader.onerror = () => {
-          toast.error('Failed to read logo file');
-          setIsUploadingLogo(false);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setLogoUrl(uploadedUrl);
-        setIsUploadingLogo(false);
-        toast.success('Logo uploaded and applied to preview!');
-      }
-    } catch {
-      toast.error('Failed to upload logo');
-      setIsUploadingLogo(false);
-    }
-  };
-
-  // Upload Favicon
-  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const MAX_FAVICON_SIZE = 1 * 1024 * 1024;
-    if (file.size > MAX_FAVICON_SIZE) {
-      toast.error('Favicon must be smaller than 1MB');
-      return;
-    }
-
-    const allowedTypes = [
-      'image/png',
-      'image/x-icon',
-      'image/vnd.microsoft.icon',
-      'image/svg+xml',
-    ];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.ico')) {
-      toast.error('Supported favicon formats: PNG, ICO, SVG');
-      return;
-    }
-
-    setIsUploadingFavicon(true);
-    try {
-      let uploadedUrl = '';
-      try {
-        const res = await api.post('/media/upload', file, {
-          headers: {
-            'Content-Type': file.type || 'image/x-icon',
-            'X-File-Name': file.name,
-            'X-Category': 'logos',
-          },
-        });
-        if (res.data?.media_file?.url) {
-          uploadedUrl = res.data.media_file.url;
-        }
-      } catch {
-        // Fallback to dataURL reader
-      }
-
-      if (!uploadedUrl) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          setFaviconUrl(dataUrl);
-          setIsUploadingFavicon(false);
-          toast.success('Favicon updated! Check browser tab simulation.');
-        };
-        reader.onerror = () => {
-          toast.error('Failed to read favicon file');
-          setIsUploadingFavicon(false);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setFaviconUrl(uploadedUrl);
-        setIsUploadingFavicon(false);
-        toast.success('Favicon updated! Check browser tab simulation.');
-      }
-    } catch {
-      toast.error('Failed to upload favicon');
-      setIsUploadingFavicon(false);
-    }
-  };
-
-  // Save Mutation: Syncs website config + authoritative branding (shops + organizations)
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      // 1. Save website configuration
-      const websiteRes = await api.post('/website', {
-        name: shopName,
-        template: selectedThemeId,
-        theme: {
-          id: selectedThemeId,
-          overrides,
-        },
-        config: {
-          phone: shopPhone,
-          logo: logoUrl || undefined,
-          favicon: faviconUrl || undefined,
-          overrides,
-        },
-        sections,
-      });
-
-      // 2. Authoritative sync to branding (shops + organizations)
-      try {
-        await api.put('/branding', {
-          logo_url: logoUrl || null,
-          favicon_url: faviconUrl || null,
-          primary_color: overrides.primaryColor || null,
-          secondary_color: overrides.accentColor || null,
-        });
-      } catch (brandingErr) {
-        console.warn('Branding sync note:', brandingErr);
-      }
-
-      return websiteRes;
-    },
-    onSuccess: () => {
-      toast.success('Storefront & branding saved successfully!');
-      queryClient.invalidateQueries({ queryKey: ['website'] });
-      queryClient.invalidateQueries({ queryKey: ['branding'] });
-      setSaving(false);
-    },
-    onError: () => {
-      toast.error('Failed to save. Please try again.');
-      setSaving(false);
-    },
-  });
-
-  // Publish Mutation
-  const publishMutation = useMutation({
-    mutationFn: () => api.patch('/website/publish', { published: !isPublished }),
-    onSuccess: (res) => {
-      const published = (res.data as { published: boolean }).published;
-      setIsPublished(published);
-      toast.success(published ? '🌐 Website published and live!' : '🔒 Website taken offline');
-    },
-    onError: () => toast.error('Failed to update publish status'),
-  });
-
-  const handleSave = () => {
-    if (!shopName.trim()) {
-      toast.error('Please enter a shop name');
-      return;
-    }
-    setSaving(true);
-    saveMutation.mutate();
-  };
-
-  // 1-Click Apply Theme
-  const handleApplyTheme = (themeId: ThemeId) => {
-    const themeDef = THEME_REGISTRY[themeId];
-    if (!themeDef) return;
-
-    setSelectedThemeId(themeId);
-    setSections(themeDef.defaultSections);
-    setOverrides((prev) => ({
-      ...prev,
-      primaryColor: themeDef.colors.primary,
-      accentColor: themeDef.colors.accent,
-      radiusStyle: themeId === 'atelier' || themeId === 'mono' ? 'sharp' : themeId === 'bold' ? 'rounded' : 'soft',
-    }));
-    setPreviewModalTheme(null);
-    setActiveTab('customize');
-    toast.success(`Theme switched to ${themeDef.name}!`, { icon: '✨' });
-  };
-
-  // Section Manipulation
-  const moveSection = (idx: number, direction: 'up' | 'down') => {
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= sections.length) return;
-    const copy = [...sections];
-    const item = copy.splice(idx, 1)[0];
-    copy.splice(newIdx, 0, item);
-    setSections(copy);
-  };
-
-  const toggleSectionEnabled = (id: string) => {
-    setSections((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, enabled: s.enabled === false ? true : false } : s))
-    );
-  };
-
-  const updateSectionVariant = (id: string, variant: string) => {
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, variant } : s)));
-  };
-
-  const deleteSection = (id: string) => {
-    setSections((prev) => prev.filter((s) => s.id !== id));
-    if (selectedSectionId === id) setSelectedSectionId(null);
-  };
-
-  const addSection = (type: string, defaultVariant: string) => {
+  // Section Manipulation Handlers
+  const handleAddSection = (type: string) => {
+    const defaultVariant = 'clean';
     const newSection: StorefrontSection = {
       id: `${type}-${Date.now()}`,
       type: type as any,
@@ -552,61 +253,150 @@ export default function WebsiteBuilderPage() {
     toast.success(`Added ${type} section`);
   };
 
-  const updateSectionConfig = (sectionId: string, key: string, value: unknown) => {
+  const handleRemoveSection = (id: string) => {
+    setSections((prev) => prev.filter((s) => s.id !== id));
+    if (selectedSectionId === id) setSelectedSectionId(null);
+  };
+
+  const handleBindWorkflow = (nodeId: string, workflowId: string) => {
     setSections((prev) =>
-      prev.map((s) => (s.id === sectionId ? { ...s, config: { ...s.config, [key]: value } } : s))
+      prev.map((s) =>
+        s.id === nodeId
+          ? {
+              ...s,
+              props: { ...(s as any).props, workflowId },
+              config: { ...s.config, workflowId },
+            }
+          : s
+      )
     );
+    toast.success('Interactive workflow bound to section');
+  };
+
+  const handleApplyAssetToNode = (assetUrl: string) => {
+    if (!selectedSectionId) {
+      toast.error('Select a section in Design panel first to apply this image');
+      return;
+    }
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === selectedSectionId
+          ? {
+              ...s,
+              config: { ...s.config, imageUrl: assetUrl, heroImage: assetUrl },
+            }
+          : s
+      )
+    );
+    toast.success('Image applied to selected section preview!');
+  };
+
+  // Draft Save Handler
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const draftPayload = {
+        name: shopName,
+        template: selectedThemeId,
+        theme: {
+          id: selectedThemeId,
+          overrides,
+        },
+        config: {
+          phone: shopPhone,
+          logo: logoUrl || undefined,
+          favicon: faviconUrl || undefined,
+          overrides,
+        },
+        pages: [
+          {
+            id: 'page_home',
+            name: 'Home',
+            slug: '/',
+            title: shopName,
+            nodes: sections,
+          },
+        ],
+        activePageId: 'page_home',
+        tokens: {
+          colors: {
+            primary: overrides.primaryColor || '#2563eb',
+            secondary: overrides.accentColor || '#4b5563',
+            background: '#ffffff',
+            text: '#111827',
+          },
+          typography: {
+            fontFamily: overrides.fontFamily || 'Inter, sans-serif',
+            baseFontSize: 16,
+          },
+        },
+        workflows,
+      };
+
+      await builderApi.saveDraft(draftPayload);
+      toast.success('Working draft saved safely (not affecting live store)');
+      refetchDraft();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to save draft');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  // Publish Handler
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      // Ensure current state is saved as draft first
+      await handleSaveDraft();
+      const res = await builderApi.publishDraft();
+      setIsPublished(true);
+      setCurrentVersion(res.published_version);
+      toast.success(`🎉 Store successfully published live as Version ${res.published_version}!`, {
+        duration: 5000,
+      });
+      queryClient.invalidateQueries({ queryKey: ['website'] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Publishing failed');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleRollbackComplete = () => {
+    refetchDraft();
+    queryClient.invalidateQueries({ queryKey: ['website'] });
+    toast.success('Canvas restored to selected historical version');
   };
 
   const activeThemeDef = THEME_REGISTRY[selectedThemeId] || THEME_REGISTRY.market;
   const activeProducts = merchantProducts.length > 0 ? merchantProducts : DEMO_PRODUCTS;
-
   const liveUrl = getStorefrontUrl(user);
-
-  const selectedSection = sections.find((s) => s.id === selectedSectionId) || null;
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden bg-slate-100 text-slate-900 font-sans">
-      {/* Top Navigation Bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between gap-4 flex-shrink-0">
+      {/* Top Cockpit Navigation Bar */}
+      <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between gap-4 flex-shrink-0 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
             FS
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span>Website Studio</span>
-              <span className="text-[11px] font-medium text-slate-400">·</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-slate-900">
+                {shopName || 'Unified Website Builder'}
+              </h1>
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
                 Theme: {activeThemeDef.name}
               </span>
-            </h1>
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                v{currentVersion}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Mobile controls/preview toggle */}
-        <div className="flex md:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-          <button
-            type="button"
-            onClick={() => setMobileMode('controls')}
-            className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${
-              mobileMode === 'controls' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'
-            }`}
-          >
-            Editor
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileMode('preview')}
-            className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${
-              mobileMode === 'preview' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500'
-            }`}
-          >
-            Preview
-          </button>
-        </div>
-
-        {/* Device Switcher (Desktop/Tablet) */}
+        {/* Device Switcher (Desktop/Tablet/Mobile) */}
         <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             type="button"
@@ -624,7 +414,7 @@ export default function WebsiteBuilderPage() {
               deviceView === 'tablet' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Tablet size={14} /> Tablet
+            <Tablet size={14} /> Tablet (768px)
           </button>
           <button
             type="button"
@@ -633,12 +423,23 @@ export default function WebsiteBuilderPage() {
               deviceView === 'mobile' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Smartphone size={14} /> Mobile
+            <Smartphone size={14} /> Mobile (375px)
           </button>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Version History Button */}
+          <button
+            type="button"
+            onClick={() => setIsVersionModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+            title="View publication snapshots and rollback"
+          >
+            <History size={13} />
+            <span className="hidden sm:inline">Versions</span>
+          </button>
+
           {isPublished && (
             <a
               href={liveUrl}
@@ -649,618 +450,219 @@ export default function WebsiteBuilderPage() {
               <ExternalLink size={13} /> Live Store
             </a>
           )}
+
+          {/* Save Draft Button */}
           <button
             type="button"
-            onClick={handleSave}
-            disabled={saving}
+            onClick={handleSaveDraft}
+            disabled={savingDraft}
             className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 text-xs font-bold bg-slate-900 text-white hover:bg-black rounded-lg shadow-sm transition-colors disabled:opacity-50"
           >
-            <Save size={13} /> <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save Changes'}</span><span className="sm:hidden">{saving ? '...' : 'Save'}</span>
+            <Save size={13} />
+            <span>{savingDraft ? 'Saving Draft…' : 'Save Draft'}</span>
           </button>
+
+          {/* Publish Store Button */}
           <button
             type="button"
-            onClick={() => publishMutation.mutate()}
-            disabled={publishMutation.isPending}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-colors ${
-              isPublished ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
+            onClick={handlePublish}
+            disabled={publishing}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-colors disabled:opacity-50"
           >
-            {isPublished ? <EyeOff size={13} /> : <Globe size={13} />}
-            <span className="hidden sm:inline">{isPublished ? 'Take Offline' : 'Publish Store'}</span>
-            <span className="sm:hidden">{isPublished ? 'Offline' : 'Publish'}</span>
+            <Globe size={13} />
+            <span>{publishing ? 'Publishing…' : 'Publish Live'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Workspace Layout (Sidebar + Live Preview Frame) */}
+      {/* Main Studio Workspace (Left Panels + Live Canvas) */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Control Sidebar */}
-        <div className={`${
-          mobileMode === 'controls' ? 'flex' : 'hidden md:flex'
-        } w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex-col flex-shrink-0 overflow-hidden`}>
-          {/* Studio Tab Navigation */}
-          <div className="flex border-b border-slate-200 bg-slate-50/50 p-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('gallery')}
-              className={`flex-1 py-2 text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-all ${
-                activeTab === 'gallery'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Palette size={14} /> Themes
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('customize')}
-              className={`flex-1 py-2 text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-all ${
-                activeTab === 'customize'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Sliders size={14} /> Brand &amp; Style
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('sections')}
-              className={`flex-1 py-2 text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-all ${
-                activeTab === 'sections'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Layers size={14} /> Sections
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('ai')}
-              className={`flex-1 py-2 text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-all ${
-                activeTab === 'ai'
-                  ? 'bg-white text-purple-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Wand2 size={14} /> AI
-            </button>
-          </div>
-
-          {/* Sidebar Tab Panels */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {/* 1. THEMES GALLERY */}
-            {activeTab === 'gallery' && (
-              <div className="space-y-4">
-                <div className="mb-2">
-                  <h3 className="text-sm font-bold text-slate-900">8 Distinct Storefront Themes</h3>
-                  <p className="text-xs text-slate-500">
-                    Switch between handcrafted design architectures. All products, orders, and content are preserved.
-                  </p>
-                </div>
-
-                <div className="space-y-3.5">
-                  {THEMES_LIST.map((theme) => {
-                    const isSelected = selectedThemeId === theme.id;
-                    return (
-                      <div
-                        key={theme.id}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-blue-600 bg-blue-50/20 ring-2 ring-blue-600/10'
-                            : 'border-slate-200 bg-white hover:border-slate-300 shadow-xs'
-                        }`}
-                        onClick={() => setSelectedThemeId(theme.id)}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl">{theme.defaultSections[0]?.config?.text ? '✨' : '🛍️'}</span>
-                            <div>
-                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                                {theme.name}
-                                {isSelected && (
-                                  <span className="text-[10px] font-black bg-blue-600 text-white px-1.5 py-0.2 rounded">
-                                    ACTIVE
-                                  </span>
-                                )}
-                              </h4>
-                              <span className="text-[11px] text-slate-500 font-medium">
-                                {theme.tagline}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-slate-600 leading-relaxed mb-3">
-                          {theme.description}
-                        </p>
-
-                        {/* Palette preview */}
-                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="w-4 h-4 rounded-full border border-black/10 shadow-xs"
-                              style={{ backgroundColor: theme.colors.primary }}
-                            />
-                            <span
-                              className="w-4 h-4 rounded-full border border-black/10 shadow-xs"
-                              style={{ backgroundColor: theme.colors.accent }}
-                            />
-                            <span
-                              className="w-4 h-4 rounded-full border border-black/10 shadow-xs"
-                              style={{ backgroundColor: theme.colors.background }}
-                            />
-                            <span className="text-[11px] text-slate-400 font-mono ml-1">
-                              {theme.aspectRatio} card
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleApplyTheme(theme.id);
-                              }}
-                              className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
-                                isSelected
-                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                  : 'bg-slate-900 text-white hover:bg-black'
-                              }`}
-                            >
-                              {isSelected ? 'Applied' : 'Apply Theme'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 2. BRAND & STYLE CUSTOMIZER */}
-            {activeTab === 'customize' && (
-              <div className="space-y-5">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 mb-1">Brand Identity</h3>
-                  <p className="text-xs text-slate-500 mb-3">
-                    Configure your shop branding and contact details.
-                  </p>
-
-                  <div className="space-y-4">
-                    {/* Store Logo Section */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-[11px] font-bold uppercase text-slate-600">
-                          Store Logo
-                        </label>
-                        {logoUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setLogoUrl('')}
-                            className="text-[10.5px] text-rose-600 hover:text-rose-700 flex items-center gap-1 font-semibold"
-                          >
-                            <Trash2 size={12} /> Remove
-                          </button>
-                        )}
-                      </div>
-
-                      {logoUrl ? (
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                          <div className="w-16 h-16 bg-white border border-slate-200 rounded-md p-1 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
-                            <img src={logoUrl} alt="Store Logo" className="max-h-full max-w-full object-contain" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-800 truncate">Store Brand Logo</p>
-                            <p className="text-[11px] text-slate-500 mb-2">Visible on storefront header, footer, &amp; invoices</p>
-                            <label className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer bg-white px-2.5 py-1 rounded border border-blue-200 hover:border-blue-300 transition-colors">
-                              <Upload size={12} />
-                              <span>Replace Image</span>
-                              <input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-                                onChange={handleLogoUpload}
-                                className="hidden"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      ) : (
-                        <label
-                          className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                            isUploadingLogo
-                              ? 'border-blue-400 bg-blue-50/30'
-                              : 'border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/60'
-                          }`}
-                        >
-                          <Upload size={20} className="text-slate-400 mb-1.5" />
-                          <span className="text-xs font-bold text-slate-700">
-                            {isUploadingLogo ? 'Processing logo...' : 'Upload Store Logo'}
-                          </span>
-                          <span className="text-[10.5px] text-slate-400 mt-0.5">
-                            PNG, JPEG, WebP, SVG up to 5MB
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-                            onChange={handleLogoUpload}
-                            disabled={isUploadingLogo}
-                            className="hidden"
-                          />
-                        </label>
-                      )}
-                    </div>
-
-                    {/* Store Favicon Section with Simulated Browser Tab Preview */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-[11px] font-bold uppercase text-slate-600">
-                          Browser Tab Favicon
-                        </label>
-                        {faviconUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setFaviconUrl('')}
-                            className="text-[10.5px] text-rose-600 hover:text-rose-700 flex items-center gap-1 font-semibold"
-                          >
-                            <Trash2 size={12} /> Remove
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Simulated Browser Tab Card */}
-                      <div className="p-3 bg-slate-100 border border-slate-200 rounded-lg space-y-2">
-                        <div className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                          <span>Live Tab Simulation</span>
-                          <span className="text-slate-400 text-[10px]">Browser tab preview</span>
-                        </div>
-
-                        {/* Mock Browser Tab Header */}
-                        <div className="bg-slate-200/80 rounded-t-lg pt-1.5 px-2 flex items-center gap-2">
-                          <div className="bg-white rounded-t-md px-3 py-1.5 flex items-center gap-2 max-w-[200px] border-t border-x border-slate-300 shadow-xs">
-                            {faviconUrl ? (
-                              <img
-                                src={faviconUrl}
-                                alt="Favicon"
-                                className="w-3.5 h-3.5 object-contain flex-shrink-0 rounded-xs"
-                              />
-                            ) : (
-                              <span className="text-[11px] flex-shrink-0">🏪</span>
-                            )}
-                            <span className="text-[11px] font-medium text-slate-800 truncate">
-                              {shopName || 'My Store'}
-                            </span>
-                            <span className="text-[10px] text-slate-400 ml-auto select-none">✕</span>
-                          </div>
-                          <span className="text-slate-400 text-xs select-none">+</span>
-                        </div>
-
-                        {/* Mock URL bar */}
-                        <div className="bg-white px-2.5 py-1 rounded border border-slate-200 text-[10.5px] font-mono text-slate-500 flex items-center gap-1.5">
-                          <span className="text-emerald-600 text-xs">🔒</span>
-                          <span className="truncate">
-                            https://{(shopName || 'store').toLowerCase().replace(/[^a-z0-9]/g, '')}.ferasetu.com
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[10.5px] text-slate-500">
-                            {faviconUrl ? 'Custom favicon active' : 'Using default store favicon'}
-                          </span>
-                          <label className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 cursor-pointer bg-white px-2.5 py-1 rounded border border-blue-200 hover:border-blue-300 transition-colors">
-                            <Upload size={12} />
-                            <span>{faviconUrl ? 'Replace Favicon' : 'Upload Favicon'}</span>
-                            <input
-                              type="file"
-                              accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml"
-                              onChange={handleFaviconUpload}
-                              disabled={isUploadingFavicon}
-                              className="hidden"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Basic Store Fields */}
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                        Store Name
-                      </label>
-                      <input
-                        type="text"
-                        value={shopName}
-                        onChange={(e) => setShopName(e.target.value)}
-                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded focus:border-slate-900 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                        WhatsApp Contact Phone
-                      </label>
-                      <input
-                        type="tel"
-                        value={shopPhone}
-                        onChange={(e) => setShopPhone(e.target.value)}
-                        placeholder="e.g. +91 98765 43210"
-                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded focus:border-slate-900 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200">
-                  <h3 className="text-sm font-bold text-slate-900 mb-1">Theme Palette Overrides</h3>
-                  <p className="text-xs text-slate-500 mb-3">
-                    Customize primary and accent colors within the {activeThemeDef.name} theme.
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                        Primary Color
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={overrides.primaryColor || activeThemeDef.colors.primary}
-                          onChange={(e) =>
-                            setOverrides({ ...overrides, primaryColor: e.target.value })
-                          }
-                          className="w-8 h-8 rounded border-0 cursor-pointer"
-                        />
-                        <span className="text-xs font-mono text-slate-700">
-                          {overrides.primaryColor || activeThemeDef.colors.primary}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                        Accent Color
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={overrides.accentColor || activeThemeDef.colors.accent}
-                          onChange={(e) =>
-                            setOverrides({ ...overrides, accentColor: e.target.value })
-                          }
-                          className="w-8 h-8 rounded border-0 cursor-pointer"
-                        />
-                        <span className="text-xs font-mono text-slate-700">
-                          {overrides.accentColor || activeThemeDef.colors.accent}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200">
-                  <h3 className="text-sm font-bold text-slate-900 mb-1">Shape &amp; Radius</h3>
-                  <p className="text-xs text-slate-500 mb-3">
-                    Controlled corner styles maintaining typographic harmony.
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['sharp', 'soft', 'rounded'] as const).map((rad) => (
-                      <button
-                        key={rad}
-                        type="button"
-                        onClick={() => setOverrides({ ...overrides, radiusStyle: rad })}
-                        className={`py-2 px-3 text-xs font-bold rounded border capitalize transition-all ${
-                          overrides.radiusStyle === rad
-                            ? 'border-blue-600 bg-blue-50 text-blue-700'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        {rad}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200">
-                  <h3 className="text-sm font-bold text-slate-900 mb-1">Section Density</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['compact', 'balanced', 'editorial'] as const).map((density) => (
-                      <button
-                        key={density}
-                        type="button"
-                        onClick={() => setOverrides({ ...overrides, density })}
-                        className={`py-2 px-3 text-xs font-bold rounded border capitalize transition-all ${
-                          overrides.density === density
-                            ? 'border-blue-600 bg-blue-50 text-blue-700'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        {density}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 3. SECTIONS MANAGER */}
-            {activeTab === 'sections' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Store Sections</h3>
-                    <p className="text-xs text-slate-500">
-                      Drag, reorder, or swap variants for each section.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Active Sections List */}
-                <div className="space-y-2">
-                  {sections.map((section, idx) => {
-                    const variants = SECTION_VARIANTS_MAP[section.type] || [];
-                    const isSelected = selectedSectionId === section.id;
-
-                    return (
-                      <div
-                        key={section.id}
-                        className={`p-3 rounded-lg border transition-all ${
-                          isSelected
-                            ? 'border-blue-500 bg-blue-50/30'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-400">#{idx + 1}</span>
-                            <span className="text-xs font-bold capitalize text-slate-800">
-                              {section.type.replace('-', ' ')}
-                            </span>
-                            {section.enabled === false && (
-                              <span className="text-[10px] bg-slate-200 text-slate-600 px-1 rounded">
-                                Hidden
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Reorder and action buttons */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => moveSection(idx, 'up')}
-                              disabled={idx === 0}
-                              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                              aria-label="Move section up"
-                            >
-                              <ChevronUp size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveSection(idx, 'down')}
-                              disabled={idx === sections.length - 1}
-                              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                              aria-label="Move section down"
-                            >
-                              <ChevronDown size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleSectionEnabled(section.id)}
-                              className="p-1 text-slate-400 hover:text-slate-700"
-                              title={section.enabled === false ? 'Show section' : 'Hide section'}
-                            >
-                              {section.enabled === false ? <EyeOff size={14} /> : <Eye size={14} />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteSection(section.id)}
-                              className="p-1 text-slate-400 hover:text-red-600"
-                              title="Delete section"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Variant selector */}
-                        {variants.length > 0 && (
-                          <div className="mt-2">
-                            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                              Layout Variant
-                            </label>
-                            <select
-                              value={section.variant || variants[0].id}
-                              onChange={(e) => updateSectionVariant(section.id, e.target.value)}
-                              className="w-full text-xs font-medium border border-slate-200 rounded p-1.5 bg-slate-50 text-slate-800 focus:outline-none"
-                            >
-                              {variants.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                  {v.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Add Section Library */}
-                <div className="pt-4 border-t border-slate-200">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                    Add More Sections
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {AVAILABLE_SECTIONS.map((sec) => (
-                      <button
-                        key={sec.type}
-                        type="button"
-                        onClick={() => addSection(sec.type, sec.defaultVariant)}
-                        className="p-2 text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors"
-                      >
-                        <span>{sec.emoji}</span>
-                        <span className="truncate">{sec.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 4. AI BUILDER */}
-            {activeTab === 'ai' && (
-              <WebsiteAIBuilder
-                shopName={shopName}
-                onGenerate={(generatedSections) => {
-                  setSections(generatedSections);
-                  toast.success('✨ AI Sections generated! Check live preview.');
-                }}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Right Live Interactive Preview Workspace */}
-        <div className={`${
-          mobileMode === 'preview' ? 'flex' : 'hidden md:flex'
-        } flex-1 bg-slate-200/80 overflow-y-auto p-2 sm:p-4 md:p-6 justify-center items-start`}>
-          <div
-            className={`bg-white shadow-2xl transition-all duration-300 overflow-hidden flex flex-col ${
-              deviceView === 'mobile'
-                ? 'w-full max-w-[390px] rounded-[28px] sm:rounded-[36px] border-[6px] sm:border-[10px] border-slate-800 min-h-[720px]'
-                : deviceView === 'tablet'
-                ? 'w-full max-w-[768px] rounded-2xl border-[6px] sm:border-[8px] border-slate-800 min-h-[850px]'
-                : 'w-full max-w-[1340px] rounded-xl border border-slate-300 min-h-[850px]'
+        {/* Left Navigation Icon Strip */}
+        <div className="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3 gap-2 flex-shrink-0 z-20">
+          <button
+            onClick={() => setActiveTab('design')}
+            title="Design & Style"
+            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+              activeTab === 'design'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            {/* Mock device status bar on mobile */}
-            {deviceView === 'mobile' && (
-              <div className="h-6 bg-slate-800 text-white text-[11px] px-6 flex items-center justify-between select-none">
-                <span>9:41</span>
-                <div className="w-16 h-4 bg-black rounded-full" />
-                <span>5G 100%</span>
-              </div>
-            )}
+            <Palette size={16} />
+            <span className="text-[9px] font-bold">Design</span>
+          </button>
 
+          <button
+            onClick={() => setActiveTab('logic')}
+            title="Logic & Declarative Workflows"
+            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+              activeTab === 'logic'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Zap size={16} />
+            <span className="text-[9px] font-bold">Logic</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('connections')}
+            title="Connections & Data"
+            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+              activeTab === 'connections'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Link2 size={16} />
+            <span className="text-[9px] font-bold">Data</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('assets')}
+            title="Assets & Media"
+            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+              activeTab === 'assets'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <ImageIconLucide size={16} />
+            <span className="text-[9px] font-bold">Assets</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('ai')}
+            title="AI Storefront Generator"
+            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+              activeTab === 'ai'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Wand2 size={16} />
+            <span className="text-[9px] font-bold">AI</span>
+          </button>
+        </div>
+
+        {/* Contextual Drawer / Panel Area */}
+        <div className="w-80 md:w-96 flex-shrink-0 h-full overflow-hidden z-10">
+          {activeTab === 'design' && (
+            <DesignPanel
+              selectedTheme={selectedThemeId}
+              onThemeSelect={(tId) => setSelectedThemeId(tId as ThemeId)}
+              primaryColor={overrides.primaryColor || '#2563eb'}
+              onColorChange={(col) => setOverrides((prev) => ({ ...prev, primaryColor: col }))}
+              fontFamily={overrides.fontFamily || 'Inter, sans-serif'}
+              onFontChange={(font) => setOverrides((prev) => ({ ...prev, fontFamily: font }))}
+              sections={sections}
+              onAddSection={handleAddSection}
+              onRemoveSection={handleRemoveSection}
+              selectedNodeId={selectedSectionId}
+              onSelectNode={(id) => setSelectedSectionId(id)}
+              workflows={workflows}
+              onBindWorkflowToNode={handleBindWorkflow}
+            />
+          )}
+
+          {activeTab === 'logic' && (
+            <LogicPanel
+              workflows={workflows}
+              onUpdateWorkflows={(wfs) => setWorkflows(wfs)}
+            />
+          )}
+
+          {activeTab === 'connections' && (
+            <ConnectionsPanel
+              connections={connectionsData?.connections || []}
+              onRefreshConnections={refetchConnections}
+            />
+          )}
+
+          {activeTab === 'assets' && (
+            <AssetsPanel
+              selectedNodeId={selectedSectionId}
+              onApplyAssetToNode={handleApplyAssetToNode}
+            />
+          )}
+
+          {activeTab === 'ai' && (
+            <div className="h-full overflow-y-auto p-4 bg-white dark:bg-slate-900">
+              <WebsiteAIBuilder
+                websiteId={websiteData?.id || 'new'}
+                onApplied={(updatedWebsite: any) => {
+                  if (updatedWebsite.template && THEME_REGISTRY[updatedWebsite.template as ThemeId]) {
+                    setSelectedThemeId(updatedWebsite.template as ThemeId);
+                  }
+                  if (updatedWebsite.sections) {
+                    setSections(normalizeLegacySections(updatedWebsite.sections, updatedWebsite.name));
+                  }
+                  if (updatedWebsite.theme?.overrides) {
+                    setOverrides(updatedWebsite.theme.overrides);
+                  }
+                  toast.success('AI Website design applied!');
+                  setActiveTab('design');
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Live Canvas Viewport Container */}
+        <div className="flex-1 bg-slate-200/70 p-4 md:p-6 overflow-y-auto flex items-start justify-center">
+          <div
+            className={`bg-white shadow-2xl rounded-2xl overflow-hidden transition-all duration-300 border border-slate-300/80 flex flex-col ${
+              deviceView === 'desktop'
+                ? 'w-full max-w-6xl min-h-[85vh]'
+                : deviceView === 'tablet'
+                ? 'w-[768px] min-h-[85vh]'
+                : 'w-[375px] min-h-[700px]'
+            }`}
+          >
+            {/* Viewport Browser Header Bar */}
+            <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2 select-none">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              </div>
+              <div className="flex-1 mx-4 bg-white border border-slate-200 rounded-md px-3 py-0.5 text-[11px] text-slate-500 font-mono text-center truncate">
+                https://{user?.subdomain || 'yourstore'}.ferasetu.com
+              </div>
+            </div>
+
+            {/* Live Storefront Renderer */}
             <div className="flex-1 overflow-x-hidden">
               <TemplateRenderer
-                shopId={user?.id || 'builder-preview'}
-                shopName={shopName || 'Store'}
-                shopPhone={shopPhone}
-                shopLogo={logoUrl}
-                currency={user?.market === 'US' ? 'USD' : user?.market === 'EU' ? 'EUR' : 'INR'}
-                currencySymbol={user?.market === 'US' ? '$' : user?.market === 'EU' ? '€' : '₹'}
-                products={activeProducts}
-                theme={selectedThemeId}
-                overrides={overrides}
+                themeId={selectedThemeId}
                 sections={sections}
-                isPreview={true}
+                shop={{
+                  id: user?.id || 'demo-shop',
+                  name: shopName || 'My Store',
+                  description: 'Welcome to our online store',
+                  phone: shopPhone || user?.phone || '',
+                  logo_url: logoUrl,
+                }}
+                products={activeProducts}
+                previewMode={true}
+                themeOverrides={overrides}
+                onSelectSection={(secId) => {
+                  setSelectedSectionId(secId);
+                  setActiveTab('design');
+                }}
+                selectedSectionId={selectedSectionId}
               />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Version History & Rollback Modal */}
+      <VersionHistoryModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+        onRollbackComplete={handleRollbackComplete}
+      />
     </div>
   );
 }

@@ -1449,13 +1449,6 @@ export default function DashboardPage() {
                   <Globe size={13} className="text-indigo-600 shrink-0" />
                   <span>Storefront</span>
                 </Link>
-                <Link
-                  to="/pro-studio"
-                  className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200/80 transition-colors"
-                >
-                  <Sparkles size={13} className="text-amber-500 shrink-0" />
-                  <span>Pro Studio</span>
-                </Link>
               </div>
             </div>
           </div>

@@ -106,18 +106,77 @@ Keep orders and customer records organized. When orders come in, you get a clean
 Store assistant powered by your own catalog data. FeraSetu AI reads your real store records to answer questions like what to restock, generate product details, or plan promotions around your actual sales patterns.
 """
 
+storefront_copy = """# Live Merchant Storefronts
+
+LIVE MERCHANT CONDUITS
+
+Real storefronts. Independent ownership.
+
+Explore how independent shops and local makers take orders directly with zero platform commissions.
+
+Sharma General Store
+Daily Kirana & Groceries
+Neighborhood daily essentials & packaged goods
+0% Platform Cut
+Aashirvaad Shudh Chakki Atta 5kg: ₹245.
+Fortune Sunlite Sunflower Oil 1L: ₹135.
+Tata Salt Vaccum Evaporated 1kg: ₹28.
+Instant UPI Settlement to HDFC Bank.
+
+SweetCraft Bakehouse
+Fresh Cakes & Artisan Pastries
+Custom celebration cakes & sourdough bakes
+Direct WhatsApp Link
+Belgian Truffle Birthday Cake 1kg: ₹950.
+Wildflower Honey Sourdough Loaf: ₹220.
+Almond Butter Croissant Box of 4: ₹420.
+Direct Card Checkout via Cashfree.
+
+Chanderi Weaves
+Handloom & Indian Ethnic Wear
+Authentic hand-woven sarees and dupattas
+Owned Customer List
+Pure Silk Zari Border Chanderi Saree: ₹4,800.
+Hand-block Printed Cotton Dupatta: ₹1,250.
+Tussar Silk Festive Kurta Set: ₹3,400.
+Unmasked Buyer Contact Records.
+
+GreenRoot Farms
+Organic Harvest & Fresh Produce
+Farm-fresh harvest baskets delivered weekly
+Direct Conduit Active
+Weekly Farm Harvest Veggie Box 7kg: ₹550.
+Cold-pressed Mustard Oil 1L Wood Churned: ₹260.
+Wild Forest Raw Honey 500g: ₹380.
+0% Middleman Escrow Holds.
+
+Monsoon Coffee Roasters
+Specialty Arabica & Filter Blends
+Single-origin estate beans roasted to order
+Custom Domain Connected
+Chikmagalur Malabar AAA Whole Bean 250g: ₹460.
+Traditional South Indian Filter Blend 500g: ₹390.
+Cold Brew Blend Medium-Dark 250g: ₹480.
+Export buyer records anytime.
+
+Every storefront runs on its own web address. Customers buy directly without marketplace rerouting.
+"""
+
 def main():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     deslop_script = os.path.join(root_dir, 'tools', 'slopmonster', 'tools', 'deslop.py')
 
     temp_landing = os.path.join(root_dir, 'landing_copy_audit.md')
     temp_pricing = os.path.join(root_dir, 'pricing_copy_audit.md')
+    temp_storefront = os.path.join(root_dir, 'storefront_copy_audit.md')
 
     try:
         with open(temp_landing, 'w', encoding='utf-8') as f:
             f.write(landing_copy)
         with open(temp_pricing, 'w', encoding='utf-8') as f:
             f.write(pricing_copy)
+        with open(temp_storefront, 'w', encoding='utf-8') as f:
+            f.write(storefront_copy)
 
         print("=== SLOPMONSTER AUDIT: LANDING PAGE COPY ===")
         res1 = subprocess.run([sys.executable, deslop_script, temp_landing], capture_output=True, text=True)
@@ -131,7 +190,13 @@ def main():
         if res2.stderr:
             print(res2.stderr)
 
-        if res1.returncode != 0 or res2.returncode != 0:
+        print("=== SLOPMONSTER AUDIT: STOREFRONT GALLERY COPY ===")
+        res3 = subprocess.run([sys.executable, deslop_script, temp_storefront], capture_output=True, text=True)
+        print(res3.stdout)
+        if res3.stderr:
+            print(res3.stderr)
+
+        if res1.returncode != 0 or res2.returncode != 0 or res3.returncode != 0:
             print("ERROR: Copy failed SlopMonster lint checks!", file=sys.stderr)
             sys.exit(1)
 
@@ -141,6 +206,8 @@ def main():
             os.remove(temp_landing)
         if os.path.exists(temp_pricing):
             os.remove(temp_pricing)
+        if os.path.exists(temp_storefront):
+            os.remove(temp_storefront)
 
 if __name__ == '__main__':
     main()

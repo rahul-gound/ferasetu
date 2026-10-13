@@ -1,7 +1,7 @@
 # Project: FeraSetu Domains & Email Architecture, External Integrations & Cloudflare Worker Hardening
 
 ## Architecture
-FeraSetu is an all-in-one e-commerce platform and AI business suite for Indian merchants and shopkeepers. The production architecture is composed of:
+FeraSetu is an all-in-one e-commerce platform and AI business suite for global merchants and shopkeepers. The production architecture is composed of:
 1. **Frontend (React 19 + TypeScript + Vite + Tailwind CSS)**: Merchant admin, unified "Domains & Email" dashboard, template editor with live preview, AI assistant action cards, store settings, and responsive storefronts.
 2. **Cloudflare Worker Edge API (`worker/`)**: High-performance serverless edge handling routing, multi-tenant WorkOS authentication, Cashfree billing, domain resolution, email services, and AI orchestration.
 3. **Cloudflare D1 (`DB`)**: Edge relational database serving as the single source of truth across 17+ migrations (`email_domains`, `email_identities`, `email_provider_connections`, `email_messages`, `email_events`, `merchant_email_templates`, `transactions`, `subscriptions`, etc.).

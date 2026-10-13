@@ -64,7 +64,19 @@ import {
   handleDirectUpload,
 } from "./media/mediaService.js";
 import { handleMediaCdnRequest } from "./media/mediaGateway.js";
-import { handleProStudioRoutes, handleProStorefrontResolution } from "./routes/proStudioRoutes.js";
+import {
+  getBuilderDraft,
+  saveBuilderDraft,
+  publishBuilderDraft,
+  listBuilderVersions,
+  rollbackBuilderVersion,
+  listBuilderConnections,
+  saveBuilderConnection,
+  deleteBuilderConnection,
+  handleBuilderProxy,
+  listBuilderAssets,
+  updateAssetVisibility,
+} from "./services/builderService.js";
 import { handleAnalyticsEvents } from "./analytics/ingestion.js";
 import { runDailyAggregation, pruneRawEvents } from "./analytics/aggregation.js";
 import { resolveSellablePrice } from "./catalog/priceResolver.js";
@@ -2891,42 +2903,61 @@ function safeParseObject(value, fallback = {}) {
 // D1 Schema Auto-initialization (Safe & Idempotent)
 // ---------------------------------------------------------------------------
 let tablesInitialized = false;
+let tablesInitPromise = null;
+
 async function ensureTables(db) {
   if (tablesInitialized || !db || (typeof db.exec !== 'function' && typeof db.prepare !== 'function')) return;
-  try {
-    const safeExec = async (sql) => {
-      const cleanSql = typeof sql === 'string' ? sql.trim().replace(/;\s*$/, "") : '';
-      if (!cleanSql) return;
+  if (tablesInitPromise) return tablesInitPromise;
+
+  tablesInitPromise = (async () => {
+    try {
+      // Fast path: In production and warm isolates, D1 schema tables already exist.
+      // A single 1-row check prevents 235 sequential D1 roundtrips on cold starts.
       if (typeof db.prepare === 'function') {
         try {
-          await db.prepare(cleanSql).run();
-          return;
-        } catch (prepErr) {
-          console.warn("[ensureTables] prepare.run notice:", prepErr?.message || prepErr);
+          const orgExists = await db.prepare("SELECT 1 FROM organizations LIMIT 1").first();
+          if (orgExists !== undefined) {
+            tablesInitialized = true;
+            return;
+          }
+        } catch {
+          // Schema not initialized yet; fall through to run full D1 table definitions
         }
       }
-      if (typeof db.exec === 'function') {
-        try {
-          await db.exec(cleanSql);
-          return;
-        } catch (execErr) {
-          console.warn("[ensureTables] exec notice:", execErr?.message || execErr);
-        }
-      }
-    };
 
-    const safeAddColumn = async (table, colDef) => {
-      const cleanCol = typeof colDef === 'string' ? colDef.trim().replace(/;\s*$/, "") : '';
-      try {
+      const safeExec = async (sql) => {
+        const cleanSql = typeof sql === 'string' ? sql.trim().replace(/;\s*$/, "") : '';
+        if (!cleanSql) return;
         if (typeof db.prepare === 'function') {
-          await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${cleanCol}`).run();
-        } else if (typeof db.exec === 'function') {
-          await db.exec(`ALTER TABLE ${table} ADD COLUMN ${cleanCol};`);
+          try {
+            await db.prepare(cleanSql).run();
+            return;
+          } catch (prepErr) {
+            // Already exists or invalid statement; do not double-query D1 via db.exec
+            return;
+          }
         }
-      } catch (e) {
-        // Column already exists or table does not exist
-      }
-    };
+        if (typeof db.exec === 'function') {
+          try {
+            await db.exec(cleanSql);
+          } catch (execErr) {
+            // Table/index already exists
+          }
+        }
+      };
+
+      const safeAddColumn = async (table, colDef) => {
+        const cleanCol = typeof colDef === 'string' ? colDef.trim().replace(/;\s*$/, "") : '';
+        try {
+          if (typeof db.prepare === 'function') {
+            await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${cleanCol}`).run();
+          } else if (typeof db.exec === 'function') {
+            await db.exec(`ALTER TABLE ${table} ADD COLUMN ${cleanCol};`);
+          }
+        } catch (e) {
+          // Column already exists or table does not exist
+        }
+      };
 
     // 1. Core Users Table
     await safeExec(`
@@ -3173,6 +3204,48 @@ async function ensureTables(db) {
         updated_at TEXT NOT NULL
       );
     `);
+
+    // 10b. Unified Website Builder (Drafts, Versions, and Connections)
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS website_drafts (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL UNIQUE,
+        user_id TEXT NOT NULL,
+        draft_data TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_website_drafts_org ON website_drafts(organization_id);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS website_versions (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        version_number INTEGER NOT NULL,
+        snapshot_data TEXT NOT NULL,
+        description TEXT,
+        published_at TEXT NOT NULL,
+        published_by TEXT
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_website_versions_org ON website_versions(organization_id, version_number DESC);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS website_connections (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        connection_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        config_json TEXT NOT NULL,
+        secrets_encrypted TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_website_conns_org ON website_connections(organization_id);`);
 
     // 11. Tickets & Replies
     await safeExec(`
@@ -3585,6 +3658,8 @@ async function ensureTables(db) {
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_media_files_shop ON media_files(shop_id);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_media_files_key ON media_files(r2_key);`);
+    await safeAddColumn('media_files', 'is_draft INTEGER NOT NULL DEFAULT 1');
+    await safeAddColumn('media_files', "visibility TEXT NOT NULL DEFAULT 'private'");
 
     await safeExec(`
       CREATE TABLE IF NOT EXISTS upload_reservations (
@@ -3731,157 +3806,7 @@ async function ensureTables(db) {
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_invoices_org_number ON invoices(organization_id, invoice_number);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_invoices_order ON invoices(order_id);`);
 
-    // 17. FeraSetu Pro Programmable Website Platform Tables
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_pages (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        title TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT 'standard'
-          CHECK(type IN ('standard', 'auth_login', 'auth_signup', 'auth_account', 'protected', 'custom')),
-        content TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'draft'
-          CHECK(status IN ('draft', 'published', 'archived')),
-        parent_id TEXT,
-        is_homepage INTEGER NOT NULL DEFAULT 0,
-        auth_required INTEGER NOT NULL DEFAULT 0,
-        order_index INTEGER NOT NULL DEFAULT 0,
-        seo_title TEXT,
-        seo_description TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE(tenant_id, slug)
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_pages_tenant ON site_pages(tenant_id);`);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_pages_tenant_status ON site_pages(tenant_id, status);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_routes (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        path_pattern TEXT NOT NULL,
-        page_id TEXT NOT NULL,
-        access_level TEXT NOT NULL DEFAULT 'public'
-          CHECK(access_level IN ('public', 'authenticated', 'merchant_admin')),
-        function_binding TEXT,
-        status TEXT NOT NULL DEFAULT 'draft'
-          CHECK(status IN ('draft', 'published')),
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE(tenant_id, path_pattern)
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_routes_tenant ON site_routes(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_functions (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT,
-        definition TEXT NOT NULL,
-        capabilities TEXT NOT NULL DEFAULT '[]',
-        status TEXT NOT NULL DEFAULT 'draft'
-          CHECK(status IN ('draft', 'published', 'deprecated')),
-        version INTEGER NOT NULL DEFAULT 1,
-        timeout_ms INTEGER NOT NULL DEFAULT 1500,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE(tenant_id, name)
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_functions_tenant ON site_functions(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_function_versions (
-        id TEXT PRIMARY KEY,
-        function_id TEXT NOT NULL,
-        tenant_id TEXT NOT NULL,
-        version INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        definition TEXT NOT NULL,
-        capabilities TEXT NOT NULL DEFAULT '[]',
-        published_at TEXT NOT NULL,
-        published_by TEXT,
-        UNIQUE(function_id, version)
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_func_versions_tenant ON site_function_versions(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_navigation (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        menu_location TEXT NOT NULL DEFAULT 'header'
-          CHECK(menu_location IN ('header', 'footer', 'sidebar')),
-        items TEXT NOT NULL DEFAULT '[]',
-        status TEXT NOT NULL DEFAULT 'draft'
-          CHECK(status IN ('draft', 'published')),
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE(tenant_id, menu_location)
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_nav_tenant ON site_navigation(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_deployments (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        version INTEGER NOT NULL DEFAULT 1,
-        status TEXT NOT NULL DEFAULT 'published'
-          CHECK(status IN ('published', 'superseded', 'rolled_back')),
-        snapshot TEXT NOT NULL,
-        deployed_by TEXT,
-        created_at TEXT NOT NULL
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_deployments_tenant ON site_deployments(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_quotas (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT UNIQUE NOT NULL,
-        max_pages INTEGER NOT NULL DEFAULT 50,
-        max_routes INTEGER NOT NULL DEFAULT 50,
-        max_functions INTEGER NOT NULL DEFAULT 30,
-        max_function_invocations_monthly INTEGER NOT NULL DEFAULT 50000,
-        function_invocations_used INTEGER NOT NULL DEFAULT 0,
-        max_storage_bytes INTEGER NOT NULL DEFAULT 104857600,
-        storage_used_bytes INTEGER NOT NULL DEFAULT 0,
-        max_published_versions INTEGER NOT NULL DEFAULT 20,
-        max_ai_actions_monthly INTEGER NOT NULL DEFAULT 1000,
-        ai_actions_used INTEGER NOT NULL DEFAULT 0,
-        resets_at TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_quotas_tenant ON site_quotas(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_storage (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        key TEXT NOT NULL,
-        value TEXT NOT NULL,
-        bytes_size INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE(tenant_id, key)
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_storage_tenant ON site_storage(tenant_id);`);
-    await safeExec(`
-      CREATE TABLE IF NOT EXISTS site_execution_logs (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        function_name TEXT,
-        event_type TEXT NOT NULL,
-        details TEXT,
-        duration_ms REAL,
-        status_code INTEGER,
-        created_at TEXT NOT NULL
-      );
-    `);
-    await safeExec(`CREATE INDEX IF NOT EXISTS idx_site_exec_logs_tenant ON site_execution_logs(tenant_id);`);
-
-    // 18. Analytics Events & Error Logs System (Privacy-First)
+    // 17. Analytics Events & Error Logs System (Privacy-First)
     await safeExec(`
       CREATE TABLE IF NOT EXISTS analytics_events (
         id TEXT PRIMARY KEY,
@@ -3900,14 +3825,14 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'platform';`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN visitor_id TEXT;`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN session_id TEXT;`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN event_name TEXT NOT NULL DEFAULT 'page_view';`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1;`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN properties TEXT;`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN country TEXT;`);
-    await safeExec(`ALTER TABLE analytics_events ADD COLUMN device_category TEXT;`);
+    await safeAddColumn('analytics_events', "tenant_id TEXT NOT NULL DEFAULT 'platform'");
+    await safeAddColumn('analytics_events', 'visitor_id TEXT');
+    await safeAddColumn('analytics_events', 'session_id TEXT');
+    await safeAddColumn('analytics_events', "event_name TEXT NOT NULL DEFAULT 'page_view'");
+    await safeAddColumn('analytics_events', 'schema_version INTEGER NOT NULL DEFAULT 1');
+    await safeAddColumn('analytics_events', 'properties TEXT');
+    await safeAddColumn('analytics_events', 'country TEXT');
+    await safeAddColumn('analytics_events', 'device_category TEXT');
 
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_org ON analytics_events(organization_id, event_type);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_user ON analytics_events(user_id, event_type);`);
@@ -3957,12 +3882,12 @@ async function ensureTables(db) {
       );
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_error_logs_status ON error_logs(status, created_at);`);
-    await safeExec(`ALTER TABLE error_logs ADD COLUMN user_email TEXT;`);
-    await safeExec(`ALTER TABLE error_logs ADD COLUMN user_name TEXT;`);
-    await safeExec(`ALTER TABLE error_logs ADD COLUMN plan_tier TEXT;`);
-    await safeExec(`ALTER TABLE error_logs ADD COLUMN is_paid INTEGER DEFAULT 0;`);
-    await safeExec(`ALTER TABLE error_logs ADD COLUMN store_slug TEXT;`);
-    await safeExec(`ALTER TABLE error_logs ADD COLUMN metadata TEXT;`);
+    await safeAddColumn('error_logs', 'user_email TEXT');
+    await safeAddColumn('error_logs', 'user_name TEXT');
+    await safeAddColumn('error_logs', 'plan_tier TEXT');
+    await safeAddColumn('error_logs', 'is_paid INTEGER DEFAULT 0');
+    await safeAddColumn('error_logs', 'store_slug TEXT');
+    await safeAddColumn('error_logs', 'metadata TEXT');
 
     // Verify that organizations table actually exists in D1
     try {
@@ -3976,7 +3901,12 @@ async function ensureTables(db) {
   } catch (err) {
     console.warn("Table schema check warning:", err && err.message ? err.message : err);
     tablesInitialized = false;
+  } finally {
+    tablesInitPromise = null;
   }
+  })();
+
+  return tablesInitPromise;
 }
 
 // ---------------------------------------------------------------------------
@@ -6953,21 +6883,36 @@ async function handlePublicCreateOrder(request, env) {
   ).run();
 
   // Insert authoritative order items snapshot
-  for (const oi of orderItemsToInsert) {
+  if (orderItemsToInsert.length > 0) {
+    const oiStmts = [];
+    for (const oi of orderItemsToInsert) {
+      oiStmts.push(
+        env.DB.prepare(`
+          INSERT INTO order_items (
+            id, shop_id, organization_id, order_id, product_id, variant_id,
+            title_snapshot, variant_title_snapshot, sku_snapshot, option_values_snapshot,
+            quantity, unit_price_minor, total_minor, discount_minor, tax_minor, currency, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+        `).bind(
+          oi.id, oi.shop_id, oi.organization_id, orderId, oi.product_id, oi.variant_id,
+          oi.title_snapshot, oi.variant_title_snapshot, oi.sku_snapshot, oi.option_values_snapshot,
+          oi.quantity, oi.unit_price_minor, oi.total_minor, oi.currency, now
+        )
+      );
+    }
+
     try {
-      await env.DB.prepare(`
-        INSERT INTO order_items (
-          id, shop_id, organization_id, order_id, product_id, variant_id,
-          title_snapshot, variant_title_snapshot, sku_snapshot, option_values_snapshot,
-          quantity, unit_price_minor, total_minor, discount_minor, tax_minor, currency, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
-      `).bind(
-        oi.id, oi.shop_id, oi.organization_id, orderId, oi.product_id, oi.variant_id,
-        oi.title_snapshot, oi.variant_title_snapshot, oi.sku_snapshot, oi.option_values_snapshot,
-        oi.quantity, oi.unit_price_minor, oi.total_minor, oi.currency, now
-      ).run();
+      if (typeof env.DB.batch === 'function') {
+        for (let i = 0; i < oiStmts.length; i += 50) {
+          await env.DB.batch(oiStmts.slice(i, i + 50));
+        }
+      } else {
+        for (const stmt of oiStmts) {
+          await stmt.run();
+        }
+      }
     } catch (oiErr) {
-      console.warn("Order item insert notice:", oiErr?.message);
+      console.warn("Order item batch insert notice:", oiErr?.message);
     }
   }
 
@@ -9019,38 +8964,6 @@ async function getPublicShop(shopName, request, env) {
   const storeSlug = tenant?.organization?.store_slug || tenant?.shop?.store_slug || user?.subdomain || slugWithoutDomain;
   const hostname = tenant?.shop?.hostname || user?.hostname || (storeSlug ? `${storeSlug}.ferasetu.com` : null);
 
-  // Check for published Pro site deployment
-  let proSite = null;
-  let proRouteResolution = null;
-  try {
-    const depRow = await env.DB.prepare(
-      "SELECT id, version, snapshot, created_at FROM site_deployments WHERE tenant_id = ? AND status = 'published' ORDER BY version DESC LIMIT 1"
-    ).bind(effectiveOrgId).first();
-
-    if (depRow && depRow.snapshot) {
-      const snapshot = typeof depRow.snapshot === 'string' ? JSON.parse(depRow.snapshot) : depRow.snapshot;
-      proSite = {
-        deployment_id: depRow.id,
-        version: depRow.version,
-        published_at: depRow.created_at,
-        pages: snapshot.pages || [],
-        routes: snapshot.routes || [],
-        functions: (snapshot.functions || []).map(f => ({ name: f.name, description: f.description, capabilities: f.capabilities })),
-        navigation: snapshot.navigation || [],
-      };
-
-      // If a specific route is requested via query param e.g. ?route=/about
-      const reqUrl = new URL(request.url);
-      const requestedRoutePath = reqUrl.searchParams.get("route");
-      if (requestedRoutePath) {
-        const custSession = await getAuthenticatedCustomerFromRequest(request, env, effectiveOrgId);
-        proRouteResolution = await handleProStorefrontResolution(effectiveOrgId, requestedRoutePath, request, env, { customer: custSession });
-      }
-    }
-  } catch (proErr) {
-    console.warn("Pro site deployment lookup note:", proErr?.message);
-  }
-
   return json({
     shop: {
       id: effectiveOrgId,
@@ -9086,8 +8999,8 @@ async function getPublicShop(shopName, request, env) {
       sections,
       theme: parsedTheme || website.template || 'market'
     },
-    pro_site: proSite,
-    pro_route_resolution: proRouteResolution,
+    pro_site: null,
+    pro_route_resolution: null,
     products,
   }, 200, {}, request);
 }
@@ -9096,16 +9009,17 @@ async function getPublicShop(shopName, request, env) {
 // Router
 // ---------------------------------------------------------------------------
 async function route(request, env) {
-  if (env.DB) {
-    await ensureTables(env.DB);
-  }
-
   const url = new URL(request.url);
   let path = url.pathname.replace(/\/+$/, "") || "/"; // strip trailing slashes
   if (path !== "/" && !path.startsWith("/api/")) {
     path = "/api" + path;
   }
   const method = request.method.toUpperCase();
+
+  // Fast path for CORS preflight
+  if (method === "OPTIONS") {
+    return handleCors(request);
+  }
 
   if (path === "/" && method === "GET") {
     return json({
@@ -9148,6 +9062,17 @@ async function route(request, env) {
         "PATCH /api/website/publish",
         "GET  /api/website/templates",
         "GET  /api/website/public/:shopName",
+        "GET  /api/builder/draft",
+        "POST /api/builder/draft",
+        "POST /api/builder/publish",
+        "GET  /api/builder/versions",
+        "POST /api/builder/rollback",
+        "GET  /api/builder/connections",
+        "POST /api/builder/connections",
+        "DELETE /api/builder/connections/:id",
+        "POST /api/builder/integrations/proxy",
+        "GET  /api/builder/assets",
+        "PATCH /api/builder/assets/:id",
         "GET  /api/tickets",
         "POST /api/tickets",
         "GET  /api/tickets/:id/replies",
@@ -9168,11 +9093,11 @@ async function route(request, env) {
     }, 200, {}, request);
   }
 
-  if (path === "/api/health" && method === "GET") {
+  if ((path === "/api/health" || path === "/api/v1/health") && method === "GET") {
     return json({ status: "ok", timestamp: new Date().toISOString(), version: "2.0.0" }, 200, {}, request);
   }
 
-  // Geo & Regional language detection
+  // Geo & Regional language detection (Pure compute - 0 DB overhead)
   if ((path === "/api/geo" || path === "/api/geo/") && method === "GET") {
     const geoData = await handleGeoRoute(request, env);
     return json(geoData, 200, {}, request);
@@ -9183,9 +9108,9 @@ async function route(request, env) {
     return handleVerifyTurnstile(request, env);
   }
 
-  // FeraSetu Pro Studio API — Protected by authoritative requireProAccess()
-  if (path.startsWith("/api/pro/") || path === "/api/pro") {
-    return handleProStudioRoutes(request, env);
+  // 2. Initialize DB tables only for endpoints that actually interact with D1
+  if (env.DB) {
+    await ensureTables(env.DB);
   }
 
   // Public shop metadata endpoint
@@ -9435,6 +9360,77 @@ async function route(request, env) {
   }
   if (path === "/api/website/publish" && (method === "PATCH" || method === "POST")) {
     return publishWebsite(request, env);
+  }
+
+  // Unified Builder Endpoints (Drafts, Versions, Publishing, Connections, Assets & Secure Proxy)
+  if (path === "/api/builder/draft") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    if (method === "GET") {
+      const result = await getBuilderDraft(request, env, orgContext);
+      return json(result, 200, {}, request);
+    }
+    if (method === "POST" || method === "PUT") {
+      const result = await saveBuilderDraft(request, env, orgContext);
+      return json(result, 200, {}, request);
+    }
+    throw new HttpError("Method not allowed", 405);
+  }
+
+  if (path === "/api/builder/publish" && method === "POST") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await publishBuilderDraft(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+
+  if (path === "/api/builder/versions" && method === "GET") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await listBuilderVersions(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+
+  if (path === "/api/builder/rollback" && method === "POST") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await rollbackBuilderVersion(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+
+  if (path === "/api/builder/connections") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    if (method === "GET") {
+      const result = await listBuilderConnections(request, env, orgContext);
+      return json(result, 200, {}, request);
+    }
+    if (method === "POST" || method === "PUT") {
+      const result = await saveBuilderConnection(request, env, orgContext);
+      return json(result, 200, {}, request);
+    }
+    throw new HttpError("Method not allowed", 405);
+  }
+
+  if (path.startsWith("/api/builder/connections/") && method === "DELETE") {
+    const connId = path.slice("/api/builder/connections/".length);
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await deleteBuilderConnection(request, env, orgContext, connId);
+    return json(result, 200, {}, request);
+  }
+
+  if (path === "/api/builder/integrations/proxy" && method === "POST") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await handleBuilderProxy(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+
+  if (path === "/api/builder/assets" && method === "GET") {
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await listBuilderAssets(request, env, orgContext);
+    return json(result, 200, {}, request);
+  }
+
+  if (path.startsWith("/api/builder/assets/") && (method === "PATCH" || method === "PUT")) {
+    const assetId = path.slice("/api/builder/assets/".length);
+    const orgContext = await requireOrgContext(request, env, 'staff');
+    const result = await updateAssetVisibility(request, env, orgContext, assetId);
+    return json(result, 200, {}, request);
   }
 
   // Merchant Branding
@@ -9825,6 +9821,11 @@ export default {
     }
   },
 };
+
+export function _resetTablesInitialized() {
+  tablesInitialized = false;
+  tablesInitPromise = null;
+}
 
 export {
   assignTenantToShard,

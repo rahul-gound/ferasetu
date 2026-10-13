@@ -27,6 +27,7 @@ interface PublicSmoothScrollProps {
  */
 export default function PublicSmoothScroll({ children }: PublicSmoothScrollProps) {
   const lenisRef = useRef<Lenis | null>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -49,9 +50,12 @@ export default function PublicSmoothScroll({ children }: PublicSmoothScrollProps
     });
     lenisRef.current = lenis;
 
-    // Update ScrollTrigger on Lenis scroll events
-    const handleScroll = () => {
+    // Update ScrollTrigger and scroll progress bar on Lenis scroll events
+    const handleScroll = (e: { progress: number }) => {
       ScrollTrigger.update();
+      if (progressBarRef.current && typeof e.progress === 'number') {
+        progressBarRef.current.style.transform = `scaleX(${e.progress})`;
+      }
     };
     lenis.on('scroll', handleScroll);
 
@@ -112,5 +116,14 @@ export default function PublicSmoothScroll({ children }: PublicSmoothScrollProps
     }
   }, [location.pathname, location.hash]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <div
+        ref={progressBarRef}
+        className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-600 via-blue-500 to-orange-500 z-[100] origin-left pointer-events-none transform scale-x-0"
+        aria-hidden="true"
+      />
+      {children}
+    </>
+  );
 }

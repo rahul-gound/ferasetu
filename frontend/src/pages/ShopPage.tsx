@@ -3,7 +3,6 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import type { PublicShopData } from '../types/template';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
-import ProStorefrontRouter from '../components/shop/ProStorefrontRouter';
 import SEO from '../components/SEO';
 
 const API = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
@@ -104,12 +103,7 @@ export default function ShopPage() {
 
   // Build structured data and SEO metadata from shop data
   const seoData = useMemo(() => {
-    const hasProSite = Boolean(
-      (data as any)?.pro_site &&
-      Array.isArray((data as any).pro_site.pages) &&
-      (data as any).pro_site.pages.length > 0
-    );
-    const isPublished = Boolean(data?.website?.is_published || hasProSite);
+    const isPublished = Boolean(data?.website?.is_published);
     if (!data || !isPublished) return null;
 
     const shop = data.shop;
@@ -199,21 +193,15 @@ export default function ShopPage() {
   }
 
   // Store is considered open and published if:
-  // 1. Pro Studio multi-page site has an active published deployment with pages, OR
-  // 2. The website is marked published (default), OR
-  // 3. The store has active products in its catalog.
+  // 1. The website is marked published (default), OR
+  // 2. The store has active products in its catalog.
   // It is ONLY considered unannounced/closed if explicitly placed into maintenance mode without products.
-  const hasProSite = Boolean(
-    (data as any)?.pro_site &&
-    Array.isArray((data as any).pro_site.pages) &&
-    (data as any).pro_site.pages.length > 0
-  );
   const hasProducts = Array.isArray(data.products) && data.products.length > 0;
   const isExplicitlyClosed = Boolean(
     data.website?.is_published === 0 &&
     ((data.website?.config as any)?.maintenance_mode || (data.website?.config as any)?.is_closed)
   );
-  const isPublished = (!isExplicitlyClosed) || hasProSite || hasProducts;
+  const isPublished = (!isExplicitlyClosed) || hasProducts;
 
   if (!isPublished) {
     return (
@@ -251,11 +239,6 @@ export default function ShopPage() {
         />
       )}
       {(() => {
-        // If merchant has published an active Pro multi-page website
-        if ((data as any)?.pro_site && Array.isArray((data as any).pro_site.pages) && (data as any).pro_site.pages.length > 0) {
-          return <ProStorefrontRouter shopData={data!} />;
-        }
-
         const shopMarket = (data!.shop as any)?.market || 'IN';
         const storeCurrency = (data!.shop as any)?.currency || (data!.website.config as any)?.currency || (shopMarket === 'US' ? 'USD' : shopMarket === 'EU' ? 'EUR' : 'INR');
         const storeCurrencySymbol = (data!.shop as any)?.currency_symbol || (data!.website.config as any)?.currency_symbol || (storeCurrency === 'USD' ? '$' : storeCurrency === 'EUR' ? '€' : '₹');

@@ -5,7 +5,7 @@
  */
 
 import assert from 'node:assert/strict';
-import worker from '../worker/index.js';
+import worker, { _resetTablesInitialized } from '../worker/index.js';
 import { handleGeoRoute, resolveSuggestedLanguage, resolvePricingRegion } from '../worker/routes/geo.js';
 
 let passed = 0;
@@ -328,6 +328,83 @@ await test('12. Unknown shop name returns 404 Shop not found', async () => {
   assert.equal(res.status, 404);
   const json = await res.json();
   assert.equal(json.error, 'Shop not found');
+});
+
+await test('13. GET /api/geo never touches DB even if env.DB is configured', async () => {
+  let dbCalls = 0;
+  const spyDb = {
+    prepare() {
+      dbCalls++;
+      throw new Error('Database should not be accessed on /api/geo');
+    },
+    exec() {
+      dbCalls++;
+      throw new Error('Database should not be accessed on /api/geo');
+    }
+  };
+
+  const req = new Request('https://api.ferasetu.com/api/geo', {
+    headers: { 'cf-ipcountry': 'IN' }
+  });
+  const res = await worker.fetch(req, { DB: spyDb });
+  assert.equal(res.status, 200);
+  assert.equal(dbCalls, 0, 'Database was unexpectedly accessed during /api/geo');
+  const json = await res.json();
+  assert.equal(json.country, 'IN');
+});
+
+await test('14. GET /api/health never touches DB even if env.DB is configured', async () => {
+  let dbCalls = 0;
+  const spyDb = {
+    prepare() {
+      dbCalls++;
+      throw new Error('Database should not be accessed on /api/health');
+    },
+    exec() {
+      dbCalls++;
+      throw new Error('Database should not be accessed on /api/health');
+    }
+  };
+
+  const req = new Request('https://api.ferasetu.com/api/health');
+  const res = await worker.fetch(req, { DB: spyDb });
+  assert.equal(res.status, 200);
+  assert.equal(dbCalls, 0, 'Database was unexpectedly accessed during /api/health');
+});
+
+await test('15. ensureTables fast-path executes only 1 verification query when DB is already migrated', async () => {
+  _resetTablesInitialized();
+  let checkCalls = 0;
+  let totalCalls = 0;
+  const spyDb = {
+    prepare(sql) {
+      totalCalls++;
+      if (sql.includes('SELECT 1 FROM organizations')) {
+        checkCalls++;
+      }
+      return {
+        bind() { return this; },
+        async first() {
+          if (sql.includes('FROM organizations')) {
+            return { 1: 1 };
+          }
+          return null;
+        },
+        async all() {
+          return { results: [] };
+        }
+      };
+    },
+    async exec() {
+      throw new Error('exec should not be called when organizations table exists');
+    }
+  };
+
+  // Route to a DB-dependent endpoint
+  const req = new Request('https://api.ferasetu.com/api/website/public/nonexistent-shop-test');
+  await worker.fetch(req, { DB: spyDb });
+  assert.equal(checkCalls, 1, `Expected exactly 1 verification query, but got ${checkCalls}`);
+  assert.ok(totalCalls <= 5, `Expected <= 5 total queries including endpoint, got ${totalCalls}`);
 });
 
 console.log('\n────────────────────────────────────────────────────────────');

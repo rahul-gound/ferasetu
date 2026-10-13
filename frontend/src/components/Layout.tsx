@@ -19,7 +19,6 @@ import {
   Gift,
   ChevronDown,
   Settings,
-  Terminal,
   Zap,
   ArrowUpRight,
 } from 'lucide-react';
@@ -105,10 +104,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           badgeColor: 'blue',
         },
         { path: '/website-builder', icon: <Globe size={17} />, label: 'Website Builder' },
-        {
-          path: '/pro-studio', icon: <Terminal size={17} />, label: 'Pro Studio',
-          badge: 'PRO', badgeColor: 'orange',
-        },
       ],
     },
     {

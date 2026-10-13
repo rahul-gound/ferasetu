@@ -30,7 +30,6 @@ export const KNOWN_FERASETU_ROUTES = [
   { path: '/analytics', name: 'Store Analytics', category: 'merchant', authRequired: true, safe: true },
   { path: '/ferasetu-ai', name: 'FeraSetu AI Assistant', category: 'merchant', authRequired: true, safe: true },
   { path: '/website-builder', name: 'Website Builder', category: 'merchant', authRequired: true, safe: true },
-  { path: '/pro-studio', name: 'Pro Studio IDE', category: 'merchant', authRequired: true, safe: true },
   { path: '/settings/email', name: 'Custom Email & SMTP', category: 'merchant', authRequired: true, safe: true },
   { path: '/support', name: 'Merchant Support Desk', category: 'merchant', authRequired: true, safe: true },
 

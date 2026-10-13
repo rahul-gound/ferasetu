@@ -1,6 +1,6 @@
 # FeraSetu (फेरासेतु)
 
-> **AI-Powered E-Commerce & Edge Commerce Operating System for Indian Small Retailers**
+> **AI-Powered E-Commerce & Edge Commerce Operating System for Global Shopkeepers & Independent Retailers**
 
 FeraSetu bridges the digital divide for local shopkeepers, kirana merchants, and independent businesses across India and global markets. It transforms offline, catalog, and WhatsApp-based commerce into an enterprise-grade digital storefront, complete with an Indic-first conversational AI manager, edge-accelerated performance, multi-language localization, GST-compliant invoicing, and low-code visual website building—requiring zero technical or coding knowledge.
 

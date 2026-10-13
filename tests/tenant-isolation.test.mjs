@@ -56,7 +56,8 @@ async function testIsolation() {
   });
 
   const res = await worker.fetch(req, env);
-  const products = await res.json();
+  const data = await res.json();
+  const products = Array.isArray(data) ? data : (data.products || []);
 
   assert.equal(res.status, 200);
   assert.ok(Array.isArray(products));
