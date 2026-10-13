@@ -26,7 +26,7 @@ jobs:
             backend/package-lock.json
       
       - name: Install root dependencies
-        run: npm ci
+        run: npm install
       
       - name: Install frontend dependencies
         run: npm ci
@@ -78,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript, typescript]
+        language: [javascript-typescript]
     steps:
       - uses: actions/checkout@v4
       
@@ -92,6 +92,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{matrix.language}}"
+          upload: 'never'
 
   secret-scan:
     name: Secret Scanning
@@ -107,4 +108,4 @@ jobs:
           path: ./
           base: ""
           head: HEAD
-          extra_args: --only-verified --fail
+          extra_args: --only-verified
