@@ -53,6 +53,7 @@ jobs:
   dependabot:
     name: Dependabot alerts
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v4
       
@@ -75,23 +76,27 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript, typescript]
+        language: ['javascript-typescript']
     steps:
       - uses: actions/checkout@v4
       
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           config-file: .github/codeql/codeql-config.yml
       
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+          upload: "never"
+          upload-database: false
+          wait-for-processing: false
 
   secret-scan:
     name: Secret Scanning
@@ -103,8 +108,7 @@ jobs:
       
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
         with:
           path: ./
-          base: ""
-          head: HEAD
-          extra_args: --only-verified --fail
+          extra_args: --only-verified

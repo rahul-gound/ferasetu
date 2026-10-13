@@ -2,6 +2,7 @@ import { Router, Response, Request } from 'express';
 import { body, validationResult } from 'express-validator';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { getDatabase } from '../models/database';
 import { toMinorUnits, fromMinorUnits, addMinor, subMinor, formatMinor } from '../utils/money';
@@ -182,7 +183,9 @@ router.post('/create',
     let subtotalMinor = 0;
     const resolvedItems = [];
     const deliveryCode = generateDeliveryCode();
+    const deliveryCodeHash = await bcrypt.hash(deliveryCode, 12);
     const paymentOtp = generatePaymentOtp();
+    const paymentOtpHash = await bcrypt.hash(paymentOtp, 12);
 
     for (const item of items) {
       const product = db.prepare('SELECT * FROM products WHERE id = ? AND user_id = ? AND is_active = 1')
@@ -228,15 +231,15 @@ router.post('/create',
         delivery_type, items, subtotal, delivery_fee, total, currency,
         subtotal_minor, delivery_fee_minor, total_minor, amount_paid_minor,
         refundable_amount_minor, refunded_amount_minor, notes, payment_status,
-        payment_method, cancellation_status, return_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'none', 'none')
+        payment_method, cancellation_status, return_status, payment_otp_hash, delivery_code_hash
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'none', 'none', ?, ?)
     `).run(
       orderId, shopId, customerName, customerEmail || null, customerPhone,
       deliveryAddress || null, deliveryType, JSON.stringify(resolvedItems),
       subtotalDecimal, deliveryFeeDecimal, totalDecimal, currency,
       subtotalMinor, deliveryFeeMinor, totalMinor, amountPaidMinor,
-      amountPaidMinor, `Code: ${deliveryCode} | OTP: ${paymentOtp}`,
-      'unpaid', paymentMethod
+      amountPaidMinor, null,
+      'unpaid', paymentMethod, paymentOtpHash, deliveryCodeHash
     );
 
     // Generate authoritative immutable Invoice (idempotent)
@@ -597,6 +600,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
   const amountPaidMinor = isPaid ? totalMinor : 0;
   const orderId = uuidv4();
   const deliveryCode = generateDeliveryCode();
+  const deliveryCodeHash = await bcrypt.hash(deliveryCode, 12);
   const trackingToken = generateOrderTrackingToken(orderId, finalCustomerPhone || '');
 
   db.prepare(`
@@ -605,13 +609,13 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
       items, subtotal, delivery_fee, total, currency, subtotal_minor, delivery_fee_minor,
       total_minor, amount_paid_minor, refundable_amount_minor, refunded_amount_minor,
       status, notes, payment_status, payment_method, cancellation_status, return_status,
-      delivery_code, tracking_token
+      delivery_code_hash, tracking_token
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'none', 'none', ?, ?)
   `).run(
     orderId, userId, finalCustomerName, finalCustomerPhone, finalDeliveryAddress, finalDeliveryType,
     JSON.stringify(resolvedItems), subtotalDecimal, deliveryFeeDecimal, totalDecimal, currency,
     calculatedSubtotalMinor, deliveryFeeMinor, totalMinor, amountPaidMinor, amountPaidMinor,
-    status, notes || null, payment_status, payment_method, deliveryCode, trackingToken
+    status, notes || null, payment_status, payment_method, deliveryCodeHash, trackingToken
   );
 
   // Generate immutable invoice (idempotent)
@@ -752,13 +756,30 @@ router.post('/:id/verify-otp', async (req: AuthenticatedRequest, res: Response):
     const actualOtp = (order.notes || '').match(/OTP:\s*([0-9]+)/i)?.[1];
     const actualCode = (order.notes || '').match(/Code:\s*([A-Z0-9]+)/i)?.[1];
 
-    const isValid = Boolean(
-      inputVal && (
-        inputVal === actualDeliveryCode ||
-        inputVal === actualOtp ||
-        inputVal === actualCode
-      )
-    );
+    let isValid = false;
+
+    if (inputVal && actualDeliveryCode && inputVal === actualDeliveryCode) {
+      isValid = true;
+    } else if (inputVal && actualCode && inputVal === actualCode) {
+      isValid = true;
+    } else if (inputVal && actualOtp && inputVal === actualOtp) {
+      isValid = true;
+    } else if (inputVal && order.delivery_code_hash) {
+      if (order.delivery_code_hash.startsWith('$2a$') || order.delivery_code_hash.startsWith('$2b$')) {
+        isValid = await bcrypt.compare(inputVal, order.delivery_code_hash);
+      } else {
+        isValid = inputVal === order.delivery_code_hash; // Worker stores delivery code in delivery_code_hash as plain text!
+      }
+    }
+
+    if (!isValid && inputVal && order.payment_otp_hash) {
+      if (order.payment_otp_hash.startsWith('$2a$') || order.payment_otp_hash.startsWith('$2b$')) {
+        isValid = await bcrypt.compare(inputVal, order.payment_otp_hash);
+      } else {
+        const expectedHash = crypto.createHash('sha256').update(inputVal).digest('hex');
+        isValid = expectedHash === order.payment_otp_hash;
+      }
+    }
 
     if (!isValid) {
       res.status(400).json({ error: 'Invalid delivery code / OTP' });
