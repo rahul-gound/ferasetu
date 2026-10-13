@@ -249,20 +249,34 @@ export async function handleAdminRoutes(request, env) {
       // 7-day revenue chart
       const revenueChart = [];
       const now = new Date();
+      const dates = [];
+      const statements = [];
+
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const ymd = d.toISOString().slice(0, 10);
-        try {
-          const dayRow = await env.DB.prepare(
+        dates.push(ymd);
+        statements.push(
+          env.DB.prepare(
             "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
-          ).bind(`${ymd}%`).first();
+          ).bind(`${ymd}%`)
+        );
+      }
+
+      try {
+        const batchResults = await env.DB.batch(statements);
+        for (let i = 0; i < dates.length; i++) {
+          const dayResults = batchResults[i]?.results;
+          const dayRow = dayResults && dayResults.length > 0 ? dayResults[0] : null;
           revenueChart.push({
-            date: ymd,
+            date: dates[i],
             revenue: dayRow?.rev || 0,
             orders: dayRow?.cnt || 0
           });
-        } catch {
-          revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+        }
+      } catch (err) {
+        for (let i = 0; i < dates.length; i++) {
+          revenueChart.push({ date: dates[i], revenue: 0, orders: 0 });
         }
       }
 
