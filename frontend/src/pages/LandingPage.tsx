@@ -464,37 +464,13 @@ export default function LandingPage() {
 
 
         {/* ================================================================
-          SECTION 4 — THE COMPLETE CIRCUIT: ONE MAIN INTERACTIVE PRODUCT JOURNEY
+          SECTION 4 — THE COMPLETE CIRCUIT: SCROLL-DRIVEN PRODUCT JOURNEY
         ================================================================ */}
-        <section id="complete-circuit" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
-            <div className="text-center max-w-2xl mx-auto mb-12">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
-                <span>THE PRODUCT CIRCUIT</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                One connected workflow from physical shop to returning customer.
-              </h2>
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
-                No messy plugins. No middleman holding your inventory hostage. Four clear stages connect your business to the web.
-              </p>
-            </div>
-
-            {/* Consolidated Interactive 4-Stage Stepper */}
-            <CompleteCircuit demo={demo} market={market} />
-
-            <div className="text-center mt-10">
-              <button
-                type="button"
-                onClick={() => handleStart('circuit_start')}
-                className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-              >
-                <span>Ready to start? Launch your store in minutes</span>
-                <ArrowRight size={15} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </section>
+        <CompleteCircuit
+          demo={demo}
+          market={market}
+          onStart={() => handleStart('circuit_start')}
+        />
 
 
         {/* ================================================================
