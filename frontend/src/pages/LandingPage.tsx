@@ -39,7 +39,7 @@ const SectionFallback = () => (
 );
 
 export default function LandingPage() {
-  const { getLocalizedLink } = useLanguage();
+  const { language, translate, getLocalizedLink } = useLanguage();
   const { user, register } = useAuth();
   const { market, config, formatPrice } = useMarket();
   const navigate = useNavigate();
@@ -111,11 +111,20 @@ export default function LandingPage() {
     }
   };
 
+  const isDefaultLang = language === 'en';
+  const pageTitle = isDefaultLang
+    ? 'FeraSetu — Your business is yours. The internet should be too.'
+    : translate('seo.landing.title');
+  const pageDescription = isDefaultLang
+    ? 'Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. 0% FeraSetu platform commission.'
+    : translate('seo.landing.desc');
+
   return (
     <>
       <SEO
-        title="FeraSetu — Your business is yours. The internet should be too."
-        description="Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. 0% FeraSetu platform commission."
+        title={pageTitle}
+        description={pageDescription}
+        url={isDefaultLang ? 'https://ferasetu.com/' : undefined}
         noindex={false}
         structuredData={{
           '@context': 'https://schema.org',

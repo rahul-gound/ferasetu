@@ -83,7 +83,11 @@ export default function ReferEarnPage() {
 
   return (
     <div className="pb-12 max-w-[1380px] mx-auto space-y-6">
-      <SEO title="Refer & Earn | FeraSetu" />
+      <SEO
+        title="Refer & Earn | FeraSetu"
+        description="Invite fellow shopkeepers to FeraSetu and earn rewards. Help local retailers bring their stores online with 0% commission."
+        noindex
+      />
 
       {/* Back Button */}
       <div>

@@ -147,8 +147,8 @@ export default function PrivacyPage() {
   return (
     <PublicLayout>
       <SEO
-        title="FeraSetu Privacy Policy"
-        description="Learn how FeraSetu collects, uses, protects, and manages personal data when you use FeraSetu services."
+        title="Privacy Policy — FeraSetu"
+        description="Learn how FeraSetu collects, uses, protects, and manages personal data when you use FeraSetu services with transparency and security."
         url="https://ferasetu.com/privacy"
         type="website"
       />
