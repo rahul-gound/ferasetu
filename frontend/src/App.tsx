@@ -75,6 +75,9 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function LanguageRouteGuard() {
   const { lang } = useParams<{ lang: string }>();
+  if (lang === 'en') {
+    return <Navigate to="/" replace />;
+  }
   const isValidLang = Boolean(lang && ENABLED_LANGUAGES.some((l) => l.code === lang));
   if (!isValidLang) {
     return <NotFoundPage />;
@@ -207,7 +210,9 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
 
-        {/* Legacy Regional Redirects to Canonical Clean URLs */}
+        {/* Legacy Regional & Default English Redirects to Canonical Clean URLs */}
+        <Route path="/en" element={<Navigate to="/" replace />} />
+        <Route path="/en/*" element={<Navigate to="/" replace />} />
         <Route path="/eu/uk" element={<Navigate to="/" replace />} />
         <Route path="/eu/uk/*" element={<Navigate to="/" replace />} />
         <Route path="/uk" element={<Navigate to="/" replace />} />
