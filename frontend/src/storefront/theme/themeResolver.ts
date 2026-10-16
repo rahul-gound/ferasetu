@@ -34,9 +34,17 @@ export function resolveStorefrontTheme(
   // 1. Identify base theme safely
   let themeId: ThemeId = 'market';
   if (typeof themeIdInput === 'string') {
-    const normalized = themeIdInput.toLowerCase().trim() as ThemeId;
-    if (THEME_REGISTRY[normalized]) {
-      themeId = normalized;
+    let normalized = themeIdInput.toLowerCase().trim();
+    if (
+      normalized === 'mono-electronic' ||
+      normalized === 'mono_electronic' ||
+      normalized === 'tech' ||
+      normalized === 'electronics'
+    ) {
+      normalized = 'electronic';
+    }
+    if (THEME_REGISTRY[normalized as ThemeId]) {
+      themeId = normalized as ThemeId;
     }
   }
 

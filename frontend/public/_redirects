@@ -1,6 +1,6 @@
 # Cloudflare Pages Redirects & Proxies
 # Proxy all /api/* requests to the production Cloudflare Worker API
-/api/*  https://api.ferasetu.com/api/:splat  200
+/api/*  https://ferasetu.singhantima203.workers.dev/api/:splat  200
 
 # Canonical 301 redirects for default English & regional aliases
 /en        /       301

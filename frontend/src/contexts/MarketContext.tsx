@@ -113,11 +113,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       // 2. Relative /api/geo (proxied via Cloudflare Pages _redirects and local dev proxy)
       // 3. Fallback worker hostname
       // 4. Privacy-first public IP-country fallback (api.country.is)
+      const defaultWorkerGeo = 'https://ferasetu.singhantima203.workers.dev/api/geo';
+      const configuredApi = import.meta.env?.VITE_API_URL
+        ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/geo`
+        : defaultWorkerGeo;
       const endpoints = [
-        'https://api.ferasetu.com/api/geo',
+        configuredApi,
         '/api/geo',
-        'https://ferasetu.singhantima203.workers.dev/api/geo',
-        'https://api.country.is/',
       ];
 
       for (const endpoint of endpoints) {

@@ -18,7 +18,11 @@ export interface AnalyticsEventPayload {
   session_id?: string | null;
 }
 
-const INGESTION_ENDPOINT = '/api/analytics/events';
+const defaultApiUrl = typeof window !== 'undefined' && window.location.hostname === 'ferasetu.com'
+  ? 'https://ferasetu.singhantima203.workers.dev/api'
+  : '/api';
+const rawApiUrl = (import.meta.env?.VITE_API_URL || defaultApiUrl).replace(/\/+$/, '');
+const INGESTION_ENDPOINT = `${rawApiUrl}/analytics/events`;
 const BATCH_FLUSH_INTERVAL_MS = 3000;
 const MAX_QUEUE_SIZE = 15;
 

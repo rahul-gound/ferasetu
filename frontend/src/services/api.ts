@@ -1447,11 +1447,8 @@ async function localDelete(url: string) {
   throw createHttpError(404, `Unknown DELETE endpoint: ${path}`);
 }
 
-const isFeraSetuDomain = typeof window !== 'undefined' && (
-  window.location.hostname === 'ferasetu.com' ||
-  window.location.hostname.endsWith('.ferasetu.com')
-);
-const defaultApiUrl = isFeraSetuDomain ? 'https://api.ferasetu.com/api' : '/api';
+const isApexDomain = typeof window !== 'undefined' && window.location.hostname === 'ferasetu.com';
+const defaultApiUrl = isApexDomain ? 'https://ferasetu.singhantima203.workers.dev/api' : '/api';
 const rawBaseUrl = (import.meta.env?.VITE_API_URL || defaultApiUrl).replace(/\/+$/, '');
 const normalizedBaseUrl = rawBaseUrl.endsWith('/api') ? rawBaseUrl : (rawBaseUrl + '/api');
 

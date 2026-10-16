@@ -26,6 +26,9 @@ import CustomerAuthModal from '../../storefront/components/CustomerAuthModal';
 import CustomerAccountDrawer from '../../storefront/components/CustomerAccountDrawer';
 import TrackOrderModal from './TrackOrderModal';
 
+// Dedicated Templates
+import MonoElectronicTemplate from '../../storefront/templates/electronic/MonoElectronicTemplate';
+
 export interface TemplateRendererProps {
   sections?: TemplateSection[] | any[];
   products: ShopProduct[];
@@ -112,85 +115,92 @@ export default function TemplateRenderer({
           </div>
         )}
 
-        {/* Render Normalized Storefront Sections */}
-        {resolvedTheme.sections.map((section) => {
-          if (section.enabled === false) return null;
+        {/* If Electronic / Mono Electronic theme is selected, render its signature dual-column layout */}
+        {resolvedTheme.id === 'electronic' ? (
+          <MonoElectronicTemplate />
+        ) : (
+          <>
+            {/* Render Normalized Storefront Sections */}
+            {resolvedTheme.sections.map((section) => {
+              if (section.enabled === false) return null;
 
-          const key = section.id;
-          const config = section.config || {};
-          const variant = section.variant;
+              const key = section.id;
+              const config = section.config || {};
+              const variant = section.variant;
 
-          switch (section.type) {
-            case 'announcement':
-              return <AnnouncementBarSection key={key} config={config} variant={variant} />;
+              switch (section.type) {
+                case 'announcement':
+                  return <AnnouncementBarSection key={key} config={config} variant={variant} />;
 
-            case 'header':
-              return (
-                <HeaderSection
-                  key={key}
-                  config={config}
-                  variant={variant || resolvedTheme.headerVariant}
-                />
-              );
+                case 'header':
+                  return (
+                    <HeaderSection
+                      key={key}
+                      config={config}
+                      variant={variant || resolvedTheme.headerVariant}
+                    />
+                  );
 
-            case 'hero':
-              return (
-                <HeroSection
-                  key={key}
-                  config={config}
-                  variant={variant || resolvedTheme.heroVariant}
-                />
-              );
+                case 'hero':
+                  return (
+                    <HeroSection
+                      key={key}
+                      config={config}
+                      variant={variant || resolvedTheme.heroVariant}
+                    />
+                  );
 
-            case 'category-grid':
-              return <CategoryGridSection key={key} config={config} variant={variant} />;
+                case 'category-grid':
+                  return <CategoryGridSection key={key} config={config} variant={variant} />;
 
-            case 'product-grid':
-              return (
-                <ProductGridSection
-                  key={key}
-                  config={config}
-                  variant={variant || resolvedTheme.cardVariant}
-                />
-              );
+                case 'product-grid':
+                  return (
+                    <ProductGridSection
+                      key={key}
+                      config={config}
+                      variant={variant || resolvedTheme.cardVariant}
+                    />
+                  );
 
-            case 'featured-product':
-              return <FeaturedProductSection key={key} config={config} variant={variant} />;
+                case 'featured-product':
+                  return <FeaturedProductSection key={key} config={config} variant={variant} />;
 
-            case 'trust-strip':
-              return <TrustStripSection key={key} config={config} variant={variant} />;
+                case 'trust-strip':
+                  return <TrustStripSection key={key} config={config} variant={variant} />;
 
-            case 'brand-story':
-              return <BrandStorySection key={key} config={config} variant={variant} />;
+                case 'brand-story':
+                  return <BrandStorySection key={key} config={config} variant={variant} />;
 
-            case 'testimonials':
-              return <TestimonialsSection key={key} config={config} variant={variant} />;
+                case 'testimonials':
+                  return <TestimonialsSection key={key} config={config} variant={variant} />;
 
-            case 'faq':
-              return <FAQSection key={key} config={config} variant={variant} />;
+                case 'faq':
+                  return <FAQSection key={key} config={config} variant={variant} />;
 
-            case 'newsletter':
-              return <NewsletterSection key={key} config={config} variant={variant} />;
+                case 'newsletter':
+                  return <NewsletterSection key={key} config={config} variant={variant} />;
 
-            case 'footer':
-              return (
-                <FooterSection
-                  key={key}
-                  config={config}
-                  variant={variant || resolvedTheme.footerVariant}
-                />
-              );
+                case 'footer':
+                  return (
+                    <FooterSection
+                      key={key}
+                      config={config}
+                      variant={variant || resolvedTheme.footerVariant}
+                    />
+                  );
 
-            default:
-              return null;
-          }
-        })}
+                default:
+                  return null;
+              }
+            })}
 
-        {/* Global Storefront Overlays */}
-        <ProductDetailModal />
-        <CartDrawer />
-        <CustomerAuthModal />
-        <CustomerAccountDrawer />
+            {/* Global Storefront Overlays */}
+            <ProductDetailModal />
+            <CartDrawer />
+            <CustomerAuthModal />
+            <CustomerAccountDrawer />
+          </>
+        )}
 
         {/* Track Order Modal */}
         {showTrackModal && (

@@ -36,6 +36,7 @@ interface DesignPanelProps {
 }
 
 export const THEME_PRESETS = [
+  { id: 'electronic', name: 'Mono Electronic', desc: 'Hardware store with 3D tilt hero, spec compare matrix & quick view', color: '#E4572E' },
   { id: 'market', name: 'Market Retail', desc: 'Fast, vibrant dynamic commerce with badge highlights', color: '#2563eb' },
   { id: 'atelier', name: 'Atelier Luxury', desc: 'Refined editorial serif typography with serene neutrals', color: '#1e293b' },
   { id: 'mono', name: 'Mono Brutalist', desc: 'Architectural precision, high contrast, monospace vibes', color: '#09090b' },

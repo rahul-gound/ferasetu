@@ -197,13 +197,26 @@ export async function handleMediaCdnRequest(request, env, ctx) {
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
 
-  // 1. Only allow GET and HEAD methods on CDN gateway
+  // 1. Handle CORS preflight and allowed methods on CDN gateway
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range, If-None-Match, If-Modified-Since, Authorization',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers: {
         'Content-Type': 'application/json',
         'Allow': 'GET, HEAD',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   }
@@ -378,6 +391,7 @@ export async function handleMediaCdnRequest(request, env, ctx) {
 
         const cachedHeaders = new Headers(cached.headers);
         cachedHeaders.set('X-FeraSetu-Cache', 'HIT');
+        cachedHeaders.set('Access-Control-Allow-Origin', '*');
         return new Response(cached.body, {
           status: cached.status,
           statusText: cached.statusText,
@@ -400,7 +414,10 @@ export async function handleMediaCdnRequest(request, env, ctx) {
     });
     return new Response(JSON.stringify({ error: 'Storage backend configuration error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   }
 
@@ -426,6 +443,7 @@ export async function handleMediaCdnRequest(request, env, ctx) {
           'Cache-Control': 'public, max-age=60', // Brief negative caching for 404
           'X-Content-Type-Options': 'nosniff',
           'X-FeraSetu-Cache': 'MISS',
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -439,6 +457,7 @@ export async function handleMediaCdnRequest(request, env, ctx) {
           'Cache-Control': isVersioned
             ? 'public, max-age=31536000, immutable'
             : 'public, max-age=86400, stale-while-revalidate=3600',
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -456,6 +475,7 @@ export async function handleMediaCdnRequest(request, env, ctx) {
         headers: {
           'Content-Type': 'application/json',
           'X-Content-Type-Options': 'nosniff',
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -465,6 +485,7 @@ export async function handleMediaCdnRequest(request, env, ctx) {
     responseHeaders.set('Content-Type', inferContentType(objectKey, b2Res.headers.get('content-type')));
     responseHeaders.set('X-Content-Type-Options', 'nosniff');
     responseHeaders.set('X-FeraSetu-Cache', 'MISS');
+    responseHeaders.set('Access-Control-Allow-Origin', '*');
 
     // Immutable 1-year caching ONLY for genuinely versioned assets; 1 day for non-versioned
     if (isVersioned) {

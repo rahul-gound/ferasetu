@@ -60,5 +60,7 @@ __pycache__/
 
 .codex/
 ferasetu-smtp/.codex/
+extracted-mono-template/
+ferasetu-experiment/
 
 
