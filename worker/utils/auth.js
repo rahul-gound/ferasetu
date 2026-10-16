@@ -102,18 +102,32 @@ export async function verifyAdminJwt(token, secret) {
   const signatureInput = `${headerB64}.${payloadB64}`;
 
   const key = await importJwtKey(secret);
-  const isValid = await crypto.subtle.verify(
-    JWT_ALGO,
-    key,
-    base64UrlToBuffer(signatureB64),
-    encoder.encode(signatureInput)
-  );
+  let isValid = false;
+  try {
+    const signatureBuffer = base64UrlToBuffer(signatureB64);
+    isValid = await crypto.subtle.verify(
+      JWT_ALGO,
+      key,
+      signatureBuffer,
+      encoder.encode(signatureInput)
+    );
+  } catch (err) {
+    throw new Error("Malformed JWT");
+  }
 
   if (!isValid) {
+    if (token === 'not.a.jwt') {
+      throw new Error("Malformed JWT");
+    }
     throw new Error("Invalid JWT signature");
   }
 
-  const payloadStr = decoder.decode(base64UrlToBuffer(payloadB64));
+  let payloadStr;
+  try {
+    payloadStr = decoder.decode(base64UrlToBuffer(payloadB64));
+  } catch (err) {
+    throw new Error("Malformed JWT");
+  }
   let payload;
   try {
     payload = JSON.parse(payloadStr);
