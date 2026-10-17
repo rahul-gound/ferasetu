@@ -28,5 +28,7 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 | **Orders Dashboard**| `frontend/src/pages/OrdersPage.tsx` | Order status tracking, CSV exports, + Add Order WhatsApp link generation |
 | **Add Order Modal** | `frontend/src/components/orders/AddOrderModal.tsx` | Merchant order assembly, 1-click WhatsApp storefront checkout link, direct cash order recorder |
 | **Shared Storefront Cart** | `frontend/src/storefront/runtime/StorefrontProvider.tsx`, `frontend/src/storefront/components/CartDrawer.tsx` | Preloaded cart from merchant link (`?cart=...`), customer banner, seamless item addition and checkout on official store domain |
+| **Landing Page & Animations** | `frontend/src/pages/LandingPage.tsx`, `frontend/src/components/public/PublicSmoothScroll.tsx`, `frontend/src/components/marketing/StorefrontShowcase.tsx`, `frontend/src/components/marketing/CompleteCircuit.tsx` | Lenis smooth scroll ticker synced with GSAP ScrollTrigger, pinned horizontal card scrub, and 4-stage narrative stepper |
 | **Fera AI Studio** | `frontend/src/pages/FeraAIPage.tsx` | Conversational manager & voice input UI |
+
 
