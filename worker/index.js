@@ -2912,16 +2912,19 @@ async function ensureTables(db) {
   tablesInitPromise = (async () => {
     try {
       // Fast path: In production and warm isolates, D1 schema tables already exist.
-      // A single 1-row check prevents 235 sequential D1 roundtrips on cold starts.
+      // Verify that newest schema additions exist before skipping table definitions.
       if (typeof db.prepare === 'function') {
         try {
           const orgExists = await db.prepare("SELECT 1 FROM organizations LIMIT 1").first();
-          if (orgExists !== undefined) {
+          const draftExists = await db.prepare("SELECT 1 FROM website_drafts LIMIT 1").first();
+          const connExists = await db.prepare("SELECT 1 FROM website_connections LIMIT 1").first();
+          const verExists = await db.prepare("SELECT 1 FROM website_versions LIMIT 1").first();
+          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined) {
             tablesInitialized = true;
             return;
           }
         } catch {
-          // Schema not initialized yet; fall through to run full D1 table definitions
+          // Schema not fully initialized or migrations pending; fall through to run full D1 table definitions
         }
       }
 
@@ -7396,7 +7399,9 @@ async function handleCustomerLogout(request, env) {
 
 async function handleCustomerMe(request, env) {
   const orgId = await resolveStorefrontOrgId(request, env);
-  if (!orgId) throw new HttpError("Storefront context required", 400);
+  if (!orgId) {
+    return json({ authenticated: false, customer: null }, 200, {}, request);
+  }
 
   const cookies = parseCookies(request);
   const sessionToken = cookies['fs_customer_session'] ||

@@ -71,6 +71,7 @@ interface LocalWebsite {
   user_id: string;
   name: string;
   template: string;
+  theme?: any;
   sections: unknown[];
   config: Record<string, unknown>;
   is_published: 0 | 1;
@@ -298,6 +299,44 @@ async function localGet(url: string) {
     const website = db.websites.find(w => w.user_id === userId);
     if (!website) throw createHttpError(404, 'Website not found');
     return Promise.resolve(createResponse(website));
+  }
+
+  if (path === '/builder/draft') {
+    const userId = requireAuth();
+    const website = db.websites.find(w => w.user_id === userId);
+    if (!website) {
+      return Promise.resolve(createResponse({ draft: null, version: 1, exists: false }));
+    }
+    const draft = {
+      name: website.name,
+      template: website.template || 'market',
+      activePageId: 'page_home',
+      pages: [
+        {
+          id: 'page_home',
+          name: 'Home',
+          slug: '/',
+          title: website.name,
+          nodes: website.sections || [],
+        },
+      ],
+      theme: website.theme || { id: website.template || 'market' },
+      config: website.config || {},
+      tokens: {
+        colors: { primary: '#0F172A', secondary: '#16A34A', background: '#ffffff', text: '#111827' },
+        typography: { fontFamily: 'sans', headingFont: 'sans', baseFontSize: 16 },
+      },
+      workflows: [],
+    };
+    return Promise.resolve(createResponse({ draft, version: 1, exists: true, updated_at: website.updated_at }));
+  }
+
+  if (path === '/builder/connections') {
+    return Promise.resolve(createResponse({ connections: [] }));
+  }
+
+  if (path === '/builder/versions') {
+    return Promise.resolve(createResponse({ versions: [] }));
   }
 
   if (path === '/website/templates') {
@@ -940,6 +979,8 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     if (existing) {
       existing.name = String(payload.name || existing.name);
       existing.template = String(payload.template || existing.template || 'general');
+      existing.theme = payload.theme !== undefined ? payload.theme : existing.theme;
+      existing.config = payload.config !== undefined ? payload.config : existing.config;
       existing.sections = Array.isArray(payload.sections) ? payload.sections : existing.sections;
       existing.updated_at = now();
       saveDb(db);
@@ -951,8 +992,9 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
       user_id: userId,
       name: String(payload.name || 'My Store'),
       template: String(payload.template || 'general'),
+      theme: payload.theme || { id: payload.template || 'general' },
       sections: Array.isArray(payload.sections) ? payload.sections : [],
-      config: {},
+      config: payload.config || {},
       is_published: 0,
       created_at: now(),
       updated_at: now(),
@@ -960,6 +1002,51 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     db.websites.push(website);
     saveDb(db);
     return createResponse(website, 201);
+  }
+
+  if (path === '/builder/draft') {
+    const userId = requireAuth();
+    const draftData = payload.draft || {};
+    let existing = db.websites.find(w => w.user_id === userId);
+    if (!existing) {
+      existing = {
+        id: createId(),
+        user_id: userId,
+        name: String(draftData.name || 'My Store'),
+        template: String(draftData.template || 'market'),
+        theme: draftData.theme || { id: draftData.template || 'market' },
+        sections: draftData.pages?.[0]?.nodes || [],
+        config: draftData.config || {},
+        is_published: 0,
+        created_at: now(),
+        updated_at: now(),
+      };
+      db.websites.push(existing);
+    } else {
+      existing.name = String(draftData.name || existing.name);
+      existing.template = String(draftData.template || existing.template);
+      existing.theme = draftData.theme || { id: existing.template };
+      if (draftData.pages?.[0]?.nodes) {
+        existing.sections = draftData.pages[0].nodes;
+      }
+      if (draftData.config) {
+        existing.config = { ...existing.config, ...draftData.config };
+      }
+      existing.updated_at = now();
+    }
+    saveDb(db);
+    return Promise.resolve(createResponse({ success: true, saved_at: now() }));
+  }
+
+  if (path === '/builder/publish') {
+    const userId = requireAuth();
+    const existing = db.websites.find(w => w.user_id === userId);
+    if (existing) {
+      existing.is_published = 1;
+      existing.updated_at = now();
+      saveDb(db);
+    }
+    return Promise.resolve(createResponse({ success: true, published_version: 1, published_at: now() }));
   }
 
   if (path === '/ai/chat') {

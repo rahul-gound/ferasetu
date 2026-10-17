@@ -325,6 +325,9 @@ function AppContent() {
         <AuthKitProvider 
           clientId={import.meta.env.VITE_WORKOS_CLIENT_ID || 'client_01KZRE47KGSPK84HEP9WNBG9YY'}
           redirectUri={window.location.origin + '/callback'}
+          devMode={true}
+          refreshBufferInterval={60}
+          onBeforeAutoRefresh={() => true}
           onRefreshFailure={handleRefreshFailure}
         >
           <AuthProvider>

@@ -35,17 +35,7 @@ interface DesignPanelProps {
   onBindWorkflowToNode?: (nodeId: string, workflowId: string) => void;
 }
 
-export const THEME_PRESETS = [
-  { id: 'electronic', name: 'Mono Electronic', desc: 'Hardware store with 3D tilt hero, spec compare matrix & quick view', color: '#E4572E' },
-  { id: 'market', name: 'Market Retail', desc: 'Fast, vibrant dynamic commerce with badge highlights', color: '#2563eb' },
-  { id: 'atelier', name: 'Atelier Luxury', desc: 'Refined editorial serif typography with serene neutrals', color: '#1e293b' },
-  { id: 'mono', name: 'Mono Brutalist', desc: 'Architectural precision, high contrast, monospace vibes', color: '#09090b' },
-  { id: 'bold', name: 'Bold Rounded', desc: 'Punchy lifestyle cards, playful pills, youthful energy', color: '#7c3aed' },
-  { id: 'artisan', name: 'Artisan Craft', desc: 'Earthy warmth, handmade textures, authentic storytelling', color: '#b45309' },
-  { id: 'studio', name: 'Studio Minimal', desc: 'Clean portfolio aesthetic, contemporary grid spacing', color: '#0f766e' },
-  { id: 'home', name: 'Home & Living', desc: 'Gentle warm neutrals for interior design and decor', color: '#d97706' },
-  { id: 'dine', name: 'Dine Culinary', desc: 'Rich appetizing tones for cafe, bakery, and restaurants', color: '#b91c1c' },
-];
+export { THEME_PRESETS } from '../../storefront/theme/themeDefinitions';
 
 export const AVAILABLE_BLOCKS = [
   { type: 'hero', label: 'Hero Showcase', category: 'Page Block', desc: 'Prominent headline, imagery, and primary CTA' },
@@ -155,7 +145,6 @@ export default function DesignPanel({
                     key={t.id}
                     onClick={() => {
                       onThemeSelect(t.id);
-                      onColorChange(t.color);
                     }}
                     className={`text-left p-3 rounded-xl border text-xs transition-all relative ${
                       selectedTheme === t.id

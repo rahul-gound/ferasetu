@@ -146,9 +146,9 @@ export default function WebsiteBuilderPage() {
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [faviconUrl, setFaviconUrl] = useState<string>('');
   const [overrides, setOverrides] = useState<MerchantThemeOverrides>({
-    primaryColor: '#2563eb',
-    accentColor: '#1e293b',
-    fontFamily: 'Inter, sans-serif',
+    primaryColor: '#0F172A',
+    accentColor: '#16A34A',
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     radiusStyle: 'soft',
     density: 'balanced',
   });
@@ -225,11 +225,14 @@ export default function WebsiteBuilderPage() {
       }
       if (websiteData.theme?.overrides) {
         setOverrides((prev) => ({ ...prev, ...websiteData.theme.overrides }));
+      } else if (websiteData.config?.overrides) {
+        setOverrides((prev) => ({ ...prev, ...websiteData.config.overrides }));
       }
       if (Array.isArray(websiteData.sections) && websiteData.sections.length > 0) {
         setSections(normalizeLegacySections(websiteData.sections, websiteData.name));
       } else {
-        setSections(THEME_REGISTRY.market.defaultSections);
+        const defTheme = THEME_REGISTRY[savedThemeId] || THEME_REGISTRY.market;
+        setSections(defTheme.defaultSections);
       }
       setIsPublished(websiteData.is_published === 1);
     } else {
@@ -237,6 +240,54 @@ export default function WebsiteBuilderPage() {
       setSections(THEME_REGISTRY.market.defaultSections);
     }
   }, [draftResponse, websiteData, user]);
+
+  // Dedicated Theme Selection Handler
+  const handleThemeSelect = (themeIdInput: string) => {
+    let tId = (themeIdInput || 'market').toLowerCase().trim() as ThemeId;
+    if (
+      tId === ('mono-electronic' as any) ||
+      tId === ('mono_electronic' as any) ||
+      tId === ('tech' as any) ||
+      tId === ('electronics' as any)
+    ) {
+      tId = 'electronic';
+    }
+    const themeDef = THEME_REGISTRY[tId] || THEME_REGISTRY.market;
+    setSelectedThemeId(tId);
+
+    // Update overrides to match the new theme's native palette, fonts & aesthetics
+    setOverrides((prev) => ({
+      ...prev,
+      primaryColor: themeDef.colors.primary,
+      accentColor: themeDef.colors.accent,
+      fontFamily: themeDef.typography.fontFamilyBody,
+      headingFont: themeDef.typography.fontFamilyHeading,
+      radiusStyle: tId === 'atelier' || tId === 'mono' ? 'sharp' : tId === 'bold' ? 'rounded' : 'soft',
+      density: tId === 'atelier' ? 'editorial' : 'balanced',
+    }));
+
+    // Update sections to the new theme's signature sections, adapting any existing merchant content
+    setSections((currentSections) => {
+      if (!currentSections || currentSections.length === 0) {
+        return themeDef.defaultSections;
+      }
+      return themeDef.defaultSections.map((newSec) => {
+        const existing = currentSections.find((s) => s.type === newSec.type);
+        if (existing) {
+          return {
+            ...newSec,
+            config: {
+              ...newSec.config,
+              ...(existing.config || {}),
+            },
+          };
+        }
+        return newSec;
+      });
+    });
+
+    toast.success(`Theme switched to ${themeDef.name}`);
+  };
 
   // Section Manipulation Handlers
   const handleAddSection = (type: string) => {
@@ -320,8 +371,8 @@ export default function WebsiteBuilderPage() {
         activePageId: 'page_home',
         tokens: {
           colors: {
-            primary: overrides.primaryColor || '#2563eb',
-            secondary: overrides.accentColor || '#4b5563',
+            primary: overrides.primaryColor || '#0F172A',
+            secondary: overrides.accentColor || '#16A34A',
             background: '#ffffff',
             text: '#111827',
           },
@@ -333,9 +384,30 @@ export default function WebsiteBuilderPage() {
         workflows,
       };
 
-      await builderApi.saveDraft(draftPayload);
-      toast.success('Working draft saved safely (not affecting live store)');
+      let saved = false;
+      try {
+        await builderApi.saveDraft(draftPayload);
+        saved = true;
+      } catch (builderErr) {
+        console.warn('Builder draft endpoint warning, falling back to /website:', builderErr);
+      }
+
+      try {
+        await api.post('/website', {
+          name: shopName,
+          template: selectedThemeId,
+          theme: { id: selectedThemeId, overrides },
+          config: { phone: shopPhone, logo: logoUrl, favicon: faviconUrl, overrides },
+          sections,
+        });
+        saved = true;
+      } catch (siteErr) {
+        if (!saved) throw siteErr;
+      }
+
+      toast.success('Working draft saved safely');
       refetchDraft();
+      queryClient.invalidateQueries({ queryKey: ['website'] });
     } catch (err: any) {
       toast.error(err.response?.data?.error || err.message || 'Failed to save draft');
     } finally {
@@ -349,13 +421,30 @@ export default function WebsiteBuilderPage() {
     try {
       // Ensure current state is saved as draft first
       await handleSaveDraft();
-      const res = await builderApi.publishDraft();
+      let published = false;
+      try {
+        const res = await builderApi.publishDraft();
+        setCurrentVersion(res.published_version);
+        published = true;
+      } catch (pubErr) {
+        console.warn('Builder publish warning, syncing via website API:', pubErr);
+      }
+
+      try {
+        await api.post('/website/publish', { published: true });
+        published = true;
+      } catch {}
+
+      if (!published) {
+        throw new Error('Unable to publish live. Please try again.');
+      }
+
       setIsPublished(true);
-      setCurrentVersion(res.published_version);
-      toast.success(`🎉 Store successfully published live as Version ${res.published_version}!`, {
+      toast.success('🎉 Store successfully published live!', {
         duration: 5000,
       });
       queryClient.invalidateQueries({ queryKey: ['website'] });
+      refetchDraft();
     } catch (err: any) {
       toast.error(err.response?.data?.error || err.message || 'Publishing failed');
     } finally {
@@ -550,10 +639,10 @@ export default function WebsiteBuilderPage() {
           {activeTab === 'design' && (
             <DesignPanel
               selectedTheme={selectedThemeId}
-              onThemeSelect={(tId) => setSelectedThemeId(tId as ThemeId)}
-              primaryColor={overrides.primaryColor || '#2563eb'}
+              onThemeSelect={handleThemeSelect}
+              primaryColor={overrides.primaryColor || activeThemeDef.colors.primary}
               onColorChange={(col) => setOverrides((prev) => ({ ...prev, primaryColor: col }))}
-              fontFamily={overrides.fontFamily || 'Inter, sans-serif'}
+              fontFamily={overrides.fontFamily || activeThemeDef.typography.fontFamilyBody}
               onFontChange={(font) => setOverrides((prev) => ({ ...prev, fontFamily: font }))}
               sections={sections}
               onAddSection={handleAddSection}
@@ -634,6 +723,7 @@ export default function WebsiteBuilderPage() {
             {/* Live Storefront Renderer */}
             <div className="flex-1 overflow-x-hidden">
               <TemplateRenderer
+                theme={selectedThemeId}
                 themeId={selectedThemeId}
                 sections={sections}
                 shop={{
@@ -643,8 +733,14 @@ export default function WebsiteBuilderPage() {
                   phone: shopPhone || user?.phone || '',
                   logo_url: logoUrl,
                 }}
+                shopName={shopName || 'My Store'}
+                shopId={user?.id || 'demo-shop'}
+                shopPhone={shopPhone || user?.phone || ''}
+                shopLogo={logoUrl}
                 products={activeProducts}
+                isPreview={true}
                 previewMode={true}
+                overrides={overrides}
                 themeOverrides={overrides}
                 onSelectSection={(secId) => {
                   setSelectedSectionId(secId);

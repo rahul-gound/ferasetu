@@ -32,16 +32,28 @@ import MonoElectronicTemplate from '../../storefront/templates/electronic/MonoEl
 export interface TemplateRendererProps {
   sections?: TemplateSection[] | any[];
   products: ShopProduct[];
-  shopName: string;
-  shopId: string;
+  shopName?: string;
+  shopId?: string;
   shopPhone?: string;
   shopLogo?: string;
   currency?: string;
   currencySymbol?: string;
   theme?: string | Record<string, unknown>;
+  themeId?: string;
   overrides?: MerchantThemeOverrides | Record<string, unknown>;
+  themeOverrides?: MerchantThemeOverrides | Record<string, unknown>;
   isPreview?: boolean;
+  previewMode?: boolean;
+  shop?: {
+    id?: string;
+    name?: string;
+    description?: string;
+    phone?: string;
+    logo_url?: string;
+  };
   initialProductId?: string | null;
+  onSelectSection?: (sectionId: string) => void;
+  selectedSectionId?: string | null;
 }
 
 export default function TemplateRenderer({
@@ -54,9 +66,15 @@ export default function TemplateRenderer({
   currency,
   currencySymbol,
   theme,
+  themeId: propThemeId,
   overrides,
+  themeOverrides,
   isPreview = false,
+  previewMode = false,
+  shop,
   initialProductId,
+  onSelectSection,
+  selectedSectionId,
 }: TemplateRendererProps) {
   const [showTrackModal, setShowTrackModal] = useState(false);
 
@@ -66,31 +84,67 @@ export default function TemplateRenderer({
     return () => window.removeEventListener('fera-open-track-order', handleOpenTrack);
   }, []);
 
+  const effectiveThemeInput = theme ?? propThemeId;
+  const effectiveShopName = shopName || shop?.name || 'My Store';
+  const effectiveShopId = shopId || shop?.id || 'store';
+  const effectiveShopPhone = shopPhone || shop?.phone || '';
+  const effectiveShopLogo = shopLogo || shop?.logo_url;
+  const effectiveIsPreview = Boolean(isPreview || previewMode);
+
+  const effectiveOverrides = useMemo(() => {
+    const direct = overrides || themeOverrides;
+    if (direct && typeof direct === 'object' && Object.keys(direct).length > 0) {
+      return direct;
+    }
+    if (
+      effectiveThemeInput &&
+      typeof effectiveThemeInput === 'object' &&
+      'overrides' in effectiveThemeInput &&
+      typeof (effectiveThemeInput as any).overrides === 'object'
+    ) {
+      return (effectiveThemeInput as any).overrides;
+    }
+    return {};
+  }, [overrides, themeOverrides, effectiveThemeInput]);
+
   // 1. Resolve theme ID safely
-  const themeId = useMemo(() => {
-    if (typeof theme === 'string') return theme;
-    if (theme && typeof theme === 'object' && 'id' in theme && typeof (theme as any).id === 'string') {
-      return (theme as any).id;
+  const resolvedThemeId = useMemo(() => {
+    if (typeof effectiveThemeInput === 'string') return effectiveThemeInput;
+    if (
+      effectiveThemeInput &&
+      typeof effectiveThemeInput === 'object' &&
+      'id' in effectiveThemeInput &&
+      typeof (effectiveThemeInput as any).id === 'string'
+    ) {
+      return (effectiveThemeInput as any).id;
+    }
+    if (
+      effectiveThemeInput &&
+      typeof effectiveThemeInput === 'object' &&
+      'template' in effectiveThemeInput &&
+      typeof (effectiveThemeInput as any).template === 'string'
+    ) {
+      return (effectiveThemeInput as any).template;
     }
     return 'market';
-  }, [theme]);
+  }, [effectiveThemeInput]);
 
   // 2. Normalize sections safely (guarantees legacy sections work seamlessly)
   const normalizedSections = useMemo(() => {
-    return normalizeLegacySections(sections, shopName);
-  }, [sections, shopName]);
+    return normalizeLegacySections(sections, effectiveShopName);
+  }, [sections, effectiveShopName]);
 
   // 3. Resolve theme definition and CSS variables
   const resolvedTheme = useMemo(() => {
-    return resolveStorefrontTheme(themeId, overrides, normalizedSections);
-  }, [themeId, overrides, normalizedSections]);
+    return resolveStorefrontTheme(resolvedThemeId, effectiveOverrides, normalizedSections);
+  }, [resolvedThemeId, effectiveOverrides, normalizedSections]);
 
   return (
     <StorefrontProvider
-      shopId={shopId}
-      shopName={shopName}
-      shopPhone={shopPhone}
-      shopLogo={shopLogo}
+      shopId={effectiveShopId}
+      shopName={effectiveShopName}
+      shopPhone={effectiveShopPhone}
+      shopLogo={effectiveShopLogo}
       currency={currency}
       currencySymbol={currencySymbol}
       products={products}
@@ -127,71 +181,95 @@ export default function TemplateRenderer({
               const key = section.id;
               const config = section.config || {};
               const variant = section.variant;
+              const isSelected = selectedSectionId === key;
 
-              switch (section.type) {
-                case 'announcement':
-                  return <AnnouncementBarSection key={key} config={config} variant={variant} />;
+              const renderContent = () => {
+                switch (section.type) {
+                  case 'announcement':
+                    return <AnnouncementBarSection key={key} config={config} variant={variant} />;
 
-                case 'header':
-                  return (
-                    <HeaderSection
-                      key={key}
-                      config={config}
-                      variant={variant || resolvedTheme.headerVariant}
-                    />
-                  );
+                  case 'header':
+                    return (
+                      <HeaderSection
+                        key={key}
+                        config={config}
+                        variant={resolvedTheme.headerVariant || variant}
+                      />
+                    );
 
-                case 'hero':
-                  return (
-                    <HeroSection
-                      key={key}
-                      config={config}
-                      variant={variant || resolvedTheme.heroVariant}
-                    />
-                  );
+                  case 'hero':
+                    return (
+                      <HeroSection
+                        key={key}
+                        config={config}
+                        variant={resolvedTheme.heroVariant || variant}
+                      />
+                    );
 
-                case 'category-grid':
-                  return <CategoryGridSection key={key} config={config} variant={variant} />;
+                  case 'category-grid':
+                    return <CategoryGridSection key={key} config={config} variant={variant} />;
 
-                case 'product-grid':
-                  return (
-                    <ProductGridSection
-                      key={key}
-                      config={config}
-                      variant={variant || resolvedTheme.cardVariant}
-                    />
-                  );
+                  case 'product-grid':
+                    return (
+                      <ProductGridSection
+                        key={key}
+                        config={config}
+                        variant={resolvedTheme.cardVariant || variant}
+                      />
+                    );
 
-                case 'featured-product':
-                  return <FeaturedProductSection key={key} config={config} variant={variant} />;
+                  case 'featured-product':
+                    return <FeaturedProductSection key={key} config={config} variant={variant} />;
 
-                case 'trust-strip':
-                  return <TrustStripSection key={key} config={config} variant={variant} />;
+                  case 'trust-strip':
+                    return <TrustStripSection key={key} config={config} variant={variant} />;
 
-                case 'brand-story':
-                  return <BrandStorySection key={key} config={config} variant={variant} />;
+                  case 'brand-story':
+                    return <BrandStorySection key={key} config={config} variant={variant} />;
 
-                case 'testimonials':
-                  return <TestimonialsSection key={key} config={config} variant={variant} />;
+                  case 'testimonials':
+                    return <TestimonialsSection key={key} config={config} variant={variant} />;
 
-                case 'faq':
-                  return <FAQSection key={key} config={config} variant={variant} />;
+                  case 'faq':
+                    return <FAQSection key={key} config={config} variant={variant} />;
 
-                case 'newsletter':
-                  return <NewsletterSection key={key} config={config} variant={variant} />;
+                  case 'newsletter':
+                    return <NewsletterSection key={key} config={config} variant={variant} />;
 
-                case 'footer':
-                  return (
-                    <FooterSection
-                      key={key}
-                      config={config}
-                      variant={variant || resolvedTheme.footerVariant}
-                    />
-                  );
+                  case 'footer':
+                    return (
+                      <FooterSection
+                        key={key}
+                        config={config}
+                        variant={resolvedTheme.footerVariant || variant}
+                      />
+                    );
 
-                default:
-                  return null;
+                  default:
+                    return null;
+                }
+              };
+
+              if (onSelectSection) {
+                return (
+                  <div
+                    key={key}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectSection(key);
+                    }}
+                    className={`transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-blue-500 ring-offset-2 relative z-10'
+                        : 'hover:outline-dashed hover:outline-1 hover:outline-blue-300'
+                    }`}
+                  >
+                    {renderContent()}
+                  </div>
+                );
               }
+
+              return renderContent();
             })}
 
             {/* Global Storefront Overlays */}

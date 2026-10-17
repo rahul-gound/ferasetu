@@ -31,10 +31,32 @@ export function resolveStorefrontTheme(
   overridesInput?: unknown,
   sectionsInput?: unknown
 ): ResolvedTheme {
-  // 1. Identify base theme safely
+  // 1. Identify base theme safely from string or object
   let themeId: ThemeId = 'market';
+  let rawThemeCandidate: string | undefined;
+  let objectOverrides: MerchantThemeOverrides = {};
+
   if (typeof themeIdInput === 'string') {
-    let normalized = themeIdInput.toLowerCase().trim();
+    rawThemeCandidate = themeIdInput;
+  } else if (typeof themeIdInput === 'object' && themeIdInput !== null) {
+    const rawObj = themeIdInput as Record<string, unknown>;
+    if (typeof rawObj.id === 'string') {
+      rawThemeCandidate = rawObj.id;
+    } else if (typeof rawObj.template === 'string') {
+      rawThemeCandidate = rawObj.template;
+    } else if (typeof rawObj.theme === 'string') {
+      rawThemeCandidate = rawObj.theme;
+    } else if (typeof rawObj.name === 'string') {
+      rawThemeCandidate = rawObj.name;
+    }
+
+    if (rawObj.overrides && typeof rawObj.overrides === 'object') {
+      objectOverrides = rawObj.overrides as MerchantThemeOverrides;
+    }
+  }
+
+  if (rawThemeCandidate) {
+    let normalized = rawThemeCandidate.toLowerCase().trim();
     if (
       normalized === 'mono-electronic' ||
       normalized === 'mono_electronic' ||
@@ -42,6 +64,8 @@ export function resolveStorefrontTheme(
       normalized === 'electronics'
     ) {
       normalized = 'electronic';
+    } else if (normalized === 'general' || normalized === 'default') {
+      normalized = 'market';
     }
     if (THEME_REGISTRY[normalized as ThemeId]) {
       themeId = normalized as ThemeId;
@@ -49,9 +73,10 @@ export function resolveStorefrontTheme(
   }
 
   const baseTheme = THEME_REGISTRY[themeId] || MARKET_THEME;
-  const overrides = (typeof overridesInput === 'object' && overridesInput !== null
+  const directOverrides = (typeof overridesInput === 'object' && overridesInput !== null
     ? (overridesInput as MerchantThemeOverrides)
     : {}) as MerchantThemeOverrides;
+  const overrides = { ...objectOverrides, ...directOverrides };
 
   // 2. Resolve colors with overrides
   const colors = {

@@ -31,6 +31,79 @@ function safeParseJson(value, fallback = {}) {
   }
 }
 
+let builderTablesInitialized = false;
+
+export async function ensureBuilderTables(db) {
+  if (builderTablesInitialized || !db) return;
+  try {
+    const runSql = async (sql) => {
+      const clean = typeof sql === 'string' ? sql.trim().replace(/;\s*$/, '') : '';
+      if (!clean) return;
+      if (typeof db.prepare === 'function') {
+        try {
+          await db.prepare(clean).run();
+        } catch {
+          // Table/index/column already exists or statement non-fatal
+        }
+      } else if (typeof db.exec === 'function') {
+        try {
+          await db.exec(clean);
+        } catch {}
+      }
+    };
+
+    await runSql(`
+      CREATE TABLE IF NOT EXISTS website_drafts (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL UNIQUE,
+        user_id TEXT NOT NULL,
+        draft_data TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    await runSql(`CREATE INDEX IF NOT EXISTS idx_website_drafts_org ON website_drafts(organization_id)`);
+
+    await runSql(`
+      CREATE TABLE IF NOT EXISTS website_versions (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        version_number INTEGER NOT NULL,
+        snapshot_data TEXT NOT NULL,
+        description TEXT,
+        published_at TEXT NOT NULL,
+        published_by TEXT
+      )
+    `);
+    await runSql(`CREATE INDEX IF NOT EXISTS idx_website_versions_org ON website_versions(organization_id, version_number DESC)`);
+
+    await runSql(`
+      CREATE TABLE IF NOT EXISTS website_connections (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        connection_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        config_json TEXT NOT NULL,
+        secrets_encrypted TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    await runSql(`CREATE INDEX IF NOT EXISTS idx_website_conns_org ON website_connections(organization_id)`);
+
+    // Ensure staging columns in media_files
+    await runSql(`ALTER TABLE media_files ADD COLUMN is_draft INTEGER NOT NULL DEFAULT 1`);
+    await runSql(`ALTER TABLE media_files ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'`);
+
+    builderTablesInitialized = true;
+  } catch (err) {
+    console.warn('[ensureBuilderTables] non-fatal notice:', err?.message || err);
+  }
+}
+
+
 /**
  * Validates external URL to strictly prevent SSRF attacks.
  * Blocks:
@@ -126,10 +199,18 @@ function sanitizeHeaders(headersObj) {
 // ---------------------------------------------------------------------------
 
 export async function getBuilderDraft(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
-  const draftRow = await env.DB.prepare(
-    `SELECT * FROM website_drafts WHERE organization_id = ?`
-  ).bind(orgId).first();
+  let draftRow = null;
+  try {
+    if (env?.DB?.prepare) {
+      draftRow = await env.DB.prepare(
+        `SELECT * FROM website_drafts WHERE organization_id = ?`
+      ).bind(orgId).first();
+    }
+  } catch (draftErr) {
+    console.warn('[getBuilderDraft] website_drafts query notice:', draftErr?.message);
+  }
 
   if (draftRow) {
     return {
@@ -141,9 +222,16 @@ export async function getBuilderDraft(request, env, orgContext) {
   }
 
   // Fallback: check published website row to seed initial draft
-  const siteRow = await env.DB.prepare(
-    `SELECT * FROM websites WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)`
-  ).bind(orgId, orgContext.user.$id).first();
+  let siteRow = null;
+  try {
+    if (env?.DB?.prepare) {
+      siteRow = await env.DB.prepare(
+        `SELECT * FROM websites WHERE organization_id = ? OR (organization_id IS NULL AND user_id = ?)`
+      ).bind(orgId, orgContext.user.$id).first();
+    }
+  } catch (siteErr) {
+    console.warn('[getBuilderDraft] websites query notice:', siteErr?.message);
+  }
 
   if (siteRow) {
     const seededDraft = {
@@ -184,6 +272,7 @@ export async function getBuilderDraft(request, env, orgContext) {
 }
 
 export async function saveBuilderDraft(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
   const userId = orgContext.user.$id;
   const body = await request.json();
@@ -218,6 +307,7 @@ export async function saveBuilderDraft(request, env, orgContext) {
 // ---------------------------------------------------------------------------
 
 export async function publishBuilderDraft(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
   const userId = orgContext.user.$id;
   const now = new Date().toISOString();
@@ -326,21 +416,30 @@ export async function publishBuilderDraft(request, env, orgContext) {
 }
 
 export async function listBuilderVersions(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
-  const rows = await env.DB.prepare(`
-    SELECT id, version_number, description, published_at, published_by
-    FROM website_versions
-    WHERE organization_id = ?
-    ORDER BY version_number DESC
-    LIMIT 30
-  `).bind(orgId).all();
+  try {
+    const rows = await env.DB.prepare(`
+      SELECT id, version_number, description, published_at, published_by
+      FROM website_versions
+      WHERE organization_id = ?
+      ORDER BY version_number DESC
+      LIMIT 30
+    `).bind(orgId).all();
 
-  return {
-    versions: rows.results || [],
-  };
+    return {
+      versions: rows?.results || [],
+    };
+  } catch (err) {
+    console.warn('[listBuilderVersions] query notice:', err?.message);
+    return {
+      versions: [],
+    };
+  }
 }
 
 export async function rollbackBuilderVersion(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
   const userId = orgContext.user.$id;
   const body = await request.json();
@@ -423,28 +522,35 @@ export async function rollbackBuilderVersion(request, env, orgContext) {
 // ---------------------------------------------------------------------------
 
 export async function listBuilderConnections(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
-  const rows = await env.DB.prepare(`
-    SELECT id, connection_type, name, config_json, secrets_encrypted, created_at, updated_at
-    FROM website_connections
-    WHERE organization_id = ?
-    ORDER BY created_at ASC
-  `).bind(orgId).all();
+  try {
+    const rows = await env.DB.prepare(`
+      SELECT id, connection_type, name, config_json, secrets_encrypted, created_at, updated_at
+      FROM website_connections
+      WHERE organization_id = ?
+      ORDER BY created_at ASC
+    `).bind(orgId).all();
 
-  const connections = (rows.results || []).map((row) => ({
-    id: row.id,
-    connection_type: row.connection_type,
-    name: row.name,
-    config: safeParseJson(row.config_json),
-    has_secrets: !!(row.secrets_encrypted && row.secrets_encrypted.length > 0),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  }));
+    const connections = (rows?.results || []).map((row) => ({
+      id: row.id,
+      connection_type: row.connection_type,
+      name: row.name,
+      config: safeParseJson(row.config_json),
+      has_secrets: !!(row.secrets_encrypted && row.secrets_encrypted.length > 0),
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
 
-  return { connections };
+    return { connections };
+  } catch (err) {
+    console.warn('[listBuilderConnections] query notice:', err?.message);
+    return { connections: [] };
+  }
 }
 
 export async function saveBuilderConnection(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
   const body = await request.json();
   const { id, connection_type, name, config = {}, secrets } = body;
@@ -503,6 +609,7 @@ export async function saveBuilderConnection(request, env, orgContext) {
 }
 
 export async function deleteBuilderConnection(request, env, orgContext, connectionId) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const orgId = orgContext.organizationId;
   await env.DB.prepare(`
     DELETE FROM website_connections WHERE id = ? AND organization_id = ?
@@ -656,25 +763,39 @@ export async function handleBuilderProxy(request, env, orgContext) {
 // ---------------------------------------------------------------------------
 
 export async function listBuilderAssets(request, env, orgContext) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const shopId = orgContext.organizationId;
   const url = new URL(request.url);
   const filter = url.searchParams.get('visibility') || 'all';
 
-  let query = 'SELECT id, shop_id, r2_key, size_bytes, content_type, created_at, is_draft, visibility FROM media_files WHERE shop_id = ?';
-  const params = [shopId];
+  let rows = null;
+  try {
+    let query = 'SELECT id, shop_id, r2_key, size_bytes, content_type, created_at, is_draft, visibility FROM media_files WHERE shop_id = ?';
+    const params = [shopId];
 
-  if (filter === 'draft') {
-    query += ' AND is_draft = 1';
-  } else if (filter === 'public' || filter === 'published') {
-    query += ' AND is_draft = 0';
+    if (filter === 'draft') {
+      query += ' AND is_draft = 1';
+    } else if (filter === 'public' || filter === 'published') {
+      query += ' AND is_draft = 0';
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 100';
+
+    rows = await env.DB.prepare(query).bind(...params).all();
+  } catch (err) {
+    console.warn('[listBuilderAssets] Primary query failed, attempting fallback without staging columns:', err?.message);
+    try {
+      const fallbackQuery = 'SELECT id, shop_id, r2_key, size_bytes, content_type, created_at FROM media_files WHERE shop_id = ? ORDER BY created_at DESC LIMIT 100';
+      rows = await env.DB.prepare(fallbackQuery).bind(shopId).all();
+    } catch (fallbackErr) {
+      console.warn('[listBuilderAssets] Fallback query failed, returning empty:', fallbackErr?.message);
+      return { assets: [] };
+    }
   }
 
-  query += ' ORDER BY created_at DESC LIMIT 100';
-
-  const rows = await env.DB.prepare(query).bind(...params).all();
   const cdnBase = (env.CDN_BASE_URL || 'https://cdn.ferasetu.com').replace(/\/+$/, '');
 
-  const assets = (rows.results || []).map((row) => ({
+  const assets = (rows?.results || []).map((row) => ({
     id: row.id,
     key: row.r2_key,
     size: row.size_bytes,
@@ -689,6 +810,7 @@ export async function listBuilderAssets(request, env, orgContext) {
 }
 
 export async function updateAssetVisibility(request, env, orgContext, assetId) {
+  if (env?.DB) await ensureBuilderTables(env.DB);
   const shopId = orgContext.organizationId;
   const body = await request.json();
   const visibility = body.visibility === 'public' ? 'public' : 'private';
@@ -700,4 +822,5 @@ export async function updateAssetVisibility(request, env, orgContext, assetId) {
 
   return { success: true, asset_id: assetId, visibility, is_draft: isDraft };
 }
+
 

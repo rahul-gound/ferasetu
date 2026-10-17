@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react';
 import { useAuth as useWorkOSAuth } from '@workos-inc/authkit-react';
 import api from '../services/api';
-import { setUnauthorizedHandler, setWorkOSTokenGetter } from '../services/authBridge';
+import { setUnauthorizedHandler, setWorkOSTokenGetter, clearCachedToken } from '../services/authBridge';
 
 // ─── AUTH DEV LOGGING ────────────────────────────────────────────────────────
 // All AUTH_* logs are DEV-only. Sensitive values (tokens, codes) are never logged.
@@ -265,9 +265,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (mounted) {
           setProfileError(`Profile bootstrap failed (${status ?? 'network'}): ${message}`);
-          // If the backend returns 401, credentials are fundamentally invalid or expired.
-          // Do NOT create a synthetic profile that bypasses ProtectedRoute and causes cascading 401s.
+          // If the backend returns 401, credentials may be momentarily stale or expired.
+          // Attempt a one-time force-refresh retry before wiping the session.
           if (status === 401) {
+            try {
+              clearCachedToken();
+              const freshToken = await getAccessToken({ forceRefresh: true });
+              if (freshToken) {
+                const { data: retryData } = await api.get('/users/me', {
+                  headers: { Authorization: `Bearer ${freshToken}` }
+                });
+                if (mounted && retryData?.user) {
+                  authLog('AUTH_SESSION_RECOVERED', `Profile restored on retry for ${workosUser.email}`);
+                  setProfile({
+                    ...retryData.user,
+                    organization: retryData.organization || null,
+                    has_organization: retryData.has_organization ?? (Boolean(retryData.organization) || false),
+                    is_verified: workosUser.emailVerified ?? true,
+                  });
+                  if (retryData.organization) {
+                    setOrganization(retryData.organization);
+                  }
+                  setProfileError(null);
+                  initialLoadDoneRef.current = true;
+                  return;
+                }
+              }
+            } catch (retryErr) {
+              console.warn('[AuthContext] 401 recovery retry failed:', retryErr);
+            }
+
             authLog('AUTH_SESSION_EXPIRED', 'Backend 401 on /users/me — session expired or invalid signature');
             setProfile(null);
             localStorage.removeItem('fera_user');
@@ -304,6 +331,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadProfile();
     return () => { mounted = false; };
   }, [workosUser, isWorkOSLoading]);
+
+  // Proactively revalidate / refresh token when the tab regains visibility/focus
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && workosUser) {
+        try {
+          await getAccessToken();
+        } catch (e) {
+          console.debug('[AuthContext] Visibility token refresh check:', e);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [workosUser, getAccessToken]);
 
   // Persist profile to localStorage whenever it changes.
   useEffect(() => {

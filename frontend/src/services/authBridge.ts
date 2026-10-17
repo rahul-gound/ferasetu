@@ -22,6 +22,7 @@ let rawTokenGetter: () => Promise<string | null> = async () => null;
 
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
+let inFlightTokenPromise: Promise<string | null> | null = null;
 
 export async function getWorkOSToken(): Promise<string | null> {
   const now = Date.now();
@@ -29,32 +30,49 @@ export async function getWorkOSToken(): Promise<string | null> {
   if (cachedToken && now < tokenExpiresAt - 60000) {
     return cachedToken;
   }
-  try {
-    const fresh = await rawTokenGetter();
-    if (fresh) {
-      cachedToken = fresh;
-      try {
-        const parts = fresh.split('.');
-        if (parts.length === 3) {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
-          if (payload && typeof payload.exp === 'number') {
-            tokenExpiresAt = payload.exp * 1000;
-          } else {
-            tokenExpiresAt = now + 15 * 60 * 1000;
-          }
-        } else {
-          tokenExpiresAt = now + 15 * 60 * 1000;
-        }
-      } catch {
-        tokenExpiresAt = now + 15 * 60 * 1000;
-      }
-      return fresh;
-    }
-  } catch (err) {
-    console.warn('[authBridge] Token retrieval error:', err);
+
+  // Deduplicate concurrent token retrieval so parallel API requests share one refresh cycle
+  if (inFlightTokenPromise) {
+    return inFlightTokenPromise;
   }
-  return cachedToken;
+
+  inFlightTokenPromise = (async () => {
+    try {
+      const fresh = await rawTokenGetter();
+      if (fresh) {
+        cachedToken = fresh;
+        try {
+          const parts = fresh.split('.');
+          if (parts.length === 3) {
+            const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+            if (payload && typeof payload.exp === 'number') {
+              tokenExpiresAt = payload.exp * 1000;
+            } else {
+              tokenExpiresAt = Date.now() + 10 * 60 * 1000;
+            }
+          } else {
+            tokenExpiresAt = Date.now() + 10 * 60 * 1000;
+          }
+        } catch {
+          tokenExpiresAt = Date.now() + 10 * 60 * 1000;
+        }
+        return fresh;
+      }
+    } catch (err) {
+      console.warn('[authBridge] Token retrieval error:', err);
+    } finally {
+      inFlightTokenPromise = null;
+    }
+
+    // Never return an expired token — returning an expired token guarantees a 401 and cascading logout
+    if (cachedToken && Date.now() < tokenExpiresAt) {
+      return cachedToken;
+    }
+    return null;
+  })();
+
+  return inFlightTokenPromise;
 }
 
 export function setWorkOSTokenGetter(getter: () => Promise<string | null>) {

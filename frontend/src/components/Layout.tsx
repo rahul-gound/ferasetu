@@ -18,6 +18,8 @@ import {
   Bell,
   Gift,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Settings,
   Zap,
   ArrowUpRight,
@@ -47,6 +49,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { translate } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -144,61 +147,113 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const avatarLetter = (storeDisplayName || user?.email || 'M').charAt(0).toUpperCase();
 
   const sidebarContent = (
-    <div className="flex h-full w-[256px] flex-col overflow-y-auto border-r border-[#E5EAF1] bg-white">
-      {/* Brand */}
-      <div className="flex flex-col border-b border-[#E5EAF1] px-5 py-4 pr-12">
-        <img
-          src="/logo-official.png"
-          alt="FeraSetu"
-          className="h-10 w-auto object-contain self-start"
-        />
+    <div
+      className={`flex h-full flex-col overflow-hidden border-r border-[#E5EAF1] bg-white transition-all duration-300 ${
+        isCollapsed ? 'w-[80px]' : 'w-[256px]'
+      }`}
+    >
+      {/* Brand & Toggle Header */}
+      <div
+        className={`flex border-b border-[#E5EAF1] py-4 transition-all duration-300 ${
+          isCollapsed
+            ? 'flex-col items-center justify-center px-2 gap-3'
+            : 'items-center justify-between px-5'
+        }`}
+      >
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+          {isCollapsed ? (
+            <img
+              src="/favicon.png"
+              alt="FeraSetu"
+              className="h-8 w-8 object-contain self-center"
+            />
+          ) : (
+            <img
+              src="/logo-official.png"
+              alt="FeraSetu"
+              className="h-9 w-auto object-contain self-start"
+            />
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E5EAF1] bg-white text-[#667085] hover:bg-slate-50 hover:text-[#152238] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] cursor-pointer shrink-0"
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!isCollapsed}
+        >
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
       </div>
 
       {/* Grouped Navigation */}
-      <nav aria-label="Merchant Navigation" className="flex flex-1 flex-col px-3 py-4 gap-5">
-        {navGroups.map(group => (
+      <nav
+        aria-label="Merchant Navigation"
+        className={`flex flex-1 flex-col overflow-y-auto min-h-0 py-4 transition-all duration-300 ${
+          isCollapsed ? 'px-2 gap-4' : 'px-3 gap-5'
+        }`}
+      >
+        {navGroups.map((group, groupIdx) => (
           <div key={group.groupLabel}>
-            <p className="text-[9px] font-bold tracking-widest text-[#667085]/70 uppercase px-2 mb-1.5">
-              {group.groupLabel}
-            </p>
+            {isCollapsed ? (
+              groupIdx > 0 && <div className="my-2 border-t border-[#E5EAF1]/60" />
+            ) : (
+              <p className="text-[9px] font-bold tracking-widest text-[#667085]/70 uppercase px-2 mb-1.5">
+                {group.groupLabel}
+              </p>
+            )}
             <div className="flex flex-col gap-0.5">
               {group.items.map(item => {
                 const badgeVal = item.badge;
+                const hasBadge = badgeVal !== undefined && (typeof badgeVal === 'string' || Number(badgeVal) > 0);
                 return (
                   <NavLink
                     key={item.path}
                     to={item.path}
+                    title={item.label}
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex min-h-[38px] items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-150
-                      ${isActive
-                        ? 'bg-blue-50 text-[#0052FF] font-semibold border-l-2 border-[#0052FF] pl-[10px]'
-                        : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'}
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]`
+                      `flex min-h-[38px] items-center rounded-xl text-[13px] font-medium transition-all duration-150 ${
+                        isCollapsed
+                          ? `justify-center px-0 py-2.5 ${
+                              isActive
+                                ? 'bg-blue-50 text-[#0052FF] font-semibold'
+                                : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'
+                            }`
+                          : `gap-2.5 px-3 py-2 ${
+                              isActive
+                                ? 'bg-blue-50 text-[#0052FF] font-semibold border-l-2 border-[#0052FF] pl-[10px]'
+                                : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'
+                            }`
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]`
                     }
                   >
-                    <span className="shrink-0">{item.icon}</span>
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {badgeVal !== undefined && (
-                      typeof badgeVal === 'string'
-                        ? (
-                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide ${
-                            item.badgeColor === 'orange'
-                              ? 'bg-orange-100 text-orange-600'
-                              : 'bg-blue-100 text-[#0052FF]'
-                          }`}>
+                    <span className="relative shrink-0 flex items-center justify-center">
+                      {item.icon}
+                      {isCollapsed && hasBadge && (
+                        <span
+                          className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ring-2 ring-white ${
+                            item.badgeColor === 'orange' ? 'bg-orange-500' : 'bg-[#0052FF]'
+                          }`}
+                        />
+                      )}
+                    </span>
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {hasBadge && (
+                          <span
+                            className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide ${
+                              item.badgeColor === 'orange'
+                                ? 'bg-orange-100 text-orange-600'
+                                : 'bg-blue-100 text-[#0052FF]'
+                            }`}
+                          >
                             {badgeVal}
                           </span>
-                        )
-                        : Number(badgeVal) > 0 ? (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            item.badgeColor === 'orange'
-                              ? 'bg-orange-100 text-orange-600'
-                              : 'bg-blue-100 text-[#0052FF]'
-                          }`}>
-                            {badgeVal}
-                          </span>
-                        ) : null
+                        )}
+                      </>
                     )}
                   </NavLink>
                 );
@@ -209,44 +264,79 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       </nav>
 
       {/* Bottom: Plan + Store Profile */}
-      <div className="border-t border-[#E5EAF1] px-4 py-4 space-y-3">
-        {/* Plan badge + upgrade */}
-        <div className="rounded-xl border border-[#E5EAF1] bg-[#F6F8FC] p-3.5 flex items-center justify-between gap-2">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#667085] mb-0.5">Current Plan</p>
-            <p className="text-sm font-extrabold text-[#0052FF]">{planTitle}</p>
-          </div>
-          <button
-            onClick={() => navigate('/upgrade')}
-            className="flex items-center gap-1.5 rounded-xl bg-[#0052FF] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-600 transition-colors cursor-pointer shrink-0"
-          >
-            <Zap size={11} className="shrink-0" />
-            Upgrade
-          </button>
-        </div>
+      <div
+        className={`border-t border-[#E5EAF1] transition-all duration-300 ${
+          isCollapsed ? 'px-2 py-3 space-y-2 flex flex-col items-center' : 'px-4 py-4 space-y-3'
+        }`}
+      >
+        {isCollapsed ? (
+          <>
+            {/* Collapsed Plan upgrade icon button */}
+            <button
+              type="button"
+              onClick={() => navigate('/upgrade')}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0052FF] text-white shadow-sm shadow-blue-600/20 hover:bg-blue-600 transition-colors cursor-pointer"
+              title={`Current Plan: ${planTitle} — Upgrade`}
+              aria-label="Upgrade Plan"
+            >
+              <Zap size={16} />
+            </button>
 
-        {/* Store profile */}
-        <button
-          type="button"
-          onClick={() => navigate('/settings/email')}
-          className="w-full flex items-center justify-between gap-3 rounded-xl border border-[#E5EAF1] bg-white p-3 hover:bg-slate-50 transition-colors cursor-pointer text-left"
-          title="Manage store settings"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white">
-              {avatarLetter}
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-[13px] font-semibold text-[#152238]">
-                {storeDisplayName}
+            {/* Collapsed Store profile avatar button */}
+            <button
+              type="button"
+              onClick={() => navigate('/settings/email')}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5EAF1] bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+              title={`${storeDisplayName} (${storeSubdomain}) — Manage store settings`}
+              aria-label="Manage store settings"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white">
+                {avatarLetter}
               </div>
-              <div className="truncate text-[10px] text-[#667085]">
-                {storeSubdomain}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Plan badge + upgrade */}
+            <div className="rounded-xl border border-[#E5EAF1] bg-[#F6F8FC] p-3.5 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[#667085] mb-0.5">Current Plan</p>
+                <p className="text-sm font-extrabold text-[#0052FF]">{planTitle}</p>
               </div>
+              <button
+                type="button"
+                onClick={() => navigate('/upgrade')}
+                className="flex items-center gap-1.5 rounded-xl bg-[#0052FF] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-600 transition-colors cursor-pointer shrink-0"
+              >
+                <Zap size={11} className="shrink-0" />
+                Upgrade
+              </button>
             </div>
-          </div>
-          <Settings size={14} className="text-[#667085] shrink-0" />
-        </button>
+
+            {/* Store profile */}
+            <button
+              type="button"
+              onClick={() => navigate('/settings/email')}
+              className="w-full flex items-center justify-between gap-3 rounded-xl border border-[#E5EAF1] bg-white p-3 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+              title="Manage store settings"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white">
+                  {avatarLetter}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-semibold text-[#152238]">
+                    {storeDisplayName}
+                  </div>
+                  <div className="truncate text-[10px] text-[#667085]">
+                    {storeSubdomain}
+                  </div>
+                </div>
+              </div>
+              <Settings size={14} className="text-[#667085] shrink-0" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -256,7 +346,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       <SEO title="Merchant Workspace | FeraSetu" noindex />
 
       {/* Desktop sidebar */}
-      <aside className="hidden h-full md:block">
+      <aside className={`hidden h-full shrink-0 transition-all duration-300 md:block ${isCollapsed ? 'w-[80px]' : 'w-[256px]'}`}>
         {sidebarContent}
       </aside>
 

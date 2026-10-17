@@ -1334,3 +1334,22 @@ export const THEMES_LIST: ThemeDefinition[] = [
   HOME_THEME,
   DINE_THEME,
 ];
+
+export interface ThemePresetSummary {
+  id: ThemeId;
+  name: string;
+  desc: string;
+  color: string;
+}
+
+export const THEME_PRESETS: ThemePresetSummary[] = [
+  { id: 'electronic', name: 'Mono Electronic', desc: 'Hardware store with 3D tilt hero, spec compare matrix & quick view', color: '#E4572E' },
+  { id: 'market', name: 'Market Retail', desc: 'Fast, vibrant dynamic commerce with badge highlights', color: '#0F172A' },
+  { id: 'atelier', name: 'Atelier Luxury', desc: 'Refined editorial serif typography with serene neutrals', color: '#121212' },
+  { id: 'mono', name: 'Mono Brutalist', desc: 'Architectural precision, high contrast, monospace vibes', color: '#000000' },
+  { id: 'bold', name: 'Bold Rounded', desc: 'Punchy lifestyle cards, playful pills, youthful energy', color: '#0B0F19' },
+  { id: 'artisan', name: 'Artisan Craft', desc: 'Earthy warmth, handmade textures, authentic storytelling', color: '#2C221E' },
+  { id: 'studio', name: 'Studio Minimal', desc: 'Clean portfolio aesthetic, contemporary grid spacing', color: '#0F172A' },
+  { id: 'home', name: 'Home & Living', desc: 'Gentle warm neutrals for interior design and decor', color: '#3E3832' },
+  { id: 'dine', name: 'Dine Culinary', desc: 'Rich appetizing tones for cafe, bakery, and restaurants', color: '#2B1810' },
+];

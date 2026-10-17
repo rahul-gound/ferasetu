@@ -254,7 +254,7 @@ export default function ShopPage() {
             currency={storeCurrency}
             currencySymbol={storeCurrencySymbol}
             theme={(data!.website as any).theme || data!.website.template}
-            overrides={(data!.website as any).config?.overrides}
+            overrides={(data!.website as any).config?.overrides || (data!.website as any).theme?.overrides}
             initialProductId={initialProductId}
           />
         );

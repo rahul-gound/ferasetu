@@ -88,6 +88,10 @@ export function StorefrontProvider({
   }, [shopName, shopId]);
 
   const checkCustomerSession = useCallback(async () => {
+    if (!shopName && !shopId) {
+      setCustomer(null);
+      return;
+    }
     try {
       const res = await axios.get(`${API}/storefront/customer/me`, {
         withCredentials: true,
@@ -101,7 +105,7 @@ export function StorefrontProvider({
     } catch {
       setCustomer(null);
     }
-  }, [getCustomerHeaders]);
+  }, [shopName, shopId, getCustomerHeaders]);
 
   useEffect(() => {
     checkCustomerSession();

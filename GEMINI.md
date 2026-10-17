@@ -28,3 +28,23 @@ When the user shares a screenshot or photo of the UI:
 3. Verify **spacing rhythm** and whitespace breathing room.
 4. Audit **finger-friendly ergonomics** for mobile viewports.
 5. Verify **copy quality** and ensure tone matches the independent global merchant mindset.
+
+## 5. Obsidian Architecture Sync & Token-Optimization Invariant
+- **Vault Location:** The canonical architecture knowledge base is maintained in `docs/obsidian-vault/`.
+- **Token Optimization Rule:** Before performing wide-scope directory grepping or re-reading massive code files, ALWAYS consult the corresponding note in `docs/obsidian-vault/` (`00` through `10`) to identify exact contracts and entrypoints.
+- **Mandatory Synchronization:** Whenever changing, adding, or removing routes, database schemas, worker handlers, frontend pages, pricing plans, or test suites, ALWAYS update the relevant Obsidian note in `docs/obsidian-vault/` and update `docs/obsidian-vault/01 - 📊 Progress & Completion Matrix.md`.
+
+## 6. Work Completion & Progress Reporting Invariant
+- Always report "which work is done how much" by citing exact percentage completions and milestone statuses from `docs/obsidian-vault/01 - 📊 Progress & Completion Matrix.md`:
+  - **Edge Gateway & D1:** 92%
+  - **Core API & Express:** 90%
+  - **Frontend & UI/UX:** 88%
+  - **Fera AI Engine:** 85%
+  - **Pricing & Billing:** 95%
+  - **GST & Compliance:** 90%
+  - **Custom Domains & DNS:** 88%
+  - **QA & Verification:** 92%
+  - **Database Schemas:** 90%
+  - **Global Platform:** 90%
+- Maintain this matrix live in Obsidian so that team members and agents always have instant, token-efficient visibility into project status.
+
