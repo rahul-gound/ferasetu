@@ -85,6 +85,15 @@ export default function LandingPage() {
     return () => ctx.revert();
   }, []);
 
+  // Recalibrate ScrollTrigger positions after lazy components and layout settle
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver((entries) => {

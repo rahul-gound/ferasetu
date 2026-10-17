@@ -49,6 +49,9 @@ export default function PublicSmoothScroll({ children }: PublicSmoothScrollProps
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     });
     lenisRef.current = lenis;
+    if (typeof window !== 'undefined') {
+      (window as any).__lenis = lenis;
+    }
 
     // Update ScrollTrigger and scroll progress bar on Lenis scroll events
     const handleScroll = (e: { progress: number }) => {
@@ -67,6 +70,18 @@ export default function PublicSmoothScroll({ children }: PublicSmoothScrollProps
 
     // Disable GSAP ticker lag smoothing as recommended by Lenis documentation
     gsap.ticker.lagSmoothing(0);
+
+    // Keep ScrollTrigger synchronized on window resize and font load
+    const handleResize = () => {
+      ScrollTrigger.refresh();
+    };
+    window.addEventListener('resize', handleResize);
+
+    if (document.fonts) {
+      document.fonts.ready.then(() => {
+        ScrollTrigger.refresh();
+      });
+    }
 
     // Handle anchor navigation smoothly
     const handleAnchorClick = (e: MouseEvent) => {
@@ -90,10 +105,14 @@ export default function PublicSmoothScroll({ children }: PublicSmoothScrollProps
 
     return () => {
       document.removeEventListener('click', handleAnchorClick);
+      window.removeEventListener('resize', handleResize);
       gsap.ticker.remove(tickerCallback);
       lenis.off('scroll', handleScroll);
       lenis.destroy();
       lenisRef.current = null;
+      if (typeof window !== 'undefined') {
+        delete (window as any).__lenis;
+      }
     };
   }, []);
 

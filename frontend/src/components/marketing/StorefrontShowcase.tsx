@@ -195,6 +195,12 @@ export default function StorefrontShowcase() {
       }
     }, sectionRef);
 
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 768;
+      setIsPinnedMode(desktop);
+    };
+    window.addEventListener('resize', handleResize);
+
     // Refresh layout once fonts/images load
     if (document.fonts) {
       document.fonts.ready.then(() => {
@@ -203,6 +209,7 @@ export default function StorefrontShowcase() {
     }
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       ctx.revert();
     };
   }, []);
@@ -215,7 +222,11 @@ export default function StorefrontShowcase() {
       const st = triggerInstanceRef.current;
       const totalDist = st.end - st.start;
       const targetScroll = st.start + (clampedIdx / (SHOWCASE_STORES.length - 1)) * totalDist;
-      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      if (typeof window !== 'undefined' && (window as any).__lenis) {
+        (window as any).__lenis.scrollTo(targetScroll, { duration: 0.8 });
+      } else {
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      }
     } else if (scrollTrackRef.current) {
       const cardWidth = 360;
       scrollTrackRef.current.scrollTo({
@@ -232,7 +243,7 @@ export default function StorefrontShowcase() {
     <section
       ref={sectionRef}
       id="storefront-showcase"
-      className="relative bg-white border-b border-slate-200 overflow-hidden"
+      className="relative bg-white border-b border-slate-200"
     >
       <div
         ref={pinContainerRef}
@@ -299,7 +310,7 @@ export default function StorefrontShowcase() {
           {/* Scrollable Horizontal Track */}
           <div
             ref={scrollTrackRef}
-            data-lenis-prevent={!isPinnedMode}
+            data-lenis-prevent={!isPinnedMode ? 'true' : undefined}
             tabIndex={0}
             role="region"
             aria-label="Scrollable merchant storefront gallery"

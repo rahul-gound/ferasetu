@@ -139,6 +139,12 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
       }
     }, sectionRef);
 
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 768;
+      setIsPinnedMode(desktop);
+    };
+    window.addEventListener('resize', handleResize);
+
     if (document.fonts) {
       document.fonts.ready.then(() => {
         ScrollTrigger.refresh();
@@ -146,6 +152,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
     }
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       ctx.revert();
     };
   }, []);
@@ -182,7 +189,11 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
       // Target the middle of the selected step zone
       const targetProgress = (targetIdx + 0.5) / 4;
       const targetScroll = st.start + targetProgress * totalDist;
-      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      if (typeof window !== 'undefined' && (window as any).__lenis) {
+        (window as any).__lenis.scrollTo(targetScroll, { duration: 0.8 });
+      } else {
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      }
     }
   };
 
