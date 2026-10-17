@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
   Download, Share2, Copy, Check, ExternalLink, Sparkles, Mail, Ban, RotateCcw,
-  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt
+  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt, Plus
 } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -12,6 +12,8 @@ import { useAuth } from '../contexts/AuthContext';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 import InvoiceDocumentModal from '../components/orders/InvoiceDocumentModal';
+import AddOrderModal from '../components/orders/AddOrderModal';
+
 
 interface OrderItem {
   product_id?: string;
@@ -168,6 +170,8 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+  const [showAddOrderModal, setShowAddOrderModal] = useState(false);
+
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ['orders'],
@@ -420,6 +424,15 @@ export default function OrdersPage() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
+            onClick={() => setShowAddOrderModal(true)}
+            className="btn btn-primary inline-flex items-center gap-2 text-xs font-bold cursor-pointer shadow-sm hover:shadow"
+            title="Create order for customer or generate a 1-click WhatsApp checkout link"
+          >
+            <Plus size={16} strokeWidth={2} />
+            <span>Add Order</span>
+          </button>
+          <button
+            type="button"
             onClick={handleExportOrdersCsv}
             disabled={exportingCsv || orders.length === 0}
             className="btn btn-secondary inline-flex items-center gap-2 text-xs font-bold cursor-pointer"
@@ -500,6 +513,14 @@ export default function OrdersPage() {
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddOrderModal(true)}
+                    className="w-full sm:w-auto px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus size={16} strokeWidth={2.5} />
+                    <span>Create Order & WhatsApp Link</span>
+                  </button>
                   {/* actionLabel="Share Store on WhatsApp" */}
                   <button
                     type="button"
@@ -1263,6 +1284,15 @@ export default function OrdersPage() {
           merchantLogo={(user as any)?.logo_url || null}
         />
       )}
+
+      {/* Add Order / WhatsApp Checkout Link Modal */}
+      <AddOrderModal
+        isOpen={showAddOrderModal}
+        onClose={() => setShowAddOrderModal(false)}
+        user={user}
+        onOrderCreated={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+      />
     </div>
   );
 }
+

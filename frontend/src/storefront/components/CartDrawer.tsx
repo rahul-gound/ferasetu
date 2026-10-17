@@ -39,6 +39,7 @@ export default function CartDrawer() {
     clearOrderSuccess,
     openWhatsAppCartOrder,
     shopName,
+    sharedOrderInfo,
   } = useStorefront();
 
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
@@ -54,6 +55,19 @@ export default function CartDrawer() {
     paymentMethod: 'offline' as 'offline' | 'online',
     notes: '',
   });
+
+  // Pre-fill customer details if shared via shopkeeper order link
+  React.useEffect(() => {
+    if (sharedOrderInfo?.isPreloaded) {
+      setFormData((prev) => ({
+        ...prev,
+        customerName: prev.customerName || sharedOrderInfo.customerName || '',
+        customerPhone: prev.customerPhone || sharedOrderInfo.customerPhone || '',
+        notes: prev.notes || sharedOrderInfo.notes || '',
+      }));
+    }
+  }, [sharedOrderInfo]);
+
 
   if (!isCartOpen) return null;
 
@@ -120,7 +134,24 @@ export default function CartDrawer() {
           </button>
         </div>
 
+        {/* Merchant Curated Order Banner */}
+        {sharedOrderInfo?.isPreloaded && !orderSuccess && (
+          <div className="mx-4 mt-3 p-3 bg-emerald-50 border border-emerald-200/90 rounded-xl text-left flex items-start gap-2.5 shadow-sm">
+            <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-xs font-bold text-emerald-950">
+                Order pre-selected by {shopName}
+              </div>
+              <p className="text-[11px] text-emerald-700 leading-snug mt-0.5">
+                {sharedOrderInfo.customerName ? `Namaste ${sharedOrderInfo.customerName}! ` : ''}
+                Your shopkeeper prepared these items for you. You can adjust quantities, add more items from the store, and proceed to checkout!
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Order Confirmed State */}
+
         {orderSuccess ? (
           <div className="flex-1 p-5 sm:p-6 flex flex-col items-center justify-start text-center overflow-y-auto">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 mt-2 shadow-inner">

@@ -121,4 +121,13 @@ export interface StorefrontContextValue {
   // WhatsApp helpers
   openWhatsAppInquiry: (product: ShopProduct) => void;
   openWhatsAppCartOrder: (notes?: string) => void;
+
+  // Merchant Pre-populated / Shared Order Link
+  sharedOrderInfo?: {
+    isPreloaded: boolean;
+    customerName?: string;
+    customerPhone?: string;
+    notes?: string;
+  } | null;
 }
+

@@ -13,8 +13,9 @@
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | **Edge Gateway & D1** | `92%` | 🟢 Production | Subdomain routing, D1 multi-tenant SQL, catalog caching, AST runtime | Cold-start edge cache warming optimization | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
 | **Core API & Express** | `90%` | 🟢 Production | AuthKit/Appwrite auth, orders lifecycle, payment webhooks, branding | Background job queue scaling under high burst | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] |
-| **Frontend & UI/UX** | `88%` | 🟡 Active | React 19 SPA, builder canvas, responsive mobile shopkeeper UI, i18n | Final squint-test passes on low-end Android viewports | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
+| **Frontend & UI/UX** | `89%` | 🟡 Active | React 19 SPA, Add Order WhatsApp storefront checkout link, builder canvas, i18n | Final squint-test passes on low-end Android viewports | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
 | **Fera AI Intelligence**| `85%` | 🟡 Active | Sarvam AI LLM, multilingual copilot, catalog generation, 32-test suite | Real-time audio streaming duplex optimization | [[05 - 🤖 Fera AI & Sarvam Intelligence]] |
+
 | **Pricing & Billing** | `95%` | 🟢 Production | Free/Business/Pro tier limits, Cashfree + Razorpay + Stripe geo-pricing | Automated invoice email delivery confirmation checks | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] |
 | **GST & Compliance** | `90%` | 🟢 Production | HSN/SAC codes, CGST/SGST/IGST breakdown, PDF invoice generation | Multi-state reverse charge edge cases | [[07 - 🧾 GST Invoicing & Accounting]] |
 | **Custom Domains & DNS**| `88%` | 🟢 Production | Wildcard routing (`*.ferasetu.com`), Cloudflare SSL provisioning | Self-serve DNS verification retry UI | [[08 - 🌐 Subdomains, Custom Domains & DNS]] |
@@ -39,12 +40,14 @@
 - [x] Ticketing & admin escalation module (`backend/src/routes/tickets.ts`) — **90%**
 - [ ] Redis job queue for bulk merchant broadcasts — **70%**
 
-### C. Frontend Web Application (`frontend/`) — **88% DONE**
+### C. Frontend Web Application (`frontend/`) — **89% DONE**
 - [x] React 19 + Vite 8 scaffold & routing (`frontend/src/App.tsx`) — **100%**
 - [x] 48-region localization dictionary & context (`frontend/src/contexts/LanguageContext.tsx`) — **95%**
 - [x] Visual Store Builder with drag-and-drop AST components (`frontend/src/builder/`) — **85%**
-- [x] Mobile thumb-zone shopping cart & WhatsApp direct checkout — **90%**
+- [x] Mobile thumb-zone shopping cart & WhatsApp direct checkout — **95%**
+- [x] Merchant "Add Order" & WhatsApp 1-click official storefront checkout link (`?cart=...`) — **100%**
 - [ ] Offline caching via Service Worker for poor connectivity kiranas — **60%**
+
 
 ### D. Fera AI Indic Engine — **85% DONE**
 - [x] Sarvam Indic API integration (`worker/ai/providers/sarvam.ts`) — **100%**

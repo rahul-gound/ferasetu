@@ -274,18 +274,66 @@ export function generateCanonicalStorefront(input: StorefrontInput): StorefrontR
 
 /**
  * Returns the merchant's public storefront URL from user profile data.
- * Falls back gracefully if hostname is not yet generated.
+ * Resolves custom domain, hostname, subdomain, organization, or canonical fallback.
  */
-export function getStorefrontUrl(user?: { hostname?: string; subdomain?: string; custom_domain?: string } | null): string {
+export function getStorefrontUrl(user?: {
+  hostname?: string;
+  subdomain?: string;
+  custom_domain?: string;
+  business_name?: string;
+  name?: string;
+  city?: string | null;
+  district?: string | null;
+  state?: string | null;
+  organization?: {
+    store_url?: string;
+    store_slug?: string;
+  } | null;
+} | null): string {
   if (!user) return 'https://ferasetu.com';
   if (user.custom_domain) {
-    return `https://${user.custom_domain}`;
+    const cd = user.custom_domain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    return `https://${cd}`;
+  }
+  if (user.organization?.store_url) {
+    return user.organization.store_url;
   }
   if (user.hostname) {
-    return `https://${user.hostname}`;
+    const hn = user.hostname.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    return `https://${hn}`;
   }
   if (user.subdomain) {
     return `https://${user.subdomain}.ferasetu.com`;
   }
+  if (user.organization?.store_slug) {
+    return `https://${user.organization.store_slug}.ferasetu.com`;
+  }
+  if (user.business_name || user.name) {
+    const canonical = generateCanonicalStorefront({
+      shopName: user.business_name || user.name || 'store',
+      city: user.city,
+      district: user.district,
+      state: user.state,
+    });
+    return canonical.storeUrl;
+  }
   return 'https://ferasetu.com';
 }
+
+/**
+ * Returns a browser-testable storefront URL for local development or preview environments.
+ */
+export function getStorefrontPreviewUrl(user?: any): string {
+  const slug = user?.subdomain || user?.organization?.store_slug || 'preview';
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocalOrPreview = hostname === 'localhost' ||
+      hostname.includes('127.0.0.1') ||
+      hostname.includes('app.github.dev');
+    if (isLocalOrPreview) {
+      return `${window.location.origin}/shop/${slug}`;
+    }
+  }
+  return getStorefrontUrl(user);
+}
+

@@ -53,6 +53,12 @@ export function StorefrontProvider({
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [sharedOrderInfo, setSharedOrderInfo] = useState<{
+    isPreloaded: boolean;
+    customerName?: string;
+    customerPhone?: string;
+    notes?: string;
+  } | null>(null);
 
   // Product modal state
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
@@ -252,6 +258,82 @@ export function StorefrontProvider({
       }
     }
   }, [initialProductId, products, trackStoreEvent]);
+
+  // Check URL query parameter for pre-filled cart / merchant shared order link
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    try {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      if (!search) return;
+      const params = new URLSearchParams(search);
+      const cartParam = params.get('cart') || params.get('items') || params.get('order_items');
+      const cname = params.get('cname') || params.get('name') || params.get('customer_name') || '';
+      const cphone = params.get('cphone') || params.get('phone') || params.get('customer_phone') || '';
+      const notes = params.get('notes') || params.get('note') || '';
+
+      if (cartParam) {
+        let itemsToLoad: Array<{ productId: string; quantity: number; variantId?: string }> = [];
+
+        if (cartParam.startsWith('[') || cartParam.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(cartParam);
+            itemsToLoad = Array.isArray(parsed) ? parsed : (parsed.items || []);
+          } catch {}
+        } else {
+          const tokens = cartParam.split(',');
+          for (const token of tokens) {
+            const parts = token.trim().split(':');
+            if (parts[0]) {
+              const productId = parts[0];
+              const quantity = Math.max(1, parseInt(parts[1] || '1', 10) || 1);
+              const variantId = parts[2] || undefined;
+              itemsToLoad.push({ productId, quantity, variantId });
+            }
+          }
+        }
+
+        if (itemsToLoad.length > 0) {
+          const preloadedCart: CartItem[] = [];
+          for (const item of itemsToLoad) {
+            const prod = products.find((p) => p.id === item.productId || (p as any).sku === item.productId);
+            if (!prod) continue;
+            const variant = item.variantId && (prod as any).variants
+              ? (prod as any).variants.find((v: any) => v.id === item.variantId)
+              : undefined;
+
+            const itemKey = variant ? `${prod.id}__${variant.id}` : prod.id;
+            const effectivePrice = variant ? variant.price : (prod.sale_price != null && prod.sale_price > 0 ? prod.sale_price : prod.price);
+            const itemStock = variant && (variant as any).stock !== undefined ? Number((variant as any).stock) : prod.stock_quantity;
+            const cappedQty = itemStock > 0 ? Math.min(item.quantity, itemStock) : item.quantity;
+
+            preloadedCart.push({
+              ...prod,
+              price: effectivePrice,
+              variant_id: variant?.id,
+              variant_title: variant?.title,
+              variant,
+              cart_key: itemKey,
+              quantity: cappedQty,
+            });
+          }
+
+          if (preloadedCart.length > 0) {
+            setCart(preloadedCart);
+            setSharedOrderInfo({
+              isPreloaded: true,
+              customerName: cname,
+              customerPhone: cphone,
+              notes,
+            });
+            setIsCartOpen(true);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse cart URL parameters:', e);
+    }
+  }, [products]);
+
 
   // Derive unique categories
   const categories = useMemo(() => {
@@ -559,7 +641,11 @@ export function StorefrontProvider({
     fetchCustomerOrders,
     selectedCustomerOrder,
     setSelectedCustomerOrder,
+
+    // Shared Order Info
+    sharedOrderInfo,
   };
+
 
   return (
     <StorefrontContext.Provider value={contextValue}>

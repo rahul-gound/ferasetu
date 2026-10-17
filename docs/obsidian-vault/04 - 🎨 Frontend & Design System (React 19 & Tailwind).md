@@ -25,5 +25,8 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 | **Storefront** | `frontend/src/storefront/` | Buyer-facing responsive product catalog & cart |
 | **Language Context** | `frontend/src/contexts/LanguageContext.tsx` | 48-region dynamic Indic dictionary switcher |
 | **Auth & Session** | `frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/authBridge.ts` | WorkOS AuthKit persistent refresh token & 401 retry recovery |
-| **Orders Dashboard**| `frontend/src/pages/OrdersPage.tsx` | Order status tracking, invoice downloads |
+| **Orders Dashboard**| `frontend/src/pages/OrdersPage.tsx` | Order status tracking, CSV exports, + Add Order WhatsApp link generation |
+| **Add Order Modal** | `frontend/src/components/orders/AddOrderModal.tsx` | Merchant order assembly, 1-click WhatsApp storefront checkout link, direct cash order recorder |
+| **Shared Storefront Cart** | `frontend/src/storefront/runtime/StorefrontProvider.tsx`, `frontend/src/storefront/components/CartDrawer.tsx` | Preloaded cart from merchant link (`?cart=...`), customer banner, seamless item addition and checkout on official store domain |
 | **Fera AI Studio** | `frontend/src/pages/FeraAIPage.tsx` | Conversational manager & voice input UI |
+
