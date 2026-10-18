@@ -367,10 +367,12 @@ router.get('/sales', (req: AuthenticatedRequest, res: Response): void => {
     `).all(timeFormat, userId, timeUnit);
 
     // 2. Category Breakdown
-    const allOrders = db.prepare(`
-      SELECT items FROM orders 
+    // Group identically shaped items arrays in D1 to drastically reduce JSON.parse and iteration overhead in V8
+    const groupedOrders = db.prepare(`
+      SELECT items, COUNT(*) as count FROM orders
       WHERE user_id = ? AND status != 'cancelled' AND created_at >= datetime('now', ?)
-    `).all(userId, timeUnit) as { items: string }[];
+      GROUP BY items
+    `).all(userId, timeUnit) as { items: string, count: number }[];
 
     const categoryMap: Record<string, { value: number; revenue: number }> = {};
     
@@ -379,13 +381,13 @@ router.get('/sales', (req: AuthenticatedRequest, res: Response): void => {
     const catMap: Record<string, string> = {};
     productCategories.forEach(p => catMap[p.id] = p.category || 'General');
 
-    for (const order of allOrders) {
-      const items = JSON.parse(order.items);
+    for (const row of groupedOrders) {
+      const items = JSON.parse(row.items);
       for (const item of items) {
         const cat = catMap[item.productId] || 'General';
         if (!categoryMap[cat]) categoryMap[cat] = { value: 0, revenue: 0 };
-        categoryMap[cat].value += item.quantity;
-        categoryMap[cat].revenue += item.total;
+        categoryMap[cat].value += item.quantity * row.count;
+        categoryMap[cat].revenue += item.total * row.count;
       }
     }
 
