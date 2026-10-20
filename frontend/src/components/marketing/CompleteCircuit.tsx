@@ -82,6 +82,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const rightPanelRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<ScrollTrigger | null>(null);
+  const scrollDirectionRef = useRef<'down' | 'up'>('down');
 
   const currentStage = STAGES[activeStepIndex];
 
@@ -102,7 +103,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
 
       if (isDesktop) {
         // Pin the entire circuit section as the user scrolls down
-        const totalScrollDistance = 2400;
+        const totalScrollDistance = 2200;
 
         const st = ScrollTrigger.create({
           trigger: section,
@@ -110,11 +111,12 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
           end: `+=${totalScrollDistance}`,
           pin: true,
           pinSpacing: true,
-          scrub: 0.6,
+          scrub: 0.5,
           anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             const p = self.progress;
+            scrollDirectionRef.current = self.direction > 0 ? 'down' : 'up';
 
             // Compute active step (0, 1, 2, 3)
             let step = 0;
@@ -157,25 +159,28 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
     };
   }, []);
 
-  // Smooth transition animations when active stage changes
+  // Smooth directional (--->) transition animations when active stage changes
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
 
+    const isDown = scrollDirectionRef.current === 'down';
+    const xOffset = isDown ? 28 : -28;
+
     if (leftPanelRef.current) {
       gsap.fromTo(
         leftPanelRef.current.children,
-        { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.28, stagger: 0.04, ease: 'power2.out' }
+        { opacity: 0, x: isDown ? 12 : -12 },
+        { opacity: 1, x: 0, duration: 0.3, stagger: 0.04, ease: 'power2.out' }
       );
     }
 
     if (rightPanelRef.current) {
       gsap.fromTo(
         rightPanelRef.current,
-        { opacity: 0.2, scale: 0.97, y: 12 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.34, ease: 'power2.out' }
+        { opacity: 0.1, x: xOffset, scale: 0.98 },
+        { opacity: 1, x: 0, scale: 1, duration: 0.35, ease: 'power2.out' }
       );
     }
   }, [activeStepIndex]);
@@ -219,24 +224,24 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
     >
       <div
         ref={pinFrameRef}
-        className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 py-8 md:py-12 min-h-[100vh] flex flex-col justify-between"
+        className="w-full max-w-[1260px] mx-auto px-4 sm:px-6 py-6 md:py-10 min-h-screen flex flex-col justify-between"
       >
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3 border border-blue-200">
+        <div className="text-center max-w-2xl mx-auto mb-4 sm:mb-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-2 border border-blue-200">
             <Sparkles size={12} className="text-blue-600" aria-hidden="true" />
             <span>THE PRODUCT CIRCUIT</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-2 sm:mb-3">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-2">
             One connected workflow from physical shop to returning customer.
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal max-w-xl mx-auto">
             No messy plugins. No middleman holding your inventory hostage. Four clear stages connect your business to the web.
           </p>
         </div>
 
         {/* 4-Stage Stepper Buttons (Interactive Progress Scrubbers) */}
-        <div className="relative mb-6 sm:mb-8">
+        <div className="relative mb-4 sm:mb-6">
           <div
             role="tablist"
             aria-label="FeraSetu four-stage commerce circuit"
@@ -261,7 +266,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
                   onClick={() => handleStepClick(idx)}
                   onKeyDown={(e) => handleKeyDown(e, idx)}
                   type="button"
-                  className={`text-left p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden select-none ${
+                  className={`text-left p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden select-none ${
                     isActive
                       ? isPaymentStage
                         ? 'bg-white border-orange-500 shadow-md ring-2 ring-orange-500/10'
@@ -273,7 +278,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
                 >
                   <div>
                     {/* Top Row: Step Tag + Actor */}
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1.5">
                       <span
                         className={`text-xs font-mono font-bold px-2 py-0.5 rounded tabular-nums tracking-normal flex items-center gap-1 ${
                           isActive
@@ -294,9 +299,9 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
                     </div>
 
                     {/* Step Title */}
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-0.5">
                       <Icon
-                        size={16}
+                        size={15}
                         className={
                           isActive
                             ? isPaymentStage
@@ -319,7 +324,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
                   </div>
 
                   {/* Stage Progress Bar (Animated as user scrolls) */}
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-col gap-1.5">
+                  <div className="mt-2 pt-1.5 border-t border-slate-100 flex flex-col gap-1">
                     <div className="flex items-center justify-between text-[10px]">
                       <span className={`font-semibold ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>
                         {stage.keyAction}
@@ -348,16 +353,16 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
           id={`circuit-panel-${currentStage.step}`}
           role="tabpanel"
           aria-labelledby={`circuit-tab-${currentStage.step}`}
-          className="rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden grid lg:grid-cols-12 min-h-[380px] sm:min-h-[420px]"
+          className="rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden grid lg:grid-cols-12 min-h-[350px] sm:min-h-[380px]"
         >
           {/* Left Column: Stage Narrative Details */}
           <div
             ref={leftPanelRef}
-            className="lg:col-span-5 p-5 sm:p-7 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/70"
+            className="lg:col-span-5 p-5 sm:p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/70"
           >
             <div>
               <div
-                className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-bold uppercase tracking-wider mb-3 ${
+                className={`inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md border text-xs font-bold uppercase tracking-wider mb-2.5 ${
                   activeStepIndex === 2
                     ? 'bg-orange-50 border-orange-200 text-orange-800'
                     : 'bg-blue-50 border-blue-200 text-blue-700'
@@ -372,47 +377,47 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
                 {currentStage.name}
               </h3>
 
-              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-5 font-normal">
+              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4 font-normal">
                 {currentStage.description}
               </p>
 
-              <div className="space-y-2.5 pt-3 border-t border-slate-200 text-xs sm:text-sm">
-                <div className="flex items-start gap-2.5 text-slate-700">
-                  <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>
-                    {activeStepIndex === 0 && 'Fast cloud hosting with automatic SSL and clean mobile layout.'}
-                    {activeStepIndex === 1 && 'Structured shopping cart avoids lost chat messages and missed details.'}
-                    {activeStepIndex === 2 && 'Direct settlement: FeraSetu does not hold or delay your payouts.'}
-                    {activeStepIndex === 3 && 'Direct customer phone numbers and order history stay in your own records.'}
+              <div className="space-y-2 pt-3 border-t border-slate-200 text-xs sm:text-sm">
+                <div className="flex items-start gap-2 text-slate-700">
+                  <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
+                  <span className="leading-snug">
+                    {activeStepIndex === 0 && 'Fast Cloudflare edge hosting with automated SSL and clean mobile layout.'}
+                    {activeStepIndex === 1 && 'Structured shopping cart avoids lost chat messages and missed orders.'}
+                    {activeStepIndex === 2 && 'Direct settlement: FeraSetu never holds or delays your customer payouts.'}
+                    {activeStepIndex === 3 && 'Direct customer phone numbers and purchase history stay in your private ledger.'}
                   </span>
                 </div>
-                <div className="flex items-start gap-2.5 text-slate-700">
-                  <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>
+                <div className="flex items-start gap-2 text-slate-700">
+                  <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
+                  <span className="leading-snug">
                     {activeStepIndex === 0 && `Permanent store link (${demo.displayUrl}) or your own custom domain.`}
-                    {activeStepIndex === 1 && 'Buyers order directly without downloading an app or creating an account.'}
+                    {activeStepIndex === 1 && 'Buyers order instantly without downloading an app or creating accounts.'}
                     {activeStepIndex === 2 && 'Zero commission surcharge from FeraSetu on any order.'}
-                    {activeStepIndex === 3 && 'Export your customer records and product catalog anytime.'}
+                    {activeStepIndex === 3 && '1-click CSV export of your entire customer list whenever you want.'}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Bottom Progress Footnote */}
-            <div className="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs font-mono text-slate-500">
+            <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs font-mono text-slate-500">
               <span className="tabular-nums">
                 {isPinnedMode
-                  ? `Scroll down to advance (${activeStepIndex + 1}/4)`
+                  ? `Scroll down to advance (${activeStepIndex + 1}/4) --->`
                   : `Stage ${activeStepIndex + 1} of 04`}
               </span>
-              <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+              <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-[11px]">
                 Live Interface Proof
               </span>
             </div>
           </div>
 
           {/* Right Column: Dynamic Stage Evidence UI */}
-          <div className="lg:col-span-7 p-4 sm:p-7 bg-slate-900 text-slate-100 flex items-center justify-center relative overflow-hidden">
+          <div className="lg:col-span-7 p-4 sm:p-6 bg-slate-900 text-slate-100 flex items-center justify-center relative overflow-hidden">
             <div ref={rightPanelRef} className="w-full max-w-md">
               {activeStepIndex === 0 && (
                 /* STAGE 01: Storefront Creation Proof */
@@ -557,7 +562,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
         </div>
 
         {/* Bottom Action Row */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200/80">
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-slate-200/80">
           <div className="flex items-center gap-2 text-xs text-slate-600">
             <ShieldCheck size={16} className="text-blue-600 shrink-0" aria-hidden="true" />
             <span>0% commissions. Full customer data ownership. Direct payouts.</span>
@@ -569,8 +574,8 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
               onClick={onStart}
               className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer group"
             >
-              <span>Ready to start? Launch your store in minutes</span>
-              <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+              <span>Bring my business online</span>
+              <ArrowRight size={14} className="transition-transform duration-150 group-hover:translate-x-1" />
             </button>
           )}
         </div>

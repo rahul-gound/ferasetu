@@ -202,7 +202,7 @@ export default function LandingPage() {
               </div>
 
               {/* Trust Indicators */}
-              <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+              <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-8">
                 <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
                   <CheckCircle2 size={14} className="text-blue-600" aria-hidden="true" />
                   <span>{market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}</span>
@@ -218,6 +218,57 @@ export default function LandingPage() {
                   <span>0% FeraSetu platform commission</span>
                 </span>
               </div>
+
+              {/* First-Glance High-Trust Value Anchors (First 50ms Cognitive Reassurance) */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto text-left">
+                <div className="p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition-all shadow-xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 flex items-center justify-center font-bold text-xs font-mono">
+                      0%
+                    </span>
+                    <span className="font-bold text-xs text-slate-900">Zero Commission</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Keep 100% of your earnings after payment gateway fees. No percentage toll on sales.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition-all shadow-xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold text-xs">
+                      ⚡
+                    </span>
+                    <span className="font-bold text-xs text-slate-900">Direct Settlement</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    UPI &amp; card payouts settle directly to your account. Zero platform escrow holds.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition-all shadow-xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold text-xs">
+                      📱
+                    </span>
+                    <span className="font-bold text-xs text-slate-900">Owned Customer Data</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    100% unmasked buyer phone numbers and history. Download your customer list anytime.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition-all shadow-xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center font-bold text-xs">
+                      🌐
+                    </span>
+                    <span className="font-bold text-xs text-slate-900">Branded Web Address</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">
+                    Your store name and custom domain. No competing shops or search ads alongside your goods.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* ================================================================
@@ -228,12 +279,19 @@ export default function LandingPage() {
               <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                   </div>
                   <span className="font-bold text-slate-800 ml-2">FeraSetu Commerce System</span>
                 </div>
+
+                {/* Verified SSL Domain Bar in Center */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-md bg-white border border-slate-200 font-mono text-[11px] text-slate-700 shadow-xs">
+                  <Lock size={11} className="text-emerald-600 shrink-0" aria-hidden="true" />
+                  <span className="font-semibold text-slate-900">{demo.storeUrl}</span>
+                </div>
+
                 <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-50 text-orange-900 border border-orange-200 font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
