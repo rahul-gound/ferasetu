@@ -13,6 +13,7 @@ import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 import InvoiceDocumentModal from '../components/orders/InvoiceDocumentModal';
 import AddOrderModal from '../components/orders/AddOrderModal';
+import CancelConfirmationModal from '../components/orders/CancelConfirmationModal';
 
 
 interface OrderItem {
@@ -171,6 +172,7 @@ export default function OrdersPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
 
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
@@ -234,6 +236,8 @@ export default function OrdersPage() {
       toast.success('Order cancelled successfully.');
       setShowCancelModal(false);
       setCancelReason('');
+      setOrderToCancel(null);
+      setSelectedOrder(prev => prev ? { ...prev, status: 'cancelled', cancellation_status: 'cancelled' } : null);
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error || 'Failed to cancel order');
@@ -311,9 +315,13 @@ export default function OrdersPage() {
     onError: () => toast.error('Failed to update payment status'),
   });
 
-  const handleStatusChange = (id: string, status: string) => {
-    setUpdatingId(id);
-    updateMutation.mutate({ id, status });
+  const handleStatusChange = (order: Order, status: string) => {
+    if (status === 'cancelled') {
+      setOrderToCancel(order);
+      return;
+    }
+    setUpdatingId(order.id);
+    updateMutation.mutate({ id: order.id, status });
   };
 
   const handlePaymentUpdate = (id: string, payment_status: string) => {
@@ -602,7 +610,7 @@ export default function OrdersPage() {
                       <select
                         value={order.status}
                         disabled={updatingId === order.id}
-                        onChange={e => handleStatusChange(order.id, e.target.value)}
+                        onChange={e => handleStatusChange(order, e.target.value)}
                         className="w-full text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                       >
                         {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
@@ -689,7 +697,7 @@ export default function OrdersPage() {
                           <select
                             value={order.status}
                             disabled={updatingId === order.id}
-                            onChange={e => handleStatusChange(order.id, e.target.value)}
+                            onChange={e => handleStatusChange(order, e.target.value)}
                             onClick={e => e.stopPropagation()}
                             style={{
                               padding: '6px 28px 6px 10px', borderRadius: '6px', fontSize: '12px',
@@ -863,7 +871,7 @@ export default function OrdersPage() {
                 {selectedOrder.status !== 'cancelled' && (
                   <button
                     type="button"
-                    onClick={() => setShowCancelModal(true)}
+                    onClick={() => setOrderToCancel(selectedOrder)}
                     style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #FCA5A5', color: '#DC2626', background: '#FFF', cursor: 'pointer' }}
                   >
                     <Ban size={14} /> Cancel Order
@@ -1257,8 +1265,10 @@ export default function OrdersPage() {
                 <select
                   value={selectedOrder.status}
                   onChange={e => {
-                    handleStatusChange(selectedOrder.id, e.target.value);
-                    setSelectedOrder({ ...selectedOrder, status: e.target.value });
+                    handleStatusChange(selectedOrder, e.target.value);
+                    if (e.target.value !== 'cancelled') {
+                      setSelectedOrder({ ...selectedOrder, status: e.target.value });
+                    }
                   }}
                   className="input"
                   style={{ width: '100%' }}
@@ -1291,6 +1301,21 @@ export default function OrdersPage() {
         onClose={() => setShowAddOrderModal(false)}
         user={user}
         onOrderCreated={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+      />
+
+      {/* Cancel Order Irreversible Confirmation Modal */}
+      <CancelConfirmationModal
+        isOpen={!!orderToCancel}
+        order={orderToCancel}
+        onClose={() => setOrderToCancel(null)}
+        onProceed={async (reason) => {
+          if (!orderToCancel) return;
+          await cancelOrderMutation.mutateAsync({
+            id: orderToCancel.id,
+            reason: reason || 'Merchant cancelled order',
+          });
+        }}
+        isSubmitting={cancelOrderMutation.isPending}
       />
     </div>
   );

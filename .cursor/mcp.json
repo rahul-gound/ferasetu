@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "workos": {
+      "transport": "http",
+      "url": "https://mcp.workos.com/mcp"
+    }
+  }
+}

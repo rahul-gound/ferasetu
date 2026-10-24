@@ -21,7 +21,7 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 | Module | Location | Purpose |
 | :--- | :--- | :--- |
 | **Root Shell** | `frontend/src/App.tsx` | Route definitions, AuthGuard, LanguageProvider |
-| **Store Builder** | `frontend/src/builder/` | Drag-and-drop visual AST site builder |
+| **Store Builder** | `frontend/src/builder/` | Drag-and-drop visual AST site builder (DesignPanel, LogicPanel, ConnectionsPanel, AssetsPanel) with `THEME_PRESETS` import resolution |
 | **Storefront** | `frontend/src/storefront/` | Buyer-facing responsive product catalog & cart |
 | **Language Context** | `frontend/src/contexts/LanguageContext.tsx` | 48-region dynamic Indic dictionary switcher |
 | **Auth & Session** | `frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/authBridge.ts` | WorkOS AuthKit persistent refresh token & 401 retry recovery |

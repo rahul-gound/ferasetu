@@ -39,7 +39,7 @@ export async function callModalGlm({
   maxTokens = 2048,
   temperature = 0.45,
 }) {
-  const modalCfg = config.modal;
+  const modalCfg = config?.feraAi || config?.modal || {};
   const startMs = Date.now();
   const maxRetries = 2;
 

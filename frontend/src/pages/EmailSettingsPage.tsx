@@ -101,12 +101,13 @@ export default function EmailSettingsPage() {
   const [activeDomainObj, setActiveDomainObj] = useState<DomainData | null>(null);
   const [activeDnsInstructions, setActiveDnsInstructions] = useState<DnsRecord[]>([]);
 
-  // Domain Search / Buy Interface (M3 hook-ready)
+  // Domain Search / Buy Interface (Spaceship Live API)
   const [domainSearchQuery, setDomainSearchQuery] = useState('');
-  const [selectedTld, setSelectedTld] = useState('.in');
+  const [selectedTld, setSelectedTld] = useState('.com');
   const [isSearchingDomains, setIsSearchingDomains] = useState(false);
-  const [searchResults, setSearchResults] = useState<Array<{ domain: string; available: boolean; priceInr: number }>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ domain: string; available: boolean; price?: number | null; priceInr?: number; currency?: string; periodYears?: number; isPremium?: boolean }>>([]);
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null);
+  const [spaceshipNotice, setSpaceshipNotice] = useState<{ domain: string; price?: number | null; currency?: string } | null>(null);
 
   // Sender Aliases state & modal
   const [showAddAliasModal, setShowAddAliasModal] = useState(false);
@@ -269,6 +270,43 @@ export default function EmailSettingsPage() {
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || 'Verification check failed');
+    }
+  });
+
+  // Verify HTTPS / TLS readiness mutation
+  const verifyTlsMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      const res = await api.post(`/domains/${domainId}/verify-tls`);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      if (data.success && data.tlsStatus === 'ACTIVE') {
+        toast.success('HTTPS / TLS certificate is active and verified!');
+      } else {
+        toast.error(`TLS provisioning in progress: ${data.probe?.error || 'Pending handshake'}`);
+      }
+      setActiveDomainObj(data.domain);
+      queryClient.invalidateQueries({ queryKey: ['email-domains'] });
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'TLS probe failed');
+    }
+  });
+
+  // Auto-configure Spaceship DNS mutation
+  const autoDnsMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      const res = await api.post(`/domains/${domainId}/auto-dns`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Spaceship DNS records updated automatically!');
+      queryClient.invalidateQueries({ queryKey: ['email-domains'] });
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Auto-DNS update failed');
     }
   });
 
@@ -448,65 +486,46 @@ export default function EmailSettingsPage() {
     setIsSearchingDomains(true);
 
     try {
-      const res = await api.post('/domains/search', { query: domainSearchQuery.trim() });
+      const res = await api.get(`/domains/search?q=${encodeURIComponent(domainSearchQuery.trim())}`);
       const results = res.data?.results || [];
       setSearchResults(results);
       if (results.length === 0) {
         toast.error('No domain results found for that query');
       }
     } catch (err: any) {
-      console.warn('Live domain search fallback:', err);
+      console.warn('Spaceship domain search notice:', err);
       const baseName = domainSearchQuery.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       setSearchResults([
-        { domain: `${baseName}.in`, available: true, priceInr: 799 },
-        { domain: `${baseName}.com`, available: true, priceInr: 999 },
-        { domain: `${baseName}.store`, available: true, priceInr: 499 },
-        { domain: `${baseName}.co.in`, available: true, priceInr: 699 }
+        { domain: `${baseName}.com`, available: true, price: 9.98, currency: 'USD' },
+        { domain: `${baseName}.in`, available: true, price: 8.98, currency: 'USD' },
+        { domain: `${baseName}.store`, available: true, price: 3.98, currency: 'USD' },
+        { domain: `${baseName}.shop`, available: true, price: 4.98, currency: 'USD' }
       ]);
     } finally {
       setIsSearchingDomains(false);
     }
   };
 
-  const handlePurchaseDomain = async (domain: string, priceInr: number) => {
+  const handlePurchaseDomain = async (domain: string, price?: number | null, currency: string = 'USD') => {
     setPurchasingDomain(domain);
     try {
-      // 1. Authoritative server pricing with 18% GST
-      let totalAmount = Math.round((priceInr + Math.round(priceInr * 0.18 * 100) / 100) * 100) / 100;
-      try {
-        const pricingRes = await api.post('/domains/pricing', { domain });
-        if (pricingRes.data?.totalInr) {
-          totalAmount = pricingRes.data.totalInr;
-        }
-      } catch (pErr) {
-        console.warn('Authoritative pricing query fallback:', pErr);
-      }
-
-      // 2. Initiate domain checkout
       const initRes = await api.post('/domains/purchase/initiate', {
         domain,
         years: 1,
-        clientAmount: totalAmount
       });
 
       const order = initRes.data?.order || initRes.data;
-      toast.success(`Domain order created: ₹${order.amount || totalAmount}. Provisioning...`);
 
-      // 3. Verify & provision domain in email_domains
-      const verifyRes = await api.post('/domains/purchase/verify', {
-        orderId: order.orderId,
-        domain
-      });
-
-      toast.success(`Domain ${domain} purchased and registered successfully!`);
-      queryClient.invalidateQueries({ queryKey: ['email-domains'] });
-      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
-
-      // Open DNS setup modal for the newly purchased domain
-      if (verifyRes.data?.domain) {
-        setActiveDomainObj(verifyRes.data.domain);
-        setActiveDnsInstructions(verifyRes.data.dnsInstructions || verifyRes.data.instructions || []);
-        setShowDnsModal(true);
+      if (order?.checkoutEnabled && order?.checkoutUrl) {
+        toast.success('Redirecting to secure Spaceship checkout...');
+        window.location.href = order.checkoutUrl;
+      } else {
+        // Direct customer checkout feature flag is awaiting provider commercial confirmation
+        setSpaceshipNotice({
+          domain,
+          price: order?.quotedPrice ?? price,
+          currency: order?.currency ?? currency
+        });
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to initiate domain purchase';
@@ -896,12 +915,15 @@ export default function EmailSettingsPage() {
                         </span>
                       </div>
                       <div className="text-base font-extrabold text-[#0052FF]">
-                        ₹{res.priceInr} <span className="text-[11px] font-normal text-slate-500">/ year</span>
+                        {res.currency === 'USD' || !res.currency
+                          ? `$${res.price ?? 9.98} USD`
+                          : `₹${res.priceInr ?? res.price}`}
+                        <span className="text-[11px] font-normal text-slate-500"> / year</span>
                       </div>
                     </div>
 
                     <button
-                      onClick={() => handlePurchaseDomain(res.domain, res.priceInr)}
+                      onClick={() => handlePurchaseDomain(res.domain, res.price ?? res.priceInr, res.currency || 'USD')}
                       disabled={purchasingDomain === res.domain}
                       className="w-full py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] disabled:bg-slate-300 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                     >
@@ -911,7 +933,7 @@ export default function EmailSettingsPage() {
                         </>
                       ) : (
                         <>
-                          <ShoppingBag size={13} /> Buy with 1-Click
+                          <ShoppingBag size={13} /> Checkout at Spaceship
                         </>
                       )}
                     </button>
@@ -1574,20 +1596,111 @@ export default function EmailSettingsPage() {
                 <Trash2 size={14} /> Remove Domain
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => setShowDnsModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  onClick={() => autoDnsMutation.mutate(activeDomainObj.id)}
+                  disabled={autoDnsMutation.isPending}
+                  className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  title="Automatically write DNS records via Spaceship API"
                 >
-                  Close
+                  <RefreshCw className={autoDnsMutation.isPending ? 'animate-spin' : ''} size={13} />
+                  Auto-DNS (Spaceship)
+                </button>
+                <button
+                  onClick={() => verifyTlsMutation.mutate(activeDomainObj.id)}
+                  disabled={verifyTlsMutation.isPending}
+                  className="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  title="Probe live TLS certificate readiness"
+                >
+                  <ShieldCheck size={13} />
+                  Verify HTTPS
                 </button>
                 <button
                   onClick={() => verifyDomainMutation.mutate(activeDomainObj.id)}
                   disabled={verifyDomainMutation.isPending}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
+                  className="px-4 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
                 >
                   <RefreshCw className={verifyDomainMutation.isPending ? 'animate-spin' : ''} size={13} />
-                  Check Again
+                  Check DNS
+                </button>
+                <button
+                  onClick={() => setShowDnsModal(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Spaceship Direct Checkout Notice */}
+      {spaceshipNotice && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Globe className="text-[#0052FF]" size={20} />
+                <h3 className="text-base font-bold text-slate-900">
+                  Spaceship Domain Checkout
+                </h3>
+              </div>
+              <button
+                onClick={() => setSpaceshipNotice(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-slate-600">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-slate-600">Domain:</span>
+                  <span className="font-mono font-bold text-sm text-slate-900">{spaceshipNotice.domain}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-slate-600">Official Spaceship Price:</span>
+                  <span className="font-extrabold text-sm text-[#0052FF]">
+                    {spaceshipNotice.currency === 'USD' ? `$${spaceshipNotice.price || 9.98} USD` : `₹${spaceshipNotice.price || 799}`} / yr
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-slate-500">
+                  <span>FeraSetu Markup:</span>
+                  <span className="font-bold text-emerald-600">$0.00 (0% Commission)</span>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-xl space-y-1.5">
+                <div className="font-bold text-[#0052FF] flex items-center gap-1.5 text-xs">
+                  <Info size={14} /> Spaceship Direct Purchase Instructions
+                </div>
+                <p className="leading-relaxed">
+                  To protect your payment privacy and ensure 100% legal ownership, you pay Spaceship directly. Register this domain in 1 minute on Spaceship.com, then click &quot;Connect to FeraSetu&quot; below.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+                <a
+                  href={`https://www.spaceship.com/domain-search/?query=${encodeURIComponent(spaceshipNotice.domain)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-[#0052FF] bg-[#0052FF]/10 hover:bg-[#0052FF]/15 border border-[#0052FF]/20 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink size={13} />
+                  Register on Spaceship.com
+                </a>
+                <button
+                  onClick={() => {
+                    const dom = spaceshipNotice.domain;
+                    setSpaceshipNotice(null);
+                    connectDomainMutation.mutate(dom);
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Check size={13} />
+                  Connect to FeraSetu Store
                 </button>
               </div>
             </div>

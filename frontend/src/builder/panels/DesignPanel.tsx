@@ -35,7 +35,8 @@ interface DesignPanelProps {
   onBindWorkflowToNode?: (nodeId: string, workflowId: string) => void;
 }
 
-export { THEME_PRESETS } from '../../storefront/theme/themeDefinitions';
+import { THEME_PRESETS } from '../../storefront/theme/themeDefinitions';
+export { THEME_PRESETS };
 
 export const AVAILABLE_BLOCKS = [
   { type: 'hero', label: 'Hero Showcase', category: 'Page Block', desc: 'Prominent headline, imagery, and primary CTA' },

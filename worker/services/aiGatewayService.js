@@ -70,10 +70,14 @@ export function redactSecrets(val) {
  * @param {object} env - Cloudflare Worker environment bindings
  */
 export function createAiGatewayService(env = {}) {
-  // Modal GLM config
-  const modalEndpoint = env?.MODAL_GLM_ENDPOINT || env?.GLM_MODAL_URL || 'https://api.modal.com/v1/chat/completions';
-  const modalModel = env?.MODAL_GLM_MODEL || env?.GLM_MODEL_NAME || 'glm-5.3-flash';
-  const modalApiKey = env?.MODAL_API_KEY || env?.GLM_MODAL_API_KEY || '';
+  // Fera AI / OpenAI-compatible reasoning config
+  const rawAiEndpoint = env?.FERA_AI_ENDPOINT || env?.FERA_AI_BASE_URL || env?.AI_ENDPOINT || env?.MODAL_GLM_ENDPOINT || env?.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
+  const cleanEndpoint = String(rawAiEndpoint || '').trim().replace(/\/+$/, '');
+  const aiChatEndpoint = cleanEndpoint.endsWith('/chat/completions')
+    ? cleanEndpoint
+    : (cleanEndpoint.endsWith('/v1') ? `${cleanEndpoint}/chat/completions` : `${cleanEndpoint}/v1/chat/completions`);
+  const aiModel = env?.FERA_AI_MODEL || env?.AI_MODEL || env?.MODAL_GLM_MODEL || env?.GLM_MODEL_NAME || 'glm-5.3-flash';
+  const aiApiKey = env?.FERA_AI_API_KEY || env?.FERA_AI_KEY || env?.AI_API_KEY || env?.OPENAI_API_KEY || env?.MODAL_API_KEY || env?.GLM_MODAL_API_KEY || '';
 
   // Sarvam AI config
   const sarvamApiKey = env?.SARVAM_API_KEY || env?.SARVAM_30B_API_KEY || env?.SARVAM_105B_API_KEY || '';
@@ -91,11 +95,17 @@ export function createAiGatewayService(env = {}) {
      * Reports configured capabilities without exposing any secret keys.
      */
     getProviderStatus() {
+      const isConfigured = Boolean(aiApiKey && aiApiKey.trim().length > 4);
       return {
+        feraAi: {
+          configured: isConfigured,
+          model: aiModel,
+          isOpenAiCompatible: true,
+        },
         modal: {
-          configured: Boolean(modalApiKey && modalApiKey.trim().length > 4),
-          model: modalModel,
-          endpoint: modalEndpoint.split('?')[0],
+          configured: isConfigured,
+          model: aiModel,
+          endpoint: aiChatEndpoint.split('?')[0],
         },
         sarvam: {
           configured: Boolean(sarvamApiKey && sarvamApiKey.trim().length > 4),
@@ -128,7 +138,7 @@ export function createAiGatewayService(env = {}) {
      */
     async chatCompletion({
       messages,
-      model = modalModel,
+      model = aiModel,
       maxTokens = 2048,
       temperature = 0.45,
       requestId = crypto.randomUUID(),
@@ -151,14 +161,14 @@ export function createAiGatewayService(env = {}) {
       const startMs = Date.now();
 
       // Graceful offline emulation if key is not configured in development
-      if (!modalApiKey || modalApiKey.trim().length < 5) {
+      if (!aiApiKey || aiApiKey.trim().length < 5) {
         if (isProd) {
           const err = new Error("AI provider configuration missing on server");
           err.statusCode = 503;
           throw err;
         }
         return {
-          content: "Namaste! I am FeraSetu AI powered by GLM-5.3 Flash. Your store is connected and all operations are normal. How can I assist your business today?",
+          content: "Namaste! I am FeraSetu AI powered by Fera AI. Your store is connected and all operations are normal. How can I assist your business today?",
           model,
           provider: 'modal_simulation',
           promptTokens: 120,
@@ -171,10 +181,10 @@ export function createAiGatewayService(env = {}) {
       const timeout = setTimeout(() => controller.abort(), 30000);
 
       try {
-        const res = await fetch(modalEndpoint, {
+        const res = await fetch(aiChatEndpoint, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${modalApiKey.trim()}`,
+            'Authorization': `Bearer ${aiApiKey.trim()}`,
             'Content-Type': 'application/json',
             'x-request-id': requestId,
           },
@@ -191,20 +201,21 @@ export function createAiGatewayService(env = {}) {
 
         if (!res.ok) {
           const errBody = await res.text();
-          console.warn(`[AiGatewayService.chatCompletion] Modal error ${res.status}: ${errBody.slice(0, 150)}`);
+          console.warn(`[AiGatewayService.chatCompletion] AI error ${res.status}: ${errBody.slice(0, 150)}`);
           const err = new Error(`AI reasoning provider error: HTTP ${res.status}`);
           err.statusCode = res.status >= 500 ? 502 : 400;
           throw err;
         }
 
         const data = await res.json();
-        const content = data.choices?.[0]?.message?.content || '';
+        const rawContent = data.choices?.[0]?.message?.content || data.content || '';
+        const content = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
         const usage = data.usage || {};
 
         return {
           content,
           model: data.model || model,
-          provider: 'modal',
+          provider: 'fera_ai',
           promptTokens: usage.prompt_tokens || 0,
           completionTokens: usage.completion_tokens || 0,
           latencyMs: Date.now() - startMs,

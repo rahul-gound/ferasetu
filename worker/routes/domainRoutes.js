@@ -3,19 +3,26 @@
  * worker/routes/domainRoutes.js
  * =============================================================================
  * Handles:
- * - GET / POST  /api/domains/search
- * - GET / POST  /api/domains/pricing
- * - GET         /api/domains
- * - POST        /api/domains/purchase/initiate
- * - POST        /api/domains/purchase/verify
- * - POST        /api/domains/connect
- * - POST        /api/domains/:id/verify
- * - DELETE      /api/domains/:id
+ * - GET         /api/domains/config             (Feature flags & ingress targets)
+ * - GET         /api/domains/ingress/verify      (Reverse-proxy On-Demand TLS admission webhook)
+ * - GET / POST  /api/domains/search             (Spaceship live bulk availability)
+ * - GET / POST  /api/domains/pricing            (Spaceship authoritative pricing)
+ * - GET         /api/domains                    (List organization domains)
+ * - POST        /api/domains/purchase/initiate  (Spaceship checkout order creation)
+ * - POST        /api/domains/purchase/verify    (Spaceship registration confirmation)
+ * - POST        /api/domains/connect            (Connect external domain)
+ * - POST        /api/domains/:id/verify         (DoH DNS ownership verification)
+ * - POST        /api/domains/:id/verify-dns     (DoH DNS ownership verification)
+ * - POST        /api/domains/:id/verify-tls     (HTTPS readiness & TLS probe)
+ * - POST        /api/domains/:id/auto-dns       (Auto-apply Spaceship DNS records)
+ * - GET         /api/domains/:id                (Get domain details & instructions)
+ * - DELETE      /api/domains/:id                (Disconnect domain with audit logging)
  * =============================================================================
  */
 
 import { requireOrgContext, HttpError } from '../index.js';
 import { DomainService, createDomainService } from '../services/domainService.js';
+import { verifyIngressAuthorization, INGRESS_HOSTNAME_TARGET, generateStorefrontDnsInstructions } from '../services/domainIngressService.js';
 
 async function readJson(request) {
   try {
@@ -46,6 +53,29 @@ export async function handleDomainRoutes(request, env) {
   }
 
   const domainService = createDomainService(env);
+
+  // 0. Public Ingress Admission Webhook for TLS Reverse Proxies (Caddy On-Demand TLS 'ask' / Envoy)
+  // GET /api/domains/ingress/verify?domain=sweetshop.com
+  if (path === "/api/domains/ingress/verify" && method === "GET") {
+    const domainToVerify = url.searchParams.get("domain") || "";
+    const authResult = await verifyIngressAuthorization(env.DB, domainToVerify);
+    if (authResult.allowed) {
+      return new Response("Allowed", { status: 200, headers: { "Content-Type": "text/plain" } });
+    }
+    return new Response(authResult.reason || "Forbidden", { status: 403, headers: { "Content-Type": "text/plain" } });
+  }
+
+  // 0b. Public Domain System Configuration & Feature Flags
+  // GET /api/domains/config
+  if (path === "/api/domains/config" && method === "GET") {
+    return json({
+      provider: "SPACESHIP",
+      checkoutEnabled: domainService.getCheckoutProvider().isCheckoutEnabled(),
+      ingressTarget: INGRESS_HOSTNAME_TARGET,
+      directCustomerCheckoutMessage: "Spaceship-hosted checkout directs payments straight to Spaceship. Awaiting commercial partner activation.",
+      requiresCloudflareForSaas: false,
+    }, 200);
+  }
 
   // 1. Domain Search (Public / Authenticated)
   if (path === "/api/domains/search") {
@@ -95,7 +125,7 @@ export async function handleDomainRoutes(request, env) {
     }
   }
 
-  // All remaining routes require authenticated merchant context
+  // All remaining routes require authenticated merchant staff context
   const ctx = await requireOrgContext(request, env, 'staff');
   const orgId = ctx.organizationId;
   const db = env.DB;
@@ -112,9 +142,7 @@ export async function handleDomainRoutes(request, env) {
     const body = await readJson(request);
     const domain = String(body.domain || '').trim();
     const years = Number(body.years) || 1;
-    const clientAmount = body.clientAmount !== undefined 
-      ? Number(body.clientAmount) 
-      : (body.amount !== undefined ? Number(body.amount) : undefined);
+    const registrantContact = body.registrantContact || { email: user?.email, name: user?.name };
 
     if (!domain) {
       throw new HttpError("Domain name is required", 400);
@@ -123,16 +151,16 @@ export async function handleDomainRoutes(request, env) {
     try {
       const order = await domainService.initiatePurchase({
         organizationId: orgId,
+        shopId: user?.shop_id || user?.id,
         domain,
         years,
-        clientAmount,
+        registrantContact,
         db,
-        user,
-        customerDetails: { email: user?.email, phone: user?.phone }
+        user
       });
       return json({ success: true, order, ...order }, 201);
     } catch (err) {
-      const status = err.status || (err.message.includes("Price tampering") ? 400 : 422);
+      const status = err.status || 422;
       throw new HttpError(err.message, status);
     }
   }
@@ -142,10 +170,9 @@ export async function handleDomainRoutes(request, env) {
     const body = await readJson(request);
     const orderId = String(body.orderId || '').trim();
     const domain = String(body.domain || '').trim();
-    const cashfreeStatus = body.cashfreeStatus ? String(body.cashfreeStatus).trim() : undefined;
 
-    if (!orderId || !domain) {
-      throw new HttpError("orderId and domain are required", 400);
+    if (!domain) {
+      throw new HttpError("domain is required", 400);
     }
 
     try {
@@ -153,8 +180,7 @@ export async function handleDomainRoutes(request, env) {
         organizationId: orgId,
         orderId,
         domain,
-        db,
-        cashfreeStatus
+        db
       });
       return json(result, 200);
     } catch (err) {
@@ -171,26 +197,50 @@ export async function handleDomainRoutes(request, env) {
     }
 
     try {
-      const result = await domainService.connectExternalDomain(orgId, domain, db);
+      const result = await domainService.connectExternalDomain(orgId, domain, db, user?.shop_id || user?.id);
       return json(result, 201);
     } catch (err) {
       throw new HttpError(err.message, err.status || 400);
     }
   }
 
-  // 7. POST /api/domains/:id/verify
-  const verifyMatch = path.match(/^\/api\/domains\/([^/]+)\/verify$/);
+  // 7. POST /api/domains/:id/verify or /api/domains/:id/verify-dns
+  const verifyMatch = path.match(/^\/api\/domains\/([^/]+)\/(?:verify|verify-dns)$/);
   if (verifyMatch && method === "POST") {
     const domainId = verifyMatch[1];
     try {
-      const result = await domainService.verifyDomain(orgId, domainId, db);
+      const result = await domainService.verifyDomainDns(orgId, domainId, db);
       return json(result, 200);
     } catch (err) {
       throw new HttpError(err.message, err.status || 400);
     }
   }
 
-  // 8. DELETE /api/domains/:id
+  // 8. POST /api/domains/:id/verify-tls
+  const verifyTlsMatch = path.match(/^\/api\/domains\/([^/]+)\/verify-tls$/);
+  if (verifyTlsMatch && method === "POST") {
+    const domainId = verifyTlsMatch[1];
+    try {
+      const result = await DomainService.verifyDomainTls(db, orgId, domainId);
+      return json(result, 200);
+    } catch (err) {
+      throw new HttpError(err.message, err.status || 400);
+    }
+  }
+
+  // 9. POST /api/domains/:id/auto-dns
+  const autoDnsMatch = path.match(/^\/api\/domains\/([^/]+)\/auto-dns$/);
+  if (autoDnsMatch && method === "POST") {
+    const domainId = autoDnsMatch[1];
+    try {
+      const result = await domainService.autoConfigureSpaceshipDns(orgId, domainId, db);
+      return json(result, 200);
+    } catch (err) {
+      throw new HttpError(err.message, err.status || 400);
+    }
+  }
+
+  // 10. DELETE /api/domains/:id
   const deleteMatch = path.match(/^\/api\/domains\/([^/]+)$/);
   if (deleteMatch && method === "DELETE") {
     const domainId = deleteMatch[1];
@@ -202,20 +252,39 @@ export async function handleDomainRoutes(request, env) {
     }
   }
 
-  // 9. GET /api/domains/:id - Get specific domain details & DNS records
+  // 11. GET /api/domains/:id - Get specific domain details & DNS records
   if (deleteMatch && method === "GET") {
     const domainId = deleteMatch[1];
-    const domainRow = await db.prepare(
+
+    // Check custom_storefront_domains
+    const csdRow = await db.prepare(
+      "SELECT * FROM custom_storefront_domains WHERE id = ? AND organization_id = ?"
+    ).bind(domainId, orgId).first();
+
+    if (csdRow) {
+      const instructions = generateStorefrontDnsInstructions(csdRow.domain, csdRow.ownership_token);
+      return json({
+        domain: csdRow,
+        dnsInstructions: instructions,
+        instructions
+      }, 200);
+    }
+
+    // Check email_domains
+    const emailRow = await db.prepare(
       "SELECT * FROM email_domains WHERE id = ? AND organization_id = ?"
     ).bind(domainId, orgId).first();
 
-    if (!domainRow) {
-      throw new HttpError("Domain not found or unauthorized", 404);
+    if (emailRow) {
+      const instructions = generateStorefrontDnsInstructions(emailRow.domain, emailRow.verification_token_hash || 'token');
+      return json({
+        domain: emailRow,
+        dnsInstructions: instructions,
+        instructions
+      }, 200);
     }
 
-    const { generateDnsInstructions } = await import('../services/dnsVerification.js');
-    const instructions = generateDnsInstructions(domainRow.domain, domainRow.verification_token_hash, domainRow.dkim_selector);
-    return json({ domain: domainRow, dnsInstructions: instructions, instructions }, 200);
+    throw new HttpError("Domain not found or unauthorized", 404);
   }
 
   throw new HttpError("Endpoint not found", 404);

@@ -3481,6 +3481,73 @@ async function ensureTables(db) {
         ('ident_platform_billing', NULL, 'dom_platform_ferasetu', 'billing', 'billing@ferasetu.com', 'FeraSetu Billing', 'PLATFORM', 'ACTIVE', 0, '2025-01-01T00:00:00.000Z', '2025-01-01T00:00:00.000Z');
     `);
 
+    // 12b. Custom Storefront Domains & Spaceship Integration
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS custom_storefront_domains (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        shop_id TEXT NOT NULL,
+        domain TEXT NOT NULL UNIQUE,
+        apex_domain TEXT NOT NULL,
+        hostname_type TEXT NOT NULL DEFAULT 'APEX',
+        registration_provider TEXT NOT NULL DEFAULT 'SPACESHIP',
+        registration_status TEXT NOT NULL DEFAULT 'EXTERNAL',
+        dns_provider TEXT NOT NULL DEFAULT 'SPACESHIP',
+        dns_status TEXT NOT NULL DEFAULT 'PENDING',
+        tls_status TEXT NOT NULL DEFAULT 'PENDING',
+        status TEXT NOT NULL DEFAULT 'PENDING_DNS',
+        ownership_token TEXT NOT NULL,
+        dns_target TEXT,
+        last_dns_check_at TEXT,
+        last_tls_check_at TEXT,
+        verified_at TEXT,
+        tls_verified_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_csd_org ON custom_storefront_domains(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_csd_shop ON custom_storefront_domains(shop_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_csd_domain ON custom_storefront_domains(domain);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_csd_status ON custom_storefront_domains(status);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS domain_orders (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        shop_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        provider TEXT NOT NULL DEFAULT 'SPACESHIP',
+        status TEXT NOT NULL DEFAULT 'CHECKOUT_PENDING',
+        quoted_price REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'USD',
+        period_years INTEGER NOT NULL DEFAULT 1,
+        checkout_url TEXT,
+        provider_ref TEXT,
+        registrant_contact_json TEXT,
+        error_details TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_dom_orders_org ON domain_orders(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_dom_orders_domain ON domain_orders(domain);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_dom_orders_status ON domain_orders(status);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS domain_audit_logs (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        action TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        details_json TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_dom_audit_org ON domain_audit_logs(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_dom_audit_domain ON domain_audit_logs(domain);`);
+
     // 13. Safe Column Additions for Existing Tables
     await safeAddColumn('users', "market TEXT DEFAULT 'IN'");
     await safeAddColumn('users', 'hostname TEXT');
@@ -9762,18 +9829,38 @@ export default {
       }
 
       // 3b. Custom merchant storefront domain (e.g. rohankirana.in, store.brand.com)
+      let effectiveCustomHost = null;
       if (hostClassification.type === "custom_domain") {
+        effectiveCustomHost = url.hostname;
+      } else if (
+        (hostClassification.type === "platform_root" || hostClassification.type === "api") &&
+        request.headers.get("X-Forwarded-Host")
+      ) {
+        // Controlled Reverse-Proxy Ingress: Only accept forwarding metadata for verified custom domains
+        const fwdHost = request.headers.get("X-Forwarded-Host").split(":")[0].trim().toLowerCase();
+        const fwdClass = classifyHostname(fwdHost);
+        if (fwdClass.type === "custom_domain") {
+          const proxySecret = env.INGRESS_PROXY_SECRET;
+          const reqProxyHeader = request.headers.get("X-FeraSetu-Proxy-Secret");
+          if (!proxySecret || reqProxyHeader === proxySecret) {
+            effectiveCustomHost = fwdHost;
+          }
+        }
+      }
+
+      if (effectiveCustomHost) {
         if (url.pathname.startsWith("/api/")) {
           return await route(request, env);
         }
-        const customTenant = await resolveCustomDomainTenant(url.hostname, env);
+        const customTenant = await resolveCustomDomainTenant(effectiveCustomHost, env);
         if (customTenant) {
           const customClassification = {
-            ...hostClassification,
+            type: "custom_domain",
+            host: effectiveCustomHost,
             slug: customTenant.slug,
             organizationId: customTenant.organizationId,
-            domain: url.hostname,
-            customDomain: url.hostname,
+            domain: effectiveCustomHost,
+            customDomain: effectiveCustomHost,
             isCustomDomain: true,
           };
           return await handleStorefrontRequest(request, env, ctx, customClassification);

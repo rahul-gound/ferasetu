@@ -14,15 +14,23 @@ Below is the directory layout of the Fera AI related source files.
 │   └── FERA_AI.md                   # Core user/deploy guide
 │
 ├── tests/
-│   └── fera-ai.test.mjs             # 32-test unit & integration test suite
+│   ├── fera-ai.test.mjs             # 32-test unit & integration test suite
+│   └── fera-ai-openai-endpoint.test.mjs # 7-test OpenAI endpoint & secret isolation suite
 │
 ├── worker/                          # Cloudflare Worker Edge Gateway
 │   ├── index.js                     # Gateway Entrypoint, Auth & D1 SQL client, v1 AI Routes
 │   ├── wrangler.toml                # Edge configuration & D1 database bindings
+│   ├── .dev.vars                    # Local dev secrets (FERA_AI_API_KEY, FERA_AI_ENDPOINT)
+│   ├── services/
+│   │   └── aiGatewayService.js      # Unified edge gateway service with timeout & secret redaction
 │   └── ai/                          # AI Core Module
-│       ├── router.ts                # Model Router & Task-to-Model Selector
+│       ├── config.js                # Central provider config (resolves FERA_AI_ENDPOINT)
+│       ├── router.js                # Model Router & Task-to-Model Selector
+│       ├── capabilities.js          # Registry of models and translation capabilities
 │       ├── providers/
-│       │   └── sarvam.ts            # Sarvam API REST wrapper
+│       │   ├── feraAi.js            # OpenAI-compatible client (https://ai.fera-search.tech/v1)
+│       │   ├── modalGlm.js          # Backward-compatible reasoning adapter
+│       │   └── sarvamTranslate.js   # Sarvam API translation wrapper
 │       └── skills/
 │           ├── shared.ts            # Context Builders, Types, & String Sanitizers
 │           ├── orchestrator.ts      # TypeScript implementation of intent classification

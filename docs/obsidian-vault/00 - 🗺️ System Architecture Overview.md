@@ -3,7 +3,7 @@
 > **Version:** 1.0.0-PROD  
 > **Target Audience:** The Global Shopkeeper (48+ regions, Indic-first, 0% platform commission)  
 > **Last Synchronized:** 2026-10-17  
-> **Quick Links:** [[01 - 📊 Progress & Completion Matrix]] | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] | [[05 - 🤖 Fera AI & Sarvam Intelligence]] | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] | [[07 - 🧾 GST Invoicing & Accounting]] | [[08 - 🌐 Subdomains, Custom Domains & DNS]] | [[09 - 🧪 QA, Testing & Control Plane]] | [[10 - 🗄️ Database Schemas & Data Flow]]
+> **Quick Links:** [[01 - 📊 Progress & Completion Matrix]] | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] | [[05 - 🤖 Fera AI & Sarvam Intelligence]] | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] | [[07 - 🧾 GST Invoicing & Accounting]] | [[08 - 🌐 Subdomains, Custom Domains & DNS]] | [[09 - 🧪 QA, Testing & Control Plane]] | [[10 - 🗄️ Database Schemas & Data Flow]] | [[feature that wil added soon]]
 
 ---
 

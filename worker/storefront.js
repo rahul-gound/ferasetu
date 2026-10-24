@@ -197,7 +197,8 @@ export function markVerifiedCustomDomain(hostname) {
  */
 export async function resolveCustomDomainTenant(hostname, env) {
   if (!hostname || !env?.DB) return null;
-  const cleanHost = hostname.toLowerCase().trim();
+  // Normalize hostname: lowercase, trim, strip port
+  const cleanHost = hostname.toLowerCase().trim().split(":")[0];
 
   const cached = customDomainCache.get(cleanHost);
   if (cached && Date.now() < cached.expiresAt) {
@@ -209,44 +210,71 @@ export async function resolveCustomDomainTenant(hostname, env) {
 
   let result = null;
   try {
-    // 1. Primary: Look up verified domain in email_domains
-    const domRow = await env.DB.prepare(`
-      SELECT ed.id, ed.organization_id, ed.domain, ed.verification_status,
-             s.id as shop_id, s.store_slug, s.name as shop_name,
+    // 1. Primary: Look up in custom_storefront_domains
+    const csdRow = await env.DB.prepare(`
+      SELECT csd.id, csd.organization_id, csd.shop_id, csd.domain, csd.status, csd.dns_status,
+             s.store_slug, s.name as shop_name,
              u.id as user_id, u.subdomain, u.business_name
-      FROM email_domains ed
-      LEFT JOIN shops s ON s.organization_id = ed.organization_id
-      LEFT JOIN users u ON u.organization_id = ed.organization_id
-      WHERE ed.domain = ? AND ed.verification_status = 'VERIFIED'
+      FROM custom_storefront_domains csd
+      LEFT JOIN shops s ON s.id = csd.shop_id OR s.organization_id = csd.organization_id
+      LEFT JOIN users u ON u.organization_id = csd.organization_id
+      WHERE csd.domain = ? AND (csd.status = 'ACTIVE' OR csd.dns_status = 'VERIFIED')
       LIMIT 1
     `).bind(cleanHost).first();
 
-    if (domRow) {
-      const slug = domRow.store_slug || domRow.subdomain || (domRow.organization_id || '').replace(/_/g, '-');
+    if (csdRow) {
+      const slug = csdRow.store_slug || csdRow.subdomain || (csdRow.organization_id || '').replace(/_/g, '-');
       result = {
-        organizationId: domRow.organization_id,
+        organizationId: csdRow.organization_id,
         slug,
-        shopId: domRow.shop_id || domRow.user_id,
-        shopName: domRow.shop_name || domRow.business_name,
-        customDomain: domRow.domain,
+        shopId: csdRow.shop_id || csdRow.user_id,
+        shopName: csdRow.shop_name || csdRow.business_name,
+        customDomain: csdRow.domain,
+        isCustomDomain: true,
       };
       verifiedCustomDomains.add(cleanHost);
     } else {
-      // 2. Fallback: Look up custom domain in users table
-      const userRow = await env.DB.prepare(`
-        SELECT id, organization_id, subdomain, business_name FROM users WHERE LOWER(custom_domain) = ? LIMIT 1
+      // 2. Secondary fallback: Look up verified domain in email_domains
+      const domRow = await env.DB.prepare(`
+        SELECT ed.id, ed.organization_id, ed.domain, ed.verification_status,
+               s.id as shop_id, s.store_slug, s.name as shop_name,
+               u.id as user_id, u.subdomain, u.business_name
+        FROM email_domains ed
+        LEFT JOIN shops s ON s.organization_id = ed.organization_id
+        LEFT JOIN users u ON u.organization_id = ed.organization_id
+        WHERE ed.domain = ? AND ed.verification_status = 'VERIFIED'
+        LIMIT 1
       `).bind(cleanHost).first();
 
-      if (userRow) {
-        const slug = userRow.subdomain || (userRow.organization_id || userRow.id || '').replace(/_/g, '-');
+      if (domRow) {
+        const slug = domRow.store_slug || domRow.subdomain || (domRow.organization_id || '').replace(/_/g, '-');
         result = {
-          organizationId: userRow.organization_id || userRow.id,
+          organizationId: domRow.organization_id,
           slug,
-          shopId: userRow.id,
-          shopName: userRow.business_name,
-          customDomain: cleanHost,
+          shopId: domRow.shop_id || domRow.user_id,
+          shopName: domRow.shop_name || domRow.business_name,
+          customDomain: domRow.domain,
+          isCustomDomain: true,
         };
         verifiedCustomDomains.add(cleanHost);
+      } else {
+        // 3. Fallback: Look up custom domain in users table
+        const userRow = await env.DB.prepare(`
+          SELECT id, organization_id, subdomain, business_name FROM users WHERE LOWER(custom_domain) = ? LIMIT 1
+        `).bind(cleanHost).first();
+
+        if (userRow) {
+          const slug = userRow.subdomain || (userRow.organization_id || userRow.id || '').replace(/_/g, '-');
+          result = {
+            organizationId: userRow.organization_id || userRow.id,
+            slug,
+            shopId: userRow.id,
+            shopName: userRow.business_name,
+            customDomain: cleanHost,
+            isCustomDomain: true,
+          };
+          verifiedCustomDomains.add(cleanHost);
+        }
       }
     }
   } catch (err) {

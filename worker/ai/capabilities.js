@@ -5,9 +5,26 @@
 // =============================================================================
 
 export const REASONING_MODELS = {
+  feraAi: {
+    id: 'glm-5.3-flash',
+    provider: 'fera_ai',
+    endpoint: 'https://ai.fera-search.tech/v1',
+    isOpenAiCompatible: true,
+    reasoningLanguages: ['en'],
+    supportsToolCalling: true,
+    supportsStreaming: true,
+    maxContextTokens: 128000,
+    maxOutputTokens: 4096,
+    pricingUsdPer1kTokens: {
+      input: 0.0001,
+      output: 0.0002,
+    },
+  },
   glm53Flash: {
     id: 'glm-5.3-flash',
-    provider: 'modal',
+    provider: 'fera_ai',
+    endpoint: 'https://ai.fera-search.tech/v1',
+    isOpenAiCompatible: true,
     reasoningLanguages: ['en'],
     supportsToolCalling: true,
     supportsStreaming: true,
