@@ -85,14 +85,13 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          upload: "never"
           languages: ${{ matrix.language }}
           config-file: .github/codeql/codeql-config.yml
       
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          upload: "never"
+          upload: 'never'
           category: "/language:${{matrix.language}}"
 
   secret-scan:
