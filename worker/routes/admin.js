@@ -239,32 +239,77 @@ export async function handleAdminRoutes(request, env) {
     
     // DASHBOARD STATS
     if (path === "/api/admin/dashboard-stats" && method === "GET") {
-      const usersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM users").first("count")) || 0;
-      const ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders").first("count")) || 0;
-      const productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products").first("count")) || 0;
-      const revenueRow = await env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'").first();
-      const totalRevenue = revenueRow?.rev || 0;
-      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
+      let usersCount = 0, ordersCount = 0, productsCount = 0, totalRevenue = 0;
+      let revenueChart = [];
 
-      // 7-day revenue chart
-      const revenueChart = [];
-      const now = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const ymd = d.toISOString().slice(0, 10);
+      if (typeof env.DB.batch === 'function') {
+        const statements = [
+          env.DB.prepare("SELECT COUNT(*) as count FROM users"),
+          env.DB.prepare("SELECT COUNT(*) as count FROM orders"),
+          env.DB.prepare("SELECT COUNT(*) as count FROM products"),
+          env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'")
+        ];
+
+        const dates = [];
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const ymd = d.toISOString().slice(0, 10);
+          dates.push(ymd);
+          statements.push(
+            env.DB.prepare("SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?").bind(`${ymd}%`)
+          );
+        }
+
         try {
-          const dayRow = await env.DB.prepare(
-            "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
-          ).bind(`${ymd}%`).first();
-          revenueChart.push({
-            date: ymd,
-            revenue: dayRow?.rev || 0,
-            orders: dayRow?.cnt || 0
-          });
-        } catch {
-          revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+          const batchResults = await env.DB.batch(statements);
+          usersCount = batchResults[0]?.results?.[0]?.count || 0;
+          ordersCount = batchResults[1]?.results?.[0]?.count || 0;
+          productsCount = batchResults[2]?.results?.[0]?.count || 0;
+          totalRevenue = batchResults[3]?.results?.[0]?.rev || 0;
+
+          for (let i = 0; i < 7; i++) {
+            const row = batchResults[4 + i]?.results?.[0];
+            revenueChart.push({
+              date: dates[i],
+              revenue: row?.rev || 0,
+              orders: row?.cnt || 0
+            });
+          }
+        } catch (err) {
+          console.warn("DB batch query failed for dashboard-stats, falling back to empty chart:", err);
+          for (let i = 0; i < 7; i++) {
+            revenueChart.push({ date: dates[i], revenue: 0, orders: 0 });
+          }
+        }
+      } else {
+        // Fallback for environments lacking batch() (e.g., test mocks)
+        usersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM users").first("count")) || 0;
+        ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders").first("count")) || 0;
+        productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products").first("count")) || 0;
+        const revenueRow = await env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'").first();
+        totalRevenue = revenueRow?.rev || 0;
+
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const ymd = d.toISOString().slice(0, 10);
+          try {
+            const dayRow = await env.DB.prepare(
+              "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
+            ).bind(`${ymd}%`).first();
+            revenueChart.push({
+              date: ymd,
+              revenue: dayRow?.rev || 0,
+              orders: dayRow?.cnt || 0
+            });
+          } catch {
+            revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+          }
         }
       }
+
+      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
 
       return json({
         users: usersCount,
