@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, LayoutDashboard, LifeBuoy,
   ShoppingBag, Store, Bell, Calendar,
-  Menu, LogOut, ChevronRight, Zap, Terminal, Bug, MessageSquare, Activity
+  Menu, LogOut, ChevronRight, Zap, Terminal, Bug, MessageSquare, Activity,
+  Bot, Coins
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SEO from '../SEO';
@@ -31,6 +32,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Overview' },
     { id: 'qa', path: '/admin/qa', icon: <Activity size={20} />, label: 'QA & Diagnostics' },
     { id: 'users', path: '/admin/users', icon: <Users size={20} />, label: 'Partners' },
+    { id: 'ai-credits', path: '/admin/ai-credits', icon: <Bot size={20} />, label: 'AI Credits & Usage' },
     { id: 'shops', path: '/admin/shops', icon: <Store size={20} />, label: 'Shops' },
     { id: 'meetings', path: '/admin/meetings', icon: <Calendar size={20} />, label: 'Consultations' },
     { id: 'orders', path: '/admin/orders', icon: <ShoppingBag size={20} />, label: 'Global Orders' },

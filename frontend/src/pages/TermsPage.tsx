@@ -791,8 +791,8 @@ export default function TermsPage() {
     <PublicLayout>
       <SEO
         title='Terms of Service — FeraSetu'
-        description='The rights and responsibilities of merchants using the FeraSetu online software service, including storefronts, orders, AI features, billing, data ownership, and termination.'
-        url='https://ferasetu.com/terms'
+        description='Rights and responsibilities for merchants using FeraSetu software, including storefronts, orders, billing, and data ownership.'
+        url='https://ferasetu.com/terms/'
         type='website'
       />
 

@@ -74,133 +74,51 @@ const STAGES: CircuitStage[] = [
 export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [stepProgresses, setStepProgresses] = useState<number[]>([1, 0, 0, 0]);
-  const [isPinnedMode, setIsPinnedMode] = useState(true);
 
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const pinFrameRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const rightPanelRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<ScrollTrigger | null>(null);
   const scrollDirectionRef = useRef<'down' | 'up'>('down');
 
   const currentStage = STAGES[activeStepIndex];
 
-  // GSAP ScrollTrigger Pinned Narrative Stepper
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion || !sectionRef.current) {
-      setIsPinnedMode(false);
-      return;
-    }
+  // Direct interactive tab switching without scroll hijacking
+  const handleStepClick = (targetIdx: number) => {
+    setActiveStepIndex(targetIdx);
+    setStepProgresses([
+      targetIdx >= 0 ? 1 : 0,
+      targetIdx >= 1 ? 1 : 0,
+      targetIdx >= 2 ? 1 : 0,
+      targetIdx >= 3 ? 1 : 0,
+    ]);
+  };
 
-    const isDesktop = window.innerWidth >= 768;
-    setIsPinnedMode(isDesktop);
-
-    const ctx = gsap.context(() => {
-      const section = sectionRef.current!;
-
-      if (isDesktop) {
-        // Pin the entire circuit section as the user scrolls down
-        const totalScrollDistance = 2200;
-
-        const st = ScrollTrigger.create({
-          trigger: section,
-          start: 'top top',
-          end: `+=${totalScrollDistance}`,
-          pin: true,
-          pinSpacing: true,
-          scrub: 0.5,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            const p = self.progress;
-            scrollDirectionRef.current = self.direction > 0 ? 'down' : 'up';
-
-            // Compute active step (0, 1, 2, 3)
-            let step = 0;
-            if (p < 0.25) step = 0;
-            else if (p < 0.50) step = 1;
-            else if (p < 0.75) step = 2;
-            else step = 3;
-
-            setActiveStepIndex(step);
-
-            // Compute progress for each individual step (0 to 1)
-            const prog0 = Math.min(Math.max(p / 0.25, 0), 1);
-            const prog1 = Math.min(Math.max((p - 0.25) / 0.25, 0), 1);
-            const prog2 = Math.min(Math.max((p - 0.50) / 0.25, 0), 1);
-            const prog3 = Math.min(Math.max((p - 0.75) / 0.25, 0), 1);
-
-            setStepProgresses([prog0, prog1, prog2, prog3]);
-          },
-        });
-
-        triggerRef.current = st;
-      }
-    }, sectionRef);
-
-    const handleResize = () => {
-      const desktop = window.innerWidth >= 768;
-      setIsPinnedMode(desktop);
-    };
-    window.addEventListener('resize', handleResize);
-
-    if (document.fonts) {
-      document.fonts.ready.then(() => {
-        ScrollTrigger.refresh();
-      });
-    }
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      ctx.revert();
-    };
-  }, []);
-
-  // Smooth directional (--->) transition animations when active stage changes
+  // Smooth directional transition animations when active stage changes
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
 
     const isDown = scrollDirectionRef.current === 'down';
-    const xOffset = isDown ? 28 : -28;
+    const xOffset = isDown ? 20 : -20;
 
     if (leftPanelRef.current) {
       gsap.fromTo(
         leftPanelRef.current.children,
-        { opacity: 0, x: isDown ? 12 : -12 },
-        { opacity: 1, x: 0, duration: 0.3, stagger: 0.04, ease: 'power2.out' }
+        { opacity: 0.2, x: isDown ? 10 : -10 },
+        { opacity: 1, x: 0, duration: 0.25, stagger: 0.03, ease: 'power2.out' }
       );
     }
 
     if (rightPanelRef.current) {
       gsap.fromTo(
         rightPanelRef.current,
-        { opacity: 0.1, x: xOffset, scale: 0.98 },
-        { opacity: 1, x: 0, scale: 1, duration: 0.35, ease: 'power2.out' }
+        { opacity: 0.2, x: xOffset, scale: 0.99 },
+        { opacity: 1, x: 0, scale: 1, duration: 0.3, ease: 'power2.out' }
       );
     }
   }, [activeStepIndex]);
-
-  const handleStepClick = (targetIdx: number) => {
-    setActiveStepIndex(targetIdx);
-
-    if (triggerRef.current && isPinnedMode) {
-      const st = triggerRef.current;
-      const totalDist = st.end - st.start;
-      // Target the middle of the selected step zone
-      const targetProgress = (targetIdx + 0.5) / 4;
-      const targetScroll = st.start + targetProgress * totalDist;
-      if (typeof window !== 'undefined' && (window as any).__lenis) {
-        (window as any).__lenis.scrollTo(targetScroll, { duration: 0.8 });
-      } else {
-        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
-      }
-    }
-  };
 
   const handleKeyDown = (e: KeyboardEvent, index: number) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -223,8 +141,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
       className="relative bg-slate-50 border-b border-slate-200 overflow-hidden"
     >
       <div
-        ref={pinFrameRef}
-        className="w-full max-w-[1260px] mx-auto px-4 sm:px-6 py-6 md:py-10 min-h-screen flex flex-col justify-between"
+        className="w-full max-w-[1260px] mx-auto px-4 sm:px-6 py-12 md:py-16 flex flex-col justify-between"
       >
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-4 sm:mb-6">

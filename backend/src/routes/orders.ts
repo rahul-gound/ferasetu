@@ -356,6 +356,11 @@ router.get('/public/:id/invoice', async (req: Request, res: Response): Promise<v
     return;
   }
 
+  if (order.status === 'cancelled') {
+    res.status(400).json({ error: 'Invoice unavailable: This order has been cancelled and its invoice is voided.' });
+    return;
+  }
+
   // Cryptographic authorization check (possession validation)
   if (!verifyOrderTrackingToken(orderId, order.customer_phone, token)) {
     res.status(403).json({ error: 'Unauthorized: Invalid or expired tracking token' });
@@ -389,6 +394,11 @@ router.get('/public/:id/invoice/pdf', async (req: Request, res: Response): Promi
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
   if (!order) {
     res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  if (order.status === 'cancelled') {
+    res.status(400).json({ error: 'Invoice unavailable: This order has been cancelled and its invoice is voided.' });
     return;
   }
 
@@ -509,9 +519,26 @@ router.post('/public/:id/cancel', async (req: Request, res: Response): Promise<v
     metadata: { reason: cancelReason, customerPhone: order.customer_phone },
   });
 
+  // Void invoice
+  db.prepare(`UPDATE invoices SET status = 'voided' WHERE order_id = ?`).run(orderId);
+
   // Check if refund is applicable
   const fin = getOrderFinancialSummary(orderId, order.user_id);
   const isRefundable = fin.remainingRefundableMinor > 0;
+
+  const merchant = db.prepare('SELECT business_name, name, email FROM users WHERE id = ?').get(order.user_id) as any;
+  const shop = db.prepare('SELECT name FROM shops WHERE organization_id = ? OR id = ?').get(order.user_id, order.user_id) as any;
+  const storeName = shop?.name || merchant?.business_name || merchant?.name || 'Store';
+
+  // Send cancellation email to customer
+  if (order.customer_email) {
+    sendOrderCancellationEmail(order.customer_email, {
+      orderId,
+      storeName,
+      reason: cancelReason,
+      isRefundable,
+    });
+  }
 
   res.json({
     success: true,
@@ -722,11 +749,68 @@ router.patch('/:id/status',
 
     const { status } = req.body;
     const db = getDatabase();
+    const userId = req.user!.id;
+
+    const existingOrder = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
+    if (!existingOrder) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+
+    // Invariant: Once an order is cancelled, it cannot be changed to other updates!
+    if (existingOrder.status === 'cancelled') {
+      res.status(400).json({ error: 'Order is cancelled and cannot be changed to other updates. Cancellation is irreversible.' });
+      return;
+    }
+
+    if (status === 'cancelled') {
+      const cancelReason = 'Merchant marked order as cancelled';
+      db.prepare(`
+        UPDATE orders SET
+          status = 'cancelled',
+          cancellation_status = 'cancelled',
+          cancellation_reason = ?,
+          cancelled_at = datetime('now'),
+          cancelled_by = 'merchant',
+          updated_at = datetime('now')
+        WHERE id = ? AND user_id = ?
+      `).run(cancelReason, req.params.id, userId);
+
+      // Void the invoice
+      db.prepare(`UPDATE invoices SET status = 'voided' WHERE order_id = ?`).run(req.params.id);
+
+      recordFinancialAudit({
+        userId,
+        orderId: req.params.id,
+        eventType: 'order_cancelled',
+        actorType: 'merchant',
+        actorId: userId,
+        metadata: { reason: cancelReason },
+      });
+
+      const merchant = db.prepare('SELECT business_name, name, email FROM users WHERE id = ?').get(userId) as any;
+      const shop = db.prepare('SELECT name FROM shops WHERE organization_id = ? OR id = ?').get(userId, userId) as any;
+      const storeName = shop?.name || merchant?.business_name || merchant?.name || 'Store';
+      const fin = getOrderFinancialSummary(req.params.id, userId);
+
+      // Send cancellation email to customer
+      if (existingOrder.customer_email) {
+        sendOrderCancellationEmail(existingOrder.customer_email, {
+          orderId: existingOrder.id,
+          storeName,
+          reason: cancelReason,
+          isRefundable: fin.remainingRefundableMinor > 0,
+        });
+      }
+
+      res.json({ success: true, status: 'cancelled', message: 'Order cancelled, invoice voided, and notification sent.' });
+      return;
+    }
 
     db.prepare(`
       UPDATE orders SET status = ?, updated_at = datetime('now')
       WHERE id = ? AND user_id = ?
-    `).run(status, req.params.id, req.user!.id);
+    `).run(status, req.params.id, userId);
 
     res.json({ success: true, status });
   }
@@ -877,6 +961,11 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response): Pro
     return;
   }
 
+  if (order.status === 'cancelled') {
+    res.status(400).json({ error: 'Order is already cancelled. Cancellation is irreversible.' });
+    return;
+  }
+
   const cancelReason = (typeof reason === 'string' && reason.trim()) ? reason.trim() : 'Merchant cancelled order';
 
   db.prepare(`
@@ -890,6 +979,9 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response): Pro
     WHERE id = ? AND user_id = ?
   `).run(cancelReason, order.id, userId);
 
+  // Void invoice
+  db.prepare(`UPDATE invoices SET status = 'voided' WHERE order_id = ?`).run(order.id);
+
   recordFinancialAudit({
     userId,
     orderId: order.id,
@@ -901,11 +993,15 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response): Pro
 
   const fin = getOrderFinancialSummary(order.id, userId);
 
+  const merchant = db.prepare('SELECT business_name, name, email FROM users WHERE id = ?').get(userId) as any;
+  const shop = db.prepare('SELECT name FROM shops WHERE organization_id = ? OR id = ?').get(userId, userId) as any;
+  const storeName = shop?.name || merchant?.business_name || merchant?.name || 'Store';
+
   // Notify customer
   if (order.customer_email) {
     sendOrderCancellationEmail(order.customer_email, {
       orderId: order.id,
-      storeName: 'Store',
+      storeName,
       reason: cancelReason,
       isRefundable: fin.remainingRefundableMinor > 0,
     });
@@ -913,7 +1009,7 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response): Pro
 
   res.json({
     success: true,
-    message: 'Order cancelled.',
+    message: 'Order cancelled, invoice voided, and notification sent.',
     financials: fin,
   });
 });
@@ -1036,6 +1132,11 @@ router.get('/:id/invoice', async (req: AuthenticatedRequest, res: Response): Pro
     return;
   }
 
+  if (order.status === 'cancelled') {
+    res.status(400).json({ error: 'Invoice unavailable: This order has been cancelled and its invoice is voided.' });
+    return;
+  }
+
   const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ? AND user_id = ?').get(req.params.id, userId) as any;
   if (!invoice) {
     res.status(404).json({ error: 'Invoice not found' });
@@ -1061,6 +1162,11 @@ router.get('/:id/invoice/pdf', async (req: AuthenticatedRequest, res: Response):
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
   if (!order) {
     res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  if (order.status === 'cancelled') {
+    res.status(400).json({ error: 'Invoice unavailable: This order has been cancelled and its invoice is voided.' });
     return;
   }
 
@@ -1135,6 +1241,11 @@ router.post('/:id/invoice/send', async (req: AuthenticatedRequest, res: Response
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
   if (!order) {
     res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  if (order.status === 'cancelled') {
+    res.status(400).json({ error: 'Cannot send invoice: This order has been cancelled and its invoice is voided.' });
     return;
   }
 

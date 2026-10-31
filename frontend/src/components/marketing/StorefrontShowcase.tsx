@@ -322,118 +322,39 @@ const SHOWCASE_STORES: ShowcaseStore[] = [
 
 export default function StorefrontShowcase() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const pinContainerRef = useRef<HTMLDivElement>(null);
   const trackWrapperRef = useRef<HTMLDivElement>(null);
   const scrollTrackRef = useRef<HTMLDivElement>(null);
-  const triggerInstanceRef = useRef<ScrollTrigger | null>(null);
 
   const [activeCard, setActiveCard] = useState(0);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [isPinnedMode, setIsPinnedMode] = useState(true);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion || !sectionRef.current || !scrollTrackRef.current) {
-      setIsPinnedMode(false);
-      return;
+  const handleTrackScroll = () => {
+    if (!scrollTrackRef.current) return;
+    const track = scrollTrackRef.current;
+    const maxScroll = track.scrollWidth - track.clientWidth;
+    if (maxScroll > 0) {
+      const p = track.scrollLeft / maxScroll;
+      const totalCards = SHOWCASE_STORES.length;
+      const current = Math.min(Math.round(p * (totalCards - 1)), totalCards - 1);
+      setActiveCard(current);
     }
-
-    const isDesktop = window.innerWidth >= 768;
-    setIsPinnedMode(isDesktop);
-
-    const ctx = gsap.context(() => {
-      const track = scrollTrackRef.current!;
-      const section = sectionRef.current!;
-      const wrapper = trackWrapperRef.current!;
-
-      // Initial stagger reveal
-      gsap.from('.storefront-card', {
-        opacity: 0,
-        y: 28,
-        duration: 0.6,
-        stagger: 0.08,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: section,
-          start: 'top 80%',
-          once: true,
-        },
-      });
-
-      if (isDesktop) {
-        // Calculate the exact horizontal overflow distance to scroll
-        const getScrollDistance = () => {
-          const trackWidth = track.scrollWidth;
-          const wrapperWidth = wrapper.clientWidth || window.innerWidth;
-          // Add extra padding so the last card settles cleanly in view
-          return Math.max(trackWidth - wrapperWidth + 72, 400);
-        };
-
-        const horizontalTween = gsap.to(track, {
-          x: () => -getScrollDistance(),
-          ease: 'none',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top top',
-            end: () => `+=${getScrollDistance() + 350}`,
-            pin: true,
-            pinSpacing: true,
-            scrub: 0.6,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-            onUpdate: (self) => {
-              const p = self.progress;
-              setScrollProgress(p);
-              const totalCards = SHOWCASE_STORES.length;
-              const current = Math.min(Math.floor(p * totalCards), totalCards - 1);
-              setActiveCard(current);
-            },
-          },
-        });
-
-        triggerInstanceRef.current = horizontalTween.scrollTrigger || null;
-      }
-    }, sectionRef);
-
-    const handleResize = () => {
-      const desktop = window.innerWidth >= 768;
-      setIsPinnedMode(desktop);
-    };
-    window.addEventListener('resize', handleResize);
-
-    // Refresh layout once fonts/images load
-    if (document.fonts) {
-      document.fonts.ready.then(() => {
-        ScrollTrigger.refresh();
-      });
-    }
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      ctx.revert();
-    };
-  }, []);
+  };
 
   const handleScrollToCard = (targetIdx: number) => {
     const clampedIdx = Math.max(0, Math.min(targetIdx, SHOWCASE_STORES.length - 1));
     setActiveCard(clampedIdx);
 
-    if (triggerInstanceRef.current && isPinnedMode) {
-      const st = triggerInstanceRef.current;
-      const totalDist = st.end - st.start;
-      const targetScroll = st.start + (clampedIdx / (SHOWCASE_STORES.length - 1)) * totalDist;
-      if (typeof window !== 'undefined' && (window as any).__lenis) {
-        (window as any).__lenis.scrollTo(targetScroll, { duration: 0.8 });
+    if (scrollTrackRef.current) {
+      const track = scrollTrackRef.current;
+      const targetCard = track.children[clampedIdx] as HTMLElement;
+      if (targetCard) {
+        targetCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       } else {
-        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+        const cardWidth = 380;
+        track.scrollTo({
+          left: clampedIdx * cardWidth,
+          behavior: 'smooth',
+        });
       }
-    } else if (scrollTrackRef.current) {
-      const cardWidth = 410;
-      scrollTrackRef.current.scrollTo({
-        left: clampedIdx * cardWidth,
-        behavior: 'smooth',
-      });
     }
   };
 
@@ -447,8 +368,7 @@ export default function StorefrontShowcase() {
       className="relative bg-white border-b border-slate-200"
     >
       <div
-        ref={pinContainerRef}
-        className="w-full max-w-[1340px] mx-auto px-4 sm:px-6 py-8 md:py-12 min-h-screen flex flex-col justify-between"
+        className="w-full max-w-[1340px] mx-auto px-4 sm:px-6 py-12 md:py-16 flex flex-col justify-between"
       >
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6">
@@ -501,13 +421,11 @@ export default function StorefrontShowcase() {
           {/* Scrollable Horizontal Track */}
           <div
             ref={scrollTrackRef}
-            data-lenis-prevent={!isPinnedMode ? 'true' : undefined}
+            onScroll={handleTrackScroll}
             tabIndex={0}
             role="region"
             aria-label="Scrollable merchant storefront gallery"
-            className={`flex gap-6 items-stretch will-change-transform ${
-              isPinnedMode ? '' : 'overflow-x-auto pb-4 pt-2 scroll-smooth'
-            }`}
+            className="flex gap-6 items-stretch will-change-transform overflow-x-auto pb-4 pt-2 scroll-smooth touch-pan-x"
             style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',

@@ -1,4 +1,38 @@
+# FeraSetu Canonical Robots Configuration
+# https://ferasetu.com/robots.txt
+
 User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
+Disallow: /callback
+Disallow: /verify-email
+Disallow: /onboarding
+Disallow: /ref/
+
+# AI Search Engines & Retrieval Agents (Search Discovery & Answers)
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+User-agent: Claude-Search
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
+Disallow: /callback
+Disallow: /verify-email
+Disallow: /onboarding
+Disallow: /ref/
+
+# AI Training Crawlers (Consistent Public Access Policy)
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: CCBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: Bytespider
+User-agent: Amazonbot
 Allow: /
 Disallow: /dashboard
 Disallow: /admin

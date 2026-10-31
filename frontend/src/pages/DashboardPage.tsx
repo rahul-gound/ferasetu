@@ -1,4 +1,4 @@
-import { useMemo, useState, lazy, Suspense } from 'react';
+import { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -44,6 +44,7 @@ import {
   Printer,
   FileText,
   ArrowUpRight,
+  PartyPopper,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -251,6 +252,7 @@ export default function DashboardPage() {
   const [clicksViewMode, setClicksViewMode] = useState<'top' | 'live'>('top');
   const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d');
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showFirstOrderModal, setShowFirstOrderModal] = useState(false);
 
   const greeting = useMemo(() => getGreeting(), []);
   const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
@@ -305,25 +307,57 @@ export default function DashboardPage() {
     return [];
   }, [rawProducts]);
 
+  // First Order Celebration State & Handlers
+  useEffect(() => {
+    if (isOrdersLoading) return;
+    if (orders.length >= 1) {
+      const celebrationKey = `fera_celebrated_first_order_${user?.id || user?.subdomain || 'merchant'}`;
+      try {
+        const hasCelebrated = localStorage.getItem(celebrationKey);
+        if (!hasCelebrated) {
+          setShowFirstOrderModal(true);
+        }
+      } catch {}
+    }
+  }, [isOrdersLoading, orders.length, user?.id, user?.subdomain]);
+
+  const handleDismissFirstOrderModal = () => {
+    const celebrationKey = `fera_celebrated_first_order_${user?.id || user?.subdomain || 'merchant'}`;
+    try {
+      localStorage.setItem(celebrationKey, 'true');
+    } catch {}
+    setShowFirstOrderModal(false);
+  };
+
+  const handleViewFirstOrder = () => {
+    handleDismissFirstOrderModal();
+    navigate('/orders');
+  };
+
+  const firstCelebrationOrder = useMemo(() => {
+    if (!orders || orders.length === 0) return null;
+    return orders[orders.length - 1] || orders[0];
+  }, [orders]);
+
   // ─── COMPUTED STATS ───────────────────────────────────────────────────────
-  const totalOrders = dashboardData?.stats?.total_orders ?? orders.length;
+  const activeOrders = useMemo(() => orders.filter(o => o.status !== 'cancelled'), [orders]);
+
+  const totalOrders = dashboardData?.stats?.total_orders ?? activeOrders.length;
 
   const totalRevenue = useMemo(() => {
     if (dashboardData?.stats?.total_revenue !== undefined) return dashboardData.stats.total_revenue;
-    return orders
-      .filter(o => o.status !== 'cancelled')
-      .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-  }, [dashboardData, orders]);
+    return activeOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  }, [dashboardData, activeOrders]);
 
   const totalCustomers = useMemo(() => {
     if (dashboardData?.stats?.total_customers !== undefined) return dashboardData.stats.total_customers;
     const s = new Set<string>();
-    orders.forEach(o => {
+    activeOrders.forEach(o => {
       const c = o.customer_name || o.customer_phone || o.phone;
       if (c?.trim()) s.add(c.trim());
     });
     return s.size;
-  }, [dashboardData, orders]);
+  }, [dashboardData, activeOrders]);
 
   // Average Order Value (AOV)
   const averageOrderValue = useMemo(() => {
@@ -365,10 +399,9 @@ export default function DashboardPage() {
       const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const ymd = d.toISOString().slice(0, 10);
       const dayOrders = orders.filter(o => (o.created_at || '').startsWith(ymd));
-      const dayRev = dayOrders
-        .filter(o => o.status !== 'cancelled')
-        .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-      days.push({ date: dateLabel, ymd, revenue: dayRev, orders: dayOrders.length });
+      const activeDayOrders = dayOrders.filter(o => o.status !== 'cancelled');
+      const dayRev = activeDayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+      days.push({ date: dateLabel, ymd, revenue: dayRev, orders: activeDayOrders.length });
     }
     if (timeRange === '7d' && dashboardData?.revenue_chart && dashboardData.revenue_chart.length > 0) {
       return dashboardData.revenue_chart.map((pt, idx) => ({
@@ -401,13 +434,13 @@ export default function DashboardPage() {
 
   const noOrdersYet = totalOrders === 0;
 
-  // Top selling products
+  // Top selling products (strictly exclude cancelled orders)
   const topProducts = useMemo(() => {
     if (dashboardData?.top_products && dashboardData.top_products.length > 0) {
       return dashboardData.top_products;
     }
     const salesMap: Record<string, number> = {};
-    orders.forEach(o => {
+    activeOrders.forEach(o => {
       (o.items || []).forEach((it: any) => {
         const name = it?.name || it?.product_name || it?.title;
         const qty = Number(it?.quantity || it?.qty) || 1;
@@ -427,7 +460,7 @@ export default function DashboardPage() {
         .slice(0, 5);
     }
     return [];
-  }, [dashboardData, orders, products]);
+  }, [dashboardData, activeOrders, products]);
 
   // Order status breakdown
   const statusCounts = useMemo(() => {

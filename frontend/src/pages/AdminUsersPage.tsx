@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Search, ShieldAlert, ShieldCheck, 
   Trash2, ChevronLeft, ChevronRight,
   Package, ShoppingCart, CreditCard, Calendar,
-  Clock, X, Check, Sparkles
+  Clock, X, Check, Sparkles, Coins, Bot
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -27,6 +28,7 @@ function getPlanInfo(plan: string) {
 }
 
 export default function AdminUsersPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -183,6 +185,7 @@ export default function AdminUsersPage() {
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Partner Details</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Business</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Subscription & Plan</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">AI Credits</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Activity</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Control</th>
                 </tr>
@@ -240,6 +243,29 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-5">
+                        <div 
+                          onClick={() => navigate('/admin/ai-credits')}
+                          className="cursor-pointer group/ai flex flex-col gap-1 items-start"
+                          title="View Shopkeeper AI Credit Monitor"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                              (user.ai_credits_balance || 0) <= 0
+                                ? 'bg-rose-100 text-rose-800 border-rose-200'
+                                : (user.ai_credits_balance || 0) <= 10
+                                ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            }`}>
+                              <Coins size={11} />
+                              <span>{user.ai_credits_balance || 0} cr</span>
+                            </span>
+                          </div>
+                          <div className="text-[10px] font-semibold text-slate-500">
+                            {user.ai_credits_used_month || 0} / {user.ai_credits_monthly_limit || 20} used
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
                         <div className="text-xs font-bold text-slate-600">Joined</div>
                         <div className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-tighter">
                           {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -247,6 +273,13 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button 
+                            onClick={() => navigate('/admin/ai-credits')}
+                            className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
+                            title="View & Adjust AI Credits"
+                          >
+                            <Bot size={17} />
+                          </button>
                           <button 
                             onClick={() => openSubModal(user)}
                             className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all cursor-pointer"

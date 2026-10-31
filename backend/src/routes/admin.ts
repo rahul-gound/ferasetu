@@ -235,6 +235,9 @@ router.get('/users', (req: Request, res: Response) => {
 
   const users = db.prepare(`
     SELECT id, email, name, business_name, plan, is_blocked, is_verified, plan_expires_at, created_at,
+    COALESCE(ai_credits_balance, 0) as ai_credits_balance,
+    COALESCE(ai_credits_monthly_limit, 20) as ai_credits_monthly_limit,
+    COALESCE(ai_credits_used_month, 0) as ai_credits_used_month,
     (SELECT COUNT(*) FROM products WHERE user_id = users.id) as product_count,
     (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as order_count
     FROM users
@@ -754,35 +757,289 @@ router.delete('/feature-flags/tenant/:userId/:flagKey', (req: AdminRequest, res:
   res.json({ success: true });
 });
 
-// --- AI MONITOR ---
+// --- AI MONITOR & CREDIT MANAGEMENT ---
 
-router.get('/ai-usage', (req: Request, res: Response) => {
+const getAiCreditsUsageData = (req: Request) => {
   const db = getDatabase();
-  const logs = db.prepare(`
-    SELECT l.*, u.email, u.business_name, u.ai_credits_balance
-    FROM ai_usage_logs l 
-    JOIN users u ON l.user_id = u.id 
-    ORDER BY l.created_at DESC 
-    LIMIT 100
-  `).all();
-  
-  const stats = db.prepare('SELECT model, COUNT(*) as count, SUM(cost) as total_cost, SUM(credits_used) as credits_used FROM ai_usage_logs GROUP BY model').all();
-  const byUsageType = db.prepare(`
-    SELECT usage_type, COUNT(*) as calls, SUM(credits_used) as credits_used, SUM(prompt_tokens + completion_tokens) as tokens
-    FROM ai_usage_logs
-    GROUP BY usage_type
-  `).all();
-  const byShop = db.prepare(`
-    SELECT u.id, u.email, u.business_name, u.ai_credits_balance, COUNT(l.id) as calls, SUM(l.credits_used) as credits_used
+  const search = (req.query.search as string || '').trim();
+
+  // 1. Overall Platform Aggregates
+  let totalUsageRow: any = { total_calls: 0, total_credits_used: 0, total_tokens: 0 };
+  let monthUsageRow: any = { month_calls: 0, month_credits_used: 0 };
+  let todayUsageRow: any = { today_calls: 0, today_credits_used: 0 };
+  let balancesRow: any = { total_merchants: 0, total_balance_remaining: 0, depleted_merchants: 0, low_balance_merchants: 0 };
+  let purchasesRow: any = { total_credits_purchased: 0, total_revenue: 0, purchase_count: 0 };
+  let activeShopkeepersCount = 0;
+
+  try {
+    totalUsageRow = db.prepare(`
+      SELECT 
+        COUNT(*) as total_calls, 
+        COALESCE(SUM(credits_used), 0) as total_credits_used,
+        COALESCE(SUM(prompt_tokens + completion_tokens), 0) as total_tokens
+      FROM ai_usage_logs
+    `).get() || totalUsageRow;
+  } catch {}
+
+  try {
+    monthUsageRow = db.prepare(`
+      SELECT 
+        COUNT(*) as month_calls, 
+        COALESCE(SUM(credits_used), 0) as month_credits_used
+      FROM ai_usage_logs
+      WHERE created_at >= datetime('now', '-30 days')
+    `).get() || monthUsageRow;
+  } catch {}
+
+  try {
+    todayUsageRow = db.prepare(`
+      SELECT 
+        COUNT(*) as today_calls, 
+        COALESCE(SUM(credits_used), 0) as today_credits_used
+      FROM ai_usage_logs
+      WHERE created_at >= datetime('now', 'start of day')
+    `).get() || todayUsageRow;
+  } catch {}
+
+  try {
+    balancesRow = db.prepare(`
+      SELECT 
+        COUNT(*) as total_merchants,
+        COALESCE(SUM(ai_credits_balance), 0) as total_balance_remaining,
+        COUNT(CASE WHEN ai_credits_balance <= 0 THEN 1 END) as depleted_merchants,
+        COUNT(CASE WHEN ai_credits_balance > 0 AND ai_credits_balance <= 10 THEN 1 END) as low_balance_merchants
+      FROM users
+    `).get() || balancesRow;
+  } catch {}
+
+  try {
+    purchasesRow = db.prepare(`
+      SELECT 
+        COALESCE(SUM(credits), 0) as total_credits_purchased,
+        COALESCE(SUM(amount), 0) as total_revenue,
+        COUNT(*) as purchase_count
+      FROM ai_credit_purchases
+      WHERE status = 'completed'
+    `).get() || purchasesRow;
+  } catch {}
+
+  try {
+    activeShopkeepersCount = (db.prepare(`
+      SELECT COUNT(DISTINCT user_id) as count FROM ai_usage_logs
+    `).get() as any)?.count || 0;
+  } catch {}
+
+  // 2. Per-Shopkeeper Usage & Balance Breakdown
+  let shopkeeperQuery = `
+    SELECT 
+      u.id, 
+      u.name, 
+      u.email, 
+      COALESCE(u.business_name, u.name, 'Shop') as business_name, 
+      u.phone,
+      u.subdomain, 
+      u.plan, 
+      COALESCE(u.ai_credits_balance, 0) as ai_credits_balance,
+      COALESCE(u.ai_credits_monthly_limit, 20) as ai_credits_monthly_limit,
+      COALESCE(u.ai_credits_used_month, 0) as ai_credits_used_month,
+      u.ai_credits_reset_at,
+      u.created_at as joined_at,
+      COALESCE(COUNT(l.id), 0) as total_calls,
+      COALESCE(SUM(l.credits_used), 0) as total_credits_used,
+      COALESCE(SUM(CASE WHEN l.created_at >= datetime('now', '-30 days') THEN l.credits_used ELSE 0 END), 0) as last_30d_credits_used,
+      MAX(l.created_at) as last_ai_activity
     FROM users u
     LEFT JOIN ai_usage_logs l ON l.user_id = u.id
-    GROUP BY u.id, u.email, u.business_name, u.ai_credits_balance
-    HAVING calls > 0
-    ORDER BY credits_used DESC
-    LIMIT 50
-  `).all();
+  `;
+  const shopkeeperParams: any[] = [];
+  if (search) {
+    shopkeeperQuery += ` WHERE (u.name LIKE ? OR u.email LIKE ? OR u.business_name LIKE ? OR u.subdomain LIKE ? OR u.phone LIKE ?) `;
+    shopkeeperParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  shopkeeperQuery += `
+    GROUP BY u.id, u.name, u.email, u.business_name, u.phone, u.subdomain, u.plan, u.ai_credits_balance, u.ai_credits_monthly_limit, u.ai_credits_used_month, u.ai_credits_reset_at, u.created_at
+    ORDER BY total_credits_used DESC, u.ai_credits_balance ASC
+  `;
+  let shopkeepers: any[] = [];
+  try {
+    shopkeepers = db.prepare(shopkeeperQuery).all(...shopkeeperParams);
+  } catch {}
 
-  res.json({ logs, stats, byUsageType, byShop });
+  // 3. Breakdown by AI Capability / Usage Type
+  let byUsageType: any[] = [];
+  try {
+    byUsageType = db.prepare(`
+      SELECT usage_type, COUNT(*) as calls, SUM(credits_used) as credits_used, SUM(prompt_tokens + completion_tokens) as tokens
+      FROM ai_usage_logs
+      GROUP BY usage_type
+      ORDER BY credits_used DESC
+    `).all();
+  } catch {}
+
+  // 4. Breakdown by Model
+  let stats: any[] = [];
+  try {
+    stats = db.prepare(`
+      SELECT model, COUNT(*) as count, SUM(cost) as total_cost, SUM(credits_used) as credits_used
+      FROM ai_usage_logs
+      GROUP BY model
+      ORDER BY count DESC
+    `).all();
+  } catch {}
+
+  // 5. Daily Trend (last 14 days)
+  let dailyTrend: any[] = [];
+  try {
+    dailyTrend = db.prepare(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as calls,
+        SUM(credits_used) as credits_used,
+        COUNT(DISTINCT user_id) as active_shopkeepers
+      FROM ai_usage_logs
+      WHERE created_at >= datetime('now', '-14 days')
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `).all();
+  } catch {}
+
+  // 6. Recent Logs
+  let logs: any[] = [];
+  try {
+    logs = db.prepare(`
+      SELECT l.*, u.email, u.name as user_name, COALESCE(u.business_name, u.name, 'Shop') as business_name, u.subdomain, u.ai_credits_balance
+      FROM ai_usage_logs l 
+      LEFT JOIN users u ON l.user_id = u.id 
+      ORDER BY l.created_at DESC 
+      LIMIT 100
+    `).all();
+  } catch {}
+
+  // 7. Recent Purchases
+  let recentPurchases: any[] = [];
+  try {
+    recentPurchases = db.prepare(`
+      SELECT p.*, u.email, u.name as user_name, COALESCE(u.business_name, u.name, 'Shop') as business_name
+      FROM ai_credit_purchases p
+      LEFT JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC
+      LIMIT 50
+    `).all();
+  } catch {}
+
+  const summary = {
+    totalCreditsUsed: totalUsageRow.total_credits_used || 0,
+    totalCalls: totalUsageRow.total_calls || 0,
+    totalTokens: totalUsageRow.total_tokens || 0,
+    monthCreditsUsed: monthUsageRow.month_credits_used || 0,
+    monthCalls: monthUsageRow.month_calls || 0,
+    todayCreditsUsed: todayUsageRow.today_credits_used || 0,
+    todayCalls: todayUsageRow.today_calls || 0,
+    totalBalanceRemaining: balancesRow.total_balance_remaining || 0,
+    totalMerchants: balancesRow.total_merchants || 0,
+    activeShopkeepersCount,
+    depletedMerchants: balancesRow.depleted_merchants || 0,
+    lowBalanceMerchants: balancesRow.low_balance_merchants || 0,
+    totalCreditsPurchased: purchasesRow.total_credits_purchased || 0,
+    totalPurchaseRevenue: purchasesRow.total_revenue || 0,
+    purchaseCount: purchasesRow.purchase_count || 0
+  };
+
+  const byShop = shopkeepers.filter(s => s.total_calls > 0 || s.total_credits_used > 0);
+
+  return {
+    summary,
+    shopkeepers,
+    byShop,
+    byUsageType,
+    stats,
+    byModel: stats,
+    dailyTrend,
+    logs,
+    recentPurchases
+  };
+};
+
+router.get('/ai-usage', (req: Request, res: Response) => {
+  try {
+    const data = getAiCreditsUsageData(req);
+    res.json(data);
+  } catch (err: any) {
+    console.error('Error fetching admin ai usage:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch AI usage stats' });
+  }
+});
+
+router.get('/ai-credits', (req: Request, res: Response) => {
+  try {
+    const data = getAiCreditsUsageData(req);
+    res.json(data);
+  } catch (err: any) {
+    console.error('Error fetching admin ai credits:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch AI credit stats' });
+  }
+});
+
+router.post('/users/:id/ai-credits', (req: AdminRequest, res: Response): void => {
+  const { credits, mode = 'add', reason = '' } = req.body;
+  const db = getDatabase();
+  const userId = req.params.id;
+
+  const parsedCredits = parseInt(credits, 10);
+  if (isNaN(parsedCredits)) {
+    res.status(400).json({ error: 'Valid integer credits amount is required' });
+    return;
+  }
+
+  const user = db.prepare('SELECT id, name, email, business_name, ai_credits_balance FROM users WHERE id = ?').get(userId) as any;
+  if (!user) {
+    res.status(404).json({ error: 'Shopkeeper not found' });
+    return;
+  }
+
+  const prevBalance = user.ai_credits_balance || 0;
+  let newBalance = prevBalance;
+
+  if (mode === 'add') {
+    if (parsedCredits === 0) {
+      res.status(400).json({ error: 'Credits to add must be non-zero' });
+      return;
+    }
+    newBalance = Math.max(0, prevBalance + parsedCredits);
+  } else if (mode === 'set') {
+    if (parsedCredits < 0) {
+      res.status(400).json({ error: 'Credits balance cannot be negative' });
+      return;
+    }
+    newBalance = parsedCredits;
+  } else {
+    res.status(400).json({ error: "Invalid mode. Must be 'add' or 'set'" });
+    return;
+  }
+
+  db.prepare(`
+    UPDATE users 
+    SET ai_credits_balance = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(newBalance, userId);
+
+  writeAuditLog(req, 'user.ai_credits_adjust', 'user', userId, {
+    mode,
+    credits: parsedCredits,
+    previous_balance: prevBalance,
+    new_balance: newBalance,
+    reason: reason || 'Admin manual credit adjustment'
+  });
+
+  res.json({
+    success: true,
+    user_id: userId,
+    mode,
+    previous_balance: prevBalance,
+    new_balance: newBalance,
+    credits_adjusted: newBalance - prevBalance,
+    message: `Updated AI credit balance for ${user.business_name || user.name} to ${newBalance}`
+  });
 });
 
 // --- MEETINGS MANAGEMENT ---

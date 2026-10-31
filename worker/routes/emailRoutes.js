@@ -4,7 +4,7 @@
  * external SMTP provider connections, and transactional email testing.
  */
 
-import { requireOrgContext, HttpError } from '../index.js';
+import { requireOrgContext, HttpError, getCorsHeaders } from '../index.js';
 import { normalizeDomain, generateDnsInstructions, verifyDomainDns, provisionCloudflareDnsIfManaged } from '../services/dnsVerification.js';
 import { encryptSecret } from '../services/emailCrypto.js';
 import { testSmtpConnection } from '../services/externalSmtpClient.js';
@@ -21,11 +21,14 @@ async function readJsonBody(request) {
 }
 
 function json(data, status = 200, headers = {}, request = null) {
+  const corsHeaders = getCorsHeaders(request);
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "private, no-cache, no-store, must-revalidate",
       "X-Robots-Tag": "noindex, nofollow",
+      ...corsHeaders,
       ...headers
     }
   });
@@ -45,6 +48,10 @@ function escapeHtml(str) {
  * Main dispatch handler for /api/email/* routes.
  */
 export async function handleEmailRoutes(request, env) {
+  // CORS preflight fast path
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
+  }
   const url = new URL(request.url);
   const method = request.method;
   const rawPath = url.pathname;
@@ -593,7 +600,11 @@ export async function handleEmailRoutes(request, env) {
 
       return json({ success: true, message: "Test email dispatched successfully", result }, 200, {}, request);
     } catch (sendErr) {
-      throw new HttpError(`Test email failed: ${sendErr?.message || sendErr}`, 500);
+      console.warn("Test email dispatch error:", sendErr?.message || sendErr);
+      return json({
+        success: false,
+        error: sendErr?.message || "Failed to deliver test email. Please check SMTP gateway connection."
+      }, 200, {}, request);
     }
   }
 

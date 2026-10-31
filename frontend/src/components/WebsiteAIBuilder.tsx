@@ -50,13 +50,19 @@ function parseAIResponse(text: string): TemplateSection[] {
   }
 }
 
+interface WebsiteAIBuilderProps {
+  shopName?: string;
+  onGenerate?: (sections: TemplateSection[]) => void;
+  websiteId?: string;
+  onApplied?: (updatedWebsite: any) => void;
+}
+
 export default function WebsiteAIBuilder({ 
-  shopName,
-  onGenerate 
-}: { 
-  shopName: string;
-  onGenerate: (sections: TemplateSection[]) => void;
-}) {
+  shopName = 'My Store',
+  onGenerate,
+  websiteId,
+  onApplied,
+}: WebsiteAIBuilderProps) {
   const [state, setState] = useState<AIBuilderState>({ step: 'questions' });
   const [thinking, setThinking] = useState(false);
 
@@ -145,7 +151,8 @@ Make the copy professional, compelling, and relevant to their ${state.shopCatego
       toast.success('✨ Website design created successfully!');
       
       setTimeout(() => {
-        onGenerate(sections);
+        if (onGenerate) onGenerate(sections);
+        if (onApplied) onApplied({ sections });
       }, 1000);
     } catch (error) {
       console.error('AI generation failed:', error);

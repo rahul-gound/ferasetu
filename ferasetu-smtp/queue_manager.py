@@ -40,7 +40,8 @@ class QueueManager:
     def init_queue(cls):
         """Initializes SQLite schema for message queue, priority handling, and tenant-scoped idempotency."""
         with cls._get_conn() as conn:
-            conn.executescript("""
+            # 1. Ensure table exists
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS email_queue (
                     id TEXT PRIMARY KEY,
                     scope TEXT NOT NULL DEFAULT 'MERCHANT',
@@ -59,27 +60,50 @@ class QueueManager:
                     idempotency_key TEXT,
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_status_priority_retry 
-                ON email_queue(status, priority, next_retry_at);
-
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_idempotency_tenant 
-                ON email_queue(tenant_id, idempotency_key) 
-                WHERE idempotency_key IS NOT NULL;
+                )
             """)
 
-            # Safe incremental migration for existing databases missing new columns
+            # 2. Safe incremental migration for existing databases missing new columns (MUST run before creating indexes)
             cols = [col[1] for col in conn.execute("PRAGMA table_info(email_queue)").fetchall()]
             if "scope" not in cols:
-                conn.execute("ALTER TABLE email_queue ADD COLUMN scope TEXT NOT NULL DEFAULT 'MERCHANT'")
+                try:
+                    conn.execute("ALTER TABLE email_queue ADD COLUMN scope TEXT NOT NULL DEFAULT 'MERCHANT'")
+                except Exception as e:
+                    logger.warning("Could not add scope column: %s", e)
             if "tenant_id" not in cols:
-                conn.execute("ALTER TABLE email_queue ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''")
-                conn.execute("UPDATE email_queue SET tenant_id = merchant_id WHERE tenant_id = ''")
+                try:
+                    conn.execute("ALTER TABLE email_queue ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''")
+                    conn.execute("UPDATE email_queue SET tenant_id = merchant_id WHERE tenant_id = ''")
+                except Exception as e:
+                    logger.warning("Could not add tenant_id column: %s", e)
             if "priority" not in cols:
-                conn.execute("ALTER TABLE email_queue ADD COLUMN priority INTEGER NOT NULL DEFAULT 3")
+                try:
+                    conn.execute("ALTER TABLE email_queue ADD COLUMN priority INTEGER NOT NULL DEFAULT 3")
+                except Exception as e:
+                    logger.warning("Could not add priority column: %s", e)
             if "priority_name" not in cols:
-                conn.execute("ALTER TABLE email_queue ADD COLUMN priority_name TEXT NOT NULL DEFAULT 'NORMAL'")
+                try:
+                    conn.execute("ALTER TABLE email_queue ADD COLUMN priority_name TEXT NOT NULL DEFAULT 'NORMAL'")
+                except Exception as e:
+                    logger.warning("Could not add priority_name column: %s", e)
+
+            # 3. Create indexes AFTER columns are guaranteed to exist
+            try:
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_status_priority_retry 
+                    ON email_queue(status, priority, next_retry_at)
+                """)
+            except Exception as e:
+                logger.warning("Could not create idx_status_priority_retry index: %s", e)
+
+            try:
+                conn.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_idempotency_tenant 
+                    ON email_queue(tenant_id, idempotency_key) 
+                    WHERE idempotency_key IS NOT NULL
+                """)
+            except Exception as e:
+                logger.warning("Could not create idx_idempotency_tenant index: %s", e)
 
     @classmethod
     def enqueue(

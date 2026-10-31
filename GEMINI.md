@@ -15,10 +15,12 @@ When creating, editing, or auditing any user interface:
 - **Loss Aversion:** Highlight safety, transaction clarity, and zero-commission guarantees. Provide instant undo feedback for critical actions.
 - **Doherty Threshold:** All interactive elements must provide visual feedback in <400ms (active states, press feedback, clear spinners).
 
-## 3. Lightweight Asset & Engineering Discipline
+## 3. Lightweight Asset, Premium Stack & Engineering Discipline
+- **Mandatory UI Toolkit:** ALWAYS build and style components using **shadcn/ui** primitives (`@/components/ui/*`), **Lenis** (buttery smooth scrolling), **GSAP** (orchestration & scroll-driven motion), **React Bits** (SpotlightCard, SplitText micro-interactions), **Superdesign**, and **OpenDesign**.
+- **Generous Whitespace & Calm Trust Psychology:** Provide generous breathing room (`p-6` to `p-10`, `gap-6` to `gap-8`, ample margin). An unhurried, spacious layout signals security, premium quality, and reliability, making shopkeepers feel calm and trusting of FeraSetu.
 - **No Heavy 3D Bloat:** Never load Three.js, Canvas shaders, or heavy script libraries on functional or transactional merchant screens.
 - **Uniform Icon Suite:** Use `lucide-react` with consistent sizing (`size={18}` or `size={20}`) and stroke width (`strokeWidth={1.75}`).
-- **Hardware-Accelerated CSS:** Favor native CSS transitions and transforms over JavaScript animation loops.
+- **Hardware-Accelerated CSS & GSAP:** Favor native CSS transitions (`translate3d`, `opacity`) and GSAP ticker sync over layout-thrashing animations.
 - **Card-in-Card Prevention:** Avoid nesting bordered cards within bordered cards. Use whitespace, subtle tint shifts, and typography hierarchy to separate content.
 
 ## 4. Visual Feedback Loop (Screenshot Review Protocol)

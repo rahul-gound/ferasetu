@@ -31,7 +31,11 @@ export default function RegisterPage() {
 
   return (
     <>
-      <SEO title="Create Your Store • FeraSetu" description="Start your free online store with FeraSetu." noindex />
+      <SEO
+        title="Create Your Store • FeraSetu"
+        description="Create your free independent online store in 5 minutes with FeraSetu. 0% platform commission, direct UPI payments, and zero jargon."
+        noindex
+      />
       <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 relative">
         <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
           <div className="flex flex-col items-center justify-center mb-6">

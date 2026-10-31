@@ -465,28 +465,57 @@ export default function WebsiteBuilderPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden bg-slate-100 text-slate-900 font-sans">
       {/* Top Cockpit Navigation Bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between gap-4 flex-shrink-0 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
+      <div className="bg-white border-b border-slate-200 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 flex-shrink-0 shadow-xs z-30">
+        {/* Left Branding & Shop Name */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-sm flex-shrink-0">
             FS
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-slate-900">
-                {shopName || 'Unified Website Builder'}
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h1 className="text-xs sm:text-sm font-bold text-slate-900 truncate max-w-[100px] xs:max-w-[140px] sm:max-w-[200px] md:max-w-xs">
+                {shopName || 'Website Builder'}
               </h1>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                Theme: {activeThemeDef.name}
+              <span className="hidden sm:inline-flex text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
+                {activeThemeDef.name}
               </span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="hidden md:inline-flex text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                 v{currentVersion}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Device Switcher (Desktop/Tablet/Mobile) */}
-        <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
+        {/* Center: Mobile Segmented Mode Switcher (Editor vs Preview) */}
+        <div className="flex lg:hidden items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setMobileMode('controls')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
+              mobileMode === 'controls'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Sliders size={13} />
+            <span>Editor</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileMode('preview')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
+              mobileMode === 'preview'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Eye size={13} />
+            <span>Preview</span>
+          </button>
+        </div>
+
+        {/* Desktop Device Switcher (Desktop/Tablet/Mobile Simulator) */}
+        <div className="hidden lg:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             type="button"
             onClick={() => setDeviceView('desktop')}
@@ -517,16 +546,16 @@ export default function WebsiteBuilderPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {/* Version History Button */}
           <button
             type="button"
             onClick={() => setIsVersionModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
             title="View publication snapshots and rollback"
           >
             <History size={13} />
-            <span className="hidden sm:inline">Versions</span>
+            <span className="hidden md:inline">Versions</span>
           </button>
 
           {isPublished && (
@@ -534,7 +563,7 @@ export default function WebsiteBuilderPage() {
               href={liveUrl}
               target="_blank"
               rel="noreferrer"
-              className="hidden lg:flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors"
+              className="hidden xl:flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors"
             >
               <ExternalLink size={13} /> Live Store
             </a>
@@ -545,10 +574,11 @@ export default function WebsiteBuilderPage() {
             type="button"
             onClick={handleSaveDraft}
             disabled={savingDraft}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 text-xs font-bold bg-slate-900 text-white hover:bg-black rounded-lg shadow-sm transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold bg-slate-900 text-white hover:bg-black rounded-lg shadow-xs transition-colors disabled:opacity-50"
           >
             <Save size={13} />
-            <span>{savingDraft ? 'Saving Draft…' : 'Save Draft'}</span>
+            <span className="hidden sm:inline">{savingDraft ? 'Saving Draft…' : 'Save Draft'}</span>
+            <span className="sm:hidden">{savingDraft ? 'Saving…' : 'Save'}</span>
           </button>
 
           {/* Publish Store Button */}
@@ -556,7 +586,7 @@ export default function WebsiteBuilderPage() {
             type="button"
             onClick={handlePublish}
             disabled={publishing}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs transition-colors disabled:opacity-50"
           >
             <Globe size={13} />
             <span>{publishing ? 'Publishing…' : 'Publish Live'}</span>
@@ -566,9 +596,10 @@ export default function WebsiteBuilderPage() {
 
       {/* Main Studio Workspace (Left Panels + Live Canvas) */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Navigation Icon Strip */}
-        <div className="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3 gap-2 flex-shrink-0 z-20">
+        {/* Desktop Left Navigation Icon Strip */}
+        <div className="hidden lg:flex w-16 bg-slate-900 border-r border-slate-800 flex-col items-center py-3 gap-2 flex-shrink-0 z-20">
           <button
+            type="button"
             onClick={() => setActiveTab('design')}
             title="Design & Style"
             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
@@ -582,6 +613,7 @@ export default function WebsiteBuilderPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('logic')}
             title="Logic & Declarative Workflows"
             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
@@ -595,6 +627,7 @@ export default function WebsiteBuilderPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('connections')}
             title="Connections & Data"
             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
@@ -608,6 +641,7 @@ export default function WebsiteBuilderPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('assets')}
             title="Assets & Media"
             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
@@ -621,6 +655,7 @@ export default function WebsiteBuilderPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('ai')}
             title="AI Storefront Generator"
             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
@@ -634,94 +669,175 @@ export default function WebsiteBuilderPage() {
           </button>
         </div>
 
-        {/* Contextual Drawer / Panel Area */}
-        <div className="w-80 md:w-96 flex-shrink-0 h-full overflow-hidden z-10">
-          {activeTab === 'design' && (
-            <DesignPanel
-              selectedTheme={selectedThemeId}
-              onThemeSelect={handleThemeSelect}
-              primaryColor={overrides.primaryColor || activeThemeDef.colors.primary}
-              onColorChange={(col) => setOverrides((prev) => ({ ...prev, primaryColor: col }))}
-              fontFamily={overrides.fontFamily || activeThemeDef.typography.fontFamilyBody}
-              onFontChange={(font) => setOverrides((prev) => ({ ...prev, fontFamily: font }))}
-              sections={sections}
-              onAddSection={handleAddSection}
-              onRemoveSection={handleRemoveSection}
-              selectedNodeId={selectedSectionId}
-              onSelectNode={(id) => setSelectedSectionId(id)}
-              workflows={workflows}
-              onBindWorkflowToNode={handleBindWorkflow}
-            />
-          )}
+        {/* Studio Controls Container */}
+        {/* On desktop: w-96 flex-shrink-0. On mobile (<lg): full width if mobileMode === 'controls', hidden if mobileMode === 'preview' */}
+        <div
+          className={`flex-col h-full overflow-hidden z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 ${
+            mobileMode === 'controls' ? 'flex w-full lg:w-96 flex-shrink-0' : 'hidden lg:flex lg:w-96 flex-shrink-0'
+          }`}
+        >
+          {/* Mobile Studio Category Tab Bar */}
+          <div className="flex lg:hidden overflow-x-auto no-scrollbar items-center bg-slate-900 px-3 py-2 gap-1.5 flex-shrink-0 border-b border-slate-800">
+            {[
+              { id: 'design', label: 'Design & Style', icon: Palette },
+              { id: 'logic', label: 'Workflows', icon: Zap },
+              { id: 'connections', label: 'Data', icon: Link2 },
+              { id: 'assets', label: 'Assets', icon: ImageIconLucide },
+              { id: 'ai', label: 'AI Generator', icon: Wand2 },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                    isActive
+                      ? tab.id === 'ai'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon size={14} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-          {activeTab === 'logic' && (
-            <LogicPanel
-              workflows={workflows}
-              onUpdateWorkflows={(wfs) => setWorkflows(wfs)}
-            />
-          )}
-
-          {activeTab === 'connections' && (
-            <ConnectionsPanel
-              connections={connectionsData?.connections || []}
-              onRefreshConnections={refetchConnections}
-            />
-          )}
-
-          {activeTab === 'assets' && (
-            <AssetsPanel
-              selectedNodeId={selectedSectionId}
-              onApplyAssetToNode={handleApplyAssetToNode}
-            />
-          )}
-
-          {activeTab === 'ai' && (
-            <div className="h-full overflow-y-auto p-4 bg-white dark:bg-slate-900">
-              <WebsiteAIBuilder
-                websiteId={websiteData?.id || 'new'}
-                onApplied={(updatedWebsite: any) => {
-                  if (updatedWebsite.template && THEME_REGISTRY[updatedWebsite.template as ThemeId]) {
-                    setSelectedThemeId(updatedWebsite.template as ThemeId);
-                  }
-                  if (updatedWebsite.sections) {
-                    setSections(normalizeLegacySections(updatedWebsite.sections, updatedWebsite.name));
-                  }
-                  if (updatedWebsite.theme?.overrides) {
-                    setOverrides(updatedWebsite.theme.overrides);
-                  }
-                  toast.success('AI Website design applied!');
-                  setActiveTab('design');
-                }}
+          {/* Active Panel Content */}
+          <div className="flex-1 overflow-hidden min-h-0">
+            {activeTab === 'design' && (
+              <DesignPanel
+                selectedTheme={selectedThemeId}
+                onThemeSelect={handleThemeSelect}
+                primaryColor={overrides.primaryColor || activeThemeDef.colors.primary}
+                onColorChange={(col) => setOverrides((prev) => ({ ...prev, primaryColor: col }))}
+                fontFamily={overrides.fontFamily || activeThemeDef.typography.fontFamilyBody}
+                onFontChange={(font) => setOverrides((prev) => ({ ...prev, fontFamily: font }))}
+                sections={sections}
+                onAddSection={handleAddSection}
+                onRemoveSection={handleRemoveSection}
+                selectedNodeId={selectedSectionId}
+                onSelectNode={(id) => setSelectedSectionId(id)}
+                workflows={workflows}
+                onBindWorkflowToNode={handleBindWorkflow}
               />
-            </div>
-          )}
+            )}
+
+            {activeTab === 'logic' && (
+              <LogicPanel
+                workflows={workflows}
+                onUpdateWorkflows={(wfs) => setWorkflows(wfs)}
+              />
+            )}
+
+            {activeTab === 'connections' && (
+              <ConnectionsPanel
+                connections={connectionsData?.connections || []}
+                onRefreshConnections={refetchConnections}
+              />
+            )}
+
+            {activeTab === 'assets' && (
+              <AssetsPanel
+                selectedNodeId={selectedSectionId}
+                onApplyAssetToNode={handleApplyAssetToNode}
+              />
+            )}
+
+            {activeTab === 'ai' && (
+              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-white dark:bg-slate-900">
+                <WebsiteAIBuilder
+                  websiteId={websiteData?.id || 'new'}
+                  shopName={shopName || user?.business_name || 'My Store'}
+                  onApplied={(updatedWebsite: any) => {
+                    if (updatedWebsite.template && THEME_REGISTRY[updatedWebsite.template as ThemeId]) {
+                      setSelectedThemeId(updatedWebsite.template as ThemeId);
+                    }
+                    if (updatedWebsite.sections) {
+                      setSections(normalizeLegacySections(updatedWebsite.sections, updatedWebsite.name));
+                    }
+                    if (updatedWebsite.theme?.overrides) {
+                      setOverrides(updatedWebsite.theme.overrides);
+                    }
+                    toast.success('AI Website design applied!');
+                    setActiveTab('design');
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Bottom Quick-Action Bar */}
+          <div className="p-3 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 lg:hidden flex-shrink-0 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setMobileMode('preview')}
+              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md active:scale-98 transition-all"
+            >
+              <Eye size={16} />
+              <span>Preview Storefront</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={savingDraft}
+              className="h-12 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 active:scale-98 transition-all disabled:opacity-50"
+            >
+              <Save size={15} />
+              <span>{savingDraft ? 'Saving…' : 'Save'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Live Canvas Viewport Container */}
-        <div className="flex-1 bg-slate-200/70 p-4 md:p-6 overflow-y-auto flex items-start justify-center">
+        {/* On desktop: flex-1 flex. On mobile (<lg): full width if mobileMode === 'preview', hidden if mobileMode === 'controls' */}
+        <div
+          className={`flex-1 overflow-y-auto bg-slate-200/70 p-0 sm:p-4 md:p-6 items-start justify-center ${
+            mobileMode === 'preview' ? 'flex w-full h-full' : 'hidden lg:flex'
+          }`}
+        >
+          {/* On mobile: edge-to-edge w-full min-h-full. On desktop: deviceView bounded card */}
           <div
-            className={`bg-white shadow-2xl rounded-2xl overflow-hidden transition-all duration-300 border border-slate-300/80 flex flex-col ${
-              deviceView === 'desktop'
-                ? 'w-full max-w-6xl min-h-[85vh]'
+            className={`bg-white transition-all duration-300 flex flex-col ${
+              'w-full min-h-full sm:min-h-0 sm:shadow-2xl sm:rounded-2xl sm:overflow-hidden sm:border sm:border-slate-300/80 ' +
+              (deviceView === 'desktop'
+                ? 'sm:w-full sm:max-w-6xl sm:min-h-[85vh]'
                 : deviceView === 'tablet'
-                ? 'w-[768px] min-h-[85vh]'
-                : 'w-[375px] min-h-[700px]'
+                ? 'sm:w-[768px] sm:min-h-[85vh]'
+                : 'sm:w-[375px] sm:min-h-[700px]')
             }`}
           >
             {/* Viewport Browser Header Bar */}
-            <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2 select-none">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+            <div className="bg-slate-100 border-b border-slate-200 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 select-none flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                </div>
+                <div className="bg-white border border-slate-200 rounded-md px-2.5 py-0.5 text-[11px] text-slate-600 font-mono flex items-center gap-1.5 truncate max-w-[190px] sm:max-w-xs">
+                  <span className="text-emerald-600">🔒</span>
+                  <span className="truncate">https://{user?.subdomain || 'yourstore'}.ferasetu.com</span>
+                </div>
               </div>
-              <div className="flex-1 mx-4 bg-white border border-slate-200 rounded-md px-3 py-0.5 text-[11px] text-slate-500 font-mono text-center truncate">
-                https://{user?.subdomain || 'yourstore'}.ferasetu.com
-              </div>
+
+              {/* Mobile Back Button in Browser Header */}
+              <button
+                type="button"
+                onClick={() => setMobileMode('controls')}
+                className="lg:hidden text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 flex items-center gap-1"
+              >
+                <Sliders size={12} />
+                <span>Edit</span>
+              </button>
             </div>
 
             {/* Live Storefront Renderer */}
-            <div className="flex-1 overflow-x-hidden">
+            <div className="flex-1 overflow-x-hidden relative">
               <TemplateRenderer
                 theme={selectedThemeId}
                 themeId={selectedThemeId}
@@ -745,10 +861,23 @@ export default function WebsiteBuilderPage() {
                 onSelectSection={(secId) => {
                   setSelectedSectionId(secId);
                   setActiveTab('design');
+                  setMobileMode('controls');
                 }}
                 selectedSectionId={selectedSectionId}
               />
             </div>
+          </div>
+
+          {/* Floating Return Button for Mobile Preview */}
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileMode('controls')}
+              className="flex items-center gap-2 px-5 py-3 bg-slate-900/95 hover:bg-black text-white text-xs font-bold rounded-full shadow-2xl border border-slate-700/60 backdrop-blur-md active:scale-95 transition-all"
+            >
+              <Sliders size={14} className="text-blue-400" />
+              <span>Back to Editor Controls</span>
+            </button>
           </div>
         </div>
       </div>

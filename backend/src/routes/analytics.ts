@@ -255,20 +255,20 @@ router.get('/dashboard', (req: AuthenticatedRequest, res: Response): void => {
     const db = getDatabase();
     const userId = req.user!.id;
 
-    const totalCustomersRow = db.prepare(`SELECT COUNT(DISTINCT customer_name) as cnt FROM orders WHERE user_id = ?`).get(userId) as any;
+    const totalCustomersRow = db.prepare(`SELECT COUNT(DISTINCT customer_name) as cnt FROM orders WHERE user_id = ? AND status != 'cancelled'`).get(userId) as any;
 
-    // 1. Unified stats query for maximum performance
+    // 1. Unified stats query for maximum performance (excluding cancelled orders from revenue & active counts)
     const statsResult = db.prepare(`
       SELECT 
-        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status != 'cancelled' THEN 1 END) as total_orders,
         SUM(CASE WHEN status != 'cancelled' THEN total ELSE 0 END) as total_revenue,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
         -- This month
         SUM(CASE WHEN created_at >= datetime('now', '-30 days') AND status != 'cancelled' THEN total ELSE 0 END) as this_month_rev,
-        SUM(CASE WHEN created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) as this_month_orders,
+        SUM(CASE WHEN created_at >= datetime('now', '-30 days') AND status != 'cancelled' THEN 1 ELSE 0 END) as this_month_orders,
         -- Last month
         SUM(CASE WHEN created_at >= datetime('now', '-60 days') AND created_at < datetime('now', '-30 days') AND status != 'cancelled' THEN total ELSE 0 END) as last_month_rev,
-        SUM(CASE WHEN created_at >= datetime('now', '-60 days') AND created_at < datetime('now', '-30 days') THEN 1 ELSE 0 END) as last_month_orders
+        SUM(CASE WHEN created_at >= datetime('now', '-60 days') AND created_at < datetime('now', '-30 days') AND status != 'cancelled' THEN 1 ELSE 0 END) as last_month_orders
       FROM orders 
       WHERE user_id = ?
     `).get(userId) as any;

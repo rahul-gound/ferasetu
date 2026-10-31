@@ -115,7 +115,7 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173"
 ];
 
-function isOriginAllowed(origin, request = null, env = null) {
+export function isOriginAllowed(origin, request = null, env = null) {
   if (!origin || typeof origin !== "string") return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   
@@ -167,7 +167,7 @@ function isOriginAllowed(origin, request = null, env = null) {
   }
 }
 
-function getCorsHeaders(request, env = null) {
+export function getCorsHeaders(request, env = null) {
   const origin = request ? (request.headers?.get("Origin") || request.headers?.get("origin")) : null;
   const allowedOrigin = isOriginAllowed(origin, request, env) ? origin : "https://ferasetu.com";
   const reqHeaders = request ? (request.headers?.get("Access-Control-Request-Headers") || request.headers?.get("access-control-request-headers")) : null;
@@ -181,6 +181,22 @@ function getCorsHeaders(request, env = null) {
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
+}
+
+export function withCors(response, request, env = null) {
+  if (!response || !(response instanceof Response)) return response;
+  const cors = getCorsHeaders(request, env);
+  const newHeaders = new Headers(response.headers);
+  for (const [key, value] of Object.entries(cors)) {
+    if (!newHeaders.has(key)) {
+      newHeaders.set(key, value);
+    }
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
 }
 
 // JSON response helper — attaches dynamic CORS headers based on request origin.
@@ -1136,6 +1152,20 @@ async function createOrganizationHandler(request, env) {
     console.warn("Error fetching created org:", findOrgErr);
   }
 
+  // Send Welcome Email to the new merchant from noreply@ferasetu.com
+  const userEmail = me.email || '';
+  if (userEmail && userEmail.includes('@') && !userEmail.endsWith('@user.ferasetu.com')) {
+    try {
+      await EmailService.sendNewUserWelcomeEmail(env, {
+        email: userEmail,
+        name: me.name || name,
+        storeUrl: `https://${hostname}`
+      });
+    } catch (welcomeErr) {
+      console.warn("Could not dispatch welcome email to merchant:", welcomeErr?.message);
+    }
+  }
+
   return json({
     success: true,
     organization: {
@@ -1523,6 +1553,19 @@ async function updateProfile(request, env) {
     const refCode = body.referral_code || body.ref_code || body.ref;
     if (refCode && typeof refCode === 'string') {
       await processReferral(refCode, newUser.id, env);
+    }
+
+    // Send Welcome Email to newly registered user
+    if (newUser.email && newUser.email.includes('@') && !newUser.email.endsWith('@user.ferasetu.com')) {
+      try {
+        await EmailService.sendNewUserWelcomeEmail(env, {
+          email: newUser.email,
+          name: newUser.name || newUser.business_name,
+          storeUrl: newUser.hostname ? `https://${newUser.hostname}` : `https://${newUser.subdomain}.ferasetu.com`
+        });
+      } catch (welcomeErr) {
+        console.warn("Could not dispatch welcome email on profile creation:", welcomeErr?.message);
+      }
     }
 
     return json({ user: newUser }, 201);
@@ -2258,6 +2301,25 @@ async function createOrder(request, env) {
       `Manual Order ${order.id}`, now, now
     ).run();
   } catch {}
+
+  // Congratulate merchant upon receiving their very first order
+  try {
+    const orderCountRow = await env.DB.prepare(
+      "SELECT COUNT(*) as count FROM orders WHERE organization_id = ?"
+    ).bind(ctx.organizationId).first();
+    if (orderCountRow && Number(orderCountRow.count) === 1) {
+      await EmailService.sendFirstOrderCongratulatoryEmail(env, {
+        organizationId: ctx.organizationId,
+        orderId: order.id,
+        total: order.total,
+        customerName: order.customer_name,
+        storeSlug: ctx.organization?.store_slug || ctx.organizationId,
+        shopName: ctx.organization?.name || 'Your Store'
+      });
+    }
+  } catch (firstOrderErr) {
+    console.warn("Could not check/send first order congratulatory email (non-blocking):", firstOrderErr?.message);
+  }
 
   return json({ order }, 201);
 }
@@ -6456,21 +6518,23 @@ export async function sendCustomerOrderOtpEmail(env, {
 
   // 1. Unified EmailService sending (single authoritative transport)
   try {
-    const res = await EmailService.send(env, {
+    const res = await EmailService.sendCustomerEmail(env, {
       organizationId,
-      to: cleanEmail,
-      template: 'ORDER_OTP',
+      customerEmail: cleanEmail,
+      templateKey: 'order.confirmation',
+      locale: 'en',
       data: {
-        otp,
-        customerName,
-        brandName: shopName || 'FeraSetu Store',
-        orderId,
-        invoiceNumber,
-        total,
-        deliveryType,
-        items
+        order_id: String(orderId),
+        invoice_number: invoiceNumber || undefined,
+        otp: otp ? String(otp) : '',
+        total: typeof total === 'number' ? total : Number(total || 0),
+        currency: 'INR',
+        customer_name: customerName || 'Customer',
+        delivery_type: deliveryType || 'Delivery',
+        items: Array.isArray(items) ? items : []
       },
-      idempotencyKey: `otp_${orderId}_${otp}`
+      idempotencyKey: `otp_${orderId}_${otp}`,
+      orgName: shopName || 'FeraSetu Store'
     });
     if (res && res.success) {
       return { success: true, method: res.provider || 'email-service' };
@@ -7113,6 +7177,25 @@ async function handlePublicCreateOrder(request, env) {
         "UPDATE orders SET email_sent = ?, email_status = ? WHERE id = ?"
       ).bind(emailSent ? 1 : 0, emailStatus, orderId).run();
     } catch {}
+  }
+
+  // Congratulate merchant upon receiving their very first customer order
+  try {
+    const orderCountRow = await env.DB.prepare(
+      "SELECT COUNT(*) as count FROM orders WHERE organization_id = ?"
+    ).bind(orgId).first();
+    if (orderCountRow && Number(orderCountRow.count) === 1) {
+      await EmailService.sendFirstOrderCongratulatoryEmail(env, {
+        organizationId: orgId,
+        orderId: orderId,
+        total: total,
+        customerName: customerName,
+        storeSlug: tenant?.organization?.store_slug || storeSlug,
+        shopName: tenant?.organization?.name || tenant?.shop?.name || storeSlug
+      });
+    }
+  } catch (firstOrderErr) {
+    console.warn("Could not check/send first order congratulatory email (non-blocking):", firstOrderErr?.message);
   }
 
   // Authoritative, secure response (NEVER return plaintext OTP)
@@ -9090,7 +9173,7 @@ async function route(request, env) {
 
   // Fast path for CORS preflight
   if (method === "OPTIONS") {
-    return handleCors(request);
+    return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
   }
 
   if (path === "/" && method === "GET") {
@@ -9557,12 +9640,14 @@ async function route(request, env) {
 
   // Production Email Architecture Endpoints
   if (path.startsWith("/api/email")) {
-    return handleEmailRoutes(request, env);
+    const emailRes = await handleEmailRoutes(request, env);
+    return withCors(emailRes, request, env);
   }
 
   // Domain Management & In-App Purchase Endpoints
   if (path.startsWith("/api/domains")) {
-    return handleDomainRoutes(request, env);
+    const domainRes = await handleDomainRoutes(request, env);
+    return withCors(domainRes, request, env);
   }
 
   // SMTP Settings

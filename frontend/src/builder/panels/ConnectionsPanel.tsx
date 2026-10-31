@@ -142,32 +142,33 @@ export default function ConnectionsPanel({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 select-none">
       {/* Header */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             External Connections & Data
           </h2>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500 mt-0.5">
             Manage Firebase Authentication and secure server-proxied REST connectors
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setIsAdding(!isAdding)}
-          className="px-2.5 py-1 text-xs rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-1.5 shadow-sm transition-all"
+          className="self-start sm:self-auto px-3.5 py-1.5 text-xs rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{isAdding ? 'Cancel' : 'New Connector'}</span>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {/* Security Banner */}
-        <div className="p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 text-xs space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-300">
-            <Lock className="w-3.5 h-3.5" />
+        <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900 text-xs space-y-1.5 shadow-2xs">
+          <div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300">
+            <Lock className="w-4 h-4" />
             <span>Encrypted Credential Isolation</span>
           </div>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             All private API tokens and service credentials are encrypted at rest with AES-256-GCM. Outbound requests run strictly on the Worker server with SSRF guards. Zero secrets are exposed in client bundles or public store JSON.
           </p>
         </div>

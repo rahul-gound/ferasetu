@@ -75,9 +75,6 @@ class ReputationManager:
                     PRIMARY KEY (email, tenant_id)
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_suppression_lookup 
-                ON suppression_list(email, tenant_id);
-
                 CREATE TABLE IF NOT EXISTS daily_volume (
                     merchant_id TEXT NOT NULL,
                     day_key TEXT NOT NULL, -- YYYY-MM-DD
@@ -86,19 +83,33 @@ class ReputationManager:
                 );
             """)
 
+            # Safe incremental column check for suppression_list before indexing
+            cols = [c[1] for c in conn.execute("PRAGMA table_info(suppression_list)").fetchall()]
+            if "tenant_id" not in cols:
+                try:
+                    conn.execute("ALTER TABLE suppression_list ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'GLOBAL'")
+                except Exception as e:
+                    logger.warning("Could not add tenant_id to suppression_list: %s", e)
+            if "scope" not in cols:
+                try:
+                    conn.execute("ALTER TABLE suppression_list ADD COLUMN scope TEXT NOT NULL DEFAULT 'MERCHANT'")
+                except Exception as e:
+                    logger.warning("Could not add scope to suppression_list: %s", e)
+
+            try:
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_suppression_lookup 
+                    ON suppression_list(email, tenant_id)
+                """)
+            except Exception as e:
+                logger.warning("Could not create idx_suppression_lookup index: %s", e)
+
             # Ensure platform tenant initialized
             now = time.time()
             conn.execute("""
                 INSERT OR IGNORE INTO platform_reputation (tenant_id, created_at, updated_at)
                 VALUES (?, ?, ?)
             """, (Config.PLATFORM_TENANT_ID, now, now))
-
-            # Incremental column check for suppression_list if migrating
-            cols = [c[1] for c in conn.execute("PRAGMA table_info(suppression_list)").fetchall()]
-            if "tenant_id" not in cols:
-                conn.execute("ALTER TABLE suppression_list ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'GLOBAL'")
-            if "scope" not in cols:
-                conn.execute("ALTER TABLE suppression_list ADD COLUMN scope TEXT NOT NULL DEFAULT 'MERCHANT'")
 
     @classmethod
     def check_recipient_suppressed(cls, email: str, tenant_id: Optional[str] = None, scope: str = "MERCHANT") -> None:

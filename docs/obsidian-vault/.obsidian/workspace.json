@@ -11,13 +11,47 @@
             "id": "03c491581a12e67f",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "type": "markdown",
+              "state": {
+                "file": "04 - 🎨 Frontend & Design System (React 19 & Tailwind).md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "04 - 🎨 Frontend & Design System (React 19 & Tailwind)"
+            }
+          },
+          {
+            "id": "ab638e0c6ff83549",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "file:C:/Users/himanshu/OneDrive/Documents/Terminal exam paper.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Terminal exam paper"
+            }
+          },
+          {
+            "id": "18489dde246cd243",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "Untitled 1.canvas",
+                "viewState": {
+                  "x": -245,
+                  "y": 37.8706421697493,
+                  "zoom": 0
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "Untitled 1"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -79,7 +113,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "right": {
     "id": "7b0b03c1a569aff2",
@@ -95,6 +129,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "file:C:/Users/himanshu/OneDrive/Documents/Terminal exam paper.pdf",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -181,10 +216,20 @@
       "bases:Create new base": false
     }
   },
-  "active": "03c491581a12e67f",
+  "active": "ab638e0c6ff83549",
   "lastOpenFiles": [
+    "Untitled 1.canvas",
+    "Untitled.md",
+    "Untitled.canvas",
+    "00 - 🗺️ System Architecture Overview.md",
+    "file:C:/Users/himanshu/OneDrive/Documents/Terminal exam paper.pdf",
+    "04 - 🎨 Frontend & Design System (React 19 & Tailwind).md",
+    "03 - 🖥️ Core API & Business Logic (Node.js & Express).md",
+    "08 - 🌐 Subdomains, Custom Domains & DNS.md",
     "10 - 🗄️ Database Schemas & Data Flow.md",
-    "01 - 📊 Progress & Completion Matrix.md",
-    "00 - 🗺️ System Architecture Overview.md"
+    "09 - 🧪 QA, Testing & Control Plane.md",
+    "feature that wil added soon.md",
+    "ferasetu-email-logo.png",
+    "01 - 📊 Progress & Completion Matrix.md"
   ]
 }

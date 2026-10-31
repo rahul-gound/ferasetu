@@ -192,6 +192,97 @@ export const EMAIL_TEMPLATES = {
     }
   },
 
+  'account.welcome': {
+    version: '1.0.0',
+    status: 'ACTIVE',
+    requiredVariables: [],
+    optionalVariables: ['user_name', 'merchant_name', 'email', 'store_url'],
+    render: (data) => {
+      const name = data.user_name || data.merchant_name || 'Shopkeeper';
+      const storeUrl = data.store_url || 'https://ferasetu.com/dashboard';
+
+      const subject = `Welcome to FeraSetu, ${name}! Your store is live 🎉`;
+      const contentHtml = `
+        <h2 style="margin-top: 0; font-size: 22px; font-weight: 800; color: #0f172a;">Welcome to FeraSetu, ${escapeHtml(name)}! 🎉</h2>
+        <p style="font-size: 15px; color: #334155; line-height: 1.6;">Congratulations on creating your FeraSetu account! Your business is yours, and now your online store is too.</p>
+        
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #e2e8f0;">
+          <h3 style="margin-top: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Your Three Guarantees with FeraSetu:</h3>
+          <ul style="padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8; margin-bottom: 0;">
+            <li><strong>0% Platform Commission:</strong> Every rupee from every sale stays in your bank account.</li>
+            <li><strong>Direct Customer Connection:</strong> You own your customer list, contacts, and repeat business.</li>
+            <li><strong>Your Own Store Address:</strong> Share your store link on WhatsApp or print your counter QR code.</li>
+          </ul>
+        </div>
+
+        <p style="font-size: 15px; color: #334155; line-height: 1.6;">Ready to add your first product or share your shop link? Open your dashboard now:</p>
+
+        ${renderButton('https://ferasetu.com/dashboard', 'Open Store Dashboard', '#0052FF')}
+
+        <p style="font-size: 13px; color: #94a3b8; text-align: center; margin-top: 24px;">Need any assistance? Simply reply to this email or reach our support team anytime.</p>
+      `;
+
+      const text = `Congratulations & Welcome to FeraSetu, ${name}!\n\nYour account is live! Enjoy 0% platform commission and direct customer ownership.\n\nOpen your dashboard to start:\nhttps://ferasetu.com/dashboard`;
+      return { subject, contentHtml, text };
+    }
+  },
+
+  'merchant.first_order': {
+    version: '1.0.0',
+    status: 'ACTIVE',
+    requiredVariables: ['order_id'],
+    optionalVariables: ['customer_name', 'total', 'currency', 'items_count', 'merchant_name', 'store_name'],
+    render: (data, branding) => {
+      const orderId = String(data.order_id);
+      const customerName = data.customer_name || 'A customer';
+      const total = data.total ? formatAmount(data.total, data.currency || 'INR') : null;
+      const merchantName = data.merchant_name || 'Shopkeeper';
+      const storeName = branding?.storeName || data.store_name || 'your store';
+
+      const subject = `🎉 Congratulations! You received your first order on FeraSetu!`;
+      const contentHtml = `
+        <div style="text-align: center; margin-bottom: 16px;">
+          <span style="font-size: 48px;">🎉</span>
+        </div>
+        <h2 style="margin-top: 0; font-size: 22px; font-weight: 800; color: #0f172a; text-align: center;">Congratulations on your first order, ${escapeHtml(merchantName)}!</h2>
+        <p style="font-size: 15px; color: #334155; line-height: 1.6; text-align: center;">This is a proud milestone for <strong>${escapeHtml(storeName)}</strong>. A customer just placed an order with your shop:</p>
+        
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 24px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 14px; color: #166534;">
+            <tr>
+              <td style="padding: 6px 0; font-weight: 600;">Order ID:</td>
+              <td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: 700;">#${escapeHtml(orderId.slice(0, 10).toUpperCase())}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; font-weight: 600;">Customer:</td>
+              <td style="padding: 6px 0; text-align: right; font-weight: 700;">${escapeHtml(customerName)}</td>
+            </tr>
+            ${total ? `
+            <tr>
+              <td style="padding: 6px 0; font-weight: 600;">Total Amount:</td>
+              <td style="padding: 6px 0; text-align: right; font-weight: 900; font-size: 16px; color: #15803d;">${total}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 6px 0; font-weight: 600;">Platform Commission:</td>
+              <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #15803d;">0% (₹0 deducted)</td>
+            </tr>
+          </table>
+        </div>
+
+        <p style="font-size: 14px; color: #475569; line-height: 1.6;">
+          <strong>Next steps:</strong> Open your dashboard to check the buyer details, verify stock on your shelf, and prepare the items for delivery or customer pickup.
+        </p>
+
+        ${renderButton('https://ferasetu.com/orders', 'View Order & Start Packing', '#16a34a')}
+
+        <p style="font-size: 13px; color: #64748b; text-align: center; margin-top: 24px;">100% of this sale belongs to you. Here's to many more orders! 🚀</p>
+      `;
+
+      const text = `Congratulations, ${merchantName}!\n\nYou just received your first order (#${orderId.toUpperCase()}) on FeraSetu!\nCustomer: ${customerName}\n${total ? `Total: ${total}\n` : ''}Platform Commission: 0%\n\nView the order details on your dashboard:\nhttps://ferasetu.com/orders`;
+      return { subject, contentHtml, text };
+    }
+  },
+
   'merchant.onboarding': {
     version: '1.0.0',
     status: 'ACTIVE',

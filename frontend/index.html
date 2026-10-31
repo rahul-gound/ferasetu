@@ -23,6 +23,37 @@
     <meta name="twitter:title" content="FeraSetu — Your business is yours. The internet should be too." />
     <meta name="twitter:description" content="Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. 0% FeraSetu platform commission." />
     <meta name="twitter:image" content="https://ferasetu.com/logo-official.png" />
+    <!-- Structured Data (Schema.org Organization & WebSite) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://ferasetu.com/#organization",
+          "name": "FeraSetu",
+          "url": "https://ferasetu.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://ferasetu.com/logo-official.png",
+            "width": 512,
+            "height": 512
+          },
+          "description": "Independent commerce software for local shopkeepers and global retailers. 0% platform commission.",
+          "email": "support@ferasetu.com"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://ferasetu.com/#website",
+          "url": "https://ferasetu.com/",
+          "name": "FeraSetu",
+          "publisher": {
+            "@id": "https://ferasetu.com/#organization"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -163,7 +163,7 @@ export default function ShopifyAlternativeIndia() {
     <PublicLayout>
       <SEO
         title="Shopify Alternative India — Factual Comparison & Pricing | FeraSetu"
-        description="Evaluating Shopify alternatives in India? Compare FeraSetu vs Shopify on pricing (₹0 vs ₹1,999+), 0% commissions, built-in WhatsApp orders, and Indian UPI payments."
+        description="Compare FeraSetu vs Shopify on ₹0 pricing, 0% sales commission, direct UPI payments, and built-in WhatsApp customer orders in India."
         structuredData={{
           '@graph': [shopifyAlternativeFaqSchema, shopifyBreadcrumbSchema],
         }}

@@ -21,6 +21,7 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 | **AST Builder Runtime** | `worker/templates/` | Low-latency server-rendered dynamic storefront components |
 | **Builder Service** | `worker/services/builderService.js` | Draft persistence, versioning, rollback, connection vault & SSRF proxy |
 | **Storefront CSP** | `worker/storefront.js` | Strict Content Security Policy headers & verification hashes |
+| **Email & SMTP Router** | `worker/routes/emailRoutes.js` | Multi-tenant sender identities, external SMTP sockets, transactional delivery |
 | **AI Edge Interceptor** | `worker/ai/` | Edge pre-filtering of AI prompts before calling Sarvam API |
 
 

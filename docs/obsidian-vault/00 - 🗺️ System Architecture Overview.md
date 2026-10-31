@@ -1,4 +1,4 @@
-# 🗺️ FeraSetu (फेरासेतु) — Core System Architecture Overview
+\# 🗺️ FeraSetu (फेरासेतु) — Core System Architecture Overview
 
 > **Version:** 1.0.0-PROD  
 > **Target Audience:** The Global Shopkeeper (48+ regions, Indic-first, 0% platform commission)  

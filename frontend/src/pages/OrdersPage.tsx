@@ -609,24 +609,36 @@ export default function OrdersPage() {
                     <div className="relative flex-1">
                       <select
                         value={order.status}
-                        disabled={updatingId === order.id}
+                        disabled={updatingId === order.id || order.status === 'cancelled'}
                         onChange={e => handleStatusChange(order, e.target.value)}
-                        className="w-full text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                        className={`w-full text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-lg border appearance-none transition-colors ${
+                          order.status === 'cancelled'
+                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                        }`}
                       >
                         {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
+                          <option key={k} value={k} disabled={order.status === 'cancelled' && k !== 'cancelled'}>
+                            {order.status === 'cancelled' && k === 'cancelled' ? 'Cancelled (Locked)' : v}
+                          </option>
                         ))}
                       </select>
                       <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setInvoiceOrder(order)}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      🧾 Invoice
-                    </button>
+                    {order.status !== 'cancelled' ? (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceOrder(order)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        🧾 Invoice
+                      </button>
+                    ) : (
+                      <span className="px-2.5 py-1.5 text-[11px] font-medium text-slate-400 italic">
+                        Voided
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -696,18 +708,23 @@ export default function OrdersPage() {
                         <div style={{ position: 'relative' }}>
                           <select
                             value={order.status}
-                            disabled={updatingId === order.id}
+                            disabled={updatingId === order.id || order.status === 'cancelled'}
                             onChange={e => handleStatusChange(order, e.target.value)}
                             onClick={e => e.stopPropagation()}
                             style={{
                               padding: '6px 28px 6px 10px', borderRadius: '6px', fontSize: '12px',
-                              border: '1px solid var(--border)', background: 'var(--bg)',
-                              color: 'var(--text)', cursor: 'pointer', appearance: 'none',
-                              opacity: updatingId === order.id ? 0.5 : 1,
+                              border: '1px solid var(--border)',
+                              background: order.status === 'cancelled' ? '#f1f5f9' : 'var(--bg)',
+                              color: order.status === 'cancelled' ? '#94a3b8' : 'var(--text)',
+                              cursor: order.status === 'cancelled' ? 'not-allowed' : 'pointer',
+                              appearance: 'none',
+                              opacity: updatingId === order.id || order.status === 'cancelled' ? 0.7 : 1,
                             }}
                           >
                             {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                              <option key={k} value={k}>{v}</option>
+                              <option key={k} value={k} disabled={order.status === 'cancelled' && k !== 'cancelled'}>
+                                {order.status === 'cancelled' && k === 'cancelled' ? 'Cancelled (Locked)' : v}
+                              </option>
                             ))}
                           </select>
                           <ChevronDown size={12} style={{
@@ -717,13 +734,19 @@ export default function OrdersPage() {
                         </div>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <button
-                          className="btn btn-secondary"
-                          onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
-                          style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
-                        >
-                          🧾 Invoice
-                        </button>
+                        {order.status !== 'cancelled' ? (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
+                            style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                          >
+                            🧾 Invoice
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+                            No Invoice
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -832,50 +855,56 @@ export default function OrdersPage() {
 
               {/* Action Bar */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setInvoiceOrder(selectedOrder)}
-                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
-                >
-                  <Receipt size={14} /> View Invoice
-                </button>
+                {selectedOrder.status !== 'cancelled' ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setInvoiceOrder(selectedOrder)}
+                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                    >
+                      <Receipt size={14} /> View Invoice
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => downloadPdf(`/orders/${selectedOrder.id}/invoice/pdf`, `invoice-${selectedOrder.invoice_number || selectedOrder.id.slice(-8)}.pdf`)}
-                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
-                >
-                  <Download size={14} /> Download Invoice (PDF)
-                </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => downloadPdf(`/orders/${selectedOrder.id}/invoice/pdf`, `invoice-${selectedOrder.invoice_number || selectedOrder.id.slice(-8)}.pdf`)}
+                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                    >
+                      <Download size={14} /> Download Invoice (PDF)
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={async () => {
-                    const targetEmail = window.prompt('Send invoice to email:', selectedOrder.customer_email || '');
-                    if (!targetEmail) return;
-                    try {
-                      await api.post(`/orders/${selectedOrder.id}/invoice/send`, { email: targetEmail });
-                      toast.success(`Invoice sent to ${targetEmail}`);
-                    } catch (err: any) {
-                      toast.error(err.response?.data?.error || 'Failed to send invoice');
-                    }
-                  }}
-                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
-                >
-                  <Mail size={14} /> Email Invoice
-                </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={async () => {
+                        const targetEmail = window.prompt('Send invoice to email:', selectedOrder.customer_email || '');
+                        if (!targetEmail) return;
+                        try {
+                          await api.post(`/orders/${selectedOrder.id}/invoice/send`, { email: targetEmail });
+                          toast.success(`Invoice sent to ${targetEmail}`);
+                        } catch (err: any) {
+                          toast.error(err.response?.data?.error || 'Failed to send invoice');
+                        }
+                      }}
+                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+                    >
+                      <Mail size={14} /> Email Invoice
+                    </button>
 
-                {selectedOrder.status !== 'cancelled' && (
-                  <button
-                    type="button"
-                    onClick={() => setOrderToCancel(selectedOrder)}
-                    style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #FCA5A5', color: '#DC2626', background: '#FFF', cursor: 'pointer' }}
-                  >
-                    <Ban size={14} /> Cancel Order
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrderToCancel(selectedOrder)}
+                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #FCA5A5', color: '#DC2626', background: '#FFF', cursor: 'pointer' }}
+                    >
+                      <Ban size={14} /> Cancel Order
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', fontSize: '12px', color: '#991B1B', fontWeight: 600 }}>
+                    ⛔ Order Cancelled — Invoices are voided and unavailable.
+                  </div>
                 )}
 
                 {(afterSales?.financials?.remainingRefundableMinor || 0) > 0 && !afterSales?.financials?.isUnpaidCod && (
@@ -1264,6 +1293,7 @@ export default function OrdersPage() {
                 </label>
                 <select
                   value={selectedOrder.status}
+                  disabled={selectedOrder.status === 'cancelled'}
                   onChange={e => {
                     handleStatusChange(selectedOrder, e.target.value);
                     if (e.target.value !== 'cancelled') {
@@ -1271,12 +1301,24 @@ export default function OrdersPage() {
                     }
                   }}
                   className="input"
-                  style={{ width: '100%' }}
+                  style={{
+                    width: '100%',
+                    background: selectedOrder.status === 'cancelled' ? '#f1f5f9' : undefined,
+                    color: selectedOrder.status === 'cancelled' ? '#94a3b8' : undefined,
+                    cursor: selectedOrder.status === 'cancelled' ? 'not-allowed' : undefined,
+                  }}
                 >
                   {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
+                    <option key={k} value={k} disabled={selectedOrder.status === 'cancelled' && k !== 'cancelled'}>
+                      {selectedOrder.status === 'cancelled' && k === 'cancelled' ? 'Cancelled (Locked — Irreversible)' : v}
+                    </option>
                   ))}
                 </select>
+                {selectedOrder.status === 'cancelled' && (
+                  <p style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                    🔒 This order is cancelled and cannot be changed to other updates.
+                  </p>
+                )}
               </div>
             </div>
           </div>

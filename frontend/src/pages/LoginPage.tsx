@@ -29,7 +29,11 @@ export default function LoginPage() {
 
   return (
     <>
-      <SEO title="Sign In • FeraSetu" description="Sign in to your FeraSetu merchant dashboard." noindex />
+      <SEO
+        title="Sign In • FeraSetu"
+        description="Sign in to your FeraSetu merchant workspace to manage your products, track customer orders, and configure your online store."
+        noindex
+      />
       <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 relative">
         <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
           <div className="flex flex-col items-center justify-center mb-6">

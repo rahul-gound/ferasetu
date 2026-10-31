@@ -56,6 +56,7 @@ const AdminQAPage = lazy(() => import('./pages/AdminQAPage'));
 const AdminQARunDetailPage = lazy(() => import('./pages/AdminQARunDetailPage'));
 const AdminQAIssueDetailPage = lazy(() => import('./pages/AdminQAIssueDetailPage'));
 const AdminQASandboxPage = lazy(() => import('./pages/AdminQASandboxPage'));
+const AdminAICreditsPage = lazy(() => import('./pages/AdminAICreditsPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
@@ -261,6 +262,8 @@ function AppRoutes() {
             <Routes>
               <Route path="dashboard" element={<AdminDashboardPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="ai-credits" element={<AdminAICreditsPage />} />
+              <Route path="ai-usage" element={<AdminAICreditsPage />} />
               <Route path="shops" element={<AdminShopsPage />} />
               <Route path="meetings" element={<AdminMeetingsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />

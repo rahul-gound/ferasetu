@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -22,21 +22,14 @@ import { getMarketPlans } from '../config/plans';
 import { getMarketDemoConfig } from '../config/marketDemo';
 import CompleteCircuit from '../components/marketing/CompleteCircuit';
 import StorefrontShowcase from '../components/marketing/StorefrontShowcase';
+import TransparencyTable from '../components/marketing/TransparencyTable';
+import FAQSection from '../components/marketing/FAQSection';
 import SEO from '../components/SEO';
 import SplitText from '../components/ui/SplitText';
 import SpotlightCard from '../components/ui/SpotlightCard';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
 gsap.registerPlugin(ScrollTrigger);
-
-const TransparencyTable = lazy(() => import('../components/marketing/TransparencyTable'));
-const FAQSection = lazy(() => import('../components/marketing/FAQSection'));
-
-const SectionFallback = () => (
-  <div className="w-full py-16 flex items-center justify-center">
-    <div className="w-6 h-6 rounded-full border-2 border-blue-100 border-t-blue-600 animate-spin" />
-  </div>
-);
 
 export default function LandingPage() {
   const { language, translate, getLocalizedLink } = useLanguage();
@@ -51,35 +44,48 @@ export default function LandingPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion || !landingRef.current) return;
+    const isTouchOrCoarse =
+      window.matchMedia('(pointer: coarse)').matches ||
+      ('ontouchstart' in window) ||
+      navigator.maxTouchPoints > 0 ||
+      window.innerWidth < 1024;
+
+    // On touch devices or small viewports, preserve natural 100% visibility without opacity 0 trapping
+    if (prefersReducedMotion || isTouchOrCoarse || !landingRef.current) return;
 
     const ctx = gsap.context(() => {
-      // Subtle scroll reveal for product proof
-      gsap.from('#product-proof', {
-        opacity: 0,
-        y: 24,
-        duration: 0.6,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#product-proof',
-          start: 'top 85%',
-          once: true,
-        },
-      });
+      // Subtle scroll reveal for product proof (never start from total 0 opacity)
+      gsap.fromTo('#product-proof', 
+        { opacity: 0.15, y: 16 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: '#product-proof',
+            start: 'top 90%',
+            once: true,
+          },
+        }
+      );
 
       // Staggered row reveal for comparison table
-      gsap.from('.comparison-row', {
-        opacity: 0,
-        y: 16,
-        duration: 0.45,
-        stagger: 0.08,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#comparison table',
-          start: 'top 80%',
-          once: true,
-        },
-      });
+      gsap.fromTo('.comparison-row',
+        { opacity: 0.2, y: 12 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          stagger: 0.05,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: '#comparison table',
+            start: 'top 88%',
+            once: true,
+          },
+        }
+      );
     }, landingRef);
 
     return () => ctx.revert();
@@ -741,9 +747,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <Suspense fallback={<SectionFallback />}>
-              <TransparencyTable />
-            </Suspense>
+            <TransparencyTable />
           </div>
         </section>
 
@@ -868,12 +872,10 @@ export default function LandingPage() {
         {/* ================================================================
           SECTION 9 — SKEPTICISM RESOLUTION: FAQ
         ================================================================ */}
-        <Suspense fallback={<SectionFallback />}>
-          <FAQSection
-            title="Questions independent merchants ask"
-            subtitle="Honest answers with complete operational clarity."
-          />
-        </Suspense>
+        <FAQSection
+          title="Questions independent merchants ask"
+          subtitle="Honest answers with complete operational clarity."
+        />
 
 
         {/* ================================================================

@@ -20,7 +20,7 @@
  * =============================================================================
  */
 
-import { requireOrgContext, HttpError } from '../index.js';
+import { requireOrgContext, HttpError, getCorsHeaders } from '../index.js';
 import { DomainService, createDomainService } from '../services/domainService.js';
 import { verifyIngressAuthorization, INGRESS_HOSTNAME_TARGET, generateStorefrontDnsInstructions } from '../services/domainIngressService.js';
 
@@ -32,18 +32,25 @@ async function readJson(request) {
   }
 }
 
-function json(data, status = 200, headers = {}) {
+function json(data, status = 200, headers = {}, request = null) {
+  const corsHeaders = getCorsHeaders(request);
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "private, no-cache, no-store, must-revalidate",
       "X-Robots-Tag": "noindex, nofollow",
+      ...corsHeaders,
       ...headers
     }
   });
 }
 
 export async function handleDomainRoutes(request, env) {
+  // Fast path for CORS preflight
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
+  }
   const url = new URL(request.url);
   const method = request.method;
   const rawPath = url.pathname;

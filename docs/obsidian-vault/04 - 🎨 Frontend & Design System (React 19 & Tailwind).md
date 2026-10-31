@@ -1,7 +1,7 @@
 # 🎨 Frontend & Design System (React 19 & Tailwind)
 
-> **Subsystem Completion:** `88%`  
-> **Status:** 🟡 Active Polish  
+> **Subsystem Completion:** `90%`  
+> **Status:** 🟢 Production  
 > **Primary Path:** `frontend/`  
 > **Parent:** [[00 - 🗺️ System Architecture Overview]] | **Progress:** [[01 - 📊 Progress & Completion Matrix]]
 
@@ -21,14 +21,23 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 | Module | Location | Purpose |
 | :--- | :--- | :--- |
 | **Root Shell** | `frontend/src/App.tsx` | Route definitions, AuthGuard, LanguageProvider |
-| **Store Builder** | `frontend/src/builder/` | Drag-and-drop visual AST site builder (DesignPanel, LogicPanel, ConnectionsPanel, AssetsPanel) with `THEME_PRESETS` import resolution |
+| **Store Builder** | `frontend/src/builder/`, `frontend/src/pages/WebsiteBuilderPage.tsx` | Mobile-responsive visual AST site builder with segmented Editor/Preview controls, generous breathing room (Fitts's Law touch targets >=48px), calm palette suggestions, and edge-to-edge mobile live storefront preview |
 | **Storefront** | `frontend/src/storefront/` | Buyer-facing responsive product catalog & cart |
 | **Language Context** | `frontend/src/contexts/LanguageContext.tsx` | 48-region dynamic Indic dictionary switcher |
 | **Auth & Session** | `frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/authBridge.ts` | WorkOS AuthKit persistent refresh token & 401 retry recovery |
 | **Orders Dashboard**| `frontend/src/pages/OrdersPage.tsx` | Order status tracking, CSV exports, + Add Order WhatsApp link generation |
 | **Add Order Modal** | `frontend/src/components/orders/AddOrderModal.tsx` | Merchant order assembly, 1-click WhatsApp storefront checkout link, direct cash order recorder |
+| **Cancel Confirmation Modal** | `frontend/src/components/orders/CancelConfirmationModal.tsx` | Irreversible warning modal with 'Back' and 'Proceed' options when store owner marks order as cancelled |
 | **Shared Storefront Cart** | `frontend/src/storefront/runtime/StorefrontProvider.tsx`, `frontend/src/storefront/components/CartDrawer.tsx` | Preloaded cart from merchant link (`?cart=...`), customer banner, seamless item addition and checkout on official store domain |
-| **Landing Page & Animations** | `frontend/src/pages/LandingPage.tsx`, `frontend/src/components/public/PublicSmoothScroll.tsx`, `frontend/src/components/marketing/StorefrontShowcase.tsx`, `frontend/src/components/marketing/CompleteCircuit.tsx` | Lenis smooth scroll ticker synced with GSAP ScrollTrigger, pinned horizontal card scrub, and 4-stage narrative stepper |
+| **Landing Page & Resilient Scroll** | `frontend/src/pages/LandingPage.tsx`, `frontend/src/components/public/PublicSmoothScroll.tsx`, `frontend/src/components/marketing/StorefrontShowcase.tsx`, `frontend/src/components/marketing/CompleteCircuit.tsx` | Hardware-accelerated native smooth scroll controller (0% Lenis event hijacking/freezing), cross-browser Android/Win11/Brave/Helium touch support, and responsive narrative stepper |
 | **Fera AI Studio** | `frontend/src/pages/FeraAIPage.tsx` | Conversational manager & voice input UI |
+| **UI Primitives (shadcn/ui & React Bits)** | `frontend/src/components/ui/` (`button.tsx`, `card.tsx`, `badge.tsx`, `input.tsx`, `BentoGrid.tsx`, `SpotlightCard.tsx`, `SplitText.tsx`) | Calm, trustworthy primitives with generous whitespace (`p-6` to `p-10`), Fitts's Law 48px touch targets, zero card-in-card clutter, and tactile <400ms press feedback |
+
+## 3. UI Stack & Animation Standards
+- **Component Foundations:** `shadcn/ui` + `class-variance-authority` + `clsx` + `tailwind-merge` (`cn()`) with path alias `@/components/ui/*`.
+- **Motion & Smoothness:** Native hardware-accelerated compositor scrolling (`touch-action: pan-y pinch-zoom`, passive listeners, zero Lenis bloat/freezing), resilient across Android 11, Windows 11, Helium, and Brave browsers.
+- **Scroll & Gallery Safety:** Un-hijacked vertical scrolling with zero scroll-jacking pins; touch-pan-x horizontal showcase with direct step controls.
+- **Micro-Interactions:** `SpotlightCard` (pointer-following glow) and `SplitText` from React Bits with instant reduced-motion and coarse-pointer fallbacks.
+- **Calm Trust Design:** OpenDesign / Superdesign principles emphasizing generous whitespace, breathing room, and clear hierarchy so merchants feel safe and trust FeraSetu with their livelihood.
 
 

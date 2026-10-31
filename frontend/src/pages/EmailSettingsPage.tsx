@@ -450,7 +450,11 @@ export default function EmailSettingsPage() {
       const res = await api.post('/email/test', { to: testEmailRecipient });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      if (data?.success === false) {
+        toast.error(data.error || 'Failed to send test email');
+        return;
+      }
       toast.success(`Test email sent to ${testEmailRecipient}`);
       setShowTestModal(false);
       setTestEmailRecipient('');
@@ -458,7 +462,7 @@ export default function EmailSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['email-settings'] });
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to send test email');
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to send test email');
     }
   });
 

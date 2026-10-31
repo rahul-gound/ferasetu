@@ -2,7 +2,7 @@
 
 > **Live Status:** Active Audit & Production Hardening  
 > **Global Platform Completion:** **91%**  
-> **Last Synchronized:** 2026-10-24  
+> **Last Synchronized:** 2026-10-31  
 > **Index:** [[00 - 🗺️ System Architecture Overview]] | **Upcoming Roadmap:** [[feature that wil added soon]]
 
 ---
@@ -13,21 +13,22 @@
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | **Edge Gateway & D1** | `92%` | 🟢 Production | Subdomain routing, D1 multi-tenant SQL, catalog caching, AST runtime | Cold-start edge cache warming optimization | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
 | **Core API & Express** | `90%` | 🟢 Production | AuthKit/Appwrite auth, orders lifecycle, payment webhooks, branding | Background job queue scaling under high burst | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] |
-| **Frontend & UI/UX** | `89%` | 🟡 Active | React 19 SPA, Add Order WhatsApp storefront checkout link, builder canvas, i18n | Final squint-test passes on low-end Android viewports | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
+| **Frontend & UI/UX** | `90%` | 🟢 Production | React 19 SPA, Add Order WhatsApp link, builder canvas, i18n, resilient native hardware scroll | Final squint-test passes on low-end Android viewports | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
 | **Fera AI Intelligence**| `90%` | 🟢 Production | OpenAI-compatible endpoint (https://ai.fera-search.tech/v1), dev.vars secret isolation, Sarvam Indic LLM, 39-test suite | Real-time audio streaming duplex optimization | [[05 - 🤖 Fera AI & Sarvam Intelligence]] |
 | **Pricing & Billing** | `95%` | 🟢 Production | Free/Business/Pro tier limits, Cashfree + Razorpay + Stripe geo-pricing | Automated invoice email delivery confirmation checks | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] |
 | **GST & Compliance** | `90%` | 🟢 Production | HSN/SAC codes, CGST/SGST/IGST breakdown, PDF invoice generation | Multi-state reverse charge edge cases | [[07 - 🧾 GST Invoicing & Accounting]] |
 | **Custom Domains & DNS**| `94%` | 🟢 Production | Spaceship API availability, D1 custom domains, Ingress TLS proxy webhook (no CF for SaaS) | Ingress Caddy deployment & Spaceship reseller portal agreement | [[08 - 🌐 Subdomains, Custom Domains & DNS]] |
-| **QA & Verification** | `94%` | 🟢 Production | 40+ test suites, spaceship-domain-system (14/14), storefront regression (31/31), adversary gates | Extended load testing across 10k concurrent simulated shops | [[09 - 🧪 QA, Testing & Control Plane]] |
+| **QA & Verification** | `95%` | 🟢 Production | 41+ test suites, scroll-resilience (3/3), spaceship-domain (14/14), storefront regression (31/31) | Extended load testing across 10k concurrent simulated shops | [[09 - 🧪 QA, Testing & Control Plane]] |
 | **Database Schemas** | `92%` | 🟢 Production | D1 migrations (incl. 0020_custom_storefront_domains), MySQL configs, tenant isolation | Automated read-replica failover scripts | [[10 - 🗄️ Database Schemas & Data Flow]] |
-| **Merchant SMTP & Email**| `90%` | 🟢 Production | Custom SMTP credentials, Postfix direct loopback, AES-256 store, email logo | [[feature that wil added soon]] |
+| **Merchant SMTP & Email**| `95%` | 🟢 Production | CORS-hardened REST API, External SMTP bare-address relaying, order OTP verification template & test emails | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
 
 ---
 
 ## 2. Granular Task & Feature Progress
 
-### A. Edge Gateway (`worker/`) — **92% DONE**
+### A. Edge Gateway (`worker/`) — **94% DONE**
 - [x] Subdomain parser & tenant resolution (`worker/index.js`) — **100%**
+- [x] Strict CSP hash whitelist & CORS ingress wrapper for Email & Domain APIs (`worker/storefront.js`, `worker/index.js`) — **100%**
 - [x] D1 multi-tenant sharding & SQL migrations (`worker/sharding/`) — **95%**
 - [x] Cloudflare Custom Hostname SSL integration — **90%**
 - [x] AST Builder sandboxed runtime (`worker/templates/`) — **90%**
@@ -40,12 +41,16 @@
 - [x] Ticketing & admin escalation module (`backend/src/routes/tickets.ts`) — **90%**
 - [ ] Redis job queue for bulk merchant broadcasts — **70%**
 
-### C. Frontend Web Application (`frontend/`) — **89% DONE**
+### C. Frontend Web Application (`frontend/`) — **90% DONE**
 - [x] React 19 + Vite 8 scaffold & routing (`frontend/src/App.tsx`) — **100%**
 - [x] 48-region localization dictionary & context (`frontend/src/contexts/LanguageContext.tsx`) — **95%**
-- [x] Visual Store Builder with drag-and-drop AST components (`frontend/src/builder/`) — **85%**
+- [x] Visual Store Builder with mobile responsive workspace, segmented Editor/Preview controls, and calm spatial architecture (`frontend/src/builder/`) — **95%**
 - [x] Mobile thumb-zone shopping cart & WhatsApp direct checkout — **95%**
 - [x] Merchant "Add Order" & WhatsApp 1-click official storefront checkout link (`?cart=...`) — **100%**
+- [x] Order cancellation irreversible confirmation popup modal with "Back" and "Proceed" controls (`CancelConfirmationModal.tsx`) — **100%**
+- [x] Cross-browser hardware-accelerated smooth scrolling & touch resilience (eliminated Lenis locking in Brave/Helium/Android/Win11, removed GSAP scroll pinning traps, eliminated scroll-loading chunk spinners, added 700ms reveal safety timer, and native touch-action pan-y) — **100%**
+- [x] Standard `shadcn/ui` architecture, `cn()` utility, `@/components/ui/` primitives (Button, Card, Badge, Input, BentoGrid, SpotlightCard), and generous calm spatial design standards — **100%**
+- [x] Complete SEO & Site Audit Hardening (Trailing-slash canonical normalization, crawlable semantic prerender HTML with H1 headings & 300+ word copy, Schema.org Organization + WebSite JSON-LD, consistent AI bot crawler policy, 0-redirect sitemap) — **100%**
 - [ ] Offline caching via Service Worker for poor connectivity kiranas — **60%**
 
 

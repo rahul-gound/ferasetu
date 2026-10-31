@@ -1,10 +1,11 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Users, DollarSign, Activity, ShoppingBag, 
   TrendingUp, Bot, CheckCircle2,
   ArrowUpRight, ArrowDownRight, Eye, MousePointerClick,
-  Sparkles, Smartphone, Globe, AlertCircle, RefreshCw, Trash2
+  Sparkles, Smartphone, Globe, AlertCircle, RefreshCw, Trash2, Coins
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -14,9 +15,11 @@ const AdminRevenueChart = lazy(() => import('../components/admin/AdminDashboardC
 const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'financial' | 'telemetry'>('financial');
   const [data, setData] = useState<any>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [aiCreditsData, setAiCreditsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isPruning, setIsPruning] = useState(false);
   const token = localStorage.getItem('admin_token');
@@ -24,16 +27,20 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [statsRes, analyticsRes] = await Promise.all([
+        const [statsRes, analyticsRes, aiCreditsRes] = await Promise.all([
           axios.get(`${API}/admin/dashboard-stats`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
           axios.get(`${API}/admin/analytics?days=30`, {
             headers: { Authorization: `Bearer ${token}` }
-          }).catch(() => ({ data: { analytics: null } }))
+          }).catch(() => ({ data: { analytics: null } })),
+          axios.get(`${API}/admin/ai-credits`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(() => ({ data: null }))
         ]);
         setData(statsRes.data);
         setAnalyticsData(analyticsRes.data?.analytics);
+        setAiCreditsData(aiCreditsRes.data);
       } catch (err) {
         toast.error('Failed to load platform stats');
       } finally {
@@ -173,6 +180,45 @@ export default function AdminDashboardPage() {
                 icon={<TrendingUp className="text-orange-500" />}
                 color="orange"
               />
+            </div>
+
+            {/* AI Credit Overview Banner */}
+            <div 
+              onClick={() => navigate('/admin/ai-credits')}
+              className="bg-gradient-to-br from-orange-50/90 via-white to-amber-50/50 p-6 rounded-3xl border border-orange-200 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3.5 rounded-2xl bg-orange-500 text-white shadow-md shadow-orange-500/20 shrink-0">
+                    <Coins size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-wider text-orange-600">Shopkeeper AI Credit Monitor</span>
+                      <span className="text-[10px] font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">Live Telemetry</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                      {(aiCreditsData?.summary?.totalCreditsUsed || 0).toLocaleString()} <span className="text-sm font-semibold text-slate-500">total AI credits consumed</span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      {aiCreditsData?.summary?.activeShopkeepersCount || 0} shopkeepers actively using AI copilot • {aiCreditsData?.summary?.monthCreditsUsed || 0} credits used this month
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6 sm:border-l sm:border-orange-100 sm:pl-6 justify-between sm:justify-end">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Circulating Balance</div>
+                    <div className="text-lg font-black text-emerald-600">
+                      {(aiCreditsData?.summary?.totalBalanceRemaining || 0).toLocaleString()} cr
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-4 py-2.5 bg-orange-600 text-white rounded-xl text-xs font-bold group-hover:bg-orange-700 transition-colors shadow-xs">
+                    <span>Per-Shopkeeper Breakdown</span>
+                    <ArrowUpRight size={14} />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

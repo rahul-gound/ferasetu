@@ -165,7 +165,7 @@ export default function FreeOnlineStore() {
     <PublicLayout>
       <SEO
         title="Free Online Store Kaise Banaye — ₹0 Free Plan & Limits | FeraSetu"
-        description="FeraSetu par ₹0 me apna online store shuru karein. 25 products, WhatsApp cart checkout, UPI payments, automatic invoices, 0% commission. No credit card required."
+        description="FeraSetu par ₹0 me apna online store shuru karein. 25 products, WhatsApp cart checkout, UPI payments, aur 0% commission. No credit card required."
         structuredData={{
           '@graph': [freeStoreFaqSchema, freeStoreBreadcrumbSchema],
         }}

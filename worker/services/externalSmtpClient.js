@@ -90,6 +90,13 @@ class SmtpSocketSession {
   }
 }
 
+export function extractBareEmail(str) {
+  if (!str) return '';
+  const match = String(str).match(/<([^>]+)>/);
+  if (match) return match[1].trim().toLowerCase();
+  return String(str).trim().toLowerCase();
+}
+
 /**
  * Tests an external SMTP connection and credentials.
  */
@@ -133,7 +140,7 @@ export async function testSmtpConnection({ host, port, username, password, secur
     }
 
     // 2. Send EHLO
-    let ehloResp = await session.sendCommand('EHLO ferasetu.local');
+    let ehloResp = await session.sendCommand('EHLO ferasetu.com');
     if (!ehloResp.startsWith('250')) {
       throw new Error(`EHLO rejected: ${ehloResp.trim()}`);
     }
@@ -143,7 +150,7 @@ export async function testSmtpConnection({ host, port, username, password, secur
       const starttlsResp = await session.sendCommand('STARTTLS');
       if (starttlsResp.startsWith('220')) {
         await session.startTls();
-        ehloResp = await session.sendCommand('EHLO ferasetu.local');
+        ehloResp = await session.sendCommand('EHLO ferasetu.com');
       }
     }
 
@@ -259,7 +266,7 @@ export async function sendViaExternalSmtp({ connection, message }) {
     }
 
     // 2. EHLO
-    let ehloResp = await session.sendCommand('EHLO ferasetu.local');
+    let ehloResp = await session.sendCommand('EHLO ferasetu.com');
     if (!ehloResp.startsWith('250')) {
       throw new Error(`EHLO rejected: ${ehloResp.trim()}`);
     }
@@ -269,7 +276,7 @@ export async function sendViaExternalSmtp({ connection, message }) {
       const starttlsResp = await session.sendCommand('STARTTLS');
       if (starttlsResp.startsWith('220')) {
         await session.startTls();
-        ehloResp = await session.sendCommand('EHLO ferasetu.local');
+        ehloResp = await session.sendCommand('EHLO ferasetu.com');
       }
     }
 
@@ -290,13 +297,15 @@ export async function sendViaExternalSmtp({ connection, message }) {
     }
 
     // 5. MAIL FROM
-    const mailFromResp = await session.sendCommand(`MAIL FROM:<${from}>`);
+    const bareFrom = extractBareEmail(from);
+    const mailFromResp = await session.sendCommand(`MAIL FROM:<${bareFrom}>`);
     if (!mailFromResp.startsWith('250')) {
       throw new Error(`MAIL FROM rejected: ${mailFromResp.trim()}`);
     }
 
     // 6. RCPT TO
-    const rcptToResp = await session.sendCommand(`RCPT TO:<${to}>`);
+    const bareTo = extractBareEmail(to);
+    const rcptToResp = await session.sendCommand(`RCPT TO:<${bareTo}>`);
     if (!rcptToResp.startsWith('250')) {
       throw new Error(`RCPT TO rejected: ${rcptToResp.trim()}`);
     }

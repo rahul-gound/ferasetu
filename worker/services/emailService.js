@@ -19,6 +19,7 @@ export const PLATFORM_DOMAIN = 'ferasetu.com';
 
 export const ALLOWED_PLATFORM_SENDERS = new Set([
   'no-reply@ferasetu.com',
+  'noreply@ferasetu.com',
   'support@ferasetu.com',
   'billing@ferasetu.com',
 ]);
@@ -545,6 +546,13 @@ async function dispatchEmail(env, options) {
       resolvedIdentityId = identRow.id;
     }
 
+    if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection && externalConnection.smtp_username?.includes('@')) {
+      const isCustomVerified = identRow && identRow.domain_type === 'CUSTOM' && identRow.verification_status === 'VERIFIED';
+      if (!isCustomVerified) {
+        resolvedFrom = externalConnection.smtp_username.trim();
+      }
+    }
+
     // C. Quota enforcement for merchants (Platform never consumes merchant quota)
     const quotaRes = await checkAndConsumeEmailQuota(env.DB, organizationId);
     if (!quotaRes.allowed) {
@@ -663,7 +671,8 @@ async function dispatchEmail(env, options) {
               priority: priority || 'NORMAL',
               idempotencyKey: idempotencyKey || messageId,
               customHeaders: safeHeaders
-            })
+            }),
+            signal: AbortSignal.timeout(8000)
           });
 
           if (res.ok) {
@@ -713,8 +722,11 @@ async function dispatchEmail(env, options) {
     }
   }
 
-  // Retry loop
-  while (attempt <= maxRetries) {
+  // Retry loop - cap retries to 1 for interactive or platform calls to avoid Worker edge timeouts
+  const isInteractive = priority === 'HIGH' || templateKey === null || isPlatform;
+  const effectiveMaxRetries = isInteractive ? 1 : maxRetries;
+
+  while (attempt <= effectiveMaxRetries) {
     const result = await attemptDelivery();
     
     if (result.success) {
@@ -725,7 +737,7 @@ async function dispatchEmail(env, options) {
     // Check if we should retry
     const category = result._retryCategory || classifySmtpFailure(new Error(result.details || 'Unknown error'));
     const shouldRetryCategory = shouldRetry(category);
-    const maxRetriesForCategory = MAX_RETRIES_BY_CATEGORY[category] ?? maxRetries;
+    const maxRetriesForCategory = Math.min(MAX_RETRIES_BY_CATEGORY[category] ?? effectiveMaxRetries, effectiveMaxRetries);
 
     if (!shouldRetryCategory || attempt >= maxRetriesForCategory) {
       deliveryResult = result;
@@ -734,7 +746,7 @@ async function dispatchEmail(env, options) {
     }
 
     attempt++;
-    const delay = calculateBackoffDelay(attempt - 1);
+    const delay = isInteractive ? 500 : calculateBackoffDelay(attempt - 1);
     console.log(`[EmailService] Delivery failed (attempt ${attempt}/${maxRetriesForCategory}), retrying in ${delay}ms. Category: ${category}`);
     await new Promise(resolve => setTimeout(resolve, delay));
   }
@@ -1072,6 +1084,13 @@ export class EmailService {
       resolvedFrom = identRow.email_address;
       resolvedIdentityId = identRow.id;
 
+      if (resolvedProvider === 'EXTERNAL_SMTP' && externalConnection && externalConnection.smtp_username?.includes('@')) {
+        const isCustomVerified = identRow && identRow.domain_type === 'CUSTOM' && identRow.verification_status === 'VERIFIED';
+        if (!isCustomVerified) {
+          resolvedFrom = externalConnection.smtp_username.trim();
+        }
+      }
+
       // C. Quota enforcement for merchants (Platform never consumes merchant quota)
       const quotaRes = await checkAndConsumeEmailQuota(env.DB, organizationId);
       if (!quotaRes.allowed) {
@@ -1084,8 +1103,26 @@ export class EmailService {
     let finalHtml = optHtml || '';
     let finalText = optText || '';
 
-    if (template) {
-      const rendered = renderTemplate(template, data);
+    if (template || options.templateKey) {
+      const effectiveTemplate = options.templateKey || template;
+      const normalizedKey = (effectiveTemplate === 'ORDER_OTP' || effectiveTemplate === 'order_otp')
+        ? 'order.confirmation'
+        : effectiveTemplate;
+      const normalizedData = {
+        ...data,
+        order_id: data.order_id || data.orderId,
+        customer_name: data.customer_name || data.customerName,
+        invoice_number: data.invoice_number || data.invoiceNumber,
+        delivery_type: data.delivery_type || data.deliveryType,
+        total: data.total !== undefined ? data.total : (data.amount || 0)
+      };
+      const rendered = renderEmailTemplate({
+        templateKey: normalizedKey,
+        locale: options.locale || 'en',
+        data: normalizedData,
+        branding: options.branding || {},
+        isPlatform
+      });
       finalSubject = optSubject || rendered.subject;
       finalHtml = optHtml || rendered.html;
       finalText = optText || rendered.text;
@@ -1370,5 +1407,85 @@ export class EmailService {
       orgName,
       logFallbackEvent: true
     });
+  }
+
+  /**
+   * Sends a congratulatory welcome email to new shopkeepers from noreply@ferasetu.com
+   */
+  static async sendNewUserWelcomeEmail(env, { email, name, storeUrl }) {
+    if (!email || !email.includes('@')) return null;
+    try {
+      return await EmailService.sendPlatformEmail(env, {
+        to: email.trim().toLowerCase(),
+        event: 'account.welcome',
+        templateKey: 'account.welcome',
+        from: 'noreply@ferasetu.com',
+        data: {
+          user_name: name || 'Shopkeeper',
+          store_url: storeUrl || 'https://ferasetu.com/dashboard',
+          email: email.trim().toLowerCase()
+        },
+        idempotencyKey: `welcome_${email.trim().toLowerCase()}`
+      });
+    } catch (err) {
+      console.warn('[EmailService] Welcome email dispatch notice:', err?.message || err);
+      return null;
+    }
+  }
+
+  /**
+   * Sends a congratulatory email to the shopkeeper when their store receives its very first order!
+   */
+  static async sendFirstOrderCongratulatoryEmail(env, { organizationId, orderId, total, customerName, storeSlug, shopName }) {
+    if (!organizationId) return null;
+    try {
+      // Find the shop owner's email address
+      let ownerEmail = null;
+      let ownerName = null;
+
+      const member = await env.DB.prepare(`
+        SELECT u.email, u.name 
+        FROM organization_members om
+        JOIN users u ON om.user_id = u.id
+        WHERE om.organization_id = ? AND om.role IN ('owner', 'admin')
+        ORDER BY CASE om.role WHEN 'owner' THEN 1 ELSE 2 END
+        LIMIT 1
+      `).bind(organizationId).first();
+
+      if (member?.email) {
+        ownerEmail = member.email;
+        ownerName = member.name;
+      } else {
+        const directUser = await env.DB.prepare("SELECT email, name FROM users WHERE id = ?").bind(organizationId).first();
+        if (directUser?.email) {
+          ownerEmail = directUser.email;
+          ownerName = directUser.name;
+        }
+      }
+
+      if (!ownerEmail || !ownerEmail.includes('@') || ownerEmail.endsWith('@user.ferasetu.com')) {
+        console.warn('[EmailService] First order congratulatory email: owner email not found for org', organizationId);
+        return null;
+      }
+
+      return await EmailService.sendPlatformEmail(env, {
+        to: ownerEmail.trim().toLowerCase(),
+        event: 'merchant.first_order',
+        templateKey: 'merchant.first_order',
+        from: 'noreply@ferasetu.com',
+        data: {
+          order_id: orderId,
+          customer_name: customerName || 'A customer',
+          total: total,
+          currency: 'INR',
+          merchant_name: ownerName || 'Shopkeeper',
+          store_name: shopName || storeSlug || 'Your Store'
+        },
+        idempotencyKey: `first_order_congrats_${organizationId}_${orderId}`
+      });
+    } catch (err) {
+      console.warn('[EmailService] First order congratulatory email notice:', err?.message || err);
+      return null;
+    }
   }
 }

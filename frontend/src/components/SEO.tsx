@@ -52,11 +52,12 @@ export default function SEO({
 
   // Calculate canonical and hreflang URLs
   const cleanPath = location.pathname.replace(/\/$/, '') || '/';
+  const canonicalSubpath = cleanPath === '/' ? '/' : `${cleanPath}/`;
   
   // Determine if it's a public route for hreflang generation
   const isPublicRoute = !cleanPath.includes('/dashboard') && !cleanPath.includes('/admin') && !cleanPath.includes('/settings');
   
-  const currentUrl = url || `${BASE_URL}${cleanPath}`;
+  const currentUrl = url || `${BASE_URL}${canonicalSubpath}`;
 
   const publishedLanguages = SUPPORTED_LANGUAGES.filter(l => l.status === 'published');
   const shouldGenerateLanguageAlternates = isPublicRoute && !finalNoIndex;
@@ -98,14 +99,15 @@ export default function SEO({
       {/* Bidirectional Hreflang Tags (only for published public pages) */}
       {shouldGenerateLanguageAlternates && publishedLanguages.map(lang => {
         const langPath = getLanguagePath(cleanPath, lang.code);
-        const hreflangUrl = `${BASE_URL}${langPath}`;
+        const normalizedLangPath = langPath === '/' ? '/' : `${langPath.replace(/\/$/, '')}/`;
+        const hreflangUrl = `${BASE_URL}${normalizedLangPath}`;
         return (
           <link key={lang.code} rel='alternate' hrefLang={lang.code} href={hreflangUrl} />
         );
       })}
       
       {shouldGenerateLanguageAlternates && (
-        <link rel='alternate' hrefLang='x-default' href={`${BASE_URL}${getLanguagePath(cleanPath, 'en')}`} />
+        <link rel='alternate' hrefLang='x-default' href={`${BASE_URL}${getLanguagePath(cleanPath, 'en') === '/' ? '/' : `${getLanguagePath(cleanPath, 'en').replace(/\/$/, '')}/`}`} />
       )}
 
       {/* JSON-LD Structured Data */}
