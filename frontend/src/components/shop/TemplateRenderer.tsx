@@ -20,6 +20,7 @@ import NewsletterSection from '../../storefront/sections/NewsletterSection';
 import FooterSection from '../../storefront/sections/FooterSection';
 import DividerSection from '../../storefront/sections/DividerSection';
 import ImageBannerSection from '../../storefront/sections/ImageBannerSection';
+import AiAssistantSection from '../../storefront/sections/AiAssistantSection';
 
 // Overlays & Modals
 import ProductDetailModal from '../../storefront/components/ProductDetailModal';
@@ -56,6 +57,7 @@ export interface TemplateRendererProps {
   initialProductId?: string | null;
   onSelectSection?: (sectionId: string) => void;
   selectedSectionId?: string | null;
+  onRemoveSection?: (sectionId: string) => void;
 }
 
 export default function TemplateRenderer({
@@ -77,6 +79,7 @@ export default function TemplateRenderer({
   initialProductId,
   onSelectSection,
   selectedSectionId,
+  onRemoveSection,
 }: TemplateRendererProps) {
   const [showTrackModal, setShowTrackModal] = useState(false);
 
@@ -247,6 +250,25 @@ export default function TemplateRenderer({
                   case 'image-section':
                   case 'banner-image':
                     return <ImageBannerSection key={key} config={config} variant={variant} />;
+
+                  case 'ai-assistant':
+                  case 'ai_assistant':
+                  case 'ai-chat':
+                  case 'ai-concierge':
+                    return (
+                      <AiAssistantSection
+                        key={key}
+                        id={key}
+                        config={config}
+                        variant={variant}
+                        onRemove={() => {
+                          if (onRemoveSection) {
+                            onRemoveSection(key);
+                          }
+                        }}
+                        isPreview={effectiveIsPreview}
+                      />
+                    );
 
                   case 'footer':
                     return (

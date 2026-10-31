@@ -11,6 +11,8 @@ import { testSmtpConnection } from '../services/externalSmtpClient.js';
 import { EmailService, ensureMerchantEmailProvisioning } from '../services/emailService.js';
 import { EMAIL_TEMPLATES, validateTemplateVariables, renderEmailTemplate } from '../templates/emailTemplates.js';
 import { AiEmailAssistantService } from '../ai/emailAssistantActions.js';
+import { detectDomainDnsProvider } from '../services/domainConnectService.js';
+import { INGRESS_HOSTNAME_TARGET } from '../services/domainIngressService.js';
 
 async function readJsonBody(request) {
   try {
@@ -173,7 +175,11 @@ export async function handleEmailRoutes(request, env) {
         }
         // Already owned by this merchant; return existing instructions
         const instructions = generateDnsInstructions(normalized.domain, existing.verification_token_hash || 'fera-verify');
-        return json({ domain: existing, dnsInstructions: instructions }, 200, {}, request);
+        let detection = null;
+        try {
+          detection = await detectDomainDnsProvider(normalized.domain, { ownershipToken: existing.verification_token_hash || 'fera-verify' });
+        } catch {}
+        return json({ domain: existing, dnsInstructions: instructions, detection }, 200, {}, request);
       }
 
       const domainId = `dom_c_${crypto.randomUUID()}`;
@@ -190,6 +196,34 @@ export async function handleEmailRoutes(request, env) {
         ) VALUES (?, ?, ?, 'CUSTOM', 'PENDING', 'DNS_TXT', ?, ?, 'PENDING', 'PENDING', 'PENDING', 'PENDING', 'FERASETU', ?, ?)
       `).bind(domainId, orgId, normalized.domain, token, selector, now, now).run();
 
+      // Unify with custom_storefront_domains so storefront also routes through ingress
+      try {
+        const csdExists = await env.DB.prepare(
+          "SELECT id FROM custom_storefront_domains WHERE domain = ?"
+        ).bind(normalized.domain).first();
+        if (!csdExists) {
+          await env.DB.prepare(`
+            INSERT INTO custom_storefront_domains (
+              id, organization_id, shop_id, domain, apex_domain, hostname_type,
+              registration_provider, registration_status, dns_provider, dns_status,
+              tls_status, status, ownership_token, dns_target, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'APEX', 'EXTERNAL', 'EXTERNAL', 'EXTERNAL', 'PENDING', 'PENDING', 'PENDING_DNS', ?, ?, ?, ?)
+          `).bind(
+            `csd_${crypto.randomUUID()}`,
+            orgId,
+            orgId,
+            normalized.domain,
+            normalized.domain,
+            token,
+            INGRESS_HOSTNAME_TARGET,
+            now,
+            now
+          ).run();
+        }
+      } catch (csdErr) {
+        console.warn("Unified custom_storefront_domains auto-sync notice:", csdErr?.message);
+      }
+
       const createdRow = await env.DB.prepare("SELECT * FROM email_domains WHERE id = ?").bind(domainId).first();
       const instructions = generateDnsInstructions(normalized.domain, token, selector);
 
@@ -200,7 +234,12 @@ export async function handleEmailRoutes(request, env) {
         console.warn("Cloudflare DNS auto-provision notice:", cfErr?.message);
       }
 
-      return json({ domain: createdRow, dnsInstructions: instructions, cloudflareAutomated: cfResult?.automated || false }, 201, {}, request);
+      let detection = null;
+      try {
+        detection = await detectDomainDnsProvider(normalized.domain, { ownershipToken: token });
+      } catch {}
+
+      return json({ domain: createdRow, dnsInstructions: instructions, cloudflareAutomated: cfResult?.automated || false, detection }, 201, {}, request);
     }
 
     throw new HttpError("Method not allowed", 405);
@@ -212,7 +251,7 @@ export async function handleEmailRoutes(request, env) {
   if (path.startsWith("/api/email/domains/")) {
     const parts = path.split("/");
     const domainId = parts[4];
-    const subAction = parts[5]; // e.g. "verify" or "check"
+    const subAction = parts[5]; // e.g. "verify", "check", or "detect-provider"
 
     const domainRow = await env.DB.prepare(
       "SELECT * FROM email_domains WHERE id = ? AND organization_id = ?"
@@ -220,6 +259,12 @@ export async function handleEmailRoutes(request, env) {
 
     if (!domainRow) {
       throw new HttpError("Domain not found or unauthorized", 404);
+    }
+
+    // Provider detection for specific registered domain
+    if (subAction === "detect-provider" && method === "GET") {
+      const detection = await detectDomainDnsProvider(domainRow.domain, { ownershipToken: domainRow.verification_token_hash });
+      return json(detection, 200, {}, request);
     }
 
     // Verify / Check action
@@ -242,6 +287,15 @@ export async function handleEmailRoutes(request, env) {
 
       // If domain successfully verified, ensure default custom identity orders@{domain} exists
       if (verification.status === "VERIFIED") {
+        try {
+          await env.DB.prepare(`
+            UPDATE custom_storefront_domains
+            SET dns_status = 'VERIFIED', status = CASE WHEN tls_status = 'ACTIVE' THEN 'ACTIVE' ELSE 'PENDING_TLS' END,
+                verified_at = COALESCE(verified_at, ?), updated_at = ?
+            WHERE domain = ? AND organization_id = ?
+          `).bind(now, now, domainRow.domain, orgId).run();
+        } catch {}
+
         const customEmail = `orders@${domainRow.domain}`;
         const existingIdent = await env.DB.prepare(
           "SELECT id FROM email_identities WHERE email_address = ?"
@@ -271,7 +325,11 @@ export async function handleEmailRoutes(request, env) {
     // GET single domain details
     if (!subAction && method === "GET") {
       const instructions = generateDnsInstructions(domainRow.domain, domainRow.verification_token_hash, domainRow.dkim_selector);
-      return json({ domain: domainRow, dnsInstructions: instructions }, 200, {}, request);
+      let detection = null;
+      try {
+        detection = await detectDomainDnsProvider(domainRow.domain, { ownershipToken: domainRow.verification_token_hash });
+      } catch {}
+      return json({ domain: domainRow, dnsInstructions: instructions, detection }, 200, {}, request);
     }
 
     // DELETE custom domain

@@ -5529,9 +5529,17 @@ async function handlePaymentWebhook(request, env) {
 
 async function handlePaymentAiCredits(request, env) {
   const me = await getAuthenticatedUser(request, env);
-  const user = await env.DB.prepare(
-    "SELECT plan, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, plan_expires_at FROM users WHERE id = ?"
-  ).bind(me.$id).first();
+  
+  let user = null;
+  try {
+    user = await env.DB.prepare(
+      "SELECT plan, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, plan_expires_at, ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled FROM users WHERE id = ?"
+    ).bind(me.$id).first();
+  } catch {
+    user = await env.DB.prepare(
+      "SELECT plan, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, plan_expires_at FROM users WHERE id = ?"
+    ).bind(me.$id).first();
+  }
 
   let purchases = [];
   try {
@@ -5540,6 +5548,37 @@ async function handlePaymentAiCredits(request, env) {
     ).bind(me.$id).all();
     purchases = results || [];
   } catch {}
+
+  let usage = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT usage_type, COUNT(*) as calls, SUM(credits_used) as credits_used, SUM(prompt_tokens + completion_tokens) as tokens FROM ai_usage_logs WHERE user_id = ? AND created_at >= datetime('now', '-30 days') GROUP BY usage_type"
+    ).bind(me.$id).all();
+    usage = results || [];
+  } catch {}
+
+  let dailyUsage = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT DATE(created_at) as date, usage_type, SUM(credits_used) as credits_used, COUNT(*) as calls FROM ai_usage_logs WHERE user_id = ? AND created_at >= datetime('now', '-30 days') GROUP BY DATE(created_at), usage_type ORDER BY date ASC"
+    ).bind(me.$id).all();
+    dailyUsage = results || [];
+  } catch {}
+
+  let recentLogs = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT id, model, prompt_tokens, completion_tokens, credits_used, usage_type, created_at FROM ai_usage_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 30"
+    ).bind(me.$id).all();
+    recentLogs = results || [];
+  } catch {}
+
+  const limits = {
+    ferasetu_ai_limit: user?.ferasetu_ai_limit ?? null,
+    website_ai_limit: user?.website_ai_limit ?? null,
+    ferasetu_ai_enabled: user?.ferasetu_ai_enabled !== 0,
+    website_ai_enabled: user?.website_ai_enabled !== 0,
+  };
 
   return json({
     credits: user || {
@@ -5554,7 +5593,61 @@ async function handlePaymentAiCredits(request, env) {
       scale: { credits: 3000, amount: 1299, label: '3,000 AI credits' }
     },
     purchases,
-    usage: []
+    usage,
+    dailyUsage,
+    recentLogs,
+    limits
+  }, 200, {}, request);
+}
+
+async function handlePaymentAiCreditsLimits(request, env) {
+  const me = await getAuthenticatedUser(request, env);
+  const body = await readJsonBody(request);
+  const { ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled } = body;
+
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN ferasetu_ai_limit INTEGER").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN website_ai_limit INTEGER").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN ferasetu_ai_enabled INTEGER NOT NULL DEFAULT 1").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN website_ai_enabled INTEGER NOT NULL DEFAULT 1").run(); } catch {}
+
+  const updates = [];
+  const params = [];
+
+  if (ferasetu_ai_limit !== undefined) {
+    updates.push("ferasetu_ai_limit = ?");
+    params.push(ferasetu_ai_limit === null || ferasetu_ai_limit === '' || ferasetu_ai_limit === 0 ? null : Number(ferasetu_ai_limit));
+  }
+  if (website_ai_limit !== undefined) {
+    updates.push("website_ai_limit = ?");
+    params.push(website_ai_limit === null || website_ai_limit === '' || website_ai_limit === 0 ? null : Number(website_ai_limit));
+  }
+  if (ferasetu_ai_enabled !== undefined) {
+    updates.push("ferasetu_ai_enabled = ?");
+    params.push(ferasetu_ai_enabled ? 1 : 0);
+  }
+  if (website_ai_enabled !== undefined) {
+    updates.push("website_ai_enabled = ?");
+    params.push(website_ai_enabled ? 1 : 0);
+  }
+
+  if (updates.length > 0) {
+    params.push(new Date().toISOString(), me.$id);
+    await env.DB.prepare(`UPDATE users SET ${updates.join(', ')}, updated_at = ? WHERE id = ?`).bind(...params).run();
+  }
+
+  const updated = await env.DB.prepare(
+    "SELECT ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled FROM users WHERE id = ?"
+  ).bind(me.$id).first();
+
+  return json({
+    success: true,
+    limits: {
+      ferasetu_ai_limit: updated?.ferasetu_ai_limit ?? null,
+      website_ai_limit: updated?.website_ai_limit ?? null,
+      ferasetu_ai_enabled: updated?.ferasetu_ai_enabled !== 0,
+      website_ai_enabled: updated?.website_ai_enabled !== 0,
+    },
+    message: 'AI usage limits and toggles updated successfully'
   }, 200, {}, request);
 }
 
@@ -5589,6 +5682,37 @@ async function handlePaymentAiCreditsPurchase(request, env) {
 
   const cashfreeService = createCashfreeService(env);
   const cf = cashfreeService.getCredentials();
+
+  const isSimulation = body.simulate === true || (!cf.isValid && env.ENVIRONMENT !== 'production');
+  if (isSimulation) {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
+         VALUES (?, ?, ?, ?, ?, 'completed', ?)`
+      ).bind(purchaseId, me.$id, pack.credits, pack.amount, usageScope, now).run();
+    } catch {}
+
+    await env.DB.prepare(
+      "UPDATE users SET ai_credits_balance = COALESCE(ai_credits_balance, 0) + ?, updated_at = ? WHERE id = ?"
+    ).bind(pack.credits, now, me.$id).run();
+
+    const userRow = await env.DB.prepare("SELECT ai_credits_balance FROM users WHERE id = ?").bind(me.$id).first();
+
+    return json({
+      success: true,
+      simulated: true,
+      requiresPayment: false,
+      id: transactionId,
+      purchaseId,
+      pack,
+      usage_scope: usageScope,
+      amount: pack.amount,
+      currency: 'INR',
+      ai_credits_balance: userRow?.ai_credits_balance ?? 20,
+      message: `Successfully added ${pack.credits} credits to your balance!`
+    }, 201, {}, request);
+  }
+
   if (!cf.isValid) {
     const requestId = crypto.randomUUID();
     console.warn(`[handlePaymentAiCreditsPurchase] Cashfree gateway credentials not configured. Request ID: ${requestId}`);
@@ -9717,6 +9841,9 @@ async function route(request, env) {
   if (path === "/api/payment/ai-credits/purchase" && method === "POST") {
     return handlePaymentAiCreditsPurchase(request, env);
   }
+  if (path === "/api/payment/ai-credits/limits" && method === "POST") {
+    return handlePaymentAiCreditsLimits(request, env);
+  }
   if (path === "/api/payment/cancel-subscription" && method === "POST") {
     return handleCancelSubscription(request, env);
   }
@@ -10103,8 +10230,8 @@ async function route(request, env) {
     return withCors(emailRes, request, env);
   }
 
-  // Domain Management & In-App Purchase Endpoints
-  if (path.startsWith("/api/domains")) {
+  // Domain Management, 1-Click DNS & Domain Connect Protocol Endpoints
+  if (path.startsWith("/api/domains") || path.startsWith("/api/domainconnect") || path.startsWith("/v2/domainTemplates")) {
     const domainRes = await handleDomainRoutes(request, env);
     return withCors(domainRes, request, env);
   }

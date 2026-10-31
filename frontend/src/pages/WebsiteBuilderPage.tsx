@@ -241,6 +241,17 @@ export default function WebsiteBuilderPage() {
     }
   }, [draftResponse, websiteData, user]);
 
+  // Listen for remove-section custom event from section components (e.g. AiAssistantSection)
+  useEffect(() => {
+    const handleRemoveSectionEvent = (e: any) => {
+      if (e.detail?.id) {
+        handleRemoveSection(e.detail.id);
+      }
+    };
+    window.addEventListener('fera-remove-section', handleRemoveSectionEvent);
+    return () => window.removeEventListener('fera-remove-section', handleRemoveSectionEvent);
+  }, []);
+
   // Dedicated Theme Selection Handler
   const handleThemeSelect = (themeIdInput: string) => {
     let tId = (themeIdInput || 'market').toLowerCase().trim() as ThemeId;
@@ -900,6 +911,9 @@ export default function WebsiteBuilderPage() {
                   setMobileMode('controls');
                 }}
                 selectedSectionId={selectedSectionId}
+                onRemoveSection={(secId) => {
+                  handleRemoveSection(secId);
+                }}
               />
             </div>
           </div>

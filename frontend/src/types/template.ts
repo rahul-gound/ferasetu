@@ -4,7 +4,7 @@ export interface SectionConfig {
 
 export interface TemplateSection {
   id: string;
-  type: 'navbar' | 'hero' | 'banner' | 'productGrid' | 'contact' | 'footer';
+  type: 'navbar' | 'hero' | 'banner' | 'productGrid' | 'contact' | 'footer' | 'ai-assistant' | 'ai-chat' | string;
   config: SectionConfig;
 }
 

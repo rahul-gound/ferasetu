@@ -24,6 +24,7 @@ import {
   Package,
   ExternalLink,
   Zap,
+  Bot,
 } from 'lucide-react';
 import { COMPONENT_CATALOG } from '../registry/componentRegistry';
 import { SEARCHABLE_ICONS, ICON_CATEGORIES } from '../registry/iconsCatalog';
@@ -53,6 +54,7 @@ export { THEME_PRESETS };
 
 export const AVAILABLE_BLOCKS = [
   { type: 'hero', label: 'Hero Showcase', category: 'Page Block', desc: 'Prominent headline, imagery, and primary CTA' },
+  { type: 'ai-assistant', label: 'Storefront AI Assistant', category: 'Fera AI', desc: 'Interactive customer shopping assistant with 1-click remove button' },
   { type: 'image-banner', label: 'Image Section / Banner', category: 'Media & Story', desc: 'Promo image or photo banner with custom click action' },
   { type: 'divider', label: 'Straight Line / Divider', category: 'Visual Separator', desc: 'Clean straight line with customizable style, thickness & color' },
   { type: 'product-grid', label: 'Product Catalog Grid', category: 'Commerce', desc: 'Responsive product cards with price, badges, and quick add' },
@@ -266,6 +268,11 @@ export default function DesignPanel({
                           ) : isImage ? (
                             <span className="text-slate-800 dark:text-slate-200 flex items-center gap-1 text-xs font-medium">
                               <ImageIcon size={14} className="text-emerald-500" /> Image Banner
+                            </span>
+                          ) : sec.type === 'ai-assistant' || sec.type === 'ai-chat' || sec.type === 'ai_assistant' ? (
+                            <span className="text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs font-bold">
+                              <Bot size={14} className="text-orange-500" /> Storefront AI Assistant
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-800 font-extrabold">AI</span>
                             </span>
                           ) : (
                             <span className="text-slate-800 dark:text-slate-200 truncate capitalize">
@@ -587,6 +594,72 @@ export default function DesignPanel({
                           </option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. AI ASSISTANT SECTION PROPERTIES & REMOVE BUTTON */}
+                {(selectedSection.type === 'ai-assistant' || selectedSection.type === 'ai-chat' || selectedSection.type === 'ai_assistant') && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl text-xs font-semibold text-orange-900">
+                      <Bot size={16} className="text-orange-600 shrink-0" />
+                      <span>Storefront AI Concierge answers customer questions (2 credits per shopper query).</span>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Section Title</label>
+                      <input
+                        type="text"
+                        value={selectedConfig.title || ''}
+                        onChange={(e) => onUpdateSectionConfig && onUpdateSectionConfig(selectedSection.id, { title: e.target.value })}
+                        placeholder="e.g. Storefront AI Shopping Concierge"
+                        className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Subtitle</label>
+                      <input
+                        type="text"
+                        value={selectedConfig.subtitle || ''}
+                        onChange={(e) => onUpdateSectionConfig && onUpdateSectionConfig(selectedSection.id, { subtitle: e.target.value })}
+                        placeholder="e.g. Ask questions about products, availability, discounts..."
+                        className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Welcome Greeting</label>
+                      <textarea
+                        rows={2}
+                        value={selectedConfig.welcomeMessage || ''}
+                        onChange={(e) => onUpdateSectionConfig && onUpdateSectionConfig(selectedSection.id, { welcomeMessage: e.target.value })}
+                        placeholder="e.g. Namaste! How can I assist your shopping today?"
+                        className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Badge Text</label>
+                      <input
+                        type="text"
+                        value={selectedConfig.badgeText || ''}
+                        onChange={(e) => onUpdateSectionConfig && onUpdateSectionConfig(selectedSection.id, { badgeText: e.target.value })}
+                        placeholder="e.g. Instant AI Help"
+                        className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-900"
+                      />
+                    </div>
+
+                    {/* Dedicated Remove from Section Button */}
+                    <div className="pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => onRemoveSection(selectedSection.id)}
+                        className="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs hover:shadow-xs active:scale-98"
+                      >
+                        <Trash2 size={14} className="text-rose-600" />
+                        <span>Remove from Section</span>
+                      </button>
                     </div>
                   </div>
                 )}

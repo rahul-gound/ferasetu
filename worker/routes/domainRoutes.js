@@ -23,6 +23,7 @@
 import { requireOrgContext, HttpError, getCorsHeaders } from '../index.js';
 import { DomainService, createDomainService } from '../services/domainService.js';
 import { verifyIngressAuthorization, INGRESS_HOSTNAME_TARGET, generateStorefrontDnsInstructions } from '../services/domainIngressService.js';
+import { detectDomainDnsProvider, getDomainConnectTemplateManifest } from '../services/domainConnectService.js';
 
 async function readJson(request) {
   try {
@@ -130,6 +131,44 @@ export async function handleDomainRoutes(request, env) {
     } catch (err) {
       throw new HttpError(err.message, 400);
     }
+  // 2b. Domain Connect Protocol Service Template Manifest (RFC / domainconnect.org Specification)
+  // GET /api/domainconnect/v2/domainTemplates/providers/:providerId/services/:serviceId
+  // GET /v2/domainTemplates/providers/:providerId/services/:serviceId
+  const dcTemplateMatch = path.match(/^\/api\/domainconnect\/v2\/domainTemplates\/providers\/([^/]+)\/services\/([^/]+)$/) ||
+                          path.match(/^\/v2\/domainTemplates\/providers\/([^/]+)\/services\/([^/]+)$/);
+  if (dcTemplateMatch && method === "GET") {
+    const providerId = dcTemplateMatch[1];
+    const serviceId = dcTemplateMatch[2];
+    const manifest = getDomainConnectTemplateManifest(providerId, serviceId);
+    if (manifest) {
+      return json(manifest, 200, {}, request);
+    }
+    throw new HttpError("Domain Connect service template not found", 404);
+  }
+
+  // 2c. Real-Time DNS Provider Detection & Domain Connect Discovery
+  // GET /api/domains/detect-provider?domain=example.com or POST /api/domains/detect-provider
+  if (path === "/api/domains/detect-provider") {
+    let domainToDetect = "";
+    if (method === "GET") {
+      domainToDetect = url.searchParams.get("domain") || url.searchParams.get("q") || "";
+    } else if (method === "POST") {
+      const body = await readJson(request);
+      domainToDetect = body.domain || body.q || "";
+    } else {
+      throw new HttpError("Method not allowed", 405);
+    }
+
+    if (!domainToDetect || typeof domainToDetect !== "string" || !domainToDetect.trim()) {
+      throw new HttpError("Domain name is required for provider detection", 400);
+    }
+
+    try {
+      const detection = await detectDomainDnsProvider(domainToDetect.trim());
+      return json(detection, 200, {}, request);
+    } catch (err) {
+      throw new HttpError(err.message || "Failed to detect domain DNS provider", 400);
+    }
   }
 
   // All remaining routes require authenticated merchant staff context
@@ -205,10 +244,43 @@ export async function handleDomainRoutes(request, env) {
 
     try {
       const result = await domainService.connectExternalDomain(orgId, domain, db, user?.shop_id || user?.id);
-      return json(result, 201);
+      const detection = await detectDomainDnsProvider(domain, { ownershipToken: result.domain?.ownership_token });
+      return json({ ...result, detection }, 201);
     } catch (err) {
       throw new HttpError(err.message, err.status || 400);
     }
+  }
+
+  // 6b. GET /api/domains/:id/detect-provider - Detect DNS provider and 1-click connect URL for specific domain
+  const detectIdMatch = path.match(/^\/api\/domains\/([^/]+)\/detect-provider$/);
+  if (detectIdMatch && method === "GET") {
+    const domainId = detectIdMatch[1];
+    let targetDomain = "";
+    let token = "";
+
+    const csdRow = await db.prepare(
+      "SELECT domain, ownership_token FROM custom_storefront_domains WHERE id = ? AND organization_id = ?"
+    ).bind(domainId, orgId).first();
+
+    if (csdRow) {
+      targetDomain = csdRow.domain;
+      token = csdRow.ownership_token;
+    } else {
+      const emailRow = await db.prepare(
+        "SELECT domain, verification_token_hash FROM email_domains WHERE id = ? AND organization_id = ?"
+      ).bind(domainId, orgId).first();
+      if (emailRow) {
+        targetDomain = emailRow.domain;
+        token = emailRow.verification_token_hash;
+      }
+    }
+
+    if (!targetDomain) {
+      throw new HttpError("Domain not found or unauthorized", 404);
+    }
+
+    const detection = await detectDomainDnsProvider(targetDomain, { ownershipToken: token });
+    return json(detection, 200, {}, request);
   }
 
   // 7. POST /api/domains/:id/verify or /api/domains/:id/verify-dns
@@ -270,10 +342,15 @@ export async function handleDomainRoutes(request, env) {
 
     if (csdRow) {
       const instructions = generateStorefrontDnsInstructions(csdRow.domain, csdRow.ownership_token);
+      let detection = null;
+      try {
+        detection = await detectDomainDnsProvider(csdRow.domain, { ownershipToken: csdRow.ownership_token });
+      } catch {}
       return json({
         domain: csdRow,
         dnsInstructions: instructions,
-        instructions
+        instructions,
+        detection
       }, 200);
     }
 
@@ -283,11 +360,17 @@ export async function handleDomainRoutes(request, env) {
     ).bind(domainId, orgId).first();
 
     if (emailRow) {
-      const instructions = generateStorefrontDnsInstructions(emailRow.domain, emailRow.verification_token_hash || 'token');
+      const token = emailRow.verification_token_hash || 'token';
+      const instructions = generateStorefrontDnsInstructions(emailRow.domain, token);
+      let detection = null;
+      try {
+        detection = await detectDomainDnsProvider(emailRow.domain, { ownershipToken: token });
+      } catch {}
       return json({
         domain: emailRow,
         dnsInstructions: instructions,
-        instructions
+        instructions,
+        detection
       }, 200);
     }
 

@@ -1155,15 +1155,74 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
   if (path === '/payment/ai-credits') {
     const userId = getCurrentUserId();
     const user = userId ? db.users.find(u => u.id === userId) : null;
+    const today = new Date();
+    const mockDaily = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      mockDaily.push({
+        date: dateStr,
+        usage_type: i % 2 === 0 ? 'shopkeeper_assistant' : 'website_ai',
+        credits_used: (i * 3 + 2) % 15,
+        calls: (i * 2 + 1) % 8,
+      });
+    }
+
     return createResponse({
-      credits: user || { ai_credits_balance: 0, ai_credits_monthly_limit: 0, ai_credits_used_month: 0 },
+      credits: user || {
+        ai_credits_balance: 140,
+        ai_credits_monthly_limit: 200,
+        ai_credits_used_month: 60,
+        plan: 'business'
+      },
       packs: {
         small: { credits: 250, amount: 149, label: '250 AI credits' },
         growth: { credits: 1000, amount: 499, label: '1,000 AI credits' },
         scale: { credits: 3000, amount: 1299, label: '3,000 AI credits' }
       },
-      purchases: [],
-      usage: []
+      purchases: (db as any).aiPurchases || [
+        { id: 'p1', credits: 250, amount: 149, usage_scope: 'shared', status: 'completed', created_at: new Date(Date.now() - 86400000 * 5).toISOString() }
+      ],
+      usage: [
+        { usage_type: 'shopkeeper_assistant', calls: 32, credits_used: 32, tokens: 4200 },
+        { usage_type: 'website_ai', calls: 6, credits_used: 18, tokens: 6800 },
+        { usage_type: 'customer_assistant', calls: 5, credits_used: 10, tokens: 1900 },
+      ],
+      dailyUsage: mockDaily,
+      recentLogs: [
+        { id: 'log-1', model: 'sarvam-2b', prompt_tokens: 120, completion_tokens: 85, credits_used: 1, usage_type: 'shopkeeper_assistant', created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString() },
+        { id: 'log-2', model: 'sarvam-2b', prompt_tokens: 280, completion_tokens: 520, credits_used: 3, usage_type: 'website_ai', created_at: new Date(Date.now() - 1000 * 60 * 65).toISOString() },
+        { id: 'log-3', model: 'bulbul:v1', prompt_tokens: 60, completion_tokens: 45, credits_used: 2, usage_type: 'customer_assistant', created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString() },
+      ],
+      limits: {
+        ferasetu_ai_limit: (user as any)?.ferasetu_ai_limit ?? 100,
+        website_ai_limit: (user as any)?.website_ai_limit ?? 100,
+        ferasetu_ai_enabled: (user as any)?.ferasetu_ai_enabled !== 0,
+        website_ai_enabled: (user as any)?.website_ai_enabled !== 0,
+      }
+    });
+  }
+
+  if (path === '/payment/ai-credits/limits') {
+    const userId = getCurrentUserId();
+    const user = userId ? db.users.find(u => u.id === userId) : null;
+    if (user) {
+      if (payload.ferasetu_ai_limit !== undefined) (user as any).ferasetu_ai_limit = payload.ferasetu_ai_limit === null || payload.ferasetu_ai_limit === '' || payload.ferasetu_ai_limit === 0 ? null : Number(payload.ferasetu_ai_limit);
+      if (payload.website_ai_limit !== undefined) (user as any).website_ai_limit = payload.website_ai_limit === null || payload.website_ai_limit === '' || payload.website_ai_limit === 0 ? null : Number(payload.website_ai_limit);
+      if (payload.ferasetu_ai_enabled !== undefined) (user as any).ferasetu_ai_enabled = payload.ferasetu_ai_enabled ? 1 : 0;
+      if (payload.website_ai_enabled !== undefined) (user as any).website_ai_enabled = payload.website_ai_enabled ? 1 : 0;
+      saveDb(db);
+    }
+    return createResponse({
+      success: true,
+      limits: {
+        ferasetu_ai_limit: (user as any)?.ferasetu_ai_limit ?? null,
+        website_ai_limit: (user as any)?.website_ai_limit ?? null,
+        ferasetu_ai_enabled: (user as any)?.ferasetu_ai_enabled !== 0,
+        website_ai_enabled: (user as any)?.website_ai_enabled !== 0,
+      },
+      message: 'AI limits saved successfully'
     });
   }
 
@@ -1171,12 +1230,26 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     const userId = getCurrentUserId();
     const user = userId ? db.users.find(u => u.id === userId) : null;
     const packs: Record<string, number> = { small: 250, growth: 1000, scale: 3000 };
-    const credits = packs[String(payload.pack)] || 0;
+    const credits = packs[String(payload.pack)] || 250;
     if (user && credits) {
       user.ai_credits_balance = (user.ai_credits_balance || 0) + credits;
+      if (!(db as any).aiPurchases) (db as any).aiPurchases = [];
+      (db as any).aiPurchases.unshift({
+        id: 'purchase_' + Date.now(),
+        credits,
+        amount: payload.pack === 'scale' ? 1299 : payload.pack === 'growth' ? 499 : 149,
+        usage_scope: payload.usage_scope || 'shared',
+        status: 'completed',
+        created_at: new Date().toISOString()
+      });
       saveDb(db);
     }
-    return createResponse({ success: true, ai_credits_balance: user?.ai_credits_balance || 0 }, 201);
+    return createResponse({
+      success: true,
+      simulated: true,
+      ai_credits_balance: user?.ai_credits_balance || credits,
+      message: `Successfully added ${credits} credits to your balance!`
+    }, 201);
   }
 
   if (path === '/payment/initialize') {

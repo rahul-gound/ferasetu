@@ -930,12 +930,13 @@ router.get('/ai-credits', async (req: AuthenticatedRequest, res: Response): Prom
   const userId = req.user!.id;
 
   const user = db.prepare(`
-    SELECT plan, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, plan_expires_at
+    SELECT plan, ai_credits_balance, ai_credits_monthly_limit, ai_credits_used_month, ai_credits_reset_at, plan_expires_at,
+           ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled
     FROM users WHERE id = ?
   `).get(userId) as any;
 
   const purchases = db.prepare(`
-    SELECT credits, amount, usage_scope, status, created_at
+    SELECT id, credits, amount, usage_scope, status, created_at
     FROM ai_credit_purchases
     WHERE user_id = ?
     ORDER BY created_at DESC
@@ -949,8 +950,99 @@ router.get('/ai-credits', async (req: AuthenticatedRequest, res: Response): Prom
     GROUP BY usage_type
   `).all(userId);
 
-  res.json({ credits: user, packs: CREDIT_PACKS, purchases, usage });
+  let dailyUsage = [];
+  try {
+    dailyUsage = db.prepare(`
+      SELECT DATE(created_at) as date, usage_type, SUM(credits_used) as credits_used, COUNT(*) as calls
+      FROM ai_usage_logs
+      WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
+      GROUP BY DATE(created_at), usage_type
+      ORDER BY date ASC
+    `).all(userId);
+  } catch {}
+
+  let recentLogs = [];
+  try {
+    recentLogs = db.prepare(`
+      SELECT id, model, prompt_tokens, completion_tokens, credits_used, usage_type, created_at
+      FROM ai_usage_logs
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 30
+    `).all(userId);
+  } catch {}
+
+  const limits = {
+    ferasetu_ai_limit: user?.ferasetu_ai_limit ?? null,
+    website_ai_limit: user?.website_ai_limit ?? null,
+    ferasetu_ai_enabled: user?.ferasetu_ai_enabled !== 0,
+    website_ai_enabled: user?.website_ai_enabled !== 0,
+  };
+
+  res.json({
+    credits: user || {
+      plan: 'free',
+      ai_credits_balance: 20,
+      ai_credits_monthly_limit: 20,
+      ai_credits_used_month: 0
+    },
+    packs: CREDIT_PACKS,
+    purchases,
+    usage,
+    dailyUsage,
+    recentLogs,
+    limits
+  });
 });
+
+router.post('/ai-credits/limits',
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const db = getDatabase();
+    const userId = req.user!.id;
+    const { ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled } = req.body;
+
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (ferasetu_ai_limit !== undefined) {
+      updates.push('ferasetu_ai_limit = ?');
+      params.push(ferasetu_ai_limit === null || ferasetu_ai_limit === '' || ferasetu_ai_limit === 0 ? null : Number(ferasetu_ai_limit));
+    }
+    if (website_ai_limit !== undefined) {
+      updates.push('website_ai_limit = ?');
+      params.push(website_ai_limit === null || website_ai_limit === '' || website_ai_limit === 0 ? null : Number(website_ai_limit));
+    }
+    if (ferasetu_ai_enabled !== undefined) {
+      updates.push('ferasetu_ai_enabled = ?');
+      params.push(ferasetu_ai_enabled ? 1 : 0);
+    }
+    if (website_ai_enabled !== undefined) {
+      updates.push('website_ai_enabled = ?');
+      params.push(website_ai_enabled ? 1 : 0);
+    }
+
+    if (updates.length > 0) {
+      params.push(userId);
+      db.prepare(`UPDATE users SET ${updates.join(', ')}, updated_at = datetime('now') WHERE id = ?`).run(...params);
+    }
+
+    const updated = db.prepare(`
+      SELECT ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled
+      FROM users WHERE id = ?
+    `).get(userId) as any;
+
+    res.json({
+      success: true,
+      limits: {
+        ferasetu_ai_limit: updated?.ferasetu_ai_limit ?? null,
+        website_ai_limit: updated?.website_ai_limit ?? null,
+        ferasetu_ai_enabled: updated?.ferasetu_ai_enabled !== 0,
+        website_ai_enabled: updated?.website_ai_enabled !== 0,
+      },
+      message: 'AI usage limits and toggles updated successfully'
+    });
+  }
+);
 
 router.post('/storage/purchase',
   body('gb').isInt({ min: 1, max: 100 }).withMessage('Storage must be between 1GB and 100GB'),

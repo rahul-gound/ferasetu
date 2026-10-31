@@ -49,11 +49,53 @@ function chargeAiCredits(userId: string, usageType: string): { creditsUsed: numb
   const db = getDatabase();
   const creditsUsed = AI_CREDIT_COST[usageType] || 1;
   const user = db.prepare(`
-    SELECT ai_credits_balance, ai_credits_reset_at, ai_credits_monthly_limit
+    SELECT ai_credits_balance, ai_credits_reset_at, ai_credits_monthly_limit,
+           ferasetu_ai_limit, website_ai_limit, ferasetu_ai_enabled, website_ai_enabled
     FROM users WHERE id = ?
   `).get(userId) as any;
 
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+
+  // 1. Check feature toggle
+  if (usageType === 'shopkeeper_assistant' && user.ferasetu_ai_enabled === 0) {
+    throw Object.assign(new Error('FeraSetu AI is currently paused in your AI Credit settings. Enable it to continue.'), { status: 403 });
+  }
+  if ((usageType === 'website_ai' || usageType === 'customer_assistant') && user.website_ai_enabled === 0) {
+    throw Object.assign(new Error('Website AI is currently paused in your AI Credit settings. Enable it to continue.'), { status: 403 });
+  }
+
+  // 2. Check spend limits
+  if (usageType === 'shopkeeper_assistant' && user.ferasetu_ai_limit && user.ferasetu_ai_limit > 0) {
+    try {
+      const monthUsed = db.prepare(`
+        SELECT COALESCE(SUM(credits_used), 0) as total
+        FROM ai_usage_logs
+        WHERE user_id = ? AND usage_type = 'shopkeeper_assistant'
+          AND created_at >= datetime('now', '-30 days')
+      `).get(userId) as any;
+      if ((monthUsed?.total || 0) + creditsUsed > user.ferasetu_ai_limit) {
+        throw Object.assign(new Error(`Monthly FeraSetu AI credit limit of ${user.ferasetu_ai_limit} reached. You can increase or remove this limit in AI Credits.`), { status: 429 });
+      }
+    } catch (e: any) {
+      if (e.status === 429) throw e;
+    }
+  }
+
+  if ((usageType === 'website_ai' || usageType === 'customer_assistant') && user.website_ai_limit && user.website_ai_limit > 0) {
+    try {
+      const monthUsed = db.prepare(`
+        SELECT COALESCE(SUM(credits_used), 0) as total
+        FROM ai_usage_logs
+        WHERE user_id = ? AND usage_type IN ('website_ai', 'customer_assistant')
+          AND created_at >= datetime('now', '-30 days')
+      `).get(userId) as any;
+      if ((monthUsed?.total || 0) + creditsUsed > user.website_ai_limit) {
+        throw Object.assign(new Error(`Monthly Website AI credit limit of ${user.website_ai_limit} reached. You can increase or remove this limit in AI Credits.`), { status: 429 });
+      }
+    } catch (e: any) {
+      if (e.status === 429) throw e;
+    }
+  }
 
   if (user.ai_credits_reset_at && new Date(user.ai_credits_reset_at).getTime() <= Date.now()) {
     db.prepare(`

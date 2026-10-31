@@ -6,10 +6,31 @@ import {
   Mail, ShieldCheck, Server, Globe, CheckCircle2, AlertTriangle,
   Copy, Check, RefreshCw, Trash2, Plus, Send, Eye, EyeOff,
   ChevronRight, ChevronDown, ChevronUp, Info, Lock, ArrowRight,
-  ExternalLink, Sparkles, AlertCircle, ShoppingBag, Edit3, ArrowUpRight
+  ExternalLink, Sparkles, AlertCircle, ShoppingBag, Edit3, ArrowUpRight,
+  Zap, Radio
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+
+interface ProviderDetection {
+  valid: boolean;
+  domain: string;
+  apexDomain: string;
+  hasDns: boolean;
+  nameservers: string[];
+  provider: {
+    id: string;
+    name: string;
+    logo: string;
+    type: 'DOMAIN_CONNECT' | 'API_AUTOMATION' | 'DIRECT_DASHBOARD' | 'MANUAL' | 'NO_DNS';
+    supports1ClickDns: boolean;
+    supportsDomainConnect: boolean;
+    actionLabel: string;
+    instructions: string;
+    connectUrl: string | null;
+    dnsConsoleUrl: string | null;
+  } | null;
+}
 
 interface DnsRecord {
   type: string;
@@ -100,6 +121,15 @@ export default function EmailSettingsPage() {
   const [showDnsModal, setShowDnsModal] = useState(false);
   const [activeDomainObj, setActiveDomainObj] = useState<DomainData | null>(null);
   const [activeDnsInstructions, setActiveDnsInstructions] = useState<DnsRecord[]>([]);
+
+  // 1-Click DNS & Automatic Provider Detection state
+  const [activeDetection, setActiveDetection] = useState<ProviderDetection | null>(null);
+  const [isDetectingProvider, setIsDetectingProvider] = useState(false);
+  const [liveConnectDetection, setLiveConnectDetection] = useState<ProviderDetection | null>(null);
+  const [isLiveDetecting, setIsLiveDetecting] = useState(false);
+  const [isRadarActive, setIsRadarActive] = useState(false);
+  const [radarAttempts, setRadarAttempts] = useState(0);
+  const [showManualDnsTable, setShowManualDnsTable] = useState(false);
 
   // Domain Search / Buy Interface (Spaceship Live API)
   const [domainSearchQuery, setDomainSearchQuery] = useState('');
@@ -234,11 +264,16 @@ export default function EmailSettingsPage() {
       return res.data;
     },
     onSuccess: (data) => {
-      toast.success('Domain registered! Please configure the 5 DNS records.');
+      toast.success('Domain registered! We detected your DNS provider.');
       setShowConnectModal(false);
       setCustomDomainInput('');
       setActiveDomainObj(data.domain);
       setActiveDnsInstructions(data.dnsInstructions || []);
+      if (data.detection) {
+        setActiveDetection(data.detection);
+      }
+      setShowManualDnsTable(false);
+      setIsRadarActive(false);
       setShowDnsModal(true);
       queryClient.invalidateQueries({ queryKey: ['email-domains'] });
       queryClient.invalidateQueries({ queryKey: ['email-settings'] });
@@ -256,7 +291,8 @@ export default function EmailSettingsPage() {
     },
     onSuccess: (data) => {
       if (data.domain?.verification_status === 'VERIFIED') {
-        toast.success('Domain verified successfully! DKIM and SPF are live.');
+        toast.success('🎉 Domain verified successfully! DKIM and SPF are live.');
+        setIsRadarActive(false);
       } else {
         toast.error('DNS propagation pending. Records might take 5–15 minutes to propagate.');
       }
@@ -473,15 +509,146 @@ export default function EmailSettingsPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  // Debounced live DNS provider detection when typing in Connect Modal
+  useEffect(() => {
+    if (!showConnectModal || !customDomainInput || !customDomainInput.includes('.') || customDomainInput.trim().length < 4) {
+      setLiveConnectDetection(null);
+      setIsLiveDetecting(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLiveDetecting(true);
+      try {
+        const clean = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//i, '').split('/')[0];
+        const res = await api.get(`/domains/detect-provider?domain=${encodeURIComponent(clean)}`);
+        setLiveConnectDetection(res.data);
+      } catch {
+        setLiveConnectDetection(null);
+      } finally {
+        setIsLiveDetecting(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [customDomainInput, showConnectModal]);
+
+  // Live Verification Radar Effect
+  useEffect(() => {
+    if (!isRadarActive || !activeDomainObj) return;
+
+    let attempts = 0;
+    const maxAttempts = 25; // 25 * 4s = 100 seconds
+
+    const interval = setInterval(async () => {
+      attempts++;
+      setRadarAttempts(attempts);
+
+      try {
+        const res = await api.post(`/email/domains/${activeDomainObj.id}/verify`);
+        const isVerified = res.data?.domain?.verification_status === 'VERIFIED' || res.data?.status === 'VERIFIED';
+
+        if (isVerified) {
+          setIsRadarActive(false);
+          toast.success('🎉 DNS records verified! Storefront and email are now live.');
+          setActiveDomainObj(res.data.domain);
+          queryClient.invalidateQueries({ queryKey: ['email-domains'] });
+          queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+          return;
+        }
+      } catch (err) {
+        console.warn('Radar poll notice:', err);
+      }
+
+      if (attempts >= maxAttempts) {
+        setIsRadarActive(false);
+        toast('DNS is still propagating at your registrar. It will activate automatically shortly.', { icon: '⏳' });
+      }
+    }, 4000);
+
+    // Fast check on window focus: when merchant returns from GoDaddy / registrar tab
+    const handleFocus = async () => {
+      try {
+        const res = await api.post(`/email/domains/${activeDomainObj.id}/verify`);
+        if (res.data?.domain?.verification_status === 'VERIFIED') {
+          setIsRadarActive(false);
+          toast.success('🎉 DNS records verified! Storefront connected.');
+          setActiveDomainObj(res.data.domain);
+          queryClient.invalidateQueries({ queryKey: ['email-domains'] });
+          queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+        }
+      } catch {}
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isRadarActive, activeDomainObj, queryClient]);
+
   const handleOpenDnsModal = async (domainObj: DomainData) => {
     setActiveDomainObj(domainObj);
+    setIsDetectingProvider(true);
+    setShowManualDnsTable(false);
+    setIsRadarActive(false);
+    setShowDnsModal(true);
+
     try {
       const res = await api.get(`/email/domains/${domainObj.id}`);
       setActiveDnsInstructions(res.data?.dnsInstructions || []);
+      if (res.data?.detection) {
+        setActiveDetection(res.data.detection);
+      } else {
+        const detRes = await api.get(`/domains/detect-provider?domain=${encodeURIComponent(domainObj.domain)}`);
+        setActiveDetection(detRes.data);
+      }
     } catch {
       setActiveDnsInstructions([]);
+    } finally {
+      setIsDetectingProvider(false);
     }
-    setShowDnsModal(true);
+  };
+
+  const handle1ClickDns = (domainObj: DomainData, detection: ProviderDetection | null) => {
+    const provider = detection?.provider;
+
+    if (!provider) {
+      toast.error('Provider could not be detected. Showing manual records.');
+      setShowManualDnsTable(true);
+      return;
+    }
+
+    if (provider.type === 'API_AUTOMATION') {
+      // Spaceship API automation
+      autoDnsMutation.mutate(domainObj.id);
+      return;
+    }
+
+    if (provider.type === 'DOMAIN_CONNECT' && provider.connectUrl) {
+      // Domain Connect Synchronous UX flow (GoDaddy, IONOS, Namecheap, etc.)
+      window.open(provider.connectUrl, '_blank', 'noopener,noreferrer');
+      setIsRadarActive(true);
+      setRadarAttempts(0);
+      toast.success(`Opening ${provider.name}. Confirm the records, and FeraSetu will connect automatically!`);
+      return;
+    }
+
+    if (provider.dnsConsoleUrl) {
+      // Direct dashboard with auto-copied records
+      if (activeDnsInstructions.length > 0) {
+        const txtExport = activeDnsInstructions.map(r => `${r.type}: ${r.name} -> ${r.value}`).join('\n');
+        navigator.clipboard.writeText(txtExport);
+        toast.success(`DNS records copied! Opening ${provider.name} DNS zone editor...`);
+      }
+      window.open(provider.dnsConsoleUrl, '_blank', 'noopener,noreferrer');
+      setIsRadarActive(true);
+      setRadarAttempts(0);
+      return;
+    }
+
+    setShowManualDnsTable(true);
   };
 
   const handleSearchDomains = async (e: React.FormEvent) => {
@@ -762,12 +929,21 @@ export default function EmailSettingsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
-                      <button
-                        onClick={() => handleOpenDnsModal(domain)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#0052FF] bg-[#0052FF]/10 hover:bg-[#0052FF]/15 rounded-xl transition-colors"
-                      >
-                        DNS Setup &amp; Records <ChevronRight size={13} />
-                      </button>
+                      {domain.verification_status === 'VERIFIED' ? (
+                        <button
+                          onClick={() => handleOpenDnsModal(domain)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#0052FF] bg-[#0052FF]/10 hover:bg-[#0052FF]/15 rounded-xl transition-colors"
+                        >
+                          DNS Records <ChevronRight size={13} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenDnsModal(domain)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-all shadow-sm"
+                        >
+                          <Zap size={13} /> 1-Click DNS Setup
+                        </button>
+                      )}
                       <button
                         onClick={() => verifyDomainMutation.mutate(domain.id)}
                         disabled={verifyDomainMutation.isPending}
@@ -1445,14 +1621,54 @@ export default function EmailSettingsPage() {
                 </p>
               </div>
 
-              <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-xs text-slate-600 space-y-1">
-                <div className="font-bold text-[#0052FF] flex items-center gap-1">
-                  <Info size={13} /> Next step: Guided DNS Setup
+              {/* Live Provider Detection Feedback */}
+              {isLiveDetecting && (
+                <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500">
+                  <RefreshCw size={13} className="animate-spin text-[#0052FF]" />
+                  <span>Detecting DNS provider &amp; nameservers...</span>
                 </div>
-                <p>
-                  You will receive 5 standard DNS records (TXT challenge, DKIM, SPF, DMARC, CNAME) to add at your registrar.
-                </p>
-              </div>
+              )}
+
+              {liveConnectDetection && !isLiveDetecting && (
+                <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                  liveConnectDetection.provider?.supports1ClickDns
+                    ? 'bg-blue-50/80 border-blue-200 text-blue-900'
+                    : liveConnectDetection.hasDns
+                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                    : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <Zap size={14} className={liveConnectDetection.provider?.supports1ClickDns ? "text-[#0052FF]" : "text-emerald-600"} />
+                      Detected: {liveConnectDetection.provider?.name || 'Custom DNS'}
+                    </span>
+                    {liveConnectDetection.provider?.supports1ClickDns && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-[#0052FF] text-white">
+                        1-Click DNS Ready
+                      </span>
+                    )}
+                    {!liveConnectDetection.hasDns && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900">
+                        No Active DNS
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] opacity-85">
+                    {liveConnectDetection.provider?.instructions || (liveConnectDetection.hasDns ? "Active DNS zone detected." : "No active nameservers found for this domain.")}
+                  </p>
+                </div>
+              )}
+
+              {!liveConnectDetection && !isLiveDetecting && (
+                <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-xs text-slate-600 space-y-1">
+                  <div className="font-bold text-[#0052FF] flex items-center gap-1">
+                    <Info size={13} /> Automatic Provider Detection
+                  </div>
+                  <p>
+                    Enter your domain above. FeraSetu will automatically detect your registrar (GoDaddy, Namecheap, Cloudflare, etc.) and prepare 1-click DNS connection.
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
@@ -1464,10 +1680,18 @@ export default function EmailSettingsPage() {
                 <button
                   onClick={() => connectDomainMutation.mutate(customDomainInput)}
                   disabled={!customDomainInput || connectDomainMutation.isPending}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                 >
                   {connectDomainMutation.isPending && <RefreshCw className="animate-spin" size={13} />}
-                  Continue <ArrowRight size={13} />
+                  {liveConnectDetection?.provider?.supports1ClickDns ? (
+                    <>
+                      <Zap size={13} /> Connect &amp; 1-Click Setup
+                    </>
+                  ) : (
+                    <>
+                      Continue <ArrowRight size={13} />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1497,93 +1721,208 @@ export default function EmailSettingsPage() {
               </button>
             </div>
 
-            {/* Verification Status Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-              <div>
-                <div className="text-slate-500 font-medium">Ownership</div>
-                <div className="font-bold flex items-center gap-1 mt-0.5">
-                  {activeDomainObj.verification_status === 'VERIFIED' ? (
-                    <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
-                  ) : (
-                    <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
-                  )}
+            {/* 1. Automated Provider Detection & 1-Click DNS Hero Card */}
+            {isDetectingProvider ? (
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3.5">
+                <RefreshCw className="animate-spin text-[#0052FF]" size={20} />
+                <div className="text-xs">
+                  <div className="font-bold text-slate-800">Detecting Registrar &amp; DNS Provider...</div>
+                  <p className="text-slate-500 mt-0.5">Authoritatively querying nameservers and Domain Connect discovery.</p>
                 </div>
               </div>
-              <div>
-                <div className="text-slate-500 font-medium">SPF</div>
-                <div className="font-bold flex items-center gap-1 mt-0.5">
-                  {activeDomainObj.spf_status === 'VERIFIED' ? (
-                    <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
-                  ) : (
-                    <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-slate-500 font-medium">DKIM</div>
-                <div className="font-bold flex items-center gap-1 mt-0.5">
-                  {activeDomainObj.dkim_status === 'VERIFIED' ? (
-                    <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
-                  ) : (
-                    <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-slate-500 font-medium">DMARC</div>
-                <div className="font-bold flex items-center gap-1 mt-0.5">
-                  {activeDomainObj.dmarc_status === 'VERIFIED' ? (
-                    <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
-                  ) : (
-                    <span className="text-blue-700 flex items-center gap-1"><Info size={13} /> Recommended</span>
-                  )}
-                </div>
-              </div>
-            </div>
+            ) : activeDetection && (
+              <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-slate-50 border-2 border-[#0052FF]/30 rounded-2xl p-5 space-y-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wide bg-[#0052FF] text-white">
+                        <Zap size={13} /> {activeDetection.provider?.name || 'DNS Provider'}
+                      </span>
+                      {activeDetection.hasDns ? (
+                        <span className="px-2.5 py-0.5 text-[11px] font-bold bg-emerald-100 text-emerald-800 rounded-full flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Active DNS Delegated
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
+                          <AlertCircle size={12} /> Nameservers Missing
+                        </span>
+                      )}
+                      {activeDetection.provider?.supports1ClickDns && (
+                        <span className="px-2.5 py-0.5 text-[11px] font-extrabold text-blue-800 bg-blue-100 rounded-full">
+                          ⚡ 1-Click Connect Ready
+                        </span>
+                      )}
+                    </div>
 
-            {/* DNS Records Table */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Required DNS Records
-              </h4>
-              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <tr>
-                      <th className="p-2.5">Type</th>
-                      <th className="p-2.5">Host / Name</th>
-                      <th className="p-2.5">Value</th>
-                      <th className="p-2.5 text-right">Copy</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono">
-                    {activeDnsInstructions.length > 0 ? (
-                      activeDnsInstructions.map((rec, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="p-2.5 font-bold text-slate-800">{rec.type}</td>
-                          <td className="p-2.5 text-slate-700 truncate max-w-[130px]" title={rec.name}>{rec.name}</td>
-                          <td className="p-2.5 text-slate-600 truncate max-w-[200px]" title={rec.value}>{rec.value}</td>
-                          <td className="p-2.5 text-right">
-                            <button
-                              onClick={() => copyToClipboard(rec.value, `${idx}_val`)}
-                              className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
-                              title="Copy Value"
-                            >
-                              {copiedKey === `${idx}_val` ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="p-4 text-center text-slate-400 text-xs">
-                          Generating DNS records... click &quot;Check Again&quot; below.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                    <h4 className="text-base font-bold text-slate-900 pt-1">
+                      {activeDomainObj.verification_status === 'VERIFIED'
+                        ? `${activeDomainObj.domain} is Verified & Connected`
+                        : activeDetection.provider?.supports1ClickDns
+                        ? `Connect ${activeDomainObj.domain} in 1 Click`
+                        : `Connect ${activeDomainObj.domain} via ${activeDetection.provider?.name || 'DNS'}`}
+                    </h4>
+
+                    <p className="text-xs text-slate-600 max-w-lg leading-relaxed">
+                      {activeDomainObj.verification_status === 'VERIFIED'
+                        ? 'Your custom domain is authenticated and actively serving storefront traffic with 0% commission.'
+                        : activeDetection.provider?.instructions ||
+                          'Click the button below to authorize DNS records automatically. Zero technical typing required.'}
+                    </p>
+                  </div>
+
+                  {/* Primary 1-Click Action Button */}
+                  {activeDomainObj.verification_status !== 'VERIFIED' && (
+                    <button
+                      onClick={() => handle1ClickDns(activeDomainObj, activeDetection)}
+                      disabled={isRadarActive || !activeDetection.hasDns}
+                      className="px-5 py-3 rounded-xl bg-[#0052FF] text-white font-extrabold text-xs hover:bg-[#0042cc] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50 shrink-0 self-start sm:self-center"
+                    >
+                      <Zap size={15} />
+                      <span>{activeDetection.provider?.actionLabel || "Add DNS Records Automatically (1-Click)"}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Real-time Verification Radar Pulse */}
+                {isRadarActive && (
+                  <div className="p-4 bg-white/95 border border-blue-200 rounded-xl space-y-2 text-xs animate-fade-in shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-[#0052FF]">
+                        <Radio size={16} className="animate-pulse text-[#0052FF]" />
+                        <span>Real-Time Verification Radar Active</span>
+                      </div>
+                      <span className="font-mono text-slate-500 text-[11px] bg-slate-100 px-2 py-0.5 rounded">
+                        Probe #{radarAttempts}
+                      </span>
+                    </div>
+                    <p className="text-slate-600">
+                      Waiting for confirmation at <strong>{activeDetection.provider?.name || 'your registrar'}</strong>. FeraSetu is authoritatively probing DNS records every 4 seconds. Switching back to this tab will trigger an instant check.
+                    </p>
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={() => setIsRadarActive(false)}
+                        className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline"
+                      >
+                        Stop Background Radar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* 2. Collapsible Manual DNS Records Section (Hick's Law) */}
+            <div className="border-t border-slate-200/80 pt-2 space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowManualDnsTable(!showManualDnsTable)}
+                className="flex items-center justify-between w-full p-2.5 rounded-xl hover:bg-slate-50 text-left transition-colors"
+              >
+                <div>
+                  <span className="text-xs font-bold text-slate-800">
+                    Manual DNS Records
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    {showManualDnsTable ? 'Hide raw CNAME, TXT, and DKIM/SPF records' : 'Prefer to enter records manually? Click to view all 5 records'}
+                  </p>
+                </div>
+                <div className="text-slate-400">
+                  {showManualDnsTable ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
+              </button>
+
+              {showManualDnsTable && (
+                <div className="space-y-4 animate-fade-in pt-1">
+                  {/* Verification Status Badges */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                    <div>
+                      <div className="text-slate-500 font-medium">Ownership</div>
+                      <div className="font-bold flex items-center gap-1 mt-0.5">
+                        {activeDomainObj.verification_status === 'VERIFIED' ? (
+                          <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                        ) : (
+                          <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500 font-medium">SPF</div>
+                      <div className="font-bold flex items-center gap-1 mt-0.5">
+                        {activeDomainObj.spf_status === 'VERIFIED' ? (
+                          <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                        ) : (
+                          <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500 font-medium">DKIM</div>
+                      <div className="font-bold flex items-center gap-1 mt-0.5">
+                        {activeDomainObj.dkim_status === 'VERIFIED' ? (
+                          <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                        ) : (
+                          <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} /> Pending</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500 font-medium">DMARC</div>
+                      <div className="font-bold flex items-center gap-1 mt-0.5">
+                        {activeDomainObj.dmarc_status === 'VERIFIED' ? (
+                          <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Verified</span>
+                        ) : (
+                          <span className="text-blue-700 flex items-center gap-1"><Info size={13} /> Recommended</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DNS Records Table */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Required DNS Records
+                    </h4>
+                    <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                          <tr>
+                            <th className="p-2.5">Type</th>
+                            <th className="p-2.5">Host / Name</th>
+                            <th className="p-2.5">Value</th>
+                            <th className="p-2.5 text-right">Copy</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono">
+                          {activeDnsInstructions.length > 0 ? (
+                            activeDnsInstructions.map((rec, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/50">
+                                <td className="p-2.5 font-bold text-slate-800">{rec.type}</td>
+                                <td className="p-2.5 text-slate-700 truncate max-w-[130px]" title={rec.name}>{rec.name}</td>
+                                <td className="p-2.5 text-slate-600 truncate max-w-[200px]" title={rec.value}>{rec.value}</td>
+                                <td className="p-2.5 text-right">
+                                  <button
+                                    onClick={() => copyToClipboard(rec.value, `${idx}_val`)}
+                                    className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
+                                    title="Copy Value"
+                                  >
+                                    {copiedKey === `${idx}_val` ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="p-4 text-center text-slate-400 text-xs">
+                                Generating DNS records... click &quot;Check DNS&quot; below.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer Controls */}
@@ -1601,15 +1940,27 @@ export default function EmailSettingsPage() {
               </button>
 
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => autoDnsMutation.mutate(activeDomainObj.id)}
-                  disabled={autoDnsMutation.isPending}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                  title="Automatically write DNS records via Spaceship API"
-                >
-                  <RefreshCw className={autoDnsMutation.isPending ? 'animate-spin' : ''} size={13} />
-                  Auto-DNS (Spaceship)
-                </button>
+                {activeDetection?.provider?.supports1ClickDns && activeDomainObj.verification_status !== 'VERIFIED' && (
+                  <button
+                    onClick={() => handle1ClickDns(activeDomainObj, activeDetection)}
+                    disabled={isRadarActive}
+                    className="px-4 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Zap size={13} />
+                    1-Click DNS Setup
+                  </button>
+                )}
+                {activeDetection?.provider?.id === 'spaceship' && (
+                  <button
+                    onClick={() => autoDnsMutation.mutate(activeDomainObj.id)}
+                    disabled={autoDnsMutation.isPending}
+                    className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    title="Automatically write DNS records via Spaceship API"
+                  >
+                    <RefreshCw className={autoDnsMutation.isPending ? 'animate-spin' : ''} size={13} />
+                    Auto-DNS (Spaceship)
+                  </button>
+                )}
                 <button
                   onClick={() => verifyTlsMutation.mutate(activeDomainObj.id)}
                   disabled={verifyTlsMutation.isPending}
@@ -1622,7 +1973,7 @@ export default function EmailSettingsPage() {
                 <button
                   onClick={() => verifyDomainMutation.mutate(activeDomainObj.id)}
                   disabled={verifyDomainMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold text-white bg-[#0052FF] hover:bg-[#0042cc] rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
+                  className="px-4 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
                 >
                   <RefreshCw className={verifyDomainMutation.isPending ? 'animate-spin' : ''} size={13} />
                   Check DNS
