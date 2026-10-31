@@ -1,8 +1,8 @@
 # 🌐 Subdomains, Custom Domains & DNS
 
-> **Subsystem Completion:** `94%`  
-> **Status:** 🟢 Production Ready (No Cloudflare for SaaS Architecture)  
-> **Primary Path:** `worker/routes/domainRoutes.js`, `worker/services/spaceshipClient.js`, `worker/services/domainIngressService.js`, `worker/services/spaceshipCheckoutAdapter.js`, `worker/storefront.js`  
+> **Subsystem Completion:** `96%`  
+> **Status:** 🟢 Production Ready (Domain Connect & 1-Click DNS Automation)  
+> **Primary Path:** `worker/routes/domainRoutes.js`, `worker/services/domainConnectService.js`, `worker/services/spaceshipClient.js`, `worker/services/domainIngressService.js`, `frontend/src/pages/EmailSettingsPage.tsx`  
 > **Parent:** [[00 - 🗺️ System Architecture Overview]] | **Progress:** [[01 - 📊 Progress & Completion Matrix]]
 
 ---
@@ -97,3 +97,24 @@ Immutable audit log recording connection, DNS verification, TLS issuance, and di
 - **No Domain Hijacking:** Domains are validated against existing records; cross-tenant claims are rejected with HTTP 409.
 - **Strict Verification State Machine:** Zero fake status badges. Domains only transition to `verified` and `active` upon passing authoritative DoH checks and live TLS handshake probes.
 - **Fail-Closed Storefront Resolution:** Unverified or suspended custom domains are refused routing, preventing DNS cache poisoning.
+
+---
+
+## 6. 1-Click DNS Automation & Domain Connect Protocol (`worker/services/domainConnectService.js`)
+
+Merchants are never expected to know what CNAME, A records, or TTL mean. FeraSetu provides a 1-button automated setup:
+
+1. **Automatic Provider Detection (`detectDomainDnsProvider`)**:
+   - Queries authoritative DoH for `NS` records on the apex domain and `_domainconnect.<domain>` discovery.
+   - Detects GoDaddy (`domaincontrol.com`), Namecheap (`registrar-servers.com`), Cloudflare (`ns.cloudflare.com`), Spaceship (`spaceship.com`), Hostinger (`hostinger.com`), IONOS (`ui-dns.com`), Google / Squarespace (`squarespacedns.com`), Bluehost, Porkbun, BigRock, AWS Route 53, etc.
+   - Validates whether the registrar has active DNS delegated (`hasDns: true`).
+
+2. **Official Domain Connect Protocol (domainconnect.org v2)**:
+   - For GoDaddy, Namecheap, IONOS, WordPress.com: constructs the official synchronous UX authorization link (`urlSyncUX`) with template variables (`ferasetu_target`, `ferasetu_token`, `redirect_uri`).
+   - Serves the official Domain Connect service template manifest:
+     `GET /v2/domainTemplates/providers/ferasetu.com/services/storefront`
+
+3. **Background Verification Radar (`EmailSettingsPage.tsx`)**:
+   - When the shopkeeper confirms at their registrar dashboard, FeraSetu's background verification radar automatically polls DNS records every 4 seconds.
+   - Window focus listeners immediately trigger DoH checks when the user switches back, turning green with zero manual refresh required.
+   - Fallback collapsible section available for manual IT entry (Hick's Law).

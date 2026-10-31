@@ -200,6 +200,7 @@ export async function handleAnalyticsEvents(request, env, dependencies = {}) {
       id,
       tenantId,
       userId: tenantCtx.userId,
+      ip_address: clientIp && clientIp !== 'unknown' ? clientIp : '127.0.0.1',
       ...result.event
     });
   }
@@ -218,8 +219,8 @@ export async function handleAnalyticsEvents(request, env, dependencies = {}) {
           INSERT INTO analytics_events (
             id, user_id, organization_id, tenant_id, visitor_id, session_id,
             event_name, event_type, schema_version, properties, event_data,
-            country, device_category, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ip_address, country, device_category, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `).bind(
           e.id,
           e.userId,
@@ -232,6 +233,7 @@ export async function handleAnalyticsEvents(request, env, dependencies = {}) {
           e.schema_version,
           JSON.stringify(e.properties),
           JSON.stringify(e.properties),
+          e.ip_address || clientIp,
           e.country,
           e.device_category
         ).run();
@@ -243,8 +245,8 @@ export async function handleAnalyticsEvents(request, env, dependencies = {}) {
             INSERT INTO analytics_events (
               id, user_id, organization_id, tenant_id, visitor_id, session_id,
               event_name, event_type, schema_version, properties, event_data,
-              country, device_category, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+              ip_address, country, device_category, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
           `).bind(
             e.id,
             e.userId,
@@ -257,6 +259,7 @@ export async function handleAnalyticsEvents(request, env, dependencies = {}) {
             e.schema_version,
             JSON.stringify(e.properties),
             JSON.stringify(e.properties),
+            e.ip_address || clientIp,
             e.country,
             e.device_category
           );

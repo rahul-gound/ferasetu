@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, MapPin, Users, ArrowRight, ArrowLeft, Check, CheckCircle2, Globe, ExternalLink, ShieldCheck, Plus, Trash2 } from 'lucide-react';
+import { Store, MapPin, Users, ArrowRight, ArrowLeft, Check, CheckCircle2, Globe, ExternalLink, ShieldCheck, Plus, Trash2, Camera, User as UserIcon, X as XIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
+import { getGoogleStyleAvatar, getGithubStyleAvatar, resolveEffectiveProfilePicture } from '../utils/avatarUtils';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
@@ -66,10 +67,20 @@ interface InvitationItem {
 
 export default function OnboardingWizardPage() {
   const navigate = useNavigate();
-  const { user, setOrganizationContext } = useAuth();
+  const { user, setOrganizationContext, updateUser } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [submitting, setSubmitting] = useState(false);
+
+  // Profile Picture State
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(() => {
+    return user?.profile_picture || null;
+  });
+  const [avatarStyle, setAvatarStyle] = useState<'custom' | 'google' | 'github'>(() => {
+    if (user?.profile_picture) return 'custom';
+    return 'google';
+  });
 
   // Form State
   const [shopName, setShopName] = useState(() => {
@@ -144,11 +155,56 @@ export default function OnboardingWizardPage() {
     });
   };
 
+  const seedForAvatar = user?.name || user?.email || shopName || 'Shopkeeper';
+  const effectiveAvatar = profilePicture || (
+    avatarStyle === 'github'
+      ? getGithubStyleAvatar(seedForAvatar)
+      : getGoogleStyleAvatar(seedForAvatar)
+  );
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file (PNG, JPG, WebP)');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be under 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setProfilePicture(dataUrl);
+      setAvatarStyle('custom');
+      if (updateUser) {
+        updateUser({ profile_picture: dataUrl });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSelectAvatarPreset = (style: 'google' | 'github') => {
+    setProfilePicture(null);
+    setAvatarStyle(style);
+    const generated = style === 'github' ? getGithubStyleAvatar(seedForAvatar) : getGoogleStyleAvatar(seedForAvatar);
+    if (updateUser) {
+      updateUser({ profile_picture: generated });
+    }
+  };
+
   const handleNextFromStep1 = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopName.trim() || shopName.trim().length < 2) {
       toast.error('Please enter a valid store/business name (min 2 characters)');
       return;
+    }
+    if (updateUser) {
+      updateUser({ profile_picture: effectiveAvatar });
     }
     setStep(2);
   };
@@ -194,6 +250,7 @@ export default function OnboardingWizardPage() {
         state: effectiveState.trim(),
         country: country.trim(),
         market: region,
+        profile_picture: effectiveAvatar,
         invitations: validInvites
       };
 
@@ -289,6 +346,90 @@ export default function OnboardingWizardPage() {
                       Suggested address: <span className="font-bold text-blue-600">{shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ferasetu.com</span>
                     </p>
                   )}
+                </div>
+
+                {/* Profile Photo Section */}
+                <div className="pt-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    Profile Photo <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                  </label>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                    <div className="relative shrink-0">
+                      <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full overflow-hidden border-2 border-white shadow bg-white flex items-center justify-center">
+                        <img
+                          src={effectiveAvatar}
+                          alt="Merchant Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute -bottom-1 -right-1 p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow transition cursor-pointer"
+                        title="Upload photo"
+                        aria-label="Upload photo"
+                      >
+                        <Camera size={13} />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 text-center sm:text-left">
+                      <p className="text-sm font-bold text-slate-800">
+                        {profilePicture ? 'Custom Profile Photo' : avatarStyle === 'github' ? 'GitHub Identicon Avatar' : 'Google Style Avatar'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Upload your photo or keep an automatic avatar. If skipped, we'll assign a Google or GitHub style picture automatically.
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm cursor-pointer transition"
+                        >
+                          Upload Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectAvatarPreset('google')}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition cursor-pointer ${
+                            avatarStyle === 'google' && !profilePicture
+                              ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
+                              : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          Google Style
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectAvatarPreset('github')}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition cursor-pointer ${
+                            avatarStyle === 'github' && !profilePicture
+                              ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
+                              : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          GitHub Style
+                        </button>
+                        {profilePicture && (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAvatarPreset('google')}
+                            className="px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileSelect}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-2">

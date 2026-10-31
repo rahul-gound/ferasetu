@@ -86,6 +86,11 @@ class QueueManager:
                     conn.execute("ALTER TABLE email_queue ADD COLUMN priority_name TEXT NOT NULL DEFAULT 'NORMAL'")
                 except Exception as e:
                     logger.warning("Could not add priority_name column: %s", e)
+            if "idempotency_key" not in cols:
+                try:
+                    conn.execute("ALTER TABLE email_queue ADD COLUMN idempotency_key TEXT")
+                except Exception as e:
+                    logger.warning("Could not add idempotency_key column: %s", e)
 
             # 3. Create indexes AFTER columns are guaranteed to exist
             try:

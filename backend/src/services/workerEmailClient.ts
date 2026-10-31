@@ -48,7 +48,7 @@ export class WorkerEmailClient {
       signal: AbortSignal.timeout(30000),
     });
 
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (!response.ok) {
       throw new Error(data.error || `Worker email API error: ${response.status}`);

@@ -379,3 +379,5 @@ export async function handleDomainRoutes(request, env) {
 
   throw new HttpError("Endpoint not found", 404);
 }
+}
+

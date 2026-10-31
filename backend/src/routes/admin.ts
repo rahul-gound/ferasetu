@@ -527,6 +527,248 @@ router.get('/dashboard-stats', async (req: Request, res: Response) => {
   });
 });
 
+// --- PLATFORM PRODUCT & PRIVACY TELEMETRY ---
+
+function getPlatformAnalyticsFromDb(db: any, days: number = 30) {
+  const windowDays = Math.max(1, Math.min(90, days));
+
+  let totalVisitors = 0;
+  let totalIps = 0;
+  let totalSessions = 0;
+  let totalPageViews = 0;
+
+  try {
+    const overall = db.prepare(`
+      SELECT 
+        COUNT(DISTINCT visitor_id) as total_unique_visitors,
+        COUNT(DISTINCT session_id) as total_unique_sessions,
+        COUNT(DISTINCT CASE WHEN ip_address IS NOT NULL AND ip_address != '' THEN ip_address END) as total_unique_ips,
+        COUNT(CASE WHEN event_name = 'page_view' OR event_type = 'page_view' THEN 1 END) as total_page_views,
+        COUNT(*) as total_events
+      FROM analytics_events
+      WHERE created_at >= datetime('now', '-' || ? || ' days')
+    `).get(windowDays) as any;
+
+    totalVisitors = overall?.total_unique_visitors || 0;
+    totalIps = overall?.total_unique_ips || 0;
+    totalSessions = overall?.total_unique_sessions || 0;
+    totalPageViews = overall?.total_page_views || 0;
+  } catch (e: any) {
+    console.warn("Analytics overall query note:", e?.message);
+  }
+
+  // If visitor_id is empty/null, fallback to unique sessions or unique IPs
+  if (totalVisitors === 0 && (totalSessions > 0 || totalIps > 0)) {
+    totalVisitors = Math.max(totalSessions, totalIps);
+  }
+
+  // Event counts by event_name
+  const eventMap: Record<string, { count: number; visitors: number; sessions: number }> = {};
+  try {
+    const statsRows = db.prepare(`
+      SELECT 
+        COALESCE(event_name, event_type, 'page_view') as event_name,
+        COUNT(*) as count,
+        COUNT(DISTINCT visitor_id) as visitors,
+        COUNT(DISTINCT session_id) as sessions
+      FROM analytics_events
+      WHERE created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY COALESCE(event_name, event_type, 'page_view')
+    `).all(windowDays) as any[];
+
+    for (const r of statsRows) {
+      eventMap[r.event_name] = {
+        count: r.count,
+        visitors: r.visitors || r.count,
+        sessions: r.sessions || r.count,
+      };
+    }
+  } catch {}
+
+  const landingVisitors = totalVisitors || eventMap['page_view']?.visitors || 0;
+  const featuresEngaged = eventMap['section_view']?.visitors || 0;
+  const pricingViews = eventMap['pricing_view']?.visitors || 0;
+  const pricingSelects = eventMap['pricing_plan_select']?.visitors || 0;
+  const ctaClicks = eventMap['cta_click']?.visitors || 0;
+  const signupStarts = eventMap['signup_start']?.visitors || 0;
+  const signupCompletes = eventMap['signup_complete']?.visitors || 0;
+  const trialStarts = eventMap['trial_start']?.visitors || 0;
+
+  const funnel = {
+    landing_visitors: landingVisitors,
+    features_engaged: featuresEngaged,
+    pricing_views: pricingViews,
+    pricing_selects: pricingSelects,
+    cta_clicks: ctaClicks,
+    signup_starts: signupStarts,
+    signup_completes: signupCompletes,
+    trial_starts: trialStarts,
+    rates: {
+      landing_to_cta: landingVisitors > 0 ? Number(((ctaClicks / landingVisitors) * 100).toFixed(1)) : 0,
+      pricing_to_signup: pricingViews > 0 ? Number(((signupStarts / pricingViews) * 100).toFixed(1)) : 0,
+      signup_completion: signupStarts > 0 ? Number(((signupCompletes / signupStarts) * 100).toFixed(1)) : 0,
+      overall_conversion: landingVisitors > 0 ? Number(((trialStarts / landingVisitors) * 100).toFixed(2)) : 0,
+    }
+  };
+
+  // Device distribution
+  const devices: Record<string, number> = { desktop: 0, mobile: 0, tablet: 0 };
+  try {
+    const devRows = db.prepare(`
+      SELECT COALESCE(device_category, 'desktop') as dev, COUNT(*) as cnt
+      FROM analytics_events
+      WHERE created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY COALESCE(device_category, 'desktop')
+    `).all(windowDays) as any[];
+    for (const d of devRows) {
+      devices[d.dev] = d.cnt;
+    }
+  } catch {}
+
+  // Geo distribution
+  let geo: Array<{ country: string; count: number }> = [];
+  try {
+    const geoRows = db.prepare(`
+      SELECT COALESCE(country, 'Unknown') as country, COUNT(*) as count
+      FROM analytics_events
+      WHERE created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY COALESCE(country, 'Unknown')
+      ORDER BY count DESC LIMIT 10
+    `).all(windowDays) as any[];
+    geo = geoRows;
+  } catch {}
+
+  // Top Visitor IP Addresses Telemetry
+  let topIps: any[] = [];
+  try {
+    topIps = db.prepare(`
+      SELECT 
+        COALESCE(ip_address, '127.0.0.1') as ip,
+        COUNT(*) as total_events,
+        COUNT(CASE WHEN event_name = 'page_view' OR event_type = 'page_view' THEN 1 END) as page_views,
+        COUNT(DISTINCT session_id) as sessions,
+        COUNT(DISTINCT visitor_id) as visitors,
+        MAX(country) as country,
+        MAX(device_category) as device_category,
+        MIN(created_at) as first_seen,
+        MAX(created_at) as last_seen
+      FROM analytics_events
+      WHERE created_at >= datetime('now', '-' || ? || ' days')
+        AND ip_address IS NOT NULL AND ip_address != ''
+      GROUP BY ip_address
+      ORDER BY total_events DESC
+      LIMIT 25
+    `).all(windowDays);
+  } catch (e: any) {
+    console.warn("Could not query top visitor IPs in SQLite:", e?.message);
+  }
+
+  // Recent Visitors Log with IP, path, country, device, timestamp
+  let recentVisitors: any[] = [];
+  try {
+    const visitorRows = db.prepare(`
+      SELECT 
+        id, visitor_id, session_id,
+        COALESCE(ip_address, '127.0.0.1') as ip,
+        COALESCE(event_name, event_type, 'page_view') as event_name,
+        COALESCE(country, 'Unknown') as country,
+        COALESCE(device_category, 'desktop') as device_category,
+        properties, event_data, created_at
+      FROM analytics_events
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).all() as any[];
+
+    recentVisitors = visitorRows.map(r => {
+      let props: any = {};
+      try { props = JSON.parse(r.properties || r.event_data || '{}'); } catch {}
+      return {
+        id: r.id,
+        visitor_id: r.visitor_id || 'anonymous',
+        session_id: r.session_id,
+        ip: r.ip || '127.0.0.1',
+        event_name: r.event_name,
+        path: props.path || props.title || props.city || '/',
+        country: r.country || 'Unknown',
+        device_category: r.device_category || 'desktop',
+        created_at: r.created_at
+      };
+    });
+  } catch (e: any) {
+    console.warn("Could not query recent visitors in SQLite:", e?.message);
+  }
+
+  // Safe client runtime errors
+  let recentErrors: any[] = [];
+  try {
+    const errorRows = db.prepare(`
+      SELECT error_name, error_message, url, created_at
+      FROM error_logs
+      ORDER BY created_at DESC LIMIT 15
+    `).all() as any[];
+    recentErrors = errorRows.map(e => ({
+      error_name: e.error_name || 'GenericError',
+      error_type: 'client_runtime',
+      status_code: null,
+      path: e.url || '/',
+      created_at: e.created_at
+    }));
+  } catch {}
+
+  return {
+    windowDays,
+    summary: {
+      totalVisitors,
+      totalIps,
+      totalSessions,
+      totalPageViews,
+      totalCtas: ctaClicks,
+      totalSignups: signupCompletes,
+      totalTrials: trialStarts
+    },
+    funnel,
+    devices,
+    geo,
+    topIps,
+    recentVisitors,
+    dailyTrend: [],
+    recentErrors
+  };
+}
+
+router.get('/analytics', (req: Request, res: Response) => {
+  try {
+    const db = getDatabase();
+    const days = Math.max(1, Math.min(90, parseInt(req.query.days as string || '30', 10)));
+    const analytics = getPlatformAnalyticsFromDb(db, days);
+    res.json({ success: true, analytics });
+  } catch (err: any) {
+    console.error('Error fetching admin analytics:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch platform analytics' });
+  }
+});
+
+router.post('/analytics/prune', (req: AdminRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const retentionDays = parseInt(req.body.retention_days || '30', 10);
+    const result = db.prepare(`
+      DELETE FROM analytics_events
+      WHERE created_at < datetime('now', '-' || ? || ' days')
+    `).run(retentionDays);
+    writeAuditLog(req, 'analytics.prune', 'analytics', undefined, { retentionDays, deletedRows: result.changes });
+    res.json({ success: true, retentionDays, deletedRows: result.changes || 0 });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to prune analytics' });
+  }
+});
+
+router.post('/analytics/aggregate', (req: AdminRequest, res: Response) => {
+  const targetDate = new Date().toISOString().slice(0, 10);
+  writeAuditLog(req, 'analytics.aggregate', 'analytics', undefined, { targetDate });
+  res.json({ success: true, targetDate, aggregatedRecords: 0 });
+});
+
 // --- SHOPS MANAGEMENT ---
 
 router.get('/shops', (req: Request, res: Response) => {

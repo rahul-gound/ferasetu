@@ -32,8 +32,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import SEO from './SEO';
 import FeraSetuUpdatesCenter, { useFeraSetuUpdates } from './notifications/FeraSetuUpdatesCenter';
-import api from '../services/api';
-import type { TranslationKey } from '../i18n/types';
+import { isSyntheticUserIdentifier, cleanUserSubtitle, resolveEffectiveProfilePicture } from '../utils/avatarUtils';
 
 interface NavItem {
   path: string;
@@ -190,9 +189,41 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const planTitle = user?.plan
     ? user.plan.charAt(0).toUpperCase() + user.plan.slice(1)
     : 'Free';
-  const storeDisplayName = user?.business_name || user?.name || 'My Store';
-  const storeSubdomain = user?.hostname || (user?.subdomain ? `${user.subdomain}.ferasetu.com` : 'mystore.ferasetu.com');
-  const avatarLetter = (storeDisplayName || user?.email || 'M').charAt(0).toUpperCase();
+
+  const storeDisplayName = useMemo(() => {
+    if (user?.business_name && !isSyntheticUserIdentifier(user.business_name)) {
+      return user.business_name.trim();
+    }
+    if (user?.name && !isSyntheticUserIdentifier(user.name)) {
+      return user.name.trim();
+    }
+    return 'My Store';
+  }, [user?.business_name, user?.name]);
+
+  const storeSubdomain = useMemo(() => {
+    if (user?.hostname && !isSyntheticUserIdentifier(user.hostname)) {
+      return user.hostname.trim();
+    }
+    const slug = user?.organization?.store_slug || user?.subdomain;
+    if (slug && !isSyntheticUserIdentifier(slug)) {
+      return `${slug}.ferasetu.com`;
+    }
+    return 'mystore.ferasetu.com';
+  }, [user?.hostname, user?.organization?.store_slug, user?.subdomain]);
+
+  const userSubtitle = useMemo(() => {
+    return cleanUserSubtitle(user?.email, storeSubdomain);
+  }, [user?.email, storeSubdomain]);
+
+  const userProfilePic = useMemo(() => {
+    return resolveEffectiveProfilePicture({
+      customPicture: user?.profile_picture,
+      oauthPicture: (user as any)?.profilePictureUrl,
+      seedName: storeDisplayName || user?.email,
+      preferredStyle: 'google',
+    });
+  }, [user?.profile_picture, (user as any)?.profilePictureUrl, storeDisplayName, user?.email]);
+  const avatarLetter = (storeDisplayName || 'M').charAt(0).toUpperCase();
 
   const sidebarContent = (
     <div
@@ -338,7 +369,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               title={`${storeDisplayName} (${storeSubdomain}) — Manage store settings`}
               aria-label="Manage store settings"
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white">
+              {userProfilePic ? (
+                <img
+                  src={userProfilePic}
+                  alt={storeDisplayName}
+                  className="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div
+                className={`h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white ${
+                  userProfilePic ? 'hidden' : 'flex'
+                }`}
+              >
                 {avatarLetter}
               </div>
             </button>
@@ -369,7 +416,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               title="Manage store settings"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white">
+                {userProfilePic ? (
+                  <img
+                    src={userProfilePic}
+                    alt={storeDisplayName}
+                    className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white ${
+                    userProfilePic ? 'hidden' : 'flex'
+                  }`}
+                >
                   {avatarLetter}
                 </div>
                 <div className="min-w-0">
@@ -546,7 +609,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 aria-label="User menu"
                 aria-expanded={profileMenuOpen}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white">
+                {userProfilePic ? (
+                  <img
+                    src={userProfilePic}
+                    alt={storeDisplayName}
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-slate-200"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`h-8 w-8 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white ${
+                    userProfilePic ? 'hidden' : 'flex'
+                  }`}
+                >
                   {avatarLetter}
                 </div>
                 <ChevronDown
@@ -556,10 +635,33 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </button>
 
               {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white p-2 shadow-xl border border-[#E5EAF1] z-50">
-                  <div className="px-3 py-2 border-b border-[#E5EAF1] mb-1">
-                    <p className="text-xs font-bold text-[#152238] truncate">{storeDisplayName}</p>
-                    <p className="text-[11px] text-[#667085] font-medium truncate">{user?.email || storeSubdomain}</p>
+                <div className="absolute right-0 mt-2 w-60 rounded-xl bg-white p-2 shadow-xl border border-[#E5EAF1] z-50">
+                  <div className="flex items-center gap-2.5 px-3 py-2 border-b border-[#E5EAF1] mb-1">
+                    {userProfilePic ? (
+                      <img
+                        src={userProfilePic}
+                        alt={storeDisplayName}
+                        className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                          const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#152238] text-xs font-bold text-white ${
+                        userProfilePic ? 'hidden' : 'flex'
+                      }`}
+                    >
+                      {avatarLetter}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#152238] truncate">{storeDisplayName}</p>
+                      {userSubtitle && (
+                        <p className="text-[11px] text-[#667085] font-medium truncate">{userSubtitle}</p>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => { setProfileMenuOpen(false); navigate('/settings/email'); }}

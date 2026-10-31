@@ -1081,6 +1081,7 @@ async function createOrganizationHandler(request, env) {
     if (typeof env.DB?.prepare === 'function') {
       try { await env.DB.prepare("ALTER TABLE users ADD COLUMN district TEXT").run(); } catch {}
       try { await env.DB.prepare("ALTER TABLE users ADD COLUMN country TEXT").run(); } catch {}
+      try { await env.DB.prepare("ALTER TABLE users ADD COLUMN profile_picture TEXT").run(); } catch {}
     }
     await env.DB.prepare(`
       INSERT INTO users (id, email, name, business_name, plan, plan_expires_at, market, subdomain, hostname, city, district, state, country, created_at, updated_at)
@@ -1099,6 +1100,12 @@ async function createOrganizationHandler(request, env) {
     `).bind(
       me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, district, state, country, now, now
     ).run();
+
+    if (body.profile_picture && typeof body.profile_picture === 'string' && body.profile_picture.trim()) {
+      try {
+        await env.DB.prepare("UPDATE users SET profile_picture = ? WHERE id = ?").bind(body.profile_picture.trim(), me.$id).run();
+      } catch {}
+    }
   } catch (uErr) {
     console.warn("Could not upsert user record in D1 with district/country, retrying fallback:", uErr);
     try {
@@ -1117,6 +1124,12 @@ async function createOrganizationHandler(request, env) {
       `).bind(
         me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, state, now, now
       ).run();
+
+      if (body.profile_picture && typeof body.profile_picture === 'string' && body.profile_picture.trim()) {
+        try {
+          await env.DB.prepare("UPDATE users SET profile_picture = ? WHERE id = ?").bind(body.profile_picture.trim(), me.$id).run();
+        } catch {}
+      }
     } catch (uErr2) {
       console.warn("User upsert fallback failed (non-blocking):", uErr2);
     }
@@ -1476,6 +1489,7 @@ async function updateProfile(request, env) {
       name: body.name || me.name || "User",
       phone: body.phone || null,
       business_name: body.business_name || null,
+      profile_picture: body.profile_picture || null,
       plan: "beta",
       market,
       preferred_language: body.preferred_language || "en",
@@ -1575,7 +1589,7 @@ async function updateProfile(request, env) {
   const targetId = existing.id || me.$id;
   const updates = [];
   const values = [];
-  const allowed = ["name", "phone", "business_name", "preferred_language", "subdomain", "hostname", "city", "district", "state"];
+  const allowed = ["name", "phone", "business_name", "profile_picture", "preferred_language", "subdomain", "hostname", "city", "district", "state"];
   if (body.email && typeof body.email === 'string' && body.email.trim()) {
     allowed.push("email");
   }
@@ -3952,6 +3966,7 @@ async function ensureTables(db) {
         schema_version INTEGER NOT NULL DEFAULT 1,
         properties TEXT,
         event_data TEXT,
+        ip_address TEXT,
         country TEXT,
         device_category TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -3963,9 +3978,12 @@ async function ensureTables(db) {
     await safeAddColumn('analytics_events', "event_name TEXT NOT NULL DEFAULT 'page_view'");
     await safeAddColumn('analytics_events', 'schema_version INTEGER NOT NULL DEFAULT 1');
     await safeAddColumn('analytics_events', 'properties TEXT');
+    await safeAddColumn('analytics_events', 'ip_address TEXT');
     await safeAddColumn('analytics_events', 'country TEXT');
     await safeAddColumn('analytics_events', 'device_category TEXT');
 
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_ip ON analytics_events(ip_address);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_visitor ON analytics_events(visitor_id);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_org ON analytics_events(organization_id, event_type);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_user ON analytics_events(user_id, event_type);`);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_analytics_events_tenant_time ON analytics_events(tenant_id, created_at);`);

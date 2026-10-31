@@ -135,7 +135,19 @@ export async function getPlatformAnalytics(env, days = 30) {
 
   const windowDays = Math.max(1, Math.min(90, parseInt(days, 10) || 30));
 
-  // 1. High-level counts for 'platform' tenant
+  // 1. Overall unique visitors and counts across all platform events
+  const overallRow = await env.DB.prepare(`
+    SELECT 
+      COUNT(DISTINCT visitor_id) as total_unique_visitors,
+      COUNT(DISTINCT session_id) as total_unique_sessions,
+      COUNT(DISTINCT CASE WHEN ip_address IS NOT NULL AND ip_address != '' THEN ip_address END) as total_unique_ips,
+      COUNT(CASE WHEN event_name = 'page_view' OR event_type = 'page_view' THEN 1 END) as total_page_views,
+      COUNT(*) as total_events
+    FROM analytics_events
+    WHERE tenant_id = 'platform'
+      AND created_at >= datetime('now', '-' || ? || ' days')
+  `).bind(windowDays).first();
+
   const statsRows = await env.DB.prepare(`
     SELECT 
       event_name,
@@ -149,25 +161,21 @@ export async function getPlatformAnalytics(env, days = 30) {
   `).bind(windowDays).all();
 
   const eventMap = {};
-  let totalPageViews = 0;
-  let totalSessions = 0;
-  let totalVisitors = 0;
-
   for (const r of (statsRows.results || [])) {
     eventMap[r.event_name] = {
       count: r.count,
       visitors: r.visitors,
       sessions: r.sessions
     };
-    if (r.event_name === 'page_view') {
-      totalPageViews = r.count;
-      totalVisitors = r.visitors;
-      totalSessions = r.sessions;
-    }
   }
 
+  const totalPageViews = overallRow?.total_page_views || eventMap['page_view']?.count || 0;
+  const totalVisitors = overallRow?.total_unique_visitors || eventMap['page_view']?.visitors || 0;
+  const totalSessions = overallRow?.total_unique_sessions || eventMap['page_view']?.sessions || 0;
+  const totalIps = overallRow?.total_unique_ips || 0;
+
   // 2. Structured Funnel Metrics
-  const landingVisitors = eventMap['page_view']?.visitors || 0;
+  const landingVisitors = totalVisitors || eventMap['page_view']?.visitors || 0;
   const featuresEngaged = (eventMap['section_view']?.visitors || 0);
   const pricingViews = eventMap['pricing_view']?.visitors || 0;
   const pricingSelects = eventMap['pricing_plan_select']?.visitors || 0;
@@ -238,7 +246,73 @@ export async function getPlatformAnalytics(env, days = 30) {
     ORDER BY DATE(created_at) ASC
   `).bind(windowDays).all();
 
-  // 6. Recent safe friction / error events
+  // 6. Top Visitor IP Addresses Telemetry
+  let topIps = [];
+  try {
+    const topIpRows = await env.DB.prepare(`
+      SELECT 
+        COALESCE(ip_address, '127.0.0.1') as ip,
+        COUNT(*) as total_events,
+        COUNT(CASE WHEN event_name = 'page_view' OR event_type = 'page_view' THEN 1 END) as page_views,
+        COUNT(DISTINCT session_id) as sessions,
+        COUNT(DISTINCT visitor_id) as visitors,
+        MAX(country) as country,
+        MAX(device_category) as device_category,
+        MIN(created_at) as first_seen,
+        MAX(created_at) as last_seen
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+        AND created_at >= datetime('now', '-' || ? || ' days')
+        AND ip_address IS NOT NULL AND ip_address != ''
+      GROUP BY ip_address
+      ORDER BY total_events DESC
+      LIMIT 25
+    `).bind(windowDays).all();
+    topIps = topIpRows.results || [];
+  } catch (err) {
+    console.warn("Could not query top visitor IPs:", err?.message || err);
+  }
+
+  // 7. Recent Visitors Log (User IP, location, device, path, timestamp)
+  let recentVisitors = [];
+  try {
+    const recentVisitorsRows = await env.DB.prepare(`
+      SELECT 
+        id,
+        visitor_id,
+        session_id,
+        COALESCE(ip_address, '127.0.0.1') as ip,
+        event_name,
+        country,
+        device_category,
+        properties,
+        created_at
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).all();
+
+    recentVisitors = (recentVisitorsRows.results || []).map(r => {
+      let props = {};
+      try { props = JSON.parse(r.properties || '{}'); } catch {}
+      return {
+        id: r.id,
+        visitor_id: r.visitor_id || 'anonymous',
+        session_id: r.session_id,
+        ip: r.ip || '127.0.0.1',
+        event_name: r.event_name,
+        path: props.path || props.title || '/',
+        country: r.country || 'Unknown',
+        device_category: r.device_category || 'desktop',
+        created_at: r.created_at
+      };
+    });
+  } catch (err) {
+    console.warn("Could not query recent visitors:", err?.message || err);
+  }
+
+  // 8. Recent safe friction / error events
   const errorRows = await env.DB.prepare(`
     SELECT event_name, properties, created_at
     FROM analytics_events
@@ -263,6 +337,7 @@ export async function getPlatformAnalytics(env, days = 30) {
     windowDays,
     summary: {
       totalVisitors,
+      totalIps,
       totalSessions,
       totalPageViews,
       totalCtas: ctaClicks,
@@ -272,6 +347,8 @@ export async function getPlatformAnalytics(env, days = 30) {
     funnel,
     devices,
     geo,
+    topIps,
+    recentVisitors,
     dailyTrend: dailyRows.results || [],
     recentErrors
   };

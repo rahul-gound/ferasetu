@@ -9,6 +9,7 @@ import { registerUser, loginUser, getUserById } from '../services/authService';
 import { sendOnboardingEmail, sendOTPEmail } from '../services/mailService';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { OTPService } from '../services/otpService';
+import { getSmtpSettings } from '../services/smtpService';
 import { createRateLimiter } from '../middleware/rateLimiter';
 import { findNextAvailableStorefront } from '../utils/canonicalHostname';
 

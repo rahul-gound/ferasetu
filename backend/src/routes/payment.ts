@@ -950,7 +950,7 @@ router.get('/ai-credits', async (req: AuthenticatedRequest, res: Response): Prom
     GROUP BY usage_type
   `).all(userId);
 
-  let dailyUsage = [];
+  let dailyUsage: any[] = [];
   try {
     dailyUsage = db.prepare(`
       SELECT DATE(created_at) as date, usage_type, SUM(credits_used) as credits_used, COUNT(*) as calls
@@ -961,7 +961,7 @@ router.get('/ai-credits', async (req: AuthenticatedRequest, res: Response): Prom
     `).all(userId);
   } catch {}
 
-  let recentLogs = [];
+  let recentLogs: any[] = [];
   try {
     recentLogs = db.prepare(`
       SELECT id, model, prompt_tokens, completion_tokens, credits_used, usage_type, created_at

@@ -1,6 +1,6 @@
 # 🖥️ Core API & Business Logic (Node.js & Express)
 
-> **Subsystem Completion:** `90%`  
+> **Subsystem Completion:** `93%`  
 > **Status:** 🟢 Production Ready  
 > **Primary Path:** `backend/`  
 > **Parent:** [[00 - 🗺️ System Architecture Overview]] | **Progress:** [[01 - 📊 Progress & Completion Matrix]]
@@ -23,6 +23,7 @@ The Core API coordinates complex business logic, transactional persistence, auth
 | `backend/src/routes/branding.ts` | `/api/branding` | Store logo, theme colors, favicon, white-label settings |
 | `backend/src/routes/analytics.ts` | `/api/analytics` | Privacy-preserving aggregated merchant sales metrics, revenue & profit calculation (strictly excluding cancelled orders) |
 | `backend/src/routes/announcements.ts` | `/api/announcements` | FeraSetu new updates, features changelog, official merchant notices, and broadcast messages |
+| `backend/src/routes/customers.ts` | `/api/customers` | Merchant customer roster, registered accounts & logins aggregation, order history, lifetime value & direct messaging shortcuts |
 | `backend/src/routes/admin.ts` | `/api/admin` | Platform CEO command center, partner lifecycle, system health, and AI credit monitoring & adjustments (`/ai-credits`, `/users/:id/ai-credits`) |
 
 ## 3. Middleware Pipeline

@@ -34,6 +34,7 @@ interface User {
   is_verified: boolean;
   phone?: string;
   business_name?: string;
+  profile_picture?: string;
   plan: 'free' | 'premium' | 'trial' | 'beta' | 'basic' | 'standard' | 'business' | 'pro' | 'starter';
   market?: 'IN' | 'US' | 'EU' | 'OTHER';
   trial_started_at?: string;
@@ -80,7 +81,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_KEYS: (keyof User)[] = [
-  'email', 'name', 'phone', 'business_name', 'plan', 'market', 'preferred_language',
+  'email', 'name', 'phone', 'business_name', 'profile_picture', 'plan', 'market', 'preferred_language',
   'subdomain', 'custom_domain', 'trial_started_at', 'trial_ends_at', 'cancel_at_period_end',
   'plan_expires_at', 'ai_credits_balance',
   'ai_credits_monthly_limit', 'ai_credits_used_month', 'ai_credits_reset_at',
@@ -226,6 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (pendingRegistration?.business_name) payload.business_name = pendingRegistration.business_name;
           if (pendingRegistration?.subdomain) payload.subdomain = pendingRegistration.subdomain;
           if (pendingRegistration?.phone) payload.phone = pendingRegistration.phone;
+          if (pendingRegistration?.profile_picture) payload.profile_picture = pendingRegistration.profile_picture;
           if (storedReferralCode) {
             payload.referral_code = storedReferralCode;
           }
@@ -243,10 +245,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        const oauthPic = (workosUser as any)?.profilePictureUrl || null;
         if (mounted) {
           authLog('AUTH_SESSION_FOUND', `Profile loaded for ${workosUser.email}`);
           setProfile({
             ...currentProfile,
+            profile_picture: currentProfile?.profile_picture || oauthPic || undefined,
             organization: data.organization || null,
             has_organization: data.has_organization ?? (Boolean(data.organization) || false),
             is_verified: workosUser.emailVerified ?? true,
@@ -276,9 +280,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   headers: { Authorization: `Bearer ${freshToken}` }
                 });
                 if (mounted && retryData?.user) {
+                  const oauthPic = (workosUser as any)?.profilePictureUrl || null;
                   authLog('AUTH_SESSION_RECOVERED', `Profile restored on retry for ${workosUser.email}`);
                   setProfile({
                     ...retryData.user,
+                    profile_picture: retryData.user?.profile_picture || oauthPic || undefined,
                     organization: retryData.organization || null,
                     has_organization: retryData.has_organization ?? (Boolean(retryData.organization) || false),
                     is_verified: workosUser.emailVerified ?? true,
@@ -303,12 +309,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           // Fall back to a minimal WorkOS-derived profile only on transient network or 5xx issues
+          const oauthPic = (workosUser as any)?.profilePictureUrl || null;
           setProfile({
             id: workosUser.id || workosUser.email,
             email: workosUser.email,
             name: workosUser.firstName && workosUser.lastName
               ? `${workosUser.firstName} ${workosUser.lastName}`
               : (workosUser.email || 'Shopkeeper'),
+            profile_picture: oauthPic || undefined,
             is_verified: workosUser.emailVerified ?? true,
             plan: 'free',
             market: 'IN',

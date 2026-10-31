@@ -9,43 +9,80 @@ const router = Router();
 router.post('/events', (req: AuthenticatedRequest, res: Response): void => {
   try {
     const db = getDatabase();
-    const userId = req.user?.id || req.body.user_id || req.body.organization_id || 'anonymous';
-    const { event_type, event_data } = req.body;
+    const rawIp = (req.headers['cf-connecting-ip'] as string) ||
+                  (req.headers['x-real-ip'] as string) ||
+                  (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+                  req.socket.remoteAddress ||
+                  '127.0.0.1';
+    const clientIp = (rawIp || '127.0.0.1').replace(/^::ffff:/, '');
 
-    if (!event_type) {
-      res.status(400).json({ error: 'event_type is required' });
+    const country = (req.headers['cf-ipcountry'] as string) || 'Unknown';
+    const userAgent = req.headers['user-agent'] || '';
+    let deviceCategory = 'desktop';
+    if (/tablet|ipad/i.test(userAgent)) deviceCategory = 'tablet';
+    else if (/mobile|android|iphone/i.test(userAgent)) deviceCategory = 'mobile';
+
+    const rawList = Array.isArray(req.body)
+      ? req.body
+      : (Array.isArray(req.body?.events) ? req.body.events : [req.body]);
+
+    if (!rawList || rawList.length === 0) {
+      res.status(400).json({ error: 'No events provided' });
       return;
     }
 
-    const id = (req.body.id as string) || Math.random().toString(36).substring(2, 15);
-    let parsedData: any = {};
-    if (typeof event_data === 'object' && event_data !== null) {
-      parsedData = { ...event_data };
-    } else if (typeof event_data === 'string') {
-      try { parsedData = JSON.parse(event_data); } catch {}
+    let insertedCount = 0;
+    for (const item of rawList) {
+      if (!item) continue;
+      const eventName = item.event_name || item.event_type || 'page_view';
+      const eventType = item.event_type || item.event_name || 'page_view';
+      const userId = req.user?.id || item.user_id || item.organization_id || 'anonymous';
+      const orgId = item.organization_id || null;
+      const tenantId = item.tenant_id || (orgId ? orgId : 'platform');
+      const visitorId = item.visitor_id || null;
+      const sessionId = item.session_id || null;
+      const id = item.id || `evt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+
+      let propertiesObj: any = item.properties || item.event_data || {};
+      if (typeof propertiesObj === 'string') {
+        try { propertiesObj = JSON.parse(propertiesObj); } catch {}
+      }
+
+      if (!propertiesObj.city && req.headers['cf-ipcity']) propertiesObj.city = req.headers['cf-ipcity'];
+      if (!propertiesObj.region && req.headers['cf-region']) propertiesObj.region = req.headers['cf-region'];
+      if (!propertiesObj.country && req.headers['cf-ipcountry']) propertiesObj.country = req.headers['cf-ipcountry'];
+      if (!propertiesObj.referrer && req.headers.referer) propertiesObj.referrer = req.headers.referer;
+
+      const propString = JSON.stringify(propertiesObj);
+
+      try {
+        db.prepare(`
+          INSERT INTO analytics_events (
+            id, user_id, organization_id, tenant_id, visitor_id, session_id,
+            event_name, event_type, schema_version, properties, event_data,
+            ip_address, country, device_category, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, datetime('now'))
+        `).run(
+          id, userId, orgId, tenantId, visitorId, sessionId,
+          eventName, eventType, propString, propString,
+          clientIp, country, deviceCategory
+        );
+        insertedCount++;
+      } catch (insertErr) {
+        // Fallback for minimal table schemas
+        try {
+          db.prepare(`
+            INSERT INTO analytics_events (id, user_id, event_type, event_data, created_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+          `).run(id, userId, eventType, propString);
+          insertedCount++;
+        } catch (fbErr) {
+          console.warn('Analytics event insert fallback error:', fbErr);
+        }
+      }
     }
 
-    if (!parsedData.city && req.headers['cf-ipcity']) {
-      parsedData.city = req.headers['cf-ipcity'];
-    }
-    if (!parsedData.region && req.headers['cf-region']) {
-      parsedData.region = req.headers['cf-region'];
-    }
-    if (!parsedData.country && req.headers['cf-ipcountry']) {
-      parsedData.country = req.headers['cf-ipcountry'];
-    }
-    if (!parsedData.referrer && req.headers.referer) {
-      parsedData.referrer = req.headers.referer;
-    }
-
-    const dataString = JSON.stringify(parsedData);
-
-    db.prepare(`
-      INSERT INTO analytics_events (id, user_id, event_type, event_data, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(id, userId, event_type, dataString);
-
-    res.status(201).json({ success: true, logged: true, event_type });
+    res.status(201).json({ success: true, accepted_count: insertedCount, client_ip: clientIp });
   } catch (err: any) {
     console.error('Analytics event ingestion error:', err);
     res.status(500).json({ error: err.message });

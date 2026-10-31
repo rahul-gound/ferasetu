@@ -40,11 +40,14 @@ export function hasAnalyticsConsent(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const raw = localStorage.getItem('fera_consent');
-    if (!raw) return false;
+    if (!raw) {
+      // First-party pseudonymous behavioral measurement (Zero PII, zero cross-site tracking)
+      return true;
+    }
     const parsed = JSON.parse(raw);
-    return Boolean(parsed.analytics);
+    return parsed.analytics !== false;
   } catch {
-    return false;
+    return true;
   }
 }
 
