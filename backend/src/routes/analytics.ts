@@ -22,6 +22,13 @@ router.post('/events', (req: AuthenticatedRequest, res: Response): void => {
     if (/tablet|ipad/i.test(userAgent)) deviceCategory = 'tablet';
     else if (/mobile|android|iphone/i.test(userAgent)) deviceCategory = 'mobile';
 
+    if (!Array.isArray(req.body) && !req.body?.events) {
+      if (!req.body?.event_type && !req.body?.event_name) {
+        res.status(400).json({ error: 'event_type is required' });
+        return;
+      }
+    }
+
     const rawList = Array.isArray(req.body)
       ? req.body
       : (Array.isArray(req.body?.events) ? req.body.events : [req.body]);
@@ -82,7 +89,15 @@ router.post('/events', (req: AuthenticatedRequest, res: Response): void => {
       }
     }
 
-    res.status(201).json({ success: true, accepted_count: insertedCount, client_ip: clientIp });
+    const firstEvent = rawList[0];
+    const firstEventType = firstEvent?.event_type || firstEvent?.event_name || 'page_view';
+    res.status(201).json({
+      success: true,
+      logged: true,
+      accepted_count: insertedCount,
+      client_ip: clientIp,
+      event_type: firstEventType
+    });
   } catch (err: any) {
     console.error('Analytics event ingestion error:', err);
     res.status(500).json({ error: err.message });
@@ -119,6 +134,16 @@ function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 
     location?: string;
   }> = [];
 
+  const visitorFrequency: Record<string, {
+    identifier: string;
+    display_name: string;
+    visit_count: number;
+    ip_address: string;
+    location: string;
+    device: string;
+    last_visited_at: string;
+  }> = {};
+
   try {
     const userOrOrgIds = [userId];
     try {
@@ -137,7 +162,8 @@ function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 
 
     const placeholders = userOrOrgIds.map(() => '?').join(',');
     const eventRows = db.prepare(`
-      SELECT id, event_type, event_data, created_at FROM analytics_events 
+      SELECT id, event_type, event_data, ip_address, country, device_category, visitor_id, session_id, created_at 
+      FROM analytics_events 
       WHERE user_id IN (${placeholders}) AND created_at >= datetime('now', ?)
       ORDER BY created_at DESC
     `).all(...userOrOrgIds, timeUnit) as any[];
@@ -155,6 +181,27 @@ function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 
       else if (city) locationKey = city;
       else if (region && country) locationKey = `${region}, ${country}`;
       else if (country) locationKey = country;
+
+      const rawIp = (r.ip_address || data.ip_address || '127.0.0.1').replace(/^::ffff:/, '');
+      const visitorKey = data.customer_name || data.customer_email || r.visitor_id || data.visitor_id || rawIp;
+      const displayName = data.customer_name || (data.customer_email ? data.customer_email.split('@')[0] : (r.visitor_id ? `Visitor #${String(r.visitor_id).slice(-6)}` : `Shopper (${rawIp})`));
+
+      if (!visitorFrequency[visitorKey]) {
+        visitorFrequency[visitorKey] = {
+          identifier: visitorKey,
+          display_name: displayName,
+          visit_count: 0,
+          ip_address: rawIp,
+          location: locationKey || 'Local Area',
+          device: r.device_category || data.device || 'Mobile',
+          last_visited_at: r.created_at,
+        };
+      }
+      visitorFrequency[visitorKey].visit_count++;
+      if (r.created_at >= visitorFrequency[visitorKey].last_visited_at) {
+        visitorFrequency[visitorKey].last_visited_at = r.created_at;
+        visitorFrequency[visitorKey].ip_address = rawIp;
+      }
 
       if (r.event_type === 'shop_visit' || r.event_type === 'page_view') {
         totalVisitors++;
@@ -271,11 +318,18 @@ function getVisitorAndProductAnalytics(db: any, userId: string, timeUnit = '-30 
     location: p.location
   })).sort((a, b) => b.views - a.views);
 
+  const sortedVisitors = Object.values(visitorFrequency).sort((a, b) => b.visit_count - a.visit_count);
+  const mostFrequentVisitor = sortedVisitors[0] || null;
+  const topVisitors = sortedVisitors.slice(0, 8);
+
   return {
     visitors: {
       total_visitors: totalVisitors,
       unique_visitors: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
       unique_sessions: uniqueSessions.size || (totalVisitors > 0 ? 1 : 0),
+      different_customers_count: Math.max(uniqueSessions.size, Object.keys(visitorFrequency).length, totalVisitors > 0 ? 1 : 0),
+      most_frequent_visitor: mostFrequentVisitor,
+      top_visitors: topVisitors,
       change: 0,
       geography,
       referrers
@@ -342,19 +396,93 @@ router.get('/dashboard', (req: AuthenticatedRequest, res: Response): void => {
 
     const trafficInsights = getVisitorAndProductAnalytics(db, userId, '-30 days');
 
+    // Query today's top order of big value + IP
+    const todayTopOrder = db.prepare(`
+      SELECT id, customer_name, customer_email, customer_phone, total, status,
+             payment_status, created_at, ip_address,
+             json_array_length(items) as items_count
+      FROM orders
+      WHERE user_id = ? AND status != 'cancelled' AND DATE(created_at) = DATE('now')
+      ORDER BY total DESC LIMIT 1
+    `).get(userId) as any;
+
+    const allTimeTopOrder = db.prepare(`
+      SELECT id, customer_name, customer_email, customer_phone, total, status,
+             payment_status, created_at, ip_address,
+             json_array_length(items) as items_count
+      FROM orders
+      WHERE user_id = ? AND status != 'cancelled'
+      ORDER BY total DESC LIMIT 1
+    `).get(userId) as any;
+
+    const todayOrdersCount = (db.prepare(`
+      SELECT COUNT(*) as cnt FROM orders WHERE user_id = ? AND status != 'cancelled' AND DATE(created_at) = DATE('now')
+    `).get(userId) as any)?.cnt || 0;
+
+    let totalCustomerLogins = 0;
+    let todayCustomerLogins = 0;
+    let recentCustomerLogins: any[] = [];
+
+    try {
+      const loginsRow = db.prepare(`
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN DATE(created_at) = DATE('now') THEN 1 ELSE 0 END) as today
+        FROM customer_sessions
+        WHERE organization_id = ?
+      `).get(userId) as any;
+
+      totalCustomerLogins = loginsRow?.total || 0;
+      todayCustomerLogins = loginsRow?.today || 0;
+
+      recentCustomerLogins = db.prepare(`
+        SELECT cs.id, cs.customer_id, cs.created_at, cs.expires_at, cs.ip_address,
+               c.name as customer_name, c.email as customer_email, c.phone as customer_phone
+        FROM customer_sessions cs
+        LEFT JOIN customers c ON c.id = cs.customer_id
+        WHERE cs.organization_id = ?
+        ORDER BY cs.created_at DESC LIMIT 6
+      `).all(userId) as any[];
+    } catch {}
+
+    const distinctCustomersFromOrders = db.prepare(`
+      SELECT COUNT(DISTINCT COALESCE(NULLIF(customer_phone, ''), customer_email, customer_name)) as cnt
+      FROM orders
+      WHERE user_id = ? AND status != 'cancelled'
+    `).get(userId) as any;
+
+    const differentCustomersCount = Math.max(
+      (distinctCustomersFromOrders?.cnt || 0),
+      trafficInsights.visitors.different_customers_count,
+      trafficInsights.visitors.unique_visitors,
+      trafficInsights.visitors.total_visitors > 0 ? 1 : 0
+    );
+
     res.json({
       stats: {
         total_revenue: statsResult.total_revenue || 0,
         total_orders: statsResult.total_orders || 0,
         total_customers: totalCustomersRow?.cnt || statsResult.total_orders || 0,
+        different_customers: differentCustomersCount,
         total_visitors: trafficInsights.visitors.total_visitors,
         unique_visitors: trafficInsights.visitors.unique_visitors,
+        customer_logins_total: totalCustomerLogins,
+        customer_logins_today: todayCustomerLogins,
+        today_orders_count: todayOrdersCount,
         pending_orders: statsResult.pending_orders || 0,
         low_stock_count: lowStockCount,
         revenue_change: revenueChange,
         orders_change: ordersChange,
         visitors_change: trafficInsights.visitors.change,
         avg_order_value: statsResult.total_orders > 0 ? Math.round(statsResult.total_revenue / statsResult.total_orders) : 0,
+      },
+      top_order_today: todayTopOrder || (allTimeTopOrder ? { ...allTimeTopOrder, is_historical: true } : null),
+      all_time_top_order: allTimeTopOrder,
+      most_frequent_visitor: trafficInsights.visitors.most_frequent_visitor,
+      top_visitors: trafficInsights.visitors.top_visitors,
+      customer_logins: {
+        total: totalCustomerLogins,
+        today: todayCustomerLogins,
+        recent: recentCustomerLogins,
       },
       visitors: trafficInsights.visitors,
       most_viewed_products: trafficInsights.most_viewed_products,
@@ -434,10 +562,50 @@ router.get('/sales', (req: AuthenticatedRequest, res: Response): void => {
 
     const trafficInsights = getVisitorAndProductAnalytics(db, userId, timeUnit);
 
+    const todayTopOrder = db.prepare(`
+      SELECT id, customer_name, customer_email, customer_phone, total, status,
+             payment_status, created_at, ip_address,
+             json_array_length(items) as items_count
+      FROM orders
+      WHERE user_id = ? AND status != 'cancelled' AND DATE(created_at) = DATE('now')
+      ORDER BY total DESC LIMIT 1
+    `).get(userId) as any;
+
+    const allTimeTopOrder = db.prepare(`
+      SELECT id, customer_name, customer_email, customer_phone, total, status,
+             payment_status, created_at, ip_address,
+             json_array_length(items) as items_count
+      FROM orders
+      WHERE user_id = ? AND status != 'cancelled'
+      ORDER BY total DESC LIMIT 1
+    `).get(userId) as any;
+
+    let totalCustomerLogins = 0;
+    let todayCustomerLogins = 0;
+    try {
+      const loginsRow = db.prepare(`
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN DATE(created_at) = DATE('now') THEN 1 ELSE 0 END) as today
+        FROM customer_sessions
+        WHERE organization_id = ?
+      `).get(userId) as any;
+      totalCustomerLogins = loginsRow?.total || 0;
+      todayCustomerLogins = loginsRow?.today || 0;
+    } catch {}
+
     res.json({
       sales,
       categoryBreakdown,
       visitors: trafficInsights.visitors,
+      different_customers: trafficInsights.visitors.different_customers_count,
+      most_frequent_visitor: trafficInsights.visitors.most_frequent_visitor,
+      top_visitors: trafficInsights.visitors.top_visitors,
+      top_order_today: todayTopOrder || (allTimeTopOrder ? { ...allTimeTopOrder, is_historical: true } : null),
+      all_time_top_order: allTimeTopOrder,
+      customer_logins: {
+        total: totalCustomerLogins,
+        today: todayCustomerLogins,
+      },
       most_viewed_products: trafficInsights.most_viewed_products,
       most_purchased_products: trafficInsights.most_purchased_products,
       recent_clicks: trafficInsights.recent_clicks,

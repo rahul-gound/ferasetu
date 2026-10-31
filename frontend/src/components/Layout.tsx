@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
@@ -52,6 +52,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { translate } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isWebsiteBuilder =
+    (location.pathname === '/website-builder' ||
+      location.pathname.startsWith('/pro-studio') ||
+      location.pathname.startsWith('/pro')) &&
+    !location.pathname.includes('/settings');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -487,12 +493,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top header */}
-        <header className="sticky top-0 z-30 flex h-[64px] shrink-0 items-center justify-between gap-3 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-4 sm:px-5 shadow-xs backdrop-blur lg:px-6">
-          {/* Left: Mobile hamburger & Live Store Pill */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <button
-              onClick={() => setSidebarOpen(true)}
+        {/* Top header - hidden when merchant is on website builder tab to maximize canvas */}
+        {!isWebsiteBuilder && (
+          <header className="sticky top-0 z-30 flex h-[64px] shrink-0 items-center justify-between gap-3 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-4 sm:px-5 shadow-xs backdrop-blur lg:px-6">
+            {/* Left: Mobile hamburger & Live Store Pill */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5EAF1] text-[#667085] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] md:hidden shrink-0 cursor-pointer"
               aria-label={translate('nav.openMenu')}
             >
@@ -699,10 +706,17 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </div>
           </div>
         </header>
+        )}
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-[#F6F8FC] p-5 sm:p-6 lg:p-8">
-          {children ?? <Outlet />}
+        <main
+          className={
+            isWebsiteBuilder
+              ? 'flex-1 min-h-0 overflow-hidden bg-white p-0'
+              : 'flex-1 overflow-y-auto bg-[#F6F8FC] p-5 sm:p-6 lg:p-8'
+          }
+        >
+          {children ?? <Outlet context={{ setSidebarOpen, isCollapsed, setIsCollapsed }} />}
         </main>
       </div>
     </div>

@@ -282,6 +282,8 @@ export async function initializeDatabase(customEnv?: { DB?: any }): Promise<void
     "ALTER TABLE websites ADD COLUMN draft_config TEXT",
     "ALTER TABLE websites ADD COLUMN draft_sections TEXT",
     "ALTER TABLE websites ADD COLUMN draft_theme TEXT",
+    "ALTER TABLE orders ADD COLUMN ip_address TEXT",
+    "ALTER TABLE customer_sessions ADD COLUMN ip_address TEXT",
     "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR'",
     "ALTER TABLE orders ADD COLUMN subtotal_minor INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE orders ADD COLUMN delivery_fee_minor INTEGER NOT NULL DEFAULT 0",

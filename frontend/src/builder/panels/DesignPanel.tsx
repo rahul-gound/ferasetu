@@ -155,16 +155,16 @@ export default function DesignPanel({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 select-none">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 text-slate-900 select-none">
       {/* Sub-nav: Horizontally scrollable pill tabs with generous touch targets */}
-      <div className="flex items-center overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2.5 gap-2 bg-slate-50/80 dark:bg-slate-950 flex-shrink-0">
+      <div className="flex items-center overflow-x-auto no-scrollbar border-b border-slate-200 px-3 sm:px-4 py-2.5 gap-2 bg-slate-50/80 flex-shrink-0">
         <button
           type="button"
           onClick={() => setActiveSubTab('blocks')}
           className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
             activeSubTab === 'blocks'
-              ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+              ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs ring-2 ring-orange-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
           <Layout size={14} />
@@ -175,8 +175,8 @@ export default function DesignPanel({
           onClick={() => setActiveSubTab('tokens')}
           className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
             activeSubTab === 'tokens'
-              ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+              ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs ring-2 ring-orange-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
           <Palette size={14} />
@@ -187,8 +187,8 @@ export default function DesignPanel({
           onClick={() => setActiveSubTab('components')}
           className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
             activeSubTab === 'components'
-              ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+              ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs ring-2 ring-orange-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
           <Box size={14} />
@@ -199,8 +199,8 @@ export default function DesignPanel({
           onClick={() => setActiveSubTab('icons')}
           className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
             activeSubTab === 'icons'
-              ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+              ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs ring-2 ring-orange-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
           <Sparkles size={14} />
@@ -746,6 +746,7 @@ export default function DesignPanel({
               {/* Quick Retail Palettes */}
               <div className="flex items-center gap-2 flex-wrap pt-1">
                 {[
+                  { label: 'FeraSetu Orange', hex: '#E4572E' },
                   { label: 'Royal Blue', hex: '#2563EB' },
                   { label: 'Forest Green', hex: '#059669' },
                   { label: 'Warm Saffron', hex: '#D97706' },

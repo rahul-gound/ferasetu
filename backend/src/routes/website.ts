@@ -238,6 +238,112 @@ router.patch('/publish', (req: AuthenticatedRequest, res: Response): void => {
   res.json({ published });
 });
 
+// GET /api/website/settings — Fetch SEO, search engine visibility & storefront settings
+router.get('/settings', (req: AuthenticatedRequest, res: Response): void => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+  const website = db.prepare('SELECT * FROM websites WHERE user_id = ?').get(userId) as any;
+
+  let config: any = {};
+  if (website?.config) {
+    try { config = typeof website.config === 'string' ? JSON.parse(website.config) : website.config; } catch {}
+  }
+
+  const storeSlug = user?.subdomain || (user?.hostname ? user.hostname.split('.')[0] : 'store');
+  const defaults = {
+    show_on_google: true,
+    show_on_bing: true,
+    search_engine_indexing: true,
+    auto_sitemap: true,
+    show_on_local_maps: true,
+    show_business_hours: true,
+    meta_title: website?.name || user?.business_name || user?.name || 'Online Store',
+    meta_description: 'Welcome to our official online store. Explore our full catalog with 0% platform markup, fast local delivery, and direct WhatsApp ordering.',
+    keywords: 'online store, kirana, fresh products, fast delivery, local retail',
+    social_share_image: user?.logo_url || '',
+    canonical_url: `https://${storeSlug}.ferasetu.com`,
+    maintenance_mode: false,
+    require_customer_login: false,
+    google_analytics_id: '',
+    facebook_pixel_id: '',
+  };
+
+  const settings = {
+    ...defaults,
+    ...(config.seo || {}),
+    ...(config.settings || {}),
+  };
+
+  res.json({
+    success: true,
+    settings,
+    website_id: website?.id || null,
+    is_published: website ? Boolean(website.is_published) : false,
+    store_url: `https://${storeSlug}.ferasetu.com`,
+  });
+});
+
+// PUT /api/website/settings — Save SEO, search engine visibility & storefront settings
+router.put('/settings', (req: AuthenticatedRequest, res: Response): void => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const updates = req.body || {};
+
+  const existing = db.prepare('SELECT * FROM websites WHERE user_id = ?').get(userId) as any;
+  let config: any = {};
+  if (existing?.config) {
+    try { config = typeof existing.config === 'string' ? JSON.parse(existing.config) : existing.config; } catch {}
+  }
+
+  config.seo = { ...(config.seo || {}), ...updates };
+  config.settings = { ...(config.settings || {}), ...updates };
+
+  if (existing) {
+    db.prepare(`UPDATE websites SET config = ?, updated_at = datetime('now') WHERE user_id = ?`)
+      .run(JSON.stringify(config), userId);
+  } else {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+    const name = updates.meta_title || user?.business_name || user?.name || 'My Store';
+    db.prepare(`
+      INSERT INTO websites (id, user_id, name, template, config, sections, is_published)
+      VALUES (?, ?, ?, 'market', ?, '[]', 1)
+    `).run(uuidv4(), userId, name, JSON.stringify(config));
+  }
+
+  res.json({ success: true, settings: updates });
+});
+
+// POST /api/website/settings — Alias for compatibility
+router.post('/settings', (req: AuthenticatedRequest, res: Response): void => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const updates = req.body || {};
+
+  const existing = db.prepare('SELECT * FROM websites WHERE user_id = ?').get(userId) as any;
+  let config: any = {};
+  if (existing?.config) {
+    try { config = typeof existing.config === 'string' ? JSON.parse(existing.config) : existing.config; } catch {}
+  }
+
+  config.seo = { ...(config.seo || {}), ...updates };
+  config.settings = { ...(config.settings || {}), ...updates };
+
+  if (existing) {
+    db.prepare(`UPDATE websites SET config = ?, updated_at = datetime('now') WHERE user_id = ?`)
+      .run(JSON.stringify(config), userId);
+  } else {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+    const name = updates.meta_title || user?.business_name || user?.name || 'My Store';
+    db.prepare(`
+      INSERT INTO websites (id, user_id, name, template, config, sections, is_published)
+      VALUES (?, ?, ?, 'market', ?, '[]', 1)
+    `).run(uuidv4(), userId, name, JSON.stringify(config));
+  }
+
+  res.json({ success: true, settings: updates });
+});
+
 // Get website templates (5 launch-quality production themes)
 router.get('/templates', (_req: AuthenticatedRequest, res: Response): void => {
   const templates = [

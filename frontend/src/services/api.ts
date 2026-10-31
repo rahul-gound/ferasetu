@@ -301,6 +301,38 @@ async function localGet(url: string) {
     return Promise.resolve(createResponse(website));
   }
 
+  if (path === '/website/settings') {
+    const userId = requireAuth();
+    const website = db.websites.find(w => w.user_id === userId);
+    const user = db.users.find(u => u.id === userId);
+    const slug = user?.subdomain || 'store';
+    const defaults = {
+      show_on_google: true,
+      show_on_bing: true,
+      search_engine_indexing: true,
+      auto_sitemap: true,
+      show_on_local_maps: true,
+      show_business_hours: true,
+      meta_title: website?.name || user?.business_name || user?.name || 'Online Store',
+      meta_description: 'Welcome to our official online store. Explore our full catalog with 0% platform markup, fast local delivery, and direct WhatsApp ordering.',
+      keywords: 'online store, kirana, fresh products, fast delivery, local retail',
+      social_share_image: '',
+      canonical_url: `https://${slug}.ferasetu.com`,
+      maintenance_mode: false,
+      require_customer_login: false,
+      google_analytics_id: '',
+      facebook_pixel_id: '',
+    };
+    const saved = ((website?.config as any)?.seo || (website?.config as any)?.settings || {});
+    return Promise.resolve(createResponse({
+      success: true,
+      settings: { ...defaults, ...saved },
+      website_id: website?.id || null,
+      is_published: website ? Boolean(website.is_published) : false,
+      store_url: `https://${slug}.ferasetu.com`,
+    }));
+  }
+
   if (path === '/builder/draft') {
     const userId = requireAuth();
     const website = db.websites.find(w => w.user_id === userId);
@@ -508,16 +540,138 @@ async function localGet(url: string) {
       conversion_rate: 0,
     };
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const sortedByTotal = orders.slice().sort((a, b) => (b.total || 0) - (a.total || 0));
+    const todayOrders = orders.filter(o => o.created_at && o.created_at.startsWith(todayStr));
+    const todayTopOrder = todayOrders.sort((a, b) => (b.total || 0) - (a.total || 0))[0] || null;
+    const allTimeTopOrder = sortedByTotal[0] || null;
+
+    const distinctBuyers = new Set(orders.map(o => o.customer_phone || o.customer_name)).size;
+    const totalDifferentCustomers = Math.max(distinctBuyers, 18);
+
+    const mockTopOrderToday = todayTopOrder ? {
+      id: todayTopOrder.id,
+      customer_name: todayTopOrder.customer_name,
+      customer_phone: todayTopOrder.customer_phone,
+      total: todayTopOrder.total,
+      created_at: todayTopOrder.created_at,
+      ip_address: (todayTopOrder as any).ip_address || '103.21.244.15',
+      items_count: todayTopOrder.items?.length || 1,
+      status: todayTopOrder.status || 'delivered',
+    } : (allTimeTopOrder ? {
+      id: allTimeTopOrder.id,
+      customer_name: allTimeTopOrder.customer_name,
+      customer_phone: allTimeTopOrder.customer_phone,
+      total: allTimeTopOrder.total,
+      created_at: allTimeTopOrder.created_at,
+      ip_address: (allTimeTopOrder as any).ip_address || '103.21.244.15',
+      items_count: allTimeTopOrder.items?.length || 1,
+      status: allTimeTopOrder.status || 'delivered',
+      is_historical: true,
+    } : {
+      id: 'ord_big_1',
+      customer_name: 'Virendra Singh',
+      customer_phone: '+91 98112 43210',
+      total: 5850,
+      created_at: new Date().toISOString(),
+      ip_address: '103.21.244.15',
+      items_count: 5,
+      status: 'confirmed',
+    });
+
+    const mockMostFrequentVisitor = {
+      identifier: 'visitor_viren_98',
+      display_name: 'Pooja Verma (Frequent Shopper)',
+      visit_count: 18,
+      ip_address: '157.34.120.89',
+      location: 'South Delhi, Delhi, India',
+      device: 'Mobile (Android)',
+      last_visited_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    };
+
+    const mockTopVisitors = [
+      mockMostFrequentVisitor,
+      {
+        identifier: 'visitor_amit_12',
+        display_name: 'Amit Patel',
+        visit_count: 12,
+        ip_address: '49.36.182.204',
+        location: 'Ahmedabad, Gujarat, India',
+        device: 'Desktop (Chrome)',
+        last_visited_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      },
+      {
+        identifier: 'visitor_neha_44',
+        display_name: 'Neha Saxena',
+        visit_count: 9,
+        ip_address: '103.21.244.15',
+        location: 'Bengaluru, Karnataka, India',
+        device: 'Mobile (iPhone)',
+        last_visited_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+      },
+      {
+        identifier: 'visitor_sunil_55',
+        display_name: 'Sunil Rao',
+        visit_count: 7,
+        ip_address: '182.73.190.62',
+        location: 'Mumbai, Maharashtra, India',
+        device: 'Mobile (Android)',
+        last_visited_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
+      }
+    ];
+
+    const customerLogins = {
+      total: 38,
+      today: 11,
+      recent: [
+        { id: 'sess_1', customer_name: 'Pooja Verma', customer_phone: '+91 98201 11223', ip_address: '157.34.120.89', created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
+        { id: 'sess_2', customer_name: 'Amit Patel', customer_phone: '+91 98450 44556', ip_address: '49.36.182.204', created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
+        { id: 'sess_3', customer_name: 'Neha Saxena', customer_phone: '+91 97110 99887', ip_address: '103.21.244.15', created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString() },
+        { id: 'sess_4', customer_name: 'Sunil Rao', customer_phone: '+91 98220 55443', ip_address: '182.73.190.62', created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString() },
+      ]
+    };
+
     return Promise.resolve(createResponse({
       stats: {
         total_revenue: totalRevenue,
         total_orders: totalOrders,
+        different_customers: totalDifferentCustomers,
+        total_visitors: 142,
+        unique_visitors: 96,
+        customer_logins_total: customerLogins.total,
+        customer_logins_today: customerLogins.today,
+        today_orders_count: todayOrders.length,
         pending_orders: pendingOrders,
         low_stock_count: lowStockCount,
         revenue_change: 0,
         orders_change: 0,
       },
       summary,
+      top_order_today: mockTopOrderToday,
+      all_time_top_order: allTimeTopOrder,
+      most_frequent_visitor: mockMostFrequentVisitor,
+      top_visitors: mockTopVisitors,
+      customer_logins: customerLogins,
+      visitors: {
+        total_visitors: 142,
+        unique_visitors: 96,
+        unique_sessions: 96,
+        different_customers_count: totalDifferentCustomers,
+        most_frequent_visitor: mockMostFrequentVisitor,
+        top_visitors: mockTopVisitors,
+        geography: [
+          { location: 'New Delhi, Delhi', count: 48, percentage: 34 },
+          { location: 'Mumbai, Maharashtra', count: 32, percentage: 23 },
+          { location: 'Bengaluru, Karnataka', count: 24, percentage: 17 },
+          { location: 'Ahmedabad, Gujarat', count: 18, percentage: 13 },
+        ],
+        referrers: [
+          { referrer: 'Google Search', count: 68, percentage: 48 },
+          { referrer: 'WhatsApp Store Link', count: 42, percentage: 30 },
+          { referrer: 'Direct / Bookmark', count: 22, percentage: 15 },
+          { referrer: 'Bing Search', count: 10, percentage: 7 },
+        ]
+      },
       revenue_chart: buildRevenueChart(orders, 30),
       recent_orders: orders
         .slice()
@@ -555,9 +709,111 @@ async function localGet(url: string) {
       });
     });
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const sortedByTotal = orders.slice().sort((a, b) => (b.total || 0) - (a.total || 0));
+    const todayOrders = orders.filter(o => o.created_at && o.created_at.startsWith(todayStr));
+    const todayTopOrder = todayOrders.sort((a, b) => (b.total || 0) - (a.total || 0))[0] || null;
+    const allTimeTopOrder = sortedByTotal[0] || null;
+
+    const mockTopOrderToday = todayTopOrder ? {
+      id: todayTopOrder.id,
+      customer_name: todayTopOrder.customer_name,
+      customer_phone: todayTopOrder.customer_phone,
+      total: todayTopOrder.total,
+      created_at: todayTopOrder.created_at,
+      ip_address: (todayTopOrder as any).ip_address || '103.21.244.15',
+      items_count: todayTopOrder.items?.length || 1,
+      status: todayTopOrder.status || 'delivered',
+    } : (allTimeTopOrder ? {
+      id: allTimeTopOrder.id,
+      customer_name: allTimeTopOrder.customer_name,
+      customer_phone: allTimeTopOrder.customer_phone,
+      total: allTimeTopOrder.total,
+      created_at: allTimeTopOrder.created_at,
+      ip_address: (allTimeTopOrder as any).ip_address || '103.21.244.15',
+      items_count: allTimeTopOrder.items?.length || 1,
+      status: allTimeTopOrder.status || 'delivered',
+      is_historical: true,
+    } : {
+      id: 'ord_big_1',
+      customer_name: 'Virendra Singh',
+      customer_phone: '+91 98112 43210',
+      total: 5850,
+      created_at: new Date().toISOString(),
+      ip_address: '103.21.244.15',
+      items_count: 5,
+      status: 'confirmed',
+    });
+
+    const mockMostFrequentVisitor = {
+      identifier: 'visitor_viren_98',
+      display_name: 'Pooja Verma (Frequent Shopper)',
+      visit_count: 18,
+      ip_address: '157.34.120.89',
+      location: 'South Delhi, Delhi, India',
+      device: 'Mobile (Android)',
+      last_visited_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    };
+
+    const mockTopVisitors = [
+      mockMostFrequentVisitor,
+      {
+        identifier: 'visitor_amit_12',
+        display_name: 'Amit Patel',
+        visit_count: 12,
+        ip_address: '49.36.182.204',
+        location: 'Ahmedabad, Gujarat, India',
+        device: 'Desktop (Chrome)',
+        last_visited_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      },
+      {
+        identifier: 'visitor_neha_44',
+        display_name: 'Neha Saxena',
+        visit_count: 9,
+        ip_address: '103.21.244.15',
+        location: 'Bengaluru, Karnataka, India',
+        device: 'Mobile (iPhone)',
+        last_visited_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+      },
+      {
+        identifier: 'visitor_sunil_55',
+        display_name: 'Sunil Rao',
+        visit_count: 7,
+        ip_address: '182.73.190.62',
+        location: 'Mumbai, Maharashtra, India',
+        device: 'Mobile (Android)',
+        last_visited_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
+      }
+    ];
+
+    const customerLogins = {
+      total: 38,
+      today: 11,
+      recent: [
+        { id: 'sess_1', customer_name: 'Pooja Verma', customer_phone: '+91 98201 11223', ip_address: '157.34.120.89', created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
+        { id: 'sess_2', customer_name: 'Amit Patel', customer_phone: '+91 98450 44556', ip_address: '49.36.182.204', created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
+        { id: 'sess_3', customer_name: 'Neha Saxena', customer_phone: '+91 97110 99887', ip_address: '103.21.244.15', created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString() },
+        { id: 'sess_4', customer_name: 'Sunil Rao', customer_phone: '+91 98220 55443', ip_address: '182.73.190.62', created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString() },
+      ]
+    };
+
     return Promise.resolve(createResponse({
       sales: buildRevenueChart(recentOrders, days),
       category_breakdown: Array.from(categoryMap.values()),
+      different_customers: 18,
+      most_frequent_visitor: mockMostFrequentVisitor,
+      top_visitors: mockTopVisitors,
+      top_order_today: mockTopOrderToday,
+      all_time_top_order: allTimeTopOrder,
+      customer_logins: customerLogins,
+      visitors: {
+        total_visitors: 142,
+        unique_visitors: 96,
+        unique_sessions: 96,
+        different_customers_count: 18,
+        most_frequent_visitor: mockMostFrequentVisitor,
+        top_visitors: mockTopVisitors,
+      }
     }));
   }
 
@@ -1515,6 +1771,34 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     return Promise.resolve(createResponse({ success: true, message: 'Test email dispatched successfully' }));
   }
 
+  if (path === '/website/settings') {
+    const userId = requireAuth();
+    let website = db.websites.find(w => w.user_id === userId);
+    if (!website) {
+      website = {
+        id: createId(),
+        user_id: userId,
+        name: payload.meta_title || 'My Store',
+        template: 'market',
+        sections: [],
+        config: {},
+        is_published: 1,
+        created_at: now(),
+        updated_at: now(),
+      };
+      db.websites.push(website);
+    }
+    const currentConfig = (website.config as any) || {};
+    website.config = {
+      ...currentConfig,
+      seo: { ...(currentConfig.seo || {}), ...payload },
+      settings: { ...(currentConfig.settings || {}), ...payload },
+    };
+    website.updated_at = now();
+    saveDb(db);
+    return Promise.resolve(createResponse({ success: true, settings: payload }));
+  }
+
   throw createHttpError(404, `Unknown POST endpoint: ${path}`);
 }
 
@@ -1618,6 +1902,34 @@ async function localPut(url: string, payload: Record<string, any>) {
     localStorage.setItem('fera_local_smtp', JSON.stringify(updated));
     const { password, ...publicSettings } = updated;
     return Promise.resolve(createResponse({ success: true, settings: publicSettings }));
+  }
+
+  if (path === '/website/settings') {
+    const userId = requireAuth();
+    let website = db.websites.find(w => w.user_id === userId);
+    if (!website) {
+      website = {
+        id: createId(),
+        user_id: userId,
+        name: payload.meta_title || 'My Store',
+        template: 'market',
+        sections: [],
+        config: {},
+        is_published: 1,
+        created_at: now(),
+        updated_at: now(),
+      };
+      db.websites.push(website);
+    }
+    const currentConfig = (website.config as any) || {};
+    website.config = {
+      ...currentConfig,
+      seo: { ...(currentConfig.seo || {}), ...payload },
+      settings: { ...(currentConfig.settings || {}), ...payload },
+    };
+    website.updated_at = now();
+    saveDb(db);
+    return Promise.resolve(createResponse({ success: true, settings: payload }));
   }
 
   throw createHttpError(404, `Unknown PUT endpoint: ${path}`);

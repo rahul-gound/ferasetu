@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
@@ -93,7 +93,7 @@ export default function SupportPage() {
             .animate-panel { animation: fadeIn 0.35s ease both; }
             .chat-bubble { animation: fadeUp 0.35s ease both; }
             .cta-button { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-            .cta-button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25); }
+            .cta-button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(249, 115, 22, 0.28); }
             @media (max-width: 640px) {
               .support-container { padding: 16px; height: calc(100vh - 80px); }
               .ticket-header { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -103,53 +103,110 @@ export default function SupportPage() {
             <ChevronLeft size={20} /> Back to Support Center
          </button>
 
-          <div className="animate-panel" style={{ background: '#fff', borderRadius: '20px', border: '1px solid #E5E7EB', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.08)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div className="ticket-header" style={{ padding: '20px 24px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F9FAFB' }}>
+          <div className="animate-panel" style={{ background: '#fff', borderRadius: '24px', border: '1px solid #E2E8F0', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.06)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="ticket-header" style={{ padding: '20px 28px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAFA' }}>
                 <div>
-                  <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>{selectedTicket.subject}</h2>
-                  <span style={{ fontSize: '12px', color: '#94A3B8' }}>Created on {new Date(selectedTicket.created_at).toLocaleDateString()}</span>
+                  <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>{selectedTicket.subject}</h2>
+                  <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 500 }}>Ticket ID: #{String(selectedTicket.id).slice(0, 8)} • Created {new Date(selectedTicket.created_at).toLocaleDateString()}</span>
                 </div>
-                <span style={{ background: selectedTicket.status === 'open' ? '#FEE2E2' : selectedTicket.status === 'in_progress' ? '#DBEAFE' : '#DCFCE7', color: selectedTicket.status === 'open' ? '#B91C1C' : selectedTicket.status === 'in_progress' ? '#1D4ED8' : '#166534', padding: '6px 14px', borderRadius: '999px', fontSize: '12px', fontWeight: 800 }}>
+                <span style={{ background: selectedTicket.status === 'open' ? '#FEF2F2' : selectedTicket.status === 'in_progress' ? '#FFF7ED' : '#F0FDF4', color: selectedTicket.status === 'open' ? '#DC2626' : selectedTicket.status === 'in_progress' ? '#EA580C' : '#16A34A', border: selectedTicket.status === 'open' ? '1px solid #FECACA' : selectedTicket.status === 'in_progress' ? '1px solid #FFEDD5' : '1px solid #DCFCE7', padding: '6px 14px', borderRadius: '999px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.04em' }}>
                   {selectedTicket.status.replace('_', ' ').toUpperCase()}
                 </span>
              </div>
 
-            <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-               {/* Original Issue */}
-                <div className="chat-bubble" style={{ alignSelf: 'flex-start', maxWidth: '90%', background: '#fff', padding: '16px', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontWeight: 800, fontSize: '12px', color: '#64748B', marginBottom: '4px' }}>ORIGINAL ISSUE</div>
-                  <div style={{ fontSize: '14px', color: '#1E293B', lineHeight: 1.6 }}>{selectedTicket.description}</div>
+            <div style={{ flex: 1, padding: '28px', overflowY: 'auto', background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+               {/* Original Issue - User on Left */}
+                <div className="chat-bubble" style={{ alignSelf: 'flex-start', maxWidth: '85%', background: '#FFFFFF', padding: '18px 22px', borderRadius: '20px 20px 20px 4px', border: '1px solid #E2E8F0', boxShadow: '0 4px 14px rgba(15, 23, 42, 0.04)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+                    <div style={{ fontWeight: 800, fontSize: '11px', color: '#64748B', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <User size={13} strokeWidth={2.2} />
+                      <span>You (Shopkeeper) • Initial Query</span>
+                    </div>
+                    <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600 }}>{new Date(selectedTicket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#1E293B', lineHeight: 1.6, fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{selectedTicket.description}</div>
                </div>
 
-                {replies.map((reply: any, index: number) => (
-                  <div key={reply.id} className="chat-bubble" style={{ 
-                    alignSelf: reply.sender_role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '90%',
-                    background: reply.sender_role === 'user' ? '#2563EB' : '#111827',
-                    color: '#fff',
-                    padding: '16px',
-                    borderRadius: reply.sender_role === 'user' ? '16px 16px 6px 16px' : '16px 16px 16px 6px',
-                    animationDelay: `${Math.min(index * 0.04, 0.28)}s`
-                  }}>
-                    <div style={{ fontSize: '10px', opacity: 0.8, fontWeight: 700, marginBottom: '4px', textTransform: 'uppercase' }}>
-                      {reply.sender_role === 'user' ? 'You' : 'Admin Team'}
+                {replies.map((reply: any, index: number) => {
+                  const isTeam = reply.sender_role === 'admin' || reply.sender_role === 'team' || reply.sender_role === 'support' || reply.sender_role === 'agent';
+                  return (
+                    <div 
+                      key={reply.id || index} 
+                      className="chat-bubble" 
+                      style={{ 
+                        alignSelf: isTeam ? 'flex-end' : 'flex-start',
+                        maxWidth: '85%',
+                        background: isTeam 
+                          ? 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' 
+                          : '#FFFFFF',
+                        color: isTeam ? '#FFFFFF' : '#0F172A',
+                        border: isTeam ? 'none' : '1px solid #E2E8F0',
+                        padding: '18px 22px',
+                        borderRadius: isTeam ? '22px 22px 4px 22px' : '22px 22px 22px 4px',
+                        boxShadow: isTeam 
+                          ? '0 10px 24px -4px rgba(249, 115, 22, 0.38), 0 2px 6px rgba(249, 115, 22, 0.18)' 
+                          : '0 4px 14px rgba(15, 23, 42, 0.04)',
+                        animationDelay: `${Math.min(index * 0.04, 0.28)}s`
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '8px' }}>
+                        <div style={{ 
+                          fontSize: '11px', 
+                          fontWeight: 800, 
+                          letterSpacing: '0.04em', 
+                          textTransform: 'uppercase',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: isTeam ? '#FFF7ED' : '#64748B'
+                        }}>
+                          {isTeam ? (
+                            <>
+                              <LifeBuoy size={13} strokeWidth={2.2} />
+                              <span>FeraSetu Support Team</span>
+                            </>
+                          ) : (
+                            <>
+                              <User size={13} strokeWidth={2.2} />
+                              <span>You (Shopkeeper)</span>
+                            </>
+                          )}
+                        </div>
+                        <span style={{ 
+                          fontSize: '10px', 
+                          fontWeight: 600, 
+                          color: isTeam ? 'rgba(255, 255, 255, 0.85)' : '#94A3B8' 
+                        }}>
+                          {reply.created_at ? new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                      <div style={{ 
+                        fontSize: '14px', 
+                        lineHeight: 1.6, 
+                        fontWeight: 500,
+                        color: isTeam ? '#FFFFFF' : '#1E293B',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}>
+                        {reply.content}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '14px', lineHeight: 1.5 }}>{reply.content}</div>
-                    <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '4px', textAlign: 'right' }}>{new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                  </div>
-               ))}
+                  );
+                })}
                <div ref={scrollRef} />
             </div>
 
             {selectedTicket.status !== 'resolved' ? (
-              <form onSubmit={handleSendReply} style={{ padding: '16px 20px', background: '#fff', borderTop: '1px solid #F1F5F9', display: 'flex', gap: '12px' }}>
+              <form onSubmit={handleSendReply} style={{ padding: '18px 24px', background: '#fff', borderTop: '1px solid #F1F5F9', display: 'flex', gap: '12px', alignItems: 'center' }}>
                  <input 
-                   placeholder="Type a message..." 
+                   placeholder="Type your reply here..." 
                    value={replyText}
                    onChange={e => setReplyText(e.target.value)}
-                   style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid #D1D5DB', outline: 'none' }}
+                   style={{ flex: 1, padding: '14px 18px', borderRadius: '14px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', background: '#F8FAFC' }}
+                   onFocus={(e) => { e.currentTarget.style.borderColor = '#F97316'; e.currentTarget.style.background = '#FFFFFF'; }}
+                   onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#F8FAFC'; }}
                   />
-                 <button className="cta-button" style={{ background: '#2563EB', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                 <button className="cta-button" type="submit" disabled={!replyText.trim()} style={{ background: replyText.trim() ? '#F97316' : '#CBD5E1', color: '#fff', border: 'none', padding: '14px 22px', borderRadius: '14px', fontWeight: 700, cursor: replyText.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Send size={18} />
                   </button>
                </form>

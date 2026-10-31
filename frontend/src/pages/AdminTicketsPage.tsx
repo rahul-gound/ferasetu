@@ -63,7 +63,7 @@ export default function AdminTicketsPage() {
       setReplyText('');
       toast.success('Reply sent');
       fetchTickets(); // Refresh list
-      // Optionally re-fetch replies if endpoint exists
+      fetchReplies(selectedTicket.id);
     } catch (err) {
       toast.error('Failed to send reply');
     }
@@ -165,26 +165,44 @@ export default function AdminTicketsPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50/30">
-                {/* Initial Issue */}
+                {/* Initial Issue - User on Left */}
                 <div className="flex justify-start">
-                  <div className="max-w-[80%] bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-50 pb-2">Initial Description</div>
-                    <div className="text-sm text-slate-700 leading-relaxed font-medium">{selectedTicket.description}</div>
+                  <div className="max-w-[80%] bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-50 pb-2 flex items-center justify-between gap-4">
+                      <span className="flex items-center gap-1.5"><User size={12} strokeWidth={2.2} /> {selectedTicket.user_name || 'Shopkeeper'} • Initial Query</span>
+                      <span className="font-normal">{new Date(selectedTicket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{selectedTicket.description}</div>
                   </div>
                 </div>
 
-                {replies.map((r, i) => (
-                  <div key={i} className={`flex ${r.sender_role === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`
-                      max-w-[80%] p-4 rounded-2xl text-sm font-medium shadow-sm
-                      ${r.sender_role === 'admin' 
-                        ? 'bg-slate-900 text-white rounded-tr-none' 
-                        : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'}
-                    `}>
-                      {r.content}
+                {replies.map((r, i) => {
+                  const isTeam = r.sender_role === 'admin' || r.sender_role === 'team' || r.sender_role === 'support' || r.sender_role === 'agent';
+                  return (
+                    <div key={r.id || i} className={`flex ${isTeam ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`
+                        max-w-[80%] p-5 rounded-2xl text-sm font-medium shadow-sm
+                        ${isTeam 
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-tr-none shadow-md shadow-orange-500/20' 
+                          : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'}
+                      `}>
+                        <div className="flex items-center justify-between gap-4 mb-2 text-[10px] font-black uppercase tracking-wider">
+                          <span className={`flex items-center gap-1.5 ${isTeam ? 'text-orange-100' : 'text-slate-400'}`}>
+                            {isTeam ? (
+                              <><LifeBuoy size={12} strokeWidth={2.2} /> Support Team (You)</>
+                            ) : (
+                              <><User size={12} strokeWidth={2.2} /> {selectedTicket.user_name || 'Shopkeeper'}</>
+                            )}
+                          </span>
+                          <span className={isTeam ? 'text-orange-100/80 font-normal' : 'text-slate-400 font-normal'}>
+                            {r.created_at ? new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                        <div className="leading-relaxed whitespace-pre-wrap">{r.content}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={scrollRef} />
               </div>
 

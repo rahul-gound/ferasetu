@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Eye, MessageCircle, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Eye, MessageCircle, ArrowRight, Plus, Minus } from 'lucide-react';
 import type { ShopProduct } from '../../types/template';
 import type { CardVariant } from '../theme/themeTypes';
 import { useStorefront } from '../runtime/StorefrontProvider';
@@ -18,8 +18,27 @@ export default function ProductCard({
   variant = 'clean',
   showStock = true,
 }: ProductCardProps) {
-  const { addToCart, openProductModal, openWhatsAppInquiry } = useStorefront();
+  const {
+    cart,
+    addToCart,
+    updateCartQuantity,
+    removeFromCart,
+    openProductModal,
+    openWhatsAppInquiry,
+  } = useStorefront();
   const [isHovered, setIsHovered] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const cartItem = cart?.find((item) => item.product.id === product.id);
+  const quantityInCart = cartItem?.quantity || 0;
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
 
   const price = product.price;
   const salePrice = product.sale_price;
@@ -324,11 +343,23 @@ export default function ProductCard({
     <div
       role="group"
       aria-label={title}
-      className="group relative flex flex-col bg-white rounded-[var(--theme-radius-card)] overflow-hidden border border-[var(--theme-color-border)] shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 cursor-pointer"
+      className="group relative flex flex-col bg-white rounded-[var(--theme-radius-card)] overflow-hidden border border-[var(--theme-color-border)] shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 cursor-pointer"
       onClick={() => openProductModal(product)}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
+      {/* React Bits pointer-following spotlight */}
       <div
-        className="relative w-full overflow-hidden bg-slate-50 border-b border-slate-100"
+        className="pointer-events-none absolute -inset-px transition-opacity duration-300 z-0 hidden md:block"
+        style={{
+          opacity: isHovered ? 1 : 0,
+          background: `radial-gradient(320px circle at ${mousePos.x}px ${mousePos.y}px, rgba(37, 99, 235, 0.06), transparent 80%)`,
+        }}
+      />
+
+      <div
+        className="relative w-full overflow-hidden bg-slate-50 border-b border-slate-100 z-10"
         style={{ aspectRatio: '1/1' }}
       >
         <img
@@ -336,19 +367,19 @@ export default function ProductCard({
           alt={title}
           loading="lazy"
           onError={(e) => handleImageFallback(e, product.name)}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
         {/* Discount Badge */}
         {hasSale && (
-          <div className="absolute top-2.5 left-2.5 bg-red-600 text-white font-black text-[11px] px-2 py-0.5 rounded shadow-sm">
+          <div className="absolute top-2.5 left-2.5 bg-red-600 text-white font-black text-[11px] px-2 py-0.5 rounded shadow-sm z-20">
             {discount}% OFF
           </div>
         )}
 
         {/* Stock Badge */}
         {showStock && (
-          <div className="absolute top-2.5 right-2.5">
+          <div className="absolute top-2.5 right-2.5 z-20">
             {isOutOfStock ? (
               <span className="bg-slate-700 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">
                 Out of Stock
@@ -362,11 +393,11 @@ export default function ProductCard({
         )}
       </div>
 
-      <div className="p-3.5 flex flex-col flex-1">
+      <div className="p-3.5 sm:p-4 flex flex-col flex-1 z-10">
         <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
           {category}
         </div>
-        <h3 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug mb-2 min-h-[38px]">
+        <h3 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug mb-2 min-h-[38px] group-hover:text-[var(--theme-color-primary,#0F172A)] transition-colors">
           {title}
         </h3>
 
@@ -381,28 +412,61 @@ export default function ProductCard({
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100">
-          <button
-            type="button"
-            disabled={isOutOfStock}
-            onClick={(e) => {
-              e.stopPropagation();
-              addToCart(product);
-            }}
-            className="flex items-center justify-center gap-1.5 text-xs font-bold py-2 px-3 rounded bg-[var(--theme-color-primary)] text-white hover:bg-[var(--theme-color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ShoppingBag size={13} /> Cart
-          </button>
+        {/* Action Buttons with 48px touch ergonomics & in-card quantity stepper */}
+        <div className="mt-auto grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+          {quantityInCart > 0 ? (
+            <div
+              className="min-h-[44px] flex items-center justify-between bg-slate-900 text-white rounded-xl px-2.5 py-1 select-none shadow-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label="Decrease quantity"
+                onClick={() => {
+                  if (quantityInCart <= 1) {
+                    removeFromCart(product.id);
+                  } else {
+                    updateCartQuantity(product.id, quantityInCart - 1);
+                  }
+                }}
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/20 rounded-lg active:scale-90 transition-transform"
+              >
+                <Minus size={15} />
+              </button>
+              <span className="text-xs font-black tracking-tight">{quantityInCart}</span>
+              <button
+                type="button"
+                aria-label="Increase quantity"
+                disabled={product.stock_quantity > 0 && quantityInCart >= product.stock_quantity}
+                onClick={() => addToCart(product)}
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/20 rounded-lg active:scale-90 transition-transform disabled:opacity-30"
+              >
+                <Plus size={15} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isOutOfStock}
+              onClick={(e) => {
+                e.stopPropagation();
+                addToCart(product);
+              }}
+              className="min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 px-3 rounded-xl bg-[var(--theme-color-primary,#0F172A)] text-white hover:opacity-90 active:scale-[0.97] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              <ShoppingBag size={14} /> Add
+            </button>
+          )}
+
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               openWhatsAppInquiry(product);
             }}
-            className="flex items-center justify-center gap-1.5 text-xs font-bold py-2 px-2 rounded border border-emerald-600 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/70 transition-colors"
+            className="min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 px-2 rounded-xl border border-emerald-600/40 text-emerald-800 bg-emerald-50/70 hover:bg-emerald-100/90 active:scale-[0.97] transition-all"
           >
-            <MessageCircle size={13} className="text-emerald-600" /> WhatsApp
+            <MessageCircle size={14} className="text-emerald-600" /> WhatsApp
           </button>
         </div>
       </div>

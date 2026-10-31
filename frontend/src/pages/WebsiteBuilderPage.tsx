@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -27,6 +28,7 @@ import {
   Link2,
   Image as ImageIconLucide,
   Wand2,
+  Menu,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -125,6 +127,7 @@ export default function WebsiteBuilderPage() {
   const { user } = useAuth();
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
+  const outletContext = (useOutletContext<{ setSidebarOpen?: (open: boolean) => void }>() || {});
 
   const [activeTab, setActiveTab] = useState<UnifiedTab>('design');
   const [deviceView, setDeviceView] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -350,7 +353,37 @@ export default function WebsiteBuilderPage() {
     newSections.splice(index + 1, 0, duplicated);
     setSections(newSections);
     setSelectedSectionId(duplicated.id);
-    toast.success('Section duplicated');
+    toast.success(`Duplicated ${existing.type} section`);
+  };
+
+  // Cursor Drag-and-Drop Insert Handler for Preview Canvas
+  const handleInsertSectionAt = (index: number, type: string, customConfig?: any) => {
+    let cleanType = type;
+    if (cleanType.startsWith('primitive.button') || cleanType === 'button') {
+      cleanType = 'hero';
+      customConfig = { ...(customConfig || {}), ctaText: customConfig?.text || 'Explore Products' };
+    } else if (cleanType.startsWith('primitive.card') || cleanType === 'spotlight-card' || cleanType === 'bento-card') {
+      cleanType = 'bento-grid';
+    } else if (cleanType === 'marquee-ticker') {
+      cleanType = 'marquee';
+    }
+
+    const newSection: StorefrontSection = {
+      id: `${cleanType}-${Date.now()}`,
+      type: cleanType as any,
+      variant: 'clean',
+      enabled: true,
+      config: customConfig ? { ...customConfig } : {},
+    };
+
+    setSections((prev) => {
+      const next = [...prev];
+      const insertIdx = Math.max(0, Math.min(index, next.length));
+      next.splice(insertIdx, 0, newSection);
+      return next;
+    });
+    setSelectedSectionId(newSection.id);
+    toast.success(`Added ${newSection.type.replace(/-/g, ' ')} block to canvas`);
   };
 
   const handleBindWorkflow = (nodeId: string, workflowId: string) => {
@@ -507,23 +540,34 @@ export default function WebsiteBuilderPage() {
   const liveUrl = getStorefrontUrl(user);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden bg-slate-100 text-slate-900 font-sans">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-slate-50 text-slate-900 font-sans">
       {/* Top Cockpit Navigation Bar */}
-      <div className="bg-white border-b border-slate-200 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 flex-shrink-0 shadow-xs z-30">
+      <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-6 flex-shrink-0 shadow-xs z-30">
         {/* Left Branding & Shop Name */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-sm flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          {outletContext.setSidebarOpen && (
+            <button
+              type="button"
+              onClick={() => outletContext.setSidebarOpen?.(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 md:hidden shrink-0 cursor-pointer shadow-2xs transition-colors"
+              aria-label="Open sidebar menu"
+              title="Open menu"
+            >
+              <Menu size={18} />
+            </button>
+          )}
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white flex items-center justify-center font-black text-sm shadow-sm shadow-orange-500/25 flex-shrink-0 ring-1 ring-orange-400/30">
             FS
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="text-xs sm:text-sm font-bold text-slate-900 truncate max-w-[100px] xs:max-w-[140px] sm:max-w-[200px] md:max-w-xs">
-                {shopName || 'Website Builder'}
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+              <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[110px] xs:max-w-[150px] sm:max-w-[220px] md:max-w-xs">
+                {shopName || user?.business_name || user?.name || 'Himmat'}
               </h1>
-              <span className="hidden sm:inline-flex text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                {activeThemeDef.name}
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-200/90 tracking-wide shadow-2xs">
+                Theme: <span className="font-extrabold">{activeThemeDef.name}</span>
               </span>
-              <span className="hidden md:inline-flex text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="hidden md:inline-flex text-[11px] font-mono font-semibold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
                 v{currentVersion}
               </span>
             </div>
@@ -531,13 +575,13 @@ export default function WebsiteBuilderPage() {
         </div>
 
         {/* Center: Mobile Segmented Mode Switcher (Editor vs Preview) */}
-        <div className="flex lg:hidden items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="flex lg:hidden items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             type="button"
             onClick={() => setMobileMode('controls')}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
               mobileMode === 'controls'
-                ? 'bg-white text-slate-900 shadow-xs'
+                ? 'bg-white text-orange-600 shadow-xs border border-orange-100'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -549,7 +593,7 @@ export default function WebsiteBuilderPage() {
             onClick={() => setMobileMode('preview')}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
               mobileMode === 'preview'
-                ? 'bg-white text-slate-900 shadow-xs'
+                ? 'bg-white text-orange-600 shadow-xs border border-orange-100'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -559,46 +603,55 @@ export default function WebsiteBuilderPage() {
         </div>
 
         {/* Desktop Device Switcher (Desktop/Tablet/Mobile Simulator) */}
-        <div className="hidden lg:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
+        <div className="hidden lg:flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/90 shadow-2xs gap-1">
           <button
             type="button"
             onClick={() => setDeviceView('desktop')}
-            className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1.5 transition-all ${
-              deviceView === 'desktop' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+              deviceView === 'desktop'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
             }`}
           >
-            <Monitor size={14} /> Desktop
+            <Monitor size={14} className={deviceView === 'desktop' ? 'text-orange-600' : 'text-slate-400'} />
+            <span>Desktop</span>
           </button>
           <button
             type="button"
             onClick={() => setDeviceView('tablet')}
-            className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1.5 transition-all ${
-              deviceView === 'tablet' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+              deviceView === 'tablet'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
             }`}
           >
-            <Tablet size={14} /> Tablet (768px)
+            <Tablet size={14} className={deviceView === 'tablet' ? 'text-orange-600' : 'text-slate-400'} />
+            <span>Tablet (768px)</span>
           </button>
           <button
             type="button"
             onClick={() => setDeviceView('mobile')}
-            className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1.5 transition-all ${
-              deviceView === 'mobile' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+              deviceView === 'mobile'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
             }`}
           >
-            <Smartphone size={14} /> Mobile (375px)
+            <Smartphone size={14} className={deviceView === 'mobile' ? 'text-orange-600' : 'text-slate-400'} />
+            <span>Mobile (375px)</span>
           </button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        {/* Action Buttons: Versions, Save Draft, Publish Live */}
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
           {/* Version History Button */}
           <button
             type="button"
             onClick={() => setIsVersionModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 text-slate-700 transition-all cursor-pointer shadow-2xs"
             title="View publication snapshots and rollback"
           >
-            <History size={13} />
+            <History size={14} className="text-slate-500" />
             <span className="hidden md:inline">Versions</span>
           </button>
 
@@ -607,127 +660,127 @@ export default function WebsiteBuilderPage() {
               href={liveUrl}
               target="_blank"
               rel="noreferrer"
-              className="hidden xl:flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50 transition-colors"
+              className="hidden xl:flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-2 rounded-xl transition-all shadow-2xs"
             >
               <ExternalLink size={13} /> Live Store
             </a>
           )}
 
-          {/* Save Draft Button */}
+          {/* Save Draft Button (Orange / Clean Warm Style - NO BLACK!) */}
           <button
             type="button"
             onClick={handleSaveDraft}
             disabled={savingDraft}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold bg-slate-900 text-white hover:bg-black rounded-lg shadow-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold border border-orange-200/90 bg-orange-50/70 hover:bg-orange-100 text-orange-700 rounded-xl shadow-2xs transition-all disabled:opacity-50 cursor-pointer active:scale-98"
           >
-            <Save size={13} />
+            <Save size={14} className="text-orange-600" />
             <span className="hidden sm:inline">{savingDraft ? 'Saving Draft…' : 'Save Draft'}</span>
             <span className="sm:hidden">{savingDraft ? 'Saving…' : 'Save'}</span>
           </button>
 
-          {/* Publish Store Button */}
+          {/* Publish Store Button (Emerald Green Primary) */}
           <button
             type="button"
             onClick={handlePublish}
             disabled={publishing}
-            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl shadow-xs shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer active:scale-98"
           >
-            <Globe size={13} />
+            <Globe size={14} />
             <span>{publishing ? 'Publishing…' : 'Publish Live'}</span>
           </button>
         </div>
       </div>
 
       {/* Main Studio Workspace (Left Panels + Live Canvas) */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Desktop Left Navigation Icon Strip */}
-        <div className="hidden lg:flex w-16 bg-slate-900 border-r border-slate-800 flex-col items-center py-3 gap-2 flex-shrink-0 z-20">
+      <div className="flex-1 flex overflow-hidden relative min-h-0">
+        {/* Desktop Left Navigation Icon Strip - Clean, Warm & Vibrant with Orange Accents, NO BLACK */}
+        <div className="hidden lg:flex w-[72px] bg-white border-r border-slate-200 flex-col items-center py-4 gap-3 flex-shrink-0 z-20 shadow-xs">
           <button
             type="button"
             onClick={() => setActiveTab('design')}
             title="Design & Style"
-            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'design'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 ring-2 ring-orange-200'
+                : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/80'
             }`}
           >
-            <Palette size={16} />
-            <span className="text-[9px] font-bold">Design</span>
+            <Palette size={18} />
+            <span className="text-[10px] font-bold">Design</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('logic')}
             title="Logic & Declarative Workflows"
-            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'logic'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-200'
+                : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50/80'
             }`}
           >
-            <Zap size={16} />
-            <span className="text-[9px] font-bold">Logic</span>
+            <Zap size={18} />
+            <span className="text-[10px] font-bold">Logic</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('connections')}
             title="Connections & Data"
-            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'connections'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-200'
+                : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50/80'
             }`}
           >
-            <Link2 size={16} />
-            <span className="text-[9px] font-bold">Data</span>
+            <Link2 size={18} />
+            <span className="text-[10px] font-bold">Data</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('assets')}
             title="Assets & Media"
-            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'assets'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-200'
+                : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50/80'
             }`}
           >
-            <ImageIconLucide size={16} />
-            <span className="text-[9px] font-bold">Assets</span>
+            <ImageIconLucide size={18} />
+            <span className="text-[10px] font-bold">Assets</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('ai')}
             title="AI Storefront Generator"
-            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'ai'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-gradient-to-br from-purple-600 to-pink-500 text-white shadow-md shadow-purple-500/30 ring-2 ring-purple-200'
+                : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50/80'
             }`}
           >
-            <Wand2 size={16} />
-            <span className="text-[9px] font-bold">AI</span>
+            <Wand2 size={18} />
+            <span className="text-[10px] font-bold">AI</span>
           </button>
         </div>
 
         {/* Studio Controls Container */}
         {/* On desktop: w-96 flex-shrink-0. On mobile (<lg): full width if mobileMode === 'controls', hidden if mobileMode === 'preview' */}
         <div
-          className={`flex-col h-full overflow-hidden z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 ${
+          className={`flex-col h-full overflow-hidden z-10 bg-white border-r border-slate-200 ${
             mobileMode === 'controls' ? 'flex w-full lg:w-96 flex-shrink-0' : 'hidden lg:flex lg:w-96 flex-shrink-0'
           }`}
         >
-          {/* Mobile Studio Category Tab Bar */}
-          <div className="flex lg:hidden overflow-x-auto no-scrollbar items-center bg-slate-900 px-3 py-2 gap-1.5 flex-shrink-0 border-b border-slate-800">
+          {/* Mobile Studio Category Tab Bar - Crisp White & Color Accents, NO BLACK */}
+          <div className="flex lg:hidden overflow-x-auto no-scrollbar items-center bg-white px-3 py-2.5 gap-2 flex-shrink-0 border-b border-slate-200 shadow-2xs">
             {[
-              { id: 'design', label: 'Design & Style', icon: Palette },
-              { id: 'logic', label: 'Workflows', icon: Zap },
-              { id: 'connections', label: 'Data', icon: Link2 },
-              { id: 'assets', label: 'Assets', icon: ImageIconLucide },
-              { id: 'ai', label: 'AI Generator', icon: Wand2 },
+              { id: 'design', label: 'Design & Style', icon: Palette, activeBg: 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs' },
+              { id: 'logic', label: 'Workflows', icon: Zap, activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs' },
+              { id: 'connections', label: 'Data', icon: Link2, activeBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs' },
+              { id: 'assets', label: 'Assets', icon: ImageIconLucide, activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs' },
+              { id: 'ai', label: 'AI Generator', icon: Wand2, activeBg: 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-xs' },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -738,10 +791,8 @@ export default function WebsiteBuilderPage() {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     isActive
-                      ? tab.id === 'ai'
-                        ? 'bg-purple-600 text-white shadow-xs'
-                        : 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? tab.activeBg
+                      : 'text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80'
                   }`}
                 >
                   <Icon size={14} />
@@ -796,7 +847,7 @@ export default function WebsiteBuilderPage() {
             )}
 
             {activeTab === 'ai' && (
-              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-white dark:bg-slate-900">
+              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-white">
                 <WebsiteAIBuilder
                   websiteId={websiteData?.id || 'new'}
                   shopName={shopName || user?.business_name || 'My Store'}
@@ -819,11 +870,11 @@ export default function WebsiteBuilderPage() {
           </div>
 
           {/* Mobile Bottom Quick-Action Bar */}
-          <div className="p-3 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 lg:hidden flex-shrink-0 shadow-lg">
+          <div className="p-3 bg-white/95 border-t border-slate-200 flex items-center justify-between gap-3 lg:hidden flex-shrink-0 shadow-lg">
             <button
               type="button"
               onClick={() => setMobileMode('preview')}
-              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md active:scale-98 transition-all"
+              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-500/20 active:scale-98 transition-all"
             >
               <Eye size={16} />
               <span>Preview Storefront</span>
@@ -832,9 +883,9 @@ export default function WebsiteBuilderPage() {
               type="button"
               onClick={handleSaveDraft}
               disabled={savingDraft}
-              className="h-12 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 active:scale-98 transition-all disabled:opacity-50"
+              className="h-12 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs border border-orange-200 active:scale-98 transition-all disabled:opacity-50"
             >
-              <Save size={15} />
+              <Save size={15} className="text-orange-600" />
               <span>{savingDraft ? 'Saving…' : 'Save'}</span>
             </button>
           </div>
@@ -843,48 +894,22 @@ export default function WebsiteBuilderPage() {
         {/* Live Canvas Viewport Container */}
         {/* On desktop: flex-1 flex. On mobile (<lg): full width if mobileMode === 'preview', hidden if mobileMode === 'controls' */}
         <div
-          className={`flex-1 overflow-y-auto bg-slate-200/70 p-0 sm:p-4 md:p-6 items-start justify-center ${
-            mobileMode === 'preview' ? 'flex w-full h-full' : 'hidden lg:flex'
+          className={`flex-1 h-full min-h-0 overflow-hidden bg-slate-100/90 dark:bg-slate-950/40 p-3 sm:p-5 md:p-6 lg:p-8 flex items-center justify-center relative ${
+            mobileMode === 'preview' ? 'flex w-full' : 'hidden lg:flex'
           }`}
         >
-          {/* On mobile: edge-to-edge w-full min-h-full. On desktop: deviceView bounded card */}
+          {/* Fixed Storefront Preview Frame / Tab (fixed container, leaves balanced spacing) */}
           <div
-            className={`bg-white transition-all duration-300 flex flex-col ${
-              'w-full min-h-full sm:min-h-0 sm:shadow-2xl sm:rounded-2xl sm:overflow-hidden sm:border sm:border-slate-300/80 ' +
-              (deviceView === 'desktop'
-                ? 'sm:w-full sm:max-w-6xl sm:min-h-[85vh]'
+            className={`bg-white dark:bg-slate-900 transition-all duration-300 flex flex-col h-full max-h-full shadow-2xl rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-800 ${
+              deviceView === 'desktop'
+                ? 'w-full max-w-6xl'
                 : deviceView === 'tablet'
-                ? 'sm:w-[768px] sm:min-h-[85vh]'
-                : 'sm:w-[375px] sm:min-h-[700px]')
+                ? 'w-[768px] max-w-full'
+                : 'w-[390px] max-w-full rounded-3xl border-2 border-slate-300/90 dark:border-slate-700 shadow-2xl'
             }`}
           >
-            {/* Viewport Browser Header Bar */}
-            <div className="bg-slate-100 border-b border-slate-200 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 select-none flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                </div>
-                <div className="bg-white border border-slate-200 rounded-md px-2.5 py-0.5 text-[11px] text-slate-600 font-mono flex items-center gap-1.5 truncate max-w-[190px] sm:max-w-xs">
-                  <span className="text-emerald-600">🔒</span>
-                  <span className="truncate">https://{user?.subdomain || 'yourstore'}.ferasetu.com</span>
-                </div>
-              </div>
-
-              {/* Mobile Back Button in Browser Header */}
-              <button
-                type="button"
-                onClick={() => setMobileMode('controls')}
-                className="lg:hidden text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 flex items-center gap-1"
-              >
-                <Sliders size={12} />
-                <span>Edit</span>
-              </button>
-            </div>
-
-            {/* Live Storefront Renderer */}
-            <div className="flex-1 overflow-x-hidden relative">
+            {/* Live Storefront Renderer - Website scrolls smoothly inside fixed frame */}
+            <div className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative overscroll-contain select-auto">
               <TemplateRenderer
                 theme={selectedThemeId}
                 themeId={selectedThemeId}
@@ -903,6 +928,7 @@ export default function WebsiteBuilderPage() {
                 products={activeProducts}
                 isPreview={true}
                 previewMode={true}
+                showPreviewBanner={false}
                 overrides={overrides}
                 themeOverrides={overrides}
                 onSelectSection={(secId) => {
@@ -914,12 +940,16 @@ export default function WebsiteBuilderPage() {
                 onRemoveSection={(secId) => {
                   handleRemoveSection(secId);
                 }}
+                onReorderSections={handleReorderSections}
+                onInsertSectionAt={handleInsertSectionAt}
+                onUpdateSectionConfig={handleUpdateSectionConfig}
+                onDuplicateSection={handleDuplicateSection}
               />
             </div>
           </div>
 
           {/* Floating Return Button for Mobile Preview */}
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 lg:hidden">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 lg:hidden pointer-events-auto">
             <button
               type="button"
               onClick={() => setMobileMode('controls')}

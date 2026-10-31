@@ -923,3 +923,140 @@ body {
   background: rgba(20, 20, 20, 0.2);
   border-radius: 3px;
 }
+
+/* =========================================================================
+   FeraSetu Visual Builder — Animations & Astryx / React Bits Micro-interactions
+   ========================================================================= */
+
+@keyframes fera-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fera-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fera-scale-up {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fera-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fera-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes fera-pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes fera-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-fera-fade-in {
+  animation: fera-fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fera-slide-up {
+  animation: fera-slide-up 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fera-scale-up {
+  animation: fera-scale-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fera-float {
+  animation: fera-float 4s ease-in-out infinite;
+}
+
+.animate-fera-pulse {
+  animation: fera-pulse-subtle 3s ease-in-out infinite;
+}
+
+.animate-fera-marquee {
+  display: flex;
+  width: max-content;
+  animation: fera-marquee 28s linear infinite;
+}
+.animate-fera-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Astryx & React Bits Shimmer Beam effect */
+.shimmer-badge-beam {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: fera-shimmer 3s infinite linear;
+}
+
+/* Shape framing classes */
+.shape-sharp {
+  border-radius: 0px !important;
+}
+
+.shape-rounded {
+  border-radius: 1rem !important;
+}
+
+.shape-squircle {
+  border-radius: 2rem !important;
+}
+
+.shape-pill {
+  border-radius: 9999px !important;
+}
+
+.shape-circle {
+  border-radius: 9999px !important;
+  aspect-ratio: 1 / 1 !important;
+}
+

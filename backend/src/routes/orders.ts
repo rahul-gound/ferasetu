@@ -222,21 +222,28 @@ router.post('/create',
     const amountPaidMinor = 0;
     const orderId = uuidv4();
 
+    const rawIp = (req.headers['cf-connecting-ip'] as string) ||
+                  (req.headers['x-real-ip'] as string) ||
+                  (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+                  req.socket.remoteAddress ||
+                  '127.0.0.1';
+    const clientIp = (rawIp || '127.0.0.1').replace(/^::ffff:/, '');
+
     db.prepare(`
       INSERT INTO orders (
         id, user_id, customer_name, customer_email, customer_phone, delivery_address,
         delivery_type, items, subtotal, delivery_fee, total, currency,
         subtotal_minor, delivery_fee_minor, total_minor, amount_paid_minor,
         refundable_amount_minor, refunded_amount_minor, notes, payment_status,
-        payment_method, cancellation_status, return_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'none', 'none')
+        payment_method, cancellation_status, return_status, ip_address
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'none', 'none', ?)
     `).run(
       orderId, shopId, customerName, customerEmail || null, customerPhone,
       deliveryAddress || null, deliveryType, JSON.stringify(resolvedItems),
       subtotalDecimal, deliveryFeeDecimal, totalDecimal, currency,
       subtotalMinor, deliveryFeeMinor, totalMinor, amountPaidMinor,
       amountPaidMinor, `Code: ${deliveryCode} | OTP: ${paymentOtp}`,
-      'unpaid', paymentMethod
+      'unpaid', paymentMethod, clientIp
     );
 
     // Generate authoritative immutable Invoice (idempotent)

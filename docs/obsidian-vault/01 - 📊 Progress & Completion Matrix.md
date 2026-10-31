@@ -50,7 +50,7 @@
 ### C. Frontend Web Application (`frontend/`) — **95% DONE**
 - [x] React 19 + Vite 8 scaffold & routing (`frontend/src/App.tsx`) — **100%**
 - [x] 48-region localization dictionary & context (`frontend/src/contexts/LanguageContext.tsx`) — **95%**
-- [x] Visual Store Builder with mobile responsive workspace, segmented Editor/Preview controls, and calm spatial architecture (`frontend/src/builder/`) — **96%**
+- [x] Visual Store Builder with edge-to-edge canvas touching navigation, header auto-suppression, warm orange & color-coded tool strip, and spacious Cockpit bar (`WebsiteBuilderPage.tsx`, `Layout.tsx`, `DesignPanel.tsx`) — **98%**
 - [x] Drag-and-drop & 1-click arrow reordering with Config Inspector (`DesignPanel.tsx`, `WebsiteBuilderPage.tsx`) — **100%**
 - [x] Straight Line (`DividerSection.tsx`) and Interactive Image Banner sections (`ImageBannerSection.tsx`) with non-tech click actions — **100%**
 - [x] Conversational AI Storefront Generator Wizard with doubt clearing, monogram logos, and curated retail sector imagery (`WebsiteAIBuilder.tsx`) — **100%**
@@ -62,6 +62,7 @@
 - [x] Order cancellation irreversible confirmation popup modal with "Back" and "Proceed" controls (`CancelConfirmationModal.tsx`) — **100%**
 - [x] Cross-browser hardware-accelerated smooth scrolling & touch resilience (eliminated Lenis locking in Brave/Helium/Android/Win11, removed GSAP scroll pinning traps, eliminated scroll-loading chunk spinners, added 700ms reveal safety timer, and native touch-action pan-y) — **100%**
 - [x] Standard `shadcn/ui` architecture, `cn()` utility, `@/components/ui/` primitives (Button, Card, Badge, Input, BentoGrid, SpotlightCard), and generous calm spatial design standards — **100%**
+- [x] Shopify-inspired Storefront Floating Cart Bar (Fitts's Law thumb zone), React Bits SpotlightCard pointer illumination, live in-card quantity steppers (`- QTY +`), and category pill product counts (`StorefrontFloatingBar.tsx`, `ProductCard.tsx`, `CategoryGridSection.tsx`) — **100%**
 - [x] Complete SEO & Site Audit Hardening (Trailing-slash canonical normalization, crawlable semantic prerender HTML with H1 headings & 300+ word copy, Schema.org Organization + WebSite JSON-LD, consistent AI bot crawler policy, 0-redirect sitemap) — **100%**
 - [x] Dedicated Admin AI Credits & Shopkeeper Usage Control Center (`AdminAICreditsPage.tsx`, nav sidebar item, dashboard overview card, partners table AI badges) — **100%**
 - [x] Product & Privacy Telemetry Visitor IP Radar (`AdminDashboardPage.tsx`, `worker/analytics/`, `backend/src/routes/admin.ts`, `backend/src/routes/analytics.ts`) displaying real connecting user IP addresses, 1-click IP copy, filter/search bar, top visitor IPs breakdown, and total unique site visitors count with zero identity manufacturing — **100%**
@@ -69,6 +70,7 @@
 - [x] Storefront AI Shopping Concierge section (`AiAssistantSection.tsx`) with recommendation chips, conversation preview, and accessible 1-click "Remove from Section" button integrated into `DesignPanel.tsx` and `TemplateRenderer.tsx` — **100%**
 - [x] Merchant Bell Notification & Updates Center (`FeraSetuUpdatesCenter.tsx`) showcasing platform upgrades, new features, and direct messages from FeraSetu with unread count badges, persistent read state, and full modal dialogs — **100%**
 - [x] Merchant Onboarding Profile Photo capture with Google/GitHub identicon fallback & synthetic machine ID (`user_01...`) removal across workspace header, dropdown, and sidebar (`OnboardingWizardPage.tsx`, `Layout.tsx`, `avatarUtils.ts`) — **100%**
+- [x] Support Ticket Chat Redesign (`SupportPage.tsx`, `AdminTicketsPage.tsx`): Positioned team messages on the right in vibrant FeraSetu warm orange gradient with glowing elevation, placed user messages & original issue on the left with clean high-contrast card styling, verified timestamps and sender tags — **100%**
 - [ ] Offline caching via Service Worker for poor connectivity kiranas — **60%**
 
 
