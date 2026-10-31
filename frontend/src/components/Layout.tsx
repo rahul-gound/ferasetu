@@ -23,10 +23,15 @@ import {
   Settings,
   Zap,
   ArrowUpRight,
+  Users,
+  ExternalLink,
+  Copy,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import SEO from './SEO';
+import FeraSetuUpdatesCenter, { useFeraSetuUpdates } from './notifications/FeraSetuUpdatesCenter';
 import api from '../services/api';
 import type { TranslationKey } from '../i18n/types';
 
@@ -52,7 +57,17 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // FeraSetu Updates & Messages hook
+  const {
+    announcements,
+    unreadCount: unreadUpdatesCount,
+    readIds,
+    markAsRead,
+    markAllAsRead,
+  } = useFeraSetuUpdates();
 
   // Fetch orders count — unified queryKey ['orders'] shared with DashboardPage
   const { data: ordersData } = useQuery<any>({
@@ -80,6 +95,22 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   );
   const totalOrdersCount = ordersList.length;
 
+  // Fetch customer stats for sidebar badge
+  const { data: customersData } = useQuery<any>({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/customers');
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 30000,
+  });
+
+  const totalCustomersCount = customersData?.stats?.total_customers ?? customersData?.customers?.length ?? 0;
+
   // Nav groups: MAIN / GROW / ENGAGE / SETTINGS
   const navGroups: NavGroup[] = useMemo(() => [
     {
@@ -91,6 +122,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           path: '/orders', icon: <ShoppingCart size={17} />, label: 'Orders',
           badge: totalOrdersCount > 0 ? totalOrdersCount : undefined,
           badgeColor: 'orange',
+        },
+        {
+          path: '/customers', icon: <Users size={17} />, label: 'Customers',
+          badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
+          badgeColor: 'blue',
         },
         { path: '/analytics', icon: <BarChart3 size={17} />, label: 'Analytics' },
       ],
@@ -122,7 +158,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         { path: '/settings/email', icon: <Mail size={17} />, label: 'Domains & Email' },
       ],
     },
-  ], [totalOrdersCount, user?.ai_credits_balance]);
+  ], [totalOrdersCount, totalCustomersCount, user?.ai_credits_balance]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -419,20 +455,40 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               <span>Refer & Earn</span>
             </button>
 
-            {/* Notification Bell */}
-            <button
-              onClick={() => navigate('/orders')}
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5EAF1] bg-white text-[#667085] hover:bg-slate-50 transition-colors cursor-pointer"
-              title={pendingOrdersCount > 0 ? `${pendingOrdersCount} pending orders` : 'Orders'}
-              aria-label="View orders"
-            >
-              <Bell size={16} />
-              {pendingOrdersCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E5484D] text-[9px] font-bold text-white shadow">
-                  {pendingOrdersCount}
-                </span>
-              )}
-            </button>
+            {/* FeraSetu Updates & Announcements Bell */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUpdatesOpen(!updatesOpen)}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5EAF1] bg-white text-[#667085] hover:bg-slate-50 hover:text-[#152238] transition-colors cursor-pointer ${
+                  updatesOpen ? 'bg-slate-100 text-[#0052FF] ring-2 ring-blue-100' : ''
+                }`}
+                title={
+                  unreadUpdatesCount > 0
+                    ? `${unreadUpdatesCount} new update${unreadUpdatesCount > 1 ? 's' : ''} from FeraSetu`
+                    : 'FeraSetu updates & messages'
+                }
+                aria-label="View FeraSetu updates and messages"
+                aria-expanded={updatesOpen}
+              >
+                <Bell size={16} />
+                {unreadUpdatesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-[#E5484D] text-[9px] font-bold text-white shadow">
+                    {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
+                  </span>
+                )}
+              </button>
+
+              <FeraSetuUpdatesCenter
+                isOpen={updatesOpen}
+                onClose={() => setUpdatesOpen(false)}
+                unreadCount={unreadUpdatesCount}
+                announcements={announcements}
+                readIds={readIds}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+              />
+            </div>
 
             {/* User Menu */}
             <div className="relative" ref={profileMenuRef}>

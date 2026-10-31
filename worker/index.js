@@ -2371,13 +2371,13 @@ async function getAnalyticsDashboard(request, env) {
 
   const products = rawProducts ?? [];
 
-  const totalOrders = orders.length;
   const nonCancelled = orders.filter(o => o.status !== 'cancelled');
+  const totalOrders = nonCancelled.length;
   const deliveredOrders = orders.filter(o => o.status === 'delivered');
   const totalRevenue = nonCancelled.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
   
   const customerSet = new Set();
-  orders.forEach(o => {
+  nonCancelled.forEach(o => {
     if (o.customer_name) customerSet.add(o.customer_name.trim());
   });
   const totalCustomers = customerSet.size;
@@ -2397,8 +2397,8 @@ async function getAnalyticsDashboard(request, env) {
     const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const ymd = d.toISOString().slice(0, 10);
     
-    const dayOrders = orders.filter(o => (o.created_at || '').startsWith(ymd));
-    const dayRevenue = dayOrders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+    const dayOrders = orders.filter(o => (o.created_at || '').startsWith(ymd) && o.status !== 'cancelled');
+    const dayRevenue = dayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
     
     revenueChart.push({
       date: dateStr,
@@ -7756,12 +7756,90 @@ async function updateOrderStatus(orderId, request, env) {
 
   const now = new Date().toISOString();
   
-  // Get order details before update for email
+  // Get order details before update
   const order = await env.DB.prepare(
     "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
   ).bind(orderId, ctx.organizationId).first();
   
   if (!order) throw new HttpError("Order not found", 404);
+
+  // Invariant: Once an order is cancelled, its status is permanently locked and cannot be changed
+  if (order.status === 'cancelled') {
+    throw new HttpError("Order is cancelled and cannot be changed to another status.", 400);
+  }
+
+  // If transitioning to cancelled, execute complete cancellation flow
+  if (status === 'cancelled') {
+    const reason = (typeof body.reason === 'string' && body.reason.trim()) ? body.reason.trim() : 'Merchant cancelled order';
+    await env.DB.prepare(`
+      UPDATE orders SET
+        status = 'cancelled',
+        cancellation_status = 'cancelled',
+        cancellation_reason = ?,
+        cancelled_at = ?,
+        cancelled_by = 'merchant',
+        updated_at = ?
+      WHERE id = ? AND organization_id = ?
+    `).bind(reason, now, now, orderId, ctx.organizationId).run();
+
+    // Void invoice in D1
+    try {
+      await env.DB.prepare(`
+        UPDATE invoices SET status = 'voided', updated_at = ? WHERE order_id = ? AND organization_id = ?
+      `).bind(now, orderId, ctx.organizationId).run();
+    } catch (invErr) {
+      console.warn("[updateOrderStatus] Void invoice note:", invErr?.message);
+    }
+
+    // Restock inventory for tracked products
+    try {
+      const items = safeParseArray(order.items);
+      for (const item of items) {
+        const prodId = item.productId || item.product_id;
+        const qty = Math.max(1, Math.trunc(Number(item.quantity || 1)));
+        if (prodId) {
+          await env.DB.prepare(`
+            UPDATE products
+            SET stock = stock + ?, stock_quantity = stock_quantity + ?, updated_at = ?
+            WHERE id = ? AND is_inventory_tracked != 0
+          `).bind(qty, qty, now, prodId).run();
+        }
+      }
+    } catch (stockErr) {
+      console.warn("[updateOrderStatus] Restock note:", stockErr?.message);
+    }
+
+    // Send customer cancellation email
+    if (order.customer_email) {
+      try {
+        const storeSlugForSender = ctx.organization?.store_slug || ctx.organizationId;
+        await EmailService.sendCustomerEmail(env, {
+          organizationId: ctx.organizationId,
+          customerEmail: order.customer_email,
+          templateKey: 'order.cancelled',
+          locale: 'en',
+          data: {
+            order_id: orderId,
+            customer_name: order.customer_name || 'Customer',
+            reason,
+            is_refundable: order.payment_status === 'paid'
+          },
+          idempotencyKey: `order_cancelled:${orderId}`,
+          priority: 'HIGH',
+          storeSlug: storeSlugForSender,
+          orgName: ctx.organization?.name || 'Store'
+        });
+      } catch (emailErr) {
+        console.warn(`[updateOrderStatus] Failed to send cancellation email:`, emailErr?.message);
+      }
+    }
+
+    return json({
+      success: true,
+      status: 'cancelled',
+      message: 'Order cancelled, invoice voided, and notification sent.'
+    }, 200, {}, request);
+  }
   
   const previousStatus = order.status;
   
@@ -7775,7 +7853,6 @@ async function updateOrderStatus(orderId, request, env) {
     const templateMap = {
       'shipped': 'order.shipped',
       'delivered': 'order.delivered',
-      'cancelled': 'order.cancelled',
       'accepted': 'order.accepted',
       'rejected': 'order.rejected'
     };
@@ -7805,12 +7882,350 @@ async function updateOrderStatus(orderId, request, env) {
         });
       } catch (emailErr) {
         console.warn(`[updateOrderStatus] Failed to send ${status} email:`, emailErr?.message);
-        // Don't fail the request - email is best effort
       }
     }
   }
 
-  return json({ success: true }, 200, {}, request);
+  return json({ success: true, status }, 200, {}, request);
+}
+
+async function cancelOrder(orderId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await readJsonBody(request);
+  const reason = (typeof body.reason === 'string' && body.reason.trim()) 
+    ? body.reason.trim() 
+    : 'Merchant cancelled order';
+
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).first();
+
+  if (!order) {
+    throw new HttpError("Order not found", 404);
+  }
+
+  if (order.status === 'cancelled') {
+    throw new HttpError("Order is already cancelled. Cancellation is irreversible.", 400);
+  }
+
+  const now = new Date().toISOString();
+
+  await env.DB.prepare(`
+    UPDATE orders SET
+      status = 'cancelled',
+      cancellation_status = 'cancelled',
+      cancellation_reason = ?,
+      cancelled_at = ?,
+      cancelled_by = 'merchant',
+      updated_at = ?
+    WHERE id = ? AND (organization_id = ? OR user_id = ?)
+  `).bind(reason, now, now, orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).run();
+
+  // Void invoice in D1
+  try {
+    await env.DB.prepare(`
+      UPDATE invoices SET status = 'voided', updated_at = ? WHERE order_id = ? AND (organization_id = ? OR user_id = ?)
+    `).bind(now, orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).run();
+  } catch (invErr) {
+    console.warn("[cancelOrder] Void invoice note:", invErr?.message);
+  }
+
+  // Restock inventory for tracked products
+  try {
+    const items = safeParseArray(order.items);
+    for (const item of items) {
+      const prodId = item.productId || item.product_id;
+      const qty = Math.max(1, Math.trunc(Number(item.quantity || 1)));
+      if (prodId) {
+        await env.DB.prepare(`
+          UPDATE products
+          SET stock = stock + ?, stock_quantity = stock_quantity + ?, updated_at = ?
+          WHERE id = ? AND is_inventory_tracked != 0
+        `).bind(qty, qty, now, prodId).run();
+      }
+    }
+  } catch (stockErr) {
+    console.warn("[cancelOrder] Restock note:", stockErr?.message);
+  }
+
+  // Send customer cancellation email via EmailService
+  if (order.customer_email) {
+    try {
+      const storeSlugForSender = ctx.organization?.store_slug || ctx.organizationId;
+      await EmailService.sendCustomerEmail(env, {
+        organizationId: ctx.organizationId,
+        customerEmail: order.customer_email,
+        templateKey: 'order.cancelled',
+        locale: 'en',
+        data: {
+          order_id: orderId,
+          customer_name: order.customer_name || 'Customer',
+          reason,
+          is_refundable: order.payment_status === 'paid'
+        },
+        idempotencyKey: `order_cancelled:${orderId}`,
+        priority: 'HIGH',
+        storeSlug: storeSlugForSender,
+        orgName: ctx.organization?.name || 'Store'
+      });
+    } catch (emailErr) {
+      console.warn("[cancelOrder] Failed to send cancellation email:", emailErr?.message);
+    }
+  }
+
+  const isPaid = order.payment_status === 'paid';
+  const total = Number(order.total || 0);
+  const amountPaidMinor = order.amount_paid_minor ?? (isPaid ? Math.round(total * 100) : 0);
+  const refundedAmountMinor = Number(order.refunded_amount_minor || 0);
+  const remainingRefundableMinor = Math.max(0, amountPaidMinor - refundedAmountMinor);
+
+  return json({
+    success: true,
+    message: "Order cancelled, invoice voided, and notification sent.",
+    order: {
+      id: orderId,
+      status: 'cancelled',
+      cancellation_status: 'cancelled',
+      cancellation_reason: reason,
+      cancelled_at: now,
+      cancelled_by: 'merchant',
+      is_refundable: remainingRefundableMinor > 0,
+      remaining_refundable_minor: remainingRefundableMinor
+    },
+    financials: {
+      totalMinor: order.total_minor ?? Math.round(total * 100),
+      amountPaidMinor,
+      refundedAmountMinor,
+      remainingRefundableMinor,
+      isUnpaidCod: !isPaid,
+      isRefundable: remainingRefundableMinor > 0
+    }
+  }, 200, {}, request);
+}
+
+async function handlePublicCancelOrder(orderId, request, env) {
+  const body = await readJsonBody(request);
+  const phone = String(body.customerPhone || body.customer_phone || body.phone || '').trim();
+  const reason = String(body.reason || 'Customer requested cancellation').trim();
+
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ?"
+  ).bind(orderId).first();
+
+  if (!order) throw new HttpError("Order not found", 404);
+
+  if (phone) {
+    const inputDigits = phone.replace(/\D/g, '');
+    const orderDigits = (order.customer_phone || '').replace(/\D/g, '');
+    if (inputDigits && orderDigits && !orderDigits.endsWith(inputDigits.slice(-10)) && !inputDigits.endsWith(orderDigits.slice(-10))) {
+      throw new HttpError("Phone number does not match order record", 403);
+    }
+  }
+
+  if (order.status === 'cancelled') {
+    throw new HttpError("Order is already cancelled.", 400);
+  }
+
+  if (order.status === 'delivered') {
+    throw new HttpError("Delivered orders cannot be cancelled.", 400);
+  }
+
+  const now = new Date().toISOString();
+  await env.DB.prepare(`
+    UPDATE orders SET
+      status = 'cancelled',
+      cancellation_status = 'cancelled',
+      cancellation_reason = ?,
+      cancelled_at = ?,
+      cancelled_by = 'customer',
+      updated_at = ?
+    WHERE id = ?
+  `).bind(reason, now, now, orderId).run();
+
+  try {
+    await env.DB.prepare("UPDATE invoices SET status = 'voided', updated_at = ? WHERE order_id = ?").bind(now, orderId).run();
+  } catch {}
+
+  // Send customer cancellation email
+  if (order.customer_email) {
+    try {
+      const orgId = order.organization_id || order.user_id;
+      const org = await env.DB.prepare("SELECT store_slug, name FROM organizations WHERE id = ?").bind(orgId).first();
+      await EmailService.sendCustomerEmail(env, {
+        organizationId: orgId,
+        customerEmail: order.customer_email,
+        templateKey: 'order.cancelled',
+        locale: 'en',
+        data: {
+          order_id: orderId,
+          customer_name: order.customer_name || 'Customer',
+          reason,
+          is_refundable: order.payment_status === 'paid'
+        },
+        idempotencyKey: `order_cancelled:${orderId}`,
+        priority: 'HIGH',
+        storeSlug: org?.store_slug || orgId,
+        orgName: org?.name || 'Store'
+      });
+    } catch (emailErr) {
+      console.warn("[handlePublicCancelOrder] Failed to send cancellation email:", emailErr?.message);
+    }
+  }
+
+  return json({
+    success: true,
+    message: "Order has been cancelled successfully.",
+    order: {
+      id: orderId,
+      status: 'cancelled',
+      cancellation_status: 'cancelled'
+    }
+  }, 200, {}, request);
+}
+
+async function getOrderAfterSales(orderId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).first();
+  if (!order) throw new HttpError("Order not found", 404);
+
+  const total = Number(order.total || 0);
+  const isPaid = order.payment_status === 'paid';
+  const amountPaidMinor = order.amount_paid_minor ?? (isPaid ? Math.round(total * 100) : 0);
+  const refundedAmountMinor = Number(order.refunded_amount_minor || 0);
+  const remainingRefundableMinor = Math.max(0, amountPaidMinor - refundedAmountMinor);
+
+  let refunds = [];
+  try {
+    const rRes = await env.DB.prepare("SELECT * FROM refunds WHERE order_id = ? ORDER BY created_at DESC").bind(orderId).all();
+    refunds = rRes?.results || [];
+  } catch {}
+
+  let creditNotes = [];
+  try {
+    const cnRes = await env.DB.prepare("SELECT * FROM credit_notes WHERE order_id = ? ORDER BY created_at DESC").bind(orderId).all();
+    creditNotes = cnRes?.results || [];
+  } catch {}
+
+  let invoice = null;
+  if (order.status !== 'cancelled') {
+    try {
+      invoice = await env.DB.prepare("SELECT * FROM invoices WHERE order_id = ? AND status != 'voided' AND status != 'cancelled'").bind(orderId).first();
+    } catch {}
+  }
+
+  const financials = {
+    totalMinor: order.total_minor ?? Math.round(total * 100),
+    amountPaidMinor,
+    refundedAmountMinor,
+    remainingRefundableMinor,
+    isUnpaidCod: !isPaid,
+    isRefundable: remainingRefundableMinor > 0 && order.status !== 'cancelled'
+  };
+
+  return json({
+    financials,
+    summary: financials,
+    refunds,
+    creditNotes,
+    order: {
+      ...order,
+      items: safeParseArray(order.items)
+    },
+    invoice
+  }, 200, {}, request);
+}
+
+async function refundOrder(orderId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await readJsonBody(request);
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).first();
+  if (!order) throw new HttpError("Order not found", 404);
+
+  const amountMinor = Number(body.amountMinor || body.amount_minor || 0);
+  const reason = String(body.reason || 'Merchant requested refund');
+  const now = new Date().toISOString();
+  const refundId = `ref_${crypto.randomUUID()}`;
+
+  const newRefunded = (Number(order.refunded_amount_minor) || 0) + amountMinor;
+  await env.DB.prepare(`
+    UPDATE orders SET
+      refunded_amount_minor = ?,
+      updated_at = ?
+    WHERE id = ? AND (organization_id = ? OR user_id = ?)
+  `).bind(newRefunded, now, orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).run();
+
+  try {
+    await env.DB.prepare(`
+      INSERT INTO refunds (id, order_id, user_id, organization_id, amount_minor, reason, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'succeeded', ?, ?)
+    `).bind(refundId, orderId, ctx.user?.$id || ctx.organizationId, ctx.organizationId, amountMinor, reason, now, now).run();
+  } catch {}
+
+  return json({
+    success: true,
+    message: "Refund processed successfully.",
+    refund: { id: refundId, order_id: orderId, amount_minor: amountMinor, reason }
+  }, 200, {}, request);
+}
+
+async function issueCreditNote(orderId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await readJsonBody(request);
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).first();
+  if (!order) throw new HttpError("Order not found", 404);
+
+  const reason = String(body.reason || 'Merchant issued credit note');
+  const creditNoteId = `cn_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+
+  try {
+    await env.DB.prepare(`
+      INSERT INTO credit_notes (id, order_id, user_id, organization_id, reason, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'issued', ?, ?)
+    `).bind(creditNoteId, orderId, ctx.user?.$id || ctx.organizationId, ctx.organizationId, reason, now, now).run();
+  } catch {}
+
+  return json({
+    success: true,
+    message: "Credit note issued successfully.",
+    credit_note: { id: creditNoteId, order_id: orderId, reason }
+  }, 200, {}, request);
+}
+
+async function getOrderInvoice(orderId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).first();
+  if (!order) throw new HttpError("Order not found", 404);
+  if (order.status === 'cancelled') {
+    throw new HttpError("Invoices are not available for cancelled orders", 400);
+  }
+  const invoice = await env.DB.prepare(
+    "SELECT * FROM invoices WHERE order_id = ? AND organization_id = ?"
+  ).bind(orderId, ctx.organizationId).first();
+  if (!invoice || invoice.status === 'voided' || invoice.status === 'cancelled') {
+    throw new HttpError("Invoices are not available for cancelled orders", 400);
+  }
+  return json({ invoice }, 200, {}, request);
+}
+
+async function sendOrderInvoice(orderId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const order = await env.DB.prepare(
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).first();
+  if (!order) throw new HttpError("Order not found", 404);
+  if (order.status === 'cancelled') {
+    throw new HttpError("Invoices are not available for cancelled orders", 400);
+  }
+  return json({ success: true, message: "Invoice sent to customer." }, 200, {}, request);
 }
 
 async function updateOrderPayment(orderId, request, env) {
@@ -8183,7 +8598,7 @@ async function upsertInventoryLocation(request, env) {
 async function listInvoices(request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const { results } = await env.DB.prepare(
-    "SELECT * FROM invoices WHERE organization_id = ? ORDER BY created_at DESC"
+    "SELECT * FROM invoices WHERE organization_id = ? AND status != 'voided' AND status != 'cancelled' ORDER BY created_at DESC"
   ).bind(ctx.organizationId).all();
   return json({ invoices: results || [] }, 200, {}, request);
 }
@@ -8195,6 +8610,15 @@ async function getInvoice(idOrNumber, request, env) {
   ).bind(idOrNumber, idOrNumber, ctx.organizationId).first();
   if (!invoice) {
     throw new HttpError("Invoice not found", 404);
+  }
+  if (invoice.status === 'voided' || invoice.status === 'cancelled') {
+    throw new HttpError("Invoices are not available for cancelled orders", 400);
+  }
+  if (invoice.order_id) {
+    const order = await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(invoice.order_id).first();
+    if (order?.status === 'cancelled') {
+      throw new HttpError("Invoices are not available for cancelled orders", 400);
+    }
   }
   return json({ invoice }, 200, {}, request);
 }
@@ -9433,6 +9857,11 @@ async function route(request, env) {
   if (path === "/api/orders/public/track" && method === "GET") {
     return handlePublicTrackOrders(request, env);
   }
+  if (path.startsWith("/api/orders/public/") && path.endsWith("/cancel")) {
+    const id = path.slice("/api/orders/public/".length, -"/cancel".length);
+    if (method === "POST") return handlePublicCancelOrder(id, request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
   if (path === "/api/orders") {
     if (method === "GET") return listOrders(request, env);
     if (method === "POST") return createOrder(request, env);
@@ -9440,6 +9869,11 @@ async function route(request, env) {
   }
   if (path.startsWith("/api/orders/")) {
     const sub = path.slice("/api/orders/".length);
+    if (sub.endsWith("/cancel")) {
+      const id = sub.slice(0, -"/cancel".length);
+      if (method === "POST") return cancelOrder(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
     if (sub.endsWith("/status")) {
       const id = sub.slice(0, -"/status".length);
       if (method === "PATCH") return updateOrderStatus(id, request, env);
@@ -9453,6 +9887,31 @@ async function route(request, env) {
     if (sub.endsWith("/verify-otp")) {
       const id = sub.slice(0, -"/verify-otp".length);
       if (method === "POST") return verifyOrderOtp(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
+    if (sub.endsWith("/refund")) {
+      const id = sub.slice(0, -"/refund".length);
+      if (method === "POST") return refundOrder(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
+    if (sub.endsWith("/credit-notes")) {
+      const id = sub.slice(0, -"/credit-notes".length);
+      if (method === "POST") return issueCreditNote(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
+    if (sub.endsWith("/after-sales")) {
+      const id = sub.slice(0, -"/after-sales".length);
+      if (method === "GET") return getOrderAfterSales(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
+    if (sub.endsWith("/invoice") || sub.endsWith("/invoice/pdf")) {
+      const id = sub.replace(/\/invoice(\/pdf)?$/, "");
+      if (method === "GET") return getOrderInvoice(id, request, env);
+      throw new HttpError("Method not allowed", 405);
+    }
+    if (sub.endsWith("/invoice/send")) {
+      const id = sub.slice(0, -"/invoice/send".length);
+      if (method === "POST") return sendOrderInvoice(id, request, env);
       throw new HttpError("Method not allowed", 405);
     }
     if (method === "GET") {

@@ -649,16 +649,40 @@ router.patch('/users/:id/plan', (req: AdminRequest, res: Response) => {
 
 // --- ANNOUNCEMENTS ---
 
-router.post('/announcements', (req: AdminRequest, res: Response) => {
-  const { title, content, target_plan, expires_at } = req.body;
+router.get('/announcements', (req: Request, res: Response) => {
   const db = getDatabase();
+  const announcements = db.prepare('SELECT * FROM announcements ORDER BY is_pinned DESC, created_at DESC').all();
+  res.json({ announcements });
+});
+
+router.post('/announcements', (req: AdminRequest, res: Response) => {
+  const {
+    title,
+    content,
+    category = 'feature',
+    badge_label = 'New Feature',
+    action_url,
+    action_label,
+    target_plan = 'all',
+    is_pinned = 0,
+    expires_at,
+  } = req.body;
+  const db = getDatabase();
+  const id = uuidv4();
   
   db.prepare(`
-    INSERT INTO announcements (id, title, content, target_plan, expires_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(uuidv4(), title, content, target_plan || 'all', expires_at || null);
+    INSERT INTO announcements (id, title, content, category, badge_label, action_url, action_label, target_plan, is_pinned, is_active, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
+  `).run(id, title, content, category, badge_label, action_url || null, action_label || null, target_plan || 'all', is_pinned ? 1 : 0, expires_at || null);
 
-  writeAuditLog(req, 'announcement.create', 'announcement', undefined, { title, target_plan: target_plan || 'all' });
+  writeAuditLog(req, 'announcement.create', 'announcement', id, { title, category, target_plan: target_plan || 'all' });
+  res.json({ success: true, id });
+});
+
+router.delete('/announcements/:id', (req: AdminRequest, res: Response) => {
+  const db = getDatabase();
+  db.prepare('DELETE FROM announcements WHERE id = ?').run(req.params.id);
+  writeAuditLog(req, 'announcement.delete', 'announcement', req.params.id);
   res.json({ success: true });
 });
 

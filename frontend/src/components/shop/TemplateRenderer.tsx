@@ -18,6 +18,8 @@ import TestimonialsSection from '../../storefront/sections/TestimonialsSection';
 import FAQSection from '../../storefront/sections/FAQSection';
 import NewsletterSection from '../../storefront/sections/NewsletterSection';
 import FooterSection from '../../storefront/sections/FooterSection';
+import DividerSection from '../../storefront/sections/DividerSection';
+import ImageBannerSection from '../../storefront/sections/ImageBannerSection';
 
 // Overlays & Modals
 import ProductDetailModal from '../../storefront/components/ProductDetailModal';
@@ -235,6 +237,16 @@ export default function TemplateRenderer({
 
                   case 'newsletter':
                     return <NewsletterSection key={key} config={config} variant={variant} />;
+
+                  case 'divider':
+                  case 'separator':
+                  case 'line':
+                    return <DividerSection key={key} config={config} variant={variant} />;
+
+                  case 'image-banner':
+                  case 'image-section':
+                  case 'banner-image':
+                    return <ImageBannerSection key={key} config={config} variant={variant} />;
 
                   case 'footer':
                     return (

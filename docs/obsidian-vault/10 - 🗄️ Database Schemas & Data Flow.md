@@ -31,6 +31,7 @@ erDiagram
 | **Website Drafts** | D1 Edge SQL | `id`, `organization_id`, `user_id`, `draft_data`, `version`, `updated_at` |
 | **Website Versions** | D1 Edge SQL | `id`, `organization_id`, `version_number`, `snapshot_data`, `published_at` |
 | **Website Connections** | D1 Edge SQL | `id`, `organization_id`, `connection_type`, `config_json`, `secrets_encrypted` |
+| **Announcements & Updates** | D1 Edge SQL / Core DB | `id`, `title`, `content`, `category`, `badge_label`, `action_url`, `is_pinned`, `target_plan`, `is_active`, `created_at` |
 
 ## 3. Migration Files
 - `worker/migrations/`: SQL migration files for Cloudflare D1 (0001 through 0019).

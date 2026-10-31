@@ -25,6 +25,8 @@ Fera AI is an Indic-first conversational assistant and copilot for shopkeepers. 
 | **Voice Router** | `backend/src/routes/voice.ts` | Speech-to-text and audio translation pipeline |
 | **Endpoint Test Suite**| `tests/fera-ai-openai-endpoint.test.mjs`| 7 tests verifying OpenAI compatibility & secret protection |
 | **Integration Test Suite**| `tests/fera-ai.test.mjs` | 32 comprehensive tests verifying prompt safety & response formats |
+| **Admin AI Credits Suite**| `tests/admin-ai-credits.test.mjs` | 10 tests verifying admin AI credit telemetry, per-shopkeeper breakdown & top-up controls |
+| **Admin Credit Control** | `frontend/src/pages/AdminAICreditsPage.tsx`, `backend/src/routes/admin.ts` | Real-time platform AI credit telemetry, shopkeeper usage leaderboard, and manual balance adjustment |
 
 ## 3. Strict Frontend / Backend Security Isolation
 - **Private Backend Upstream:** `https://ai.fera-search.tech/v1` and its API secret (`FERA_AI_API_KEY`) are strictly held by the Cloudflare Worker backend.

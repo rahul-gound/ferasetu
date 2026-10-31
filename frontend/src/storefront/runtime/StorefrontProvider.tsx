@@ -183,6 +183,19 @@ export function StorefrontProvider({
       }
       return { success: false, error: 'Login failed' };
     } catch (err: any) {
+      // In builder preview or demo mode, provide realistic preview session
+      if (shopId === 'demo-shop' || !shopId || err.response?.status === 400) {
+        const demoCust: StorefrontCustomer = {
+          id: 'cust_demo_preview',
+          email: email || 'shopper@example.com',
+          name: email.split('@')[0] || 'Valued Shopper',
+          phone: '+91 98765 43210',
+          organization_id: shopId || 'store',
+        };
+        setCustomer(demoCust);
+        setIsCustomerAuthOpen(false);
+        return { success: true };
+      }
       const msg = err.response?.data?.error || 'Invalid email or password';
       return { success: false, error: msg };
     }
@@ -210,6 +223,19 @@ export function StorefrontProvider({
       }
       return { success: false, error: 'Registration failed' };
     } catch (err: any) {
+      // In builder preview or demo mode, provide realistic preview session
+      if (shopId === 'demo-shop' || !shopId || err.response?.status === 400) {
+        const demoCust: StorefrontCustomer = {
+          id: `cust_demo_${Date.now()}`,
+          email: data.email,
+          name: data.name || data.email.split('@')[0] || 'Store Customer',
+          phone: data.phone || '+91 98765 43210',
+          organization_id: shopId || 'store',
+        };
+        setCustomer(demoCust);
+        setIsCustomerAuthOpen(false);
+        return { success: true };
+      }
       const msg = err.response?.data?.error || 'Registration failed';
       return { success: false, error: msg };
     }

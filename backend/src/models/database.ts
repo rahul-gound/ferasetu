@@ -324,6 +324,11 @@ export async function initializeDatabase(customEnv?: { DB?: any }): Promise<void
     "UPDATE invoices SET total_minor = CAST(ROUND(total * 100) AS INTEGER) WHERE (total_minor IS NULL OR total_minor = 0) AND total > 0",
     "UPDATE invoices SET subtotal_minor = CAST(ROUND(subtotal * 100) AS INTEGER) WHERE (subtotal_minor IS NULL OR subtotal_minor = 0) AND subtotal > 0",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_order_unique ON invoices (order_id)",
+    "ALTER TABLE announcements ADD COLUMN category TEXT NOT NULL DEFAULT 'feature'",
+    "ALTER TABLE announcements ADD COLUMN badge_label TEXT DEFAULT 'New Feature'",
+    "ALTER TABLE announcements ADD COLUMN action_url TEXT",
+    "ALTER TABLE announcements ADD COLUMN action_label TEXT",
+    "ALTER TABLE announcements ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
   ];
   for (const sql of migrations) {
     try {
@@ -523,7 +528,12 @@ export function getD1SchemaStatements(): string[] {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       content TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'feature',
+      badge_label TEXT DEFAULT 'New Feature',
+      action_url TEXT,
+      action_label TEXT,
       target_plan TEXT NOT NULL DEFAULT 'all',
+      is_pinned INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
       expires_at DATETIME,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

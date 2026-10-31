@@ -33,6 +33,7 @@ const GetStartedPage = lazy(() => import('./pages/GetStartedPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const AICreditsPage = lazy(() => import('./pages/AICreditsPage'));
@@ -176,6 +177,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/customers" element={<CustomersPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/ferasetu-ai" element={<FeraSetuAIPage />} />
           <Route path="/fera-ai" element={<Navigate to="/ferasetu-ai" replace />} />

@@ -361,8 +361,9 @@ const mockEnv = {
   DB: mockD1,
   ADMIN_USER_IDS: 'user_admin_01',
   ADMIN_EMAILS: 'founder@ferasetu.com',
-  _testJWKS: localJWKS,
-  ENVIRONMENT: 'test',
+  JWKS: localJWKS,
+  ENVIRONMENT: 'production',
+  WORKOS_CLIENT_ID: 'client_test_workos',
   JWT_SECRET: 'test-jwt-secret-12345'
 };
 

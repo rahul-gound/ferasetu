@@ -1642,6 +1642,99 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── First Order Celebration Modal (Dukaan First Order Milestone) ── */}
+      {showFirstOrderModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={handleDismissFirstOrderModal}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 text-center p-6 sm:p-8 space-y-5 relative animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={handleDismissFirstOrderModal}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Close celebration modal"
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
+
+            {/* Celebratory Icon & Badge */}
+            <div className="flex flex-col items-center pt-2">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center shadow-xs text-amber-600 mb-3">
+                <PartyPopper size={32} strokeWidth={1.75} />
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-wider">
+                <Sparkles size={14} strokeWidth={2} className="text-emerald-600" /> Milestone Unlocked
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-2 tracking-tight">
+                🎉 Congratulations!
+              </h2>
+              <p className="text-base font-bold text-slate-800 mt-0.5">
+                You received your first order!
+              </p>
+              <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-xs leading-relaxed">
+                Your storefront is officially open for business. Every single rupee earned is 100% yours to keep.
+              </p>
+            </div>
+
+            {/* Order Highlight Card */}
+            {firstCelebrationOrder && (
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2.5">
+                <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-200/60">
+                  <span className="font-medium">Order Number</span>
+                  <span className="font-mono font-bold text-slate-900">
+                    #{firstCelebrationOrder.id?.slice(-8) || firstCelebrationOrder.id || '1'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Customer</span>
+                  <span className="font-bold text-slate-900 truncate max-w-[180px]">
+                    {firstCelebrationOrder.customer_name || firstCelebrationOrder.customer_phone || 'Valued Customer'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Order Total</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {config.currencySymbol || '₹'}{Number(firstCelebrationOrder.total || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60">
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    <ShieldCheck size={14} className="text-emerald-600" /> Platform Commission
+                  </span>
+                  <span className="font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded text-[11px]">
+                    ₹0 (0% Commission)
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons (Fitts's Law: 48px touch targets, mobile thumb-friendly) */}
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleViewFirstOrder}
+                className="w-full min-h-[48px] inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                <ShoppingBag size={18} strokeWidth={1.75} />
+                <span>View Order & Start Packing</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissFirstOrderModal}
+                className="w-full sm:w-auto min-h-[48px] px-4 py-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

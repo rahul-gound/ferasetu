@@ -309,6 +309,39 @@ export default function WebsiteBuilderPage() {
     if (selectedSectionId === id) setSelectedSectionId(null);
   };
 
+  const handleReorderSections = (newSections: StorefrontSection[]) => {
+    setSections(newSections);
+  };
+
+  const handleUpdateSectionConfig = (id: string, newConfig: Record<string, any>) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              config: { ...(s.config || {}), ...newConfig },
+            }
+          : s
+      )
+    );
+  };
+
+  const handleDuplicateSection = (id: string) => {
+    const existing = sections.find((s) => s.id === id);
+    if (!existing) return;
+    const duplicated: StorefrontSection = {
+      ...existing,
+      id: `${existing.type}-${Date.now()}`,
+      config: { ...(existing.config || {}) },
+    };
+    const index = sections.findIndex((s) => s.id === id);
+    const newSections = [...sections];
+    newSections.splice(index + 1, 0, duplicated);
+    setSections(newSections);
+    setSelectedSectionId(duplicated.id);
+    toast.success('Section duplicated');
+  };
+
   const handleBindWorkflow = (nodeId: string, workflowId: string) => {
     setSections((prev) =>
       prev.map((s) =>
@@ -724,6 +757,9 @@ export default function WebsiteBuilderPage() {
                 onSelectNode={(id) => setSelectedSectionId(id)}
                 workflows={workflows}
                 onBindWorkflowToNode={handleBindWorkflow}
+                onReorderSections={handleReorderSections}
+                onUpdateSectionConfig={handleUpdateSectionConfig}
+                onDuplicateSection={handleDuplicateSection}
               />
             )}
 

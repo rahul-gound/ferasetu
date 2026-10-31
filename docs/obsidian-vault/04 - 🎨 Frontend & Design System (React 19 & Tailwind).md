@@ -27,10 +27,13 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 | **Auth & Session** | `frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/authBridge.ts` | WorkOS AuthKit persistent refresh token & 401 retry recovery |
 | **Orders Dashboard**| `frontend/src/pages/OrdersPage.tsx` | Order status tracking, CSV exports, + Add Order WhatsApp link generation |
 | **Add Order Modal** | `frontend/src/components/orders/AddOrderModal.tsx` | Merchant order assembly, 1-click WhatsApp storefront checkout link, direct cash order recorder |
+| **First Order Celebration Modal** | `frontend/src/pages/DashboardPage.tsx` | High-craft congratulatory milestone popup modal when merchant receives first order, celebrating 0% platform commission with 48px touch targets & 1-click order fulfillment link |
 | **Cancel Confirmation Modal** | `frontend/src/components/orders/CancelConfirmationModal.tsx` | Irreversible warning modal with 'Back' and 'Proceed' options when store owner marks order as cancelled |
 | **Shared Storefront Cart** | `frontend/src/storefront/runtime/StorefrontProvider.tsx`, `frontend/src/storefront/components/CartDrawer.tsx` | Preloaded cart from merchant link (`?cart=...`), customer banner, seamless item addition and checkout on official store domain |
 | **Landing Page & Resilient Scroll** | `frontend/src/pages/LandingPage.tsx`, `frontend/src/components/public/PublicSmoothScroll.tsx`, `frontend/src/components/marketing/StorefrontShowcase.tsx`, `frontend/src/components/marketing/CompleteCircuit.tsx` | Hardware-accelerated native smooth scroll controller (0% Lenis event hijacking/freezing), cross-browser Android/Win11/Brave/Helium touch support, and responsive narrative stepper |
 | **Fera AI Studio** | `frontend/src/pages/FeraAIPage.tsx` | Conversational manager & voice input UI |
+| **Admin AI Credits & Usage** | `frontend/src/pages/AdminAICreditsPage.tsx` | Platform-wide AI credit consumption telemetry, per-shopkeeper breakdown, quota monitors, capability breakdown, and manual balance adjustment |
+| **Updates & Announcements Center** | `frontend/src/components/notifications/FeraSetuUpdatesCenter.tsx`, `frontend/src/components/Layout.tsx` | Merchant bell notification center showcasing FeraSetu new features, platform updates, and official team messages with unread badge counter and full detail reading dialog |
 | **UI Primitives (shadcn/ui & React Bits)** | `frontend/src/components/ui/` (`button.tsx`, `card.tsx`, `badge.tsx`, `input.tsx`, `BentoGrid.tsx`, `SpotlightCard.tsx`, `SplitText.tsx`) | Calm, trustworthy primitives with generous whitespace (`p-6` to `p-10`), Fitts's Law 48px touch targets, zero card-in-card clutter, and tactile <400ms press feedback |
 
 ## 3. UI Stack & Animation Standards

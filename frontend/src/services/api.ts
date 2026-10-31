@@ -646,6 +646,92 @@ async function localGet(url: string) {
     }));
   }
 
+  if (path === '/announcements' || path.startsWith('/announcements')) {
+    return Promise.resolve(createResponse({
+      success: true,
+      announcements: [
+        {
+          id: 'ann_builder',
+          title: 'Visual Storefront Builder is live',
+          content: 'Design your online shop directly from your phone or computer. Arrange product displays, customize your banner, and adjust store colors with instant live previews.',
+          category: 'feature',
+          badge_label: 'New Feature',
+          action_url: '/website-builder',
+          action_label: 'Open Store Builder',
+          target_plan: 'all',
+          is_pinned: 1,
+          is_active: 1,
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 'ann_whatsapp',
+          title: 'WhatsApp 1-Click checkout for your customers',
+          content: 'Customers can now tap one button on your web storefront to send their full order with delivery details directly to your WhatsApp. Keep your personal customer connection with zero intermediaries.',
+          category: 'feature',
+          badge_label: 'Top Feature',
+          action_url: '/orders',
+          action_label: 'View Orders',
+          target_plan: 'all',
+          is_pinned: 0,
+          is_active: 1,
+          created_at: new Date(Date.now() - 3600000).toISOString(),
+        },
+        {
+          id: 'ann_zero_commission',
+          title: 'A note from FeraSetu: 0% marketplace commission always',
+          content: 'FeraSetu was built to protect local shopkeepers. We never take a percentage of your sales. 100% of customer payments go directly to your UPI or bank account.',
+          category: 'message',
+          badge_label: 'From FeraSetu',
+          action_url: '/dashboard',
+          action_label: 'Go to Dashboard',
+          target_plan: 'all',
+          is_pinned: 1,
+          is_active: 1,
+          created_at: new Date(Date.now() - 7200000).toISOString(),
+        },
+        {
+          id: 'ann_languages',
+          title: 'Run your shop in your customer’s native language',
+          content: 'Your storefront now supports 48 Indic languages including Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, and Punjabi. Buyers can shop comfortably in their preferred language.',
+          category: 'update',
+          badge_label: 'Platform Update',
+          action_url: '/products',
+          action_label: 'View Products',
+          target_plan: 'all',
+          is_pinned: 0,
+          is_active: 1,
+          created_at: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          id: 'ann_ai_copy',
+          title: 'Fera AI drafts product titles & details in seconds',
+          content: 'Add new items to your catalog in seconds. Take a quick photo or type a short item name, and Fera AI generates ready-to-sell titles, descriptions, and regional tags.',
+          category: 'feature',
+          badge_label: 'Fera AI',
+          action_url: '/ferasetu-ai',
+          action_label: 'Try Fera AI',
+          target_plan: 'all',
+          is_pinned: 0,
+          is_active: 1,
+          created_at: new Date(Date.now() - 172800000).toISOString(),
+        },
+        {
+          id: 'ann_custom_domains',
+          title: 'Connect your own custom shop web address',
+          content: 'You can now link your own custom domain (e.g., yourstore.com or yourbrand.in) to your FeraSetu shop with automatic HTTPS encryption and mail-safe DNS record protection.',
+          category: 'update',
+          badge_label: 'Domain Upgrade',
+          action_url: '/settings/email',
+          action_label: 'Manage Domains',
+          target_plan: 'all',
+          is_pinned: 0,
+          is_active: 1,
+          created_at: new Date(Date.now() - 259200000).toISOString(),
+        },
+      ]
+    }));
+  }
+
   if (path === '/email/settings') {
     requireAuth();
     const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
