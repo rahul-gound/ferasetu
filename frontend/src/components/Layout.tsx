@@ -59,6 +59,18 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // FeraSetu Updates & Messages hook
   const {
@@ -413,17 +425,49 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top header */}
-        <header className="sticky top-0 z-30 flex h-[64px] shrink-0 items-center justify-between gap-4 border-b border-[#E5EAF1] bg-white/95 px-5 shadow-sm backdrop-blur lg:px-6">
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5EAF1] text-[#667085] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] md:hidden"
-            aria-label={translate('nav.openMenu')}
-          >
-            <Menu size={18} aria-hidden="true" />
-          </button>
+        <header className="sticky top-0 z-30 flex h-[64px] shrink-0 items-center justify-between gap-3 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-4 sm:px-5 shadow-xs backdrop-blur lg:px-6">
+          {/* Left: Mobile hamburger & Live Store Pill */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5EAF1] text-[#667085] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] md:hidden shrink-0 cursor-pointer"
+              aria-label={translate('nav.openMenu')}
+            >
+              <Menu size={18} aria-hidden="true" />
+            </button>
 
-          {/* Search */}
+            {/* Live Storefront Access Pill */}
+            {storeSubdomain && (
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50/80 text-emerald-900 text-[11px] font-bold shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="truncate max-w-[120px] md:max-w-[180px] lg:max-w-[220px]">
+                  {storeSubdomain}
+                </span>
+                <a
+                  href={`https://${storeSubdomain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 transition-colors shrink-0"
+                  title="Visit Live Storefront"
+                >
+                  <ExternalLink size={12} />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://${storeSubdomain}`);
+                    toast.success('Store URL copied to clipboard!');
+                  }}
+                  className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline ml-1 cursor-pointer shrink-0"
+                  title="Copy Store Link"
+                >
+                  Copy
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Search bar with Ctrl+K shortcut */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -431,18 +475,22 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
               }
             }}
-            className="hidden md:flex items-center gap-2 bg-[#F6F8FC] px-3.5 py-2 rounded-xl text-[#667085] text-sm max-w-xs w-full border border-[#E5EAF1] focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all"
+            className="flex-1 max-w-xs md:max-w-sm flex items-center gap-2 bg-[#F6F8FC] px-3.5 py-2 rounded-xl text-[#667085] text-xs sm:text-sm border border-[#E5EAF1] focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-400">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products..."
-              className="bg-transparent border-none outline-none text-[#152238] text-sm w-full placeholder:text-[#667085]"
+              placeholder="Search products, orders..."
+              className="bg-transparent border-none outline-none text-[#152238] text-xs sm:text-sm w-full placeholder:text-[#667085]"
             />
+            <kbd className="hidden lg:inline-flex text-[10px] font-mono font-bold bg-white border border-[#E5EAF1] px-1.5 py-0.5 rounded text-slate-400 shrink-0 shadow-2xs">
+              Ctrl+K
+            </kbd>
           </form>
 
           <div className="ml-auto flex items-center gap-2.5">
