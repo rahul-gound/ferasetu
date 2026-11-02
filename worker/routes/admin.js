@@ -239,31 +239,50 @@ export async function handleAdminRoutes(request, env) {
     
     // DASHBOARD STATS
     if (path === "/api/admin/dashboard-stats" && method === "GET") {
-      const usersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM users").first("count")) || 0;
-      const ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders").first("count")) || 0;
-      const productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products").first("count")) || 0;
-      const revenueRow = await env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'").first();
-      const totalRevenue = revenueRow?.rev || 0;
-      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
+      const stmts = [
+        env.DB.prepare("SELECT COUNT(*) as count FROM users"),
+        env.DB.prepare("SELECT COUNT(*) as count FROM orders"),
+        env.DB.prepare("SELECT COUNT(*) as count FROM products"),
+        env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'")
+      ];
 
-      // 7-day revenue chart
-      const revenueChart = [];
       const now = new Date();
+      const dateStrings = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const ymd = d.toISOString().slice(0, 10);
-        try {
-          const dayRow = await env.DB.prepare(
-            "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
-          ).bind(`${ymd}%`).first();
-          revenueChart.push({
-            date: ymd,
-            revenue: dayRow?.rev || 0,
-            orders: dayRow?.cnt || 0
-          });
-        } catch {
-          revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+        dateStrings.push(ymd);
+        stmts.push(env.DB.prepare("SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?").bind(`${ymd}%`));
+      }
+
+      let results = [];
+      if (typeof env.DB.batch === 'function') {
+        results = await env.DB.batch(stmts);
+      } else {
+        // Fallback for environments/mocks without batch support
+        for (const stmt of stmts) {
+          try {
+            results.push({ results: [await stmt.first()] });
+          } catch (err) {
+            results.push({ results: [{}] });
+          }
         }
+      }
+
+      const usersCount = results[0]?.results?.[0]?.count || 0;
+      const ordersCount = results[1]?.results?.[0]?.count || 0;
+      const productsCount = results[2]?.results?.[0]?.count || 0;
+      const totalRevenue = results[3]?.results?.[0]?.rev || 0;
+      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
+
+      const revenueChart = [];
+      for (let i = 0; i < 7; i++) {
+        const dayRow = results[4 + i]?.results?.[0] || {};
+        revenueChart.push({
+          date: dateStrings[i],
+          revenue: dayRow.rev || 0,
+          orders: dayRow.cnt || 0
+        });
       }
 
       return json({
