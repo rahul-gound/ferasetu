@@ -31,6 +31,7 @@ import {
   Zap,
   ArrowUpRight,
   Users,
+  Server,
   ExternalLink,
   Copy,
 } from 'lucide-react';
@@ -40,6 +41,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import SEO from './SEO';
 import FeraSetuUpdatesCenter, { useFeraSetuUpdates } from './notifications/FeraSetuUpdatesCenter';
 import { isSyntheticUserIdentifier, cleanUserSubtitle, resolveEffectiveProfilePicture } from '../utils/avatarUtils';
+import { platformSitesApi } from '../services/platformSitesApi';
 
 interface NavItem {
   path: string;
@@ -72,6 +74,21 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [hasPlatformAccess, setHasPlatformAccess] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    platformSitesApi.getEntitlement()
+      .then((res) => {
+        if (active && res.status === 'authorized') {
+          setHasPlatformAccess(true);
+        }
+      })
+      .catch(() => {
+        if (active) setHasPlatformAccess(false);
+      });
+    return () => { active = false; };
+  }, [user]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
