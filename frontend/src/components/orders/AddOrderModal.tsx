@@ -24,6 +24,7 @@ import api from '../../services/api';
 import { getStorefrontUrl, getStorefrontPreviewUrl } from '../../utils/canonicalHostname';
 import { resolveMediaUrl } from '../../utils/media';
 import posthog from '../../lib/posthog';
+import OrderPaymentQrModal from './OrderPaymentQrModal';
 
 interface Product {
   id: string;
@@ -73,6 +74,8 @@ export default function AddOrderModal({
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(false);
   const [isSavingDirect, setIsSavingDirect] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [createdOrderForQr, setCreatedOrderForQr] = useState<any>(null);
 
   // Fetch Merchant Catalog
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
@@ -192,25 +195,69 @@ export default function AddOrderModal({
     return `${greeting} 🛍️\nHere is your order from *${shopDisplayName}*:\n\n${itemLines}\n\n${deliveryNote}\n💵 *Total: ₹${totalAmount.toLocaleString('en-IN')}*\n\n👉 *Tap here to review your items, add more if you like, and checkout directly on our official store:*\n${officialOrderUrl}\n\nThank you for shopping with us! 🙏`;
   }, [customerName, selectedItems, shopDisplayName, deliveryType, deliveryFee, totalAmount, officialOrderUrl]);
 
-  // 1-Click WhatsApp Send
-  const handleSendWhatsApp = () => {
+  // 1-Click WhatsApp Send: Automatically creates the order and then opens WhatsApp
+  const handleSendWhatsApp = async () => {
     if (selectedItems.length === 0) {
       toast.error('Please add at least one product to the order.');
       return;
     }
 
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    let targetUrl = '';
+    setIsSendingWhatsApp(true);
+    try {
+      // 1. Automatically make the order in backend
+      const payload = {
+        customerName: customerName.trim() || 'WhatsApp Customer',
+        customerPhone: customerPhone.trim() || null,
+        deliveryAddress: deliveryAddress.trim() || null,
+        deliveryType,
+        items: selectedItems.map((i) => ({
+          productId: i.product.id,
+          name: i.product.name,
+          quantity: i.quantity,
+          price: i.price,
+        })),
+        notes: orderNotes.trim()
+          ? `${orderNotes.trim()} (WhatsApp 1-Click Order)`
+          : 'Created via Add Order (WhatsApp Send)',
+        status: 'pending',
+        payment_status: 'unpaid',
+      };
 
-    if (cleanPhone) {
-      const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-      targetUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(whatsAppMessage)}`;
-    } else {
-      targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsAppMessage)}`;
+      const res = await api.post('/orders', payload);
+      const newOrder = res.data;
+
+      posthog.capture('whatsapp_order_created', {
+        delivery_type: deliveryType,
+        product_count: selectedItems.length,
+        unit_count: selectedItems.reduce((count, item) => count + item.quantity, 0),
+        order_total: totalAmount,
+        order_id: newOrder?.id,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (onOrderCreated) onOrderCreated();
+
+      // 2. Open WhatsApp with formatted message
+      const cleanPhone = customerPhone.replace(/\D/g, '');
+      let targetUrl = '';
+
+      if (cleanPhone) {
+        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        targetUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(whatsAppMessage)}`;
+      } else {
+        targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsAppMessage)}`;
+      }
+
+      window.open(targetUrl, '_blank');
+      toast.success(
+        `Order #${(newOrder?.id || '').slice(-8).toUpperCase()} created & opened in WhatsApp!`
+      );
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to create order before sending to WhatsApp.');
+    } finally {
+      setIsSendingWhatsApp(false);
     }
-
-    window.open(targetUrl, '_blank');
-    toast.success('Opening WhatsApp with your customer order link!');
   };
 
   // Copy Storefront Link
@@ -245,7 +292,7 @@ export default function AddOrderModal({
     }
   };
 
-  // Save Direct Order into Dashboard (for Counter/Cash sales)
+  // Save Direct Order into Dashboard (for Counter/Cash sales) & Pop up QR Code + Link
   const handleSaveDirectOrder = async () => {
     if (selectedItems.length === 0) {
       toast.error('Please select at least one product.');
@@ -265,22 +312,28 @@ export default function AddOrderModal({
           quantity: i.quantity,
           price: i.price,
         })),
-        notes: orderNotes.trim() || 'Created directly by merchant via Add Order',
+        notes: orderNotes.trim() || 'Counter / Cash Sale',
         status: 'pending',
         payment_status: 'unpaid',
       };
 
-      await api.post('/orders', payload);
+      const res = await api.post('/orders', payload);
+      const newOrder = res.data;
+
       posthog.capture('direct_order_created', {
         delivery_type: deliveryType,
         product_count: selectedItems.length,
         unit_count: selectedItems.reduce((count, item) => count + item.quantity, 0),
         order_total: totalAmount,
+        order_id: newOrder?.id,
       });
+
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      toast.success('Order recorded in your order book!');
+      toast.success('Order recorded! Scan or share QR code to receive payment.');
       if (onOrderCreated) onOrderCreated();
-      onClose();
+
+      // Immediately pop up Payment QR and Link modal for this order!
+      setCreatedOrderForQr(newOrder);
     } catch (err: any) {
       toast.error(err?.response?.data?.error || 'Failed to save order.');
     } finally {
@@ -662,22 +715,26 @@ export default function AddOrderModal({
 
             {/* Bottom Modal Actions */}
             <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
-              {/* Primary 1-Click WhatsApp Send Button */}
+              {/* Primary 1-Click WhatsApp Send Button: creates order & opens WhatsApp */}
               <button
                 type="button"
                 onClick={handleSendWhatsApp}
-                disabled={selectedItems.length === 0}
+                disabled={selectedItems.length === 0 || isSendingWhatsApp || isSavingDirect}
                 className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <MessageCircle size={18} strokeWidth={2.2} />
-                <span>Send to WhatsApp in One Click</span>
+                <span>
+                  {isSendingWhatsApp
+                    ? 'Creating Order & Opening WhatsApp...'
+                    : 'Send to WhatsApp in One Click'}
+                </span>
               </button>
 
-              {/* Direct Save Order (for Counter / Cash sales) */}
+              {/* Direct Save Order (for Counter / Cash sales): creates order & pops up QR + Link */}
               <button
                 type="button"
                 onClick={handleSaveDirectOrder}
-                disabled={selectedItems.length === 0 || isSavingDirect}
+                disabled={selectedItems.length === 0 || isSavingDirect || isSendingWhatsApp}
                 className="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <FileCheck size={15} />
@@ -687,6 +744,23 @@ export default function AddOrderModal({
           </div>
         </div>
       </div>
+
+      {/* Counter / Cash Order Payment QR & Link Pop-up Modal */}
+      {createdOrderForQr && (
+        <OrderPaymentQrModal
+          isOpen={!!createdOrderForQr}
+          onClose={() => {
+            setCreatedOrderForQr(null);
+            onClose();
+          }}
+          order={createdOrderForQr}
+          user={user}
+          onPaymentConfirmed={() => {
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            if (onOrderCreated) onOrderCreated();
+          }}
+        />
+      )}
     </div>
   );
 }

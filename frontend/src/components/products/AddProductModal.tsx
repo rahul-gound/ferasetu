@@ -84,6 +84,7 @@ interface FormState {
   media_key: string;
   is_active: boolean;
   status: 'active' | 'draft' | 'archived';
+  is_returnable: boolean;
   sku: string;
   barcode: string;
   options: { id?: string; name: string; valuesStr: string }[];
@@ -125,6 +126,7 @@ const INITIAL_FORM: FormState = {
   image_url: '',
   media_key: '',
   is_active: true,
+  is_returnable: true,
   status: 'active',
   sku: '',
   barcode: '',
@@ -196,6 +198,7 @@ export default function AddProductModal({
             image_url: full.image_url || '',
             media_key: full.media_key || '',
             is_active: full.is_active !== false,
+            is_returnable: full.is_returnable !== undefined ? Boolean(full.is_returnable) : (full.non_returnable ? false : true),
             status: (full.status || (full.is_active ? 'active' : 'draft')) as 'active' | 'draft' | 'archived',
             sku: full.sku || '',
             barcode: full.barcode || '',
@@ -216,6 +219,7 @@ export default function AddProductModal({
             image_url: editProduct.image_url || '',
             media_key: editProduct.media_key || '',
             is_active: editProduct.is_active !== false,
+            is_returnable: (editProduct as any).is_returnable !== undefined ? Boolean((editProduct as any).is_returnable) : ((editProduct as any).non_returnable ? false : true),
             status: (editProduct.status || (editProduct.is_active ? 'active' : 'draft')) as
               | 'active'
               | 'draft'
@@ -489,6 +493,8 @@ export default function AddProductModal({
         category: form.category || 'General',
         stock_quantity: parseInt(form.stock_quantity, 10) || 0,
         is_active: form.status === 'active',
+        is_returnable: form.is_returnable,
+        non_returnable: !form.is_returnable,
         status: form.status,
         sku: form.sku.trim() || null,
         barcode: form.barcode.trim() || null,
@@ -730,6 +736,45 @@ export default function AddProductModal({
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   className="w-full p-4 rounded-xl border border-slate-300 bg-white text-slate-900 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 transition-all resize-y"
                 />
+              </div>
+
+              {/* Return Policy Setting */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                      <span>Return Policy</span>
+                      {!form.is_returnable ? (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-extrabold rounded-full border border-amber-300">
+                          🚫 Non-returnable
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full border border-emerald-300">
+                          Returnable
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      {form.is_returnable
+                        ? 'Customers can request a return for this product.'
+                        : 'Customers cannot return this product (ideal for perishables, groceries, hygiene, or custom items).'}
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!form.is_returnable}
+                      onChange={(e) => setForm((f) => ({ ...f, is_returnable: !e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
+                {!form.is_returnable && (
+                  <div className="text-[11px] font-semibold text-amber-900 bg-amber-100/60 p-2.5 rounded-lg border border-amber-300/80 flex items-center gap-1.5">
+                    <span>⚠️ Product will clearly say <b>Non-returnable</b> across your store catalog, checkout, and invoices.</span>
+                  </div>
+                )}
               </div>
 
               {/* Quick Jump Suggestion */}

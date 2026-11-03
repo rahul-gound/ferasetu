@@ -1,11 +1,27 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, MapPin, Users, ArrowRight, ArrowLeft, Check, CheckCircle2, Globe, ExternalLink, ShieldCheck, Plus, Trash2, Camera, User as UserIcon, X as XIcon } from 'lucide-react';
+import {
+  Store,
+  MapPin,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Globe,
+  ExternalLink,
+  ShieldCheck,
+  Share2,
+  Copy,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  ShoppingBag,
+  Camera,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
-import { getGoogleStyleAvatar, getGithubStyleAvatar, resolveEffectiveProfilePicture } from '../utils/avatarUtils';
+import { getGoogleStyleAvatar, resolveEffectiveProfilePicture } from '../utils/avatarUtils';
 import posthog from '../lib/posthog';
 import { posthogLogger } from '../lib/posthogLogger';
 
@@ -62,29 +78,49 @@ const EU_COUNTRIES = [
 
 type Region = 'IN' | 'US' | 'EU' | 'OTHER';
 
-interface InvitationItem {
-  email: string;
-  role: 'admin' | 'staff';
+interface RetailCategory {
+  id: string;
+  name: string;
+  icon: string;
+  desc: string;
 }
+
+const RETAIL_CATEGORIES: RetailCategory[] = [
+  { id: 'grocery', name: 'Grocery & Kirana', icon: '🛒', desc: 'Daily essentials, packed foods, staples' },
+  { id: 'fashion', name: 'Fashion & Boutique', icon: '👗', desc: 'Apparel, sarees, kurtas, jewelry' },
+  { id: 'bakery', name: 'Bakery & Sweets', icon: '🍰', desc: 'Mithai, cakes, dairy, savories' },
+  { id: 'electronics', name: 'Electronics & Mobile', icon: '📱', desc: 'Gadgets, accessories, repairs' },
+  { id: 'artisan', name: 'Artisan & Handcrafted', icon: '🎨', desc: 'Handicrafts, pottery, decor' },
+  { id: 'general', name: 'General Retail', icon: '🏪', desc: 'Supermarket, stationery, hardware' },
+];
+
+const POPULAR_INDIAN_CITIES = [
+  { city: 'Mumbai', state: 'Maharashtra' },
+  { city: 'Delhi', state: 'Delhi' },
+  { city: 'Bengaluru', state: 'Karnataka' },
+  { city: 'Jaipur', state: 'Rajasthan' },
+  { city: 'Ahmedabad', state: 'Gujarat' },
+  { city: 'Pune', state: 'Maharashtra' },
+  { city: 'Kolkata', state: 'West Bengal' },
+];
 
 export default function OnboardingWizardPage() {
   const navigate = useNavigate();
   const { user, setOrganizationContext, updateUser } = useAuth();
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  // Mode: 1 = Fast Launchpad, 2 = Instant Celebration & Dopamine Screen
+  const [step, setStep] = useState<1 | 2>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [showAddressAccordion, setShowAddressAccordion] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  // Profile Picture State
+  // Profile / Shop Icon State
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(() => {
     return user?.profile_picture || null;
   });
-  const [avatarStyle, setAvatarStyle] = useState<'custom' | 'google' | 'github'>(() => {
-    if (user?.profile_picture) return 'custom';
-    return 'google';
-  });
 
-  // Form State
+  // Shop Details
   const [shopName, setShopName] = useState(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -96,28 +132,27 @@ export default function OnboardingWizardPage() {
     return user?.business_name || '';
   });
 
+  const [selectedCategory, setSelectedCategory] = useState<string>('grocery');
+
   const [region, setRegion] = useState<Region>(() => {
     if (user?.market === 'US') return 'US';
     if (user?.market === 'EU') return 'EU';
     return 'IN';
   });
+
   const [country, setCountry] = useState(() => {
     if (user?.market === 'US') return 'United States';
     if (user?.market === 'EU') return 'Germany';
     return 'India';
   });
-  const [address, setAddress] = useState('');
-  const [district, setDistrict] = useState('');
-  const [city, setCity] = useState('');
+
+  const [city, setCity] = useState('Mumbai');
+  const [district, setDistrict] = useState('Mumbai');
   const [state, setState] = useState(() => user?.market === 'US' ? 'California' : 'Maharashtra');
   const [customState, setCustomState] = useState('');
+  const [address, setAddress] = useState('');
 
-  // Team Invitations (Step 3)
-  const [invitations, setInvitations] = useState<InvitationItem[]>([
-    { email: '', role: 'staff' }
-  ]);
-
-  // Completion / Transition Screen Data (Step 4)
+  // Completion Data for Step 2
   const [createdData, setCreatedData] = useState<{
     organization: any;
     store_slug: string;
@@ -125,44 +160,45 @@ export default function OnboardingWizardPage() {
   } | null>(null);
 
   const effectiveState = (region === 'IN' || region === 'US') ? state : customState;
+  const suggestedSlug = (shopName.trim() || 'my-shop')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  const seedForAvatar = user?.name || user?.email || shopName || 'Shopkeeper';
+  const effectiveAvatar = profilePicture || getGoogleStyleAvatar(seedForAvatar);
 
   const handleSelectRegion = (newRegion: Region) => {
     setRegion(newRegion);
     if (newRegion === 'IN') {
       setCountry('India');
+      if (!city) setCity('Mumbai');
+      if (!district) setDistrict('Mumbai');
       if (!INDIAN_STATES.includes(state)) setState('Maharashtra');
     } else if (newRegion === 'US') {
       setCountry('United States');
-      if (!US_STATES.includes(state)) setState('California');
+      if (!city) setCity('New York');
+      if (!district) setDistrict('New York County');
+      if (!US_STATES.includes(state)) setState('New York');
     } else if (newRegion === 'EU') {
       if (!country || country === 'India' || country === 'United States') {
         setCountry('Germany');
       }
+      if (!city) setCity('Berlin');
+      if (!district) setDistrict('Berlin');
+      if (!customState) setCustomState('Berlin');
+    } else {
+      if (!city) setCity('Toronto');
+      if (!district) setDistrict('Ontario');
+      if (!customState) setCustomState('Ontario');
     }
   };
 
-  const handleAddInviteRow = () => {
-    setInvitations(prev => [...prev, { email: '', role: 'staff' }]);
+  const handleSelectCityPreset = (presetCity: string, presetState: string) => {
+    setCity(presetCity);
+    setDistrict(presetCity);
+    setState(presetState);
   };
-
-  const handleRemoveInviteRow = (index: number) => {
-    setInvitations(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleInviteChange = (index: number, field: keyof InvitationItem, value: string) => {
-    setInvitations(prev => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
-      return copy;
-    });
-  };
-
-  const seedForAvatar = user?.name || user?.email || shopName || 'Shopkeeper';
-  const effectiveAvatar = profilePicture || (
-    avatarStyle === 'github'
-      ? getGithubStyleAvatar(seedForAvatar)
-      : getGoogleStyleAvatar(seedForAvatar)
-  );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,7 +218,6 @@ export default function OnboardingWizardPage() {
     reader.onload = () => {
       const dataUrl = reader.result as string;
       setProfilePicture(dataUrl);
-      setAvatarStyle('custom');
       if (updateUser) {
         updateUser({ profile_picture: dataUrl });
       }
@@ -190,70 +225,44 @@ export default function OnboardingWizardPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSelectAvatarPreset = (style: 'google' | 'github') => {
-    setProfilePicture(null);
-    setAvatarStyle(style);
-    const generated = style === 'github' ? getGithubStyleAvatar(seedForAvatar) : getGoogleStyleAvatar(seedForAvatar);
-    if (updateUser) {
-      updateUser({ profile_picture: generated });
+  const handleCopyStoreLink = async () => {
+    if (!createdData?.store_url) return;
+    try {
+      await navigator.clipboard.writeText(createdData.store_url);
+      setCopiedLink(true);
+      toast.success('Store link copied to clipboard!');
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      toast.error('Failed to copy link');
     }
   };
 
-  const handleNextFromStep1 = (e: React.FormEvent) => {
+  const handleSubmitFastLaunch = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!shopName.trim() || shopName.trim().length < 2) {
-      toast.error('Please enter a valid store/business name (min 2 characters)');
+      toast.error('Please enter your shop or business name (min 2 characters)');
       return;
     }
-    if (updateUser) {
-      updateUser({ profile_picture: effectiveAvatar });
-    }
-    setStep(2);
-  };
 
-  const handleNextFromStep2 = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!city.trim()) {
-      toast.error('Please enter your city / town');
-      return;
-    }
-    if (!district.trim()) {
-      toast.error(region === 'US' ? 'Please enter your county / district' : 'Please enter your district (e.g. Palghar)');
-      return;
-    }
-    if (!effectiveState.trim()) {
-      toast.error('Please specify your state / province');
-      return;
-    }
-    if ((region === 'EU' || region === 'OTHER') && !country.trim()) {
-      toast.error('Please specify your country');
-      return;
-    }
-    setStep(3);
-  };
+    const effectiveCity = city.trim() || 'Mumbai';
+    const effectiveDistrict = district.trim() || effectiveCity;
+    const finalState = effectiveState.trim() || 'Maharashtra';
+    const finalCountry = country.trim() || (region === 'IN' ? 'India' : region === 'US' ? 'United States' : 'Germany');
 
-  const handleSubmitOnboarding = async (skipInvitations = false) => {
     setSubmitting(true);
     try {
-      const validInvites = skipInvitations
-        ? []
-        : invitations
-            .filter(inv => inv.email && inv.email.trim() && inv.email.includes('@'))
-            .map(inv => ({
-              email: inv.email.trim().toLowerCase(),
-              role: inv.role
-            }));
-
       const payload = {
         name: shopName.trim(),
         address: address.trim(),
-        city: city.trim(),
-        district: district.trim(),
-        state: effectiveState.trim(),
-        country: country.trim(),
+        city: effectiveCity,
+        district: effectiveDistrict,
+        state: finalState,
+        country: finalCountry,
         market: region,
         profile_picture: effectiveAvatar,
-        invitations: validInvites
+        category: selectedCategory,
+        invitations: [],
       };
 
       const { data } = await api.post('/organizations', payload);
@@ -262,736 +271,446 @@ export default function OnboardingWizardPage() {
         setOrganizationContext(data.organization);
       }
 
+      const storeSlug = data.store_slug || data.organization?.store_slug || suggestedSlug;
+      const storeUrl = data.store_url || `https://${storeSlug}.ferasetu.com`;
+
       setCreatedData({
         organization: data.organization,
-        store_slug: data.store_slug || data.organization?.store_slug,
-        store_url: data.store_url || `https://${data.store_slug}.ferasetu.com`
+        store_slug: storeSlug,
+        store_url: storeUrl,
       });
 
       posthog.capture('organization_created', {
         market: region,
-        invitation_count: validInvites.length,
-        invitations_skipped: skipInvitations,
+        category: selectedCategory,
+        fast_onboarding: true,
       });
-      posthogLogger.info('organization onboarding completed', {
-        workflow: 'organization_onboarding',
+
+      posthogLogger.info('Fast onboarding completed', {
+        workflow: 'fast_organization_onboarding',
         market: region,
-        invitation_count: validInvites.length,
+        store_slug: storeSlug,
       });
-      setStep(4); // Move to success transition screen
-      toast.success('Your store and organization have been created!');
+
+      if (updateUser) {
+        updateUser({
+          business_name: shopName.trim(),
+          profile_picture: effectiveAvatar,
+        });
+      }
+
+      setStep(2);
+      toast.success('Your online shop is ready and live!');
     } catch (err: any) {
-      posthogLogger.warn('organization onboarding request failed', {
-        workflow: 'organization_onboarding',
+      posthogLogger.warn('Fast onboarding request failed', {
+        workflow: 'fast_organization_onboarding',
         market: region,
         http_status: Number(err?.response?.status || 0),
       });
-      console.error('Failed to create organization:', err);
+      console.error('Failed to create shop:', err);
       const serverErr = typeof err.response?.data === 'object'
         ? (err.response.data?.error || err.response.data?.message)
         : (typeof err.response?.data === 'string' && err.response.data.trim() ? err.response.data : null);
-      const msg = serverErr || err.message || 'Failed to complete onboarding';
+      const msg = serverErr || err.message || 'Failed to create your shop. Please try again.';
       toast.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const whatsappShareText = encodeURIComponent(
+    `नमस्ते! हमारी दुकान "${shopName || 'Shop'}" अब FeraSetu पर ऑनलाइन है। आप हमारे सारे प्रोडक्ट्स देखकर सीधे ऑर्डर कर सकते हैं:\n${createdData?.store_url || ''}\n0% कमीशन, घर तक डिलीवरी!`
+  );
+
   return (
     <>
-      <SEO title="Setup Your Store • FeraSetu" noindex />
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <SEO title="Launch Your Online Shop in 30 Seconds • FeraSetu" noindex />
+      <div className="min-h-screen bg-[#F6F8FC] flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="sm:mx-auto sm:w-full sm:max-w-xl">
-          <div className="flex justify-center mb-6">
-            <img src="/logo-official.png" alt="FeraSetu" className="h-10 w-auto object-contain" />
+          {/* Logo Brand Header */}
+          <div className="flex items-center justify-center gap-2.5 mb-6">
+            <img src="/logo-official.png" alt="FeraSetu" className="h-9 w-auto object-contain" />
           </div>
 
-          {/* Stepper Header (Steps 1 to 3) */}
-          {step <= 3 && (
-            <div className="mb-8">
-              <div className="flex items-center justify-between max-w-xs mx-auto mb-4">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs ${step >= 1 ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-500'}`}>
-                  {step > 1 ? <Check size={14} /> : '1'}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* STEP 1: The 30-Second Fast Launchpad (Psychological Simplicity)   */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {step === 1 && (
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200/90 p-6 sm:p-9 transition-all">
+              <div className="mb-6">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-[#0052FF] text-xs font-bold uppercase tracking-wider mb-3">
+                  <Sparkles size={13} />
+                  <span>30-Second Setup • ₹0 Platform Fee</span>
                 </div>
-                <div className={`flex-1 h-1 mx-2 rounded ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs ${step >= 2 ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-500'}`}>
-                  {step > 2 ? <Check size={14} /> : '2'}
-                </div>
-                <div className={`flex-1 h-1 mx-2 rounded ${step >= 3 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs ${step >= 3 ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-500'}`}>
-                  3
-                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Launch your online shop
+                </h1>
+                <p className="text-sm text-slate-600 font-medium mt-1">
+                  Start selling directly to customers with WhatsApp checkout, instant UPI, and 0% commission.
+                </p>
               </div>
-              <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Step {step} of 3: {step === 1 ? 'Business Info' : step === 2 ? 'Location & Market' : 'Team Access'}
-              </p>
-            </div>
-          )}
 
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 sm:p-10">
-            {/* STEP 1: Store Name */}
-            {step === 1 && (
-              <form onSubmit={handleNextFromStep1} className="space-y-6">
+              <form onSubmit={handleSubmitFastLaunch} className="space-y-6">
+                {/* 1. Shop Name */}
                 <div>
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                    <Store size={24} />
-                  </div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    What is your shop or business name?
-                  </h2>
-                  <p className="text-sm text-slate-500 mt-1 font-medium">
-                    This will represent your merchant business in FeraSetu and reserve your custom storefront URL.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Shop / Store Name <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
+                    Shop or Business Name <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={shopName}
-                    onChange={(e) => setShopName(e.target.value)}
-                    placeholder="e.g. Ramesh Kirana Store"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 font-semibold text-base transition-all"
-                    autoFocus
-                  />
-                  {shopName.trim().length >= 2 && (
-                    <p className="text-xs text-slate-500 mt-2 font-medium flex items-center gap-1.5">
-                      <Globe size={13} className="text-blue-500" />
-                      Suggested address: <span className="font-bold text-blue-600">{shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ferasetu.com</span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Profile Photo Section */}
-                <div className="pt-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Profile Photo <span className="text-slate-400 font-normal lowercase">(optional)</span>
-                  </label>
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                    <div className="relative shrink-0">
-                      <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full overflow-hidden border-2 border-white shadow bg-white flex items-center justify-center">
-                        <img
-                          src={effectiveAvatar}
-                          alt="Merchant Profile"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="absolute -bottom-1 -right-1 p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow transition cursor-pointer"
-                        title="Upload photo"
-                        aria-label="Upload photo"
-                      >
-                        <Camera size={13} />
-                      </button>
-                    </div>
-
-                    <div className="flex-1 text-center sm:text-left">
-                      <p className="text-sm font-bold text-slate-800">
-                        {profilePicture ? 'Custom Profile Photo' : avatarStyle === 'github' ? 'GitHub Identicon Avatar' : 'Google Style Avatar'}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Upload your photo or keep an automatic avatar. If skipped, we'll assign a Google or GitHub style picture automatically.
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm cursor-pointer transition"
-                        >
-                          Upload Photo
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectAvatarPreset('google')}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition cursor-pointer ${
-                            avatarStyle === 'google' && !profilePicture
-                              ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
-                              : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          Google Style
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectAvatarPreset('github')}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition cursor-pointer ${
-                            avatarStyle === 'github' && !profilePicture
-                              ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
-                              : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          GitHub Style
-                        </button>
-                        {profilePicture && (
-                          <button
-                            type="button"
-                            onClick={() => handleSelectAvatarPreset('google')}
-                            className="px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileSelect}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all cursor-pointer text-sm"
-                  >
-                    <span>Next: Business Location</span>
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 2: Address, District, City, State, Country */}
-            {step === 2 && (
-              <form onSubmit={handleNextFromStep2} className="space-y-6">
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
-                    <MapPin size={24} />
-                  </div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    Where is your business located?
-                  </h2>
-                  <p className="text-sm text-slate-500 mt-1 font-medium">
-                    Your location authorizes regional selling plans, currency formatting, and tax rules automatically.
-                  </p>
-                </div>
-
-                {/* Region Selector Pills */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Region / Market
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectRegion('IN')}
-                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                        region === 'IN'
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>🇮🇳</span>
-                      <span>India</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectRegion('US')}
-                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                        region === 'US'
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>🇺🇸</span>
-                      <span>America (US)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectRegion('EU')}
-                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                        region === 'EU'
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>🇪🇺</span>
-                      <span>Europe (EU)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectRegion('OTHER')}
-                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                        region === 'OTHER'
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>🌐</span>
-                      <span>Other</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                      Business Address (Street, Building, Unit)
-                    </label>
+                  <div className="relative">
                     <input
                       type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder={
-                        region === 'IN'
-                          ? "e.g. Shop 4, Main Bazaar, Station Road"
-                          : region === 'US'
-                          ? "e.g. 123 Main Street, Suite 400"
-                          : "e.g. Hauptstraße 12 / Rue de la Paix"
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                      required
+                      value={shopName}
+                      onChange={(e) => setShopName(e.target.value)}
+                      placeholder="e.g. Ramesh Kirana Store or Maya Boutique"
+                      className="w-full px-4 py-3.5 rounded-2xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] focus:border-[#0052FF] text-slate-900 font-bold text-base transition-all placeholder:text-slate-400 placeholder:font-normal"
+                      autoFocus
                     />
                   </div>
 
-                  {/* INDIA LOCATION FIELDS */}
-                  {region === 'IN' && (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            State / Union Territory <span className="text-rose-500">*</span>
-                          </label>
-                          <select
-                            value={state}
-                            onChange={(e) => setState(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
-                          >
-                            {INDIAN_STATES.map((st) => (
-                              <option key={st} value={st}>{st}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            District <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={district}
-                            onChange={(e) => setDistrict(e.target.value)}
-                            placeholder="e.g. Palghar, Thane, Pune, Nagpur"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            City / Town <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="e.g. Boisar, Palghar, Mumbai, Pune"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Country
-                          </label>
-                          <input
-                            type="text"
-                            disabled
-                            value="India"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-sm font-medium cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* US / AMERICA LOCATION FIELDS */}
-                  {region === 'US' && (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            State <span className="text-rose-500">*</span>
-                          </label>
-                          <select
-                            value={state}
-                            onChange={(e) => setState(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
-                          >
-                            {US_STATES.map((st) => (
-                              <option key={st} value={st}>{st}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            County / District <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={district}
-                            onChange={(e) => setDistrict(e.target.value)}
-                            placeholder="e.g. Los Angeles County, Cook County, Harris County"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            City <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="e.g. Los Angeles, Chicago, Houston, Austin"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Country
-                          </label>
-                          <input
-                            type="text"
-                            disabled
-                            value="United States"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-sm font-medium cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* EU / EUROPE LOCATION FIELDS */}
-                  {region === 'EU' && (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Country (EU Member State) <span className="text-rose-500">*</span>
-                          </label>
-                          <select
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
-                          >
-                            {EU_COUNTRIES.map((c) => (
-                              <option key={c.code} value={c.name}>{c.name} ({c.code})</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            State / Province / Region <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={customState}
-                            onChange={(e) => setCustomState(e.target.value)}
-                            placeholder="e.g. Bavaria, Île-de-France, Catalonia, Lombardy"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            District / Department / County <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={district}
-                            onChange={(e) => setDistrict(e.target.value)}
-                            placeholder="e.g. Upper Bavaria, Seine-et-Marne, Barcelona District"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            City <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="e.g. Munich, Paris, Barcelona, Amsterdam"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* OTHER / INTERNATIONAL LOCATION FIELDS */}
-                  {region === 'OTHER' && (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Country <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                            placeholder="e.g. Canada, Australia, Japan"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            State / Province <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={customState}
-                            onChange={(e) => setCustomState(e.target.value)}
-                            placeholder="e.g. Ontario, New South Wales"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            District / Region <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={district}
-                            onChange={(e) => setDistrict(e.target.value)}
-                            placeholder="e.g. York Region, Greater London"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            City <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="e.g. Toronto, Sydney, London"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">
-                    <ShieldCheck size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <p className="text-xs text-slate-600 font-medium">
-                      {region === 'IN' && (
-                        <>Market: <span className="font-bold text-slate-800">India (₹0 Free Plan permanent selling enabled with GST compliance)</span>.</>
-                      )}
-                      {region === 'US' && (
-                        <>Market: <span className="font-bold text-slate-800">America / United States (Full store access with 14-day free trial in $ USD)</span>.</>
-                      )}
-                      {region === 'EU' && (
-                        <>Market: <span className="font-bold text-slate-800">Europe (Full store access with 14-day free trial in € EUR for {country || 'EU'})</span>.</>
-                      )}
-                      {region === 'OTHER' && (
-                        <>Market: <span className="font-bold text-slate-800">International (14-day free trial via Stripe Checkout)</span>.</>
-                      )}
-                    </p>
+                  {/* Real-time Subdomain Pill */}
+                  <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-600 font-medium bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2">
+                    <Globe size={13} className="text-[#0052FF] shrink-0" />
+                    <span className="truncate">
+                      Your store address:{' '}
+                      <span className="font-extrabold text-[#0052FF]">
+                        {suggestedSlug}.ferasetu.com
+                      </span>
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5 text-sm"
-                  >
-                    <ArrowLeft size={16} />
-                    <span>Back</span>
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all cursor-pointer text-sm"
-                  >
-                    <span>Next: Team & Staff</span>
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 3: Optional Team Invitations */}
-            {step === 3 && (
-              <div className="space-y-6">
+                {/* 2. Retail Category Pills */}
                 <div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-                    <Users size={24} />
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
+                    What do you sell?
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {RETAIL_CATEGORIES.map((cat) => {
+                      const isSelected = selectedCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat.id)}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? 'border-[#0052FF] bg-blue-50/70 shadow-sm ring-1 ring-[#0052FF]'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xl">{cat.icon}</span>
+                            {isSelected && <Check size={14} className="text-[#0052FF]" />}
+                          </div>
+                          <span className={`text-xs font-bold ${isSelected ? 'text-[#0052FF]' : 'text-slate-800'}`}>
+                            {cat.name}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    Invite team members (Optional)
-                  </h2>
-                  <p className="text-sm text-slate-500 mt-1 font-medium">
-                    Add staff or store managers to your store. You can also skip this and add team members later from settings.
-                  </p>
                 </div>
 
-                <div className="space-y-3">
-                  {invitations.map((inv, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                {/* 3. Location (City & State) */}
+                <div className="pt-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                      Store Location (City & State)
+                    </label>
+                    {/* Region Switcher */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRegion('IN')}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${
+                          region === 'IN' ? 'bg-[#0052FF] text-white' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        🇮🇳 India
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRegion('US')}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${
+                          region === 'US' ? 'bg-[#0052FF] text-white' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        🇺🇸 US
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRegion('EU')}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${
+                          region === 'EU' ? 'bg-[#0052FF] text-white' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        🇪🇺 EU
+                      </button>
+                    </div>
+                  </div>
+
+                  {region === 'IN' && (
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <input
+                          type="text"
+                          required
+                          value={city}
+                          onChange={(e) => {
+                            setCity(e.target.value);
+                            setDistrict(e.target.value);
+                          }}
+                          placeholder="City / Town (e.g. Boisar, Mumbai)"
+                          className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold"
+                        />
+                        <select
+                          value={state}
+                          onChange={(e) => setState(e.target.value)}
+                          className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold bg-white"
+                        >
+                          {INDIAN_STATES.map((st) => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Quick City Presets */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <span className="text-[11px] text-slate-400 font-medium">Quick select:</span>
+                        {POPULAR_INDIAN_CITIES.map((c) => (
+                          <button
+                            key={c.city}
+                            type="button"
+                            onClick={() => handleSelectCityPreset(c.city, c.state)}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-colors ${
+                              city.toLowerCase() === c.city.toLowerCase()
+                                ? 'bg-blue-100 text-[#0052FF] font-bold'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {c.city}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {region === 'US' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <input
-                        type="email"
-                        value={inv.email}
-                        onChange={(e) => handleInviteChange(idx, 'email', e.target.value)}
-                        placeholder="colleague@example.com"
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium"
+                        type="text"
+                        required
+                        value={city}
+                        onChange={(e) => {
+                          setCity(e.target.value);
+                          setDistrict(e.target.value);
+                        }}
+                        placeholder="City (e.g. New York, Austin)"
+                        className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold"
                       />
                       <select
-                        value={inv.role}
-                        onChange={(e) => handleInviteChange(idx, 'role', e.target.value as any)}
-                        className="w-32 px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 text-sm font-medium bg-white"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold bg-white"
                       >
-                        <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
+                        {US_STATES.map((st) => (
+                          <option key={st} value={st}>{st}</option>
+                        ))}
                       </select>
-                      {invitations.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveInviteRow(idx)}
-                          className="p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          aria-label="Remove invite"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
                     </div>
-                  ))}
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={handleAddInviteRow}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 py-1"
-                  >
-                    <Plus size={14} />
-                    <span>Add another team member</span>
-                  </button>
-                </div>
+                  {region === 'EU' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <input
+                        type="text"
+                        required
+                        value={city}
+                        onChange={(e) => {
+                          setCity(e.target.value);
+                          setDistrict(e.target.value);
+                        }}
+                        placeholder="City (e.g. Berlin, Paris)"
+                        className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold"
+                      />
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold bg-white"
+                      >
+                        {EU_COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-slate-100">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => handleSubmitOnboarding(true)}
-                    className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-all text-sm text-center"
-                  >
-                    Skip for now
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => handleSubmitOnboarding(false)}
-                    className="flex-1 w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all cursor-pointer text-sm"
-                  >
-                    {submitting ? 'Creating store...' : 'Create Store & Organization'}
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 4: Transition Screen */}
-            {step === 4 && createdData && (
-              <div className="text-center space-y-6 py-4">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-                  <CheckCircle2 size={32} />
-                </div>
-
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                    Congratulations! Your Store Is Live 🎉
-                  </h2>
-                  <p className="text-sm text-slate-600 font-medium mt-1">
-                    <span className="font-extrabold text-slate-900">{createdData.organization?.name || shopName}</span> is now active on FeraSetu.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 text-left space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    <span>Reserved Storefront URL</span>
-                    <span className="text-emerald-600 flex items-center gap-1">
-                      <Check size={12} /> Active
-                    </span>
+                  {/* Optional Street Address Accordion */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddressAccordion(!showAddressAccordion)}
+                      className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      {showAddressAccordion ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      <span>Add street or pickup address (Optional)</span>
+                    </button>
+                    {showAddressAccordion && (
+                      <div className="mt-2 space-y-2">
+                        <input
+                          type="text"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          placeholder="Shop / Unit number, Street, Market area"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs font-medium"
+                        />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-xl border border-blue-200">
-                    <span className="text-sm font-black text-blue-900 truncate">
-                      {createdData.store_url}
-                    </span>
+                </div>
+
+                {/* Submit 48px Tactile CTA */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-blue-600 active:scale-[0.98] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-lg shadow-blue-600/25 transition-all text-base cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        <span>Launching your store...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <Sparkles size={18} />
+                        <span>Launch My Online Store</span>
+                        <ArrowRight size={18} />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Trust Invariants */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <ShieldCheck size={14} className="text-emerald-600" />
+                    0% Commission
+                  </span>
+                  <span>•</span>
+                  <span>WhatsApp Orders</span>
+                  <span>•</span>
+                  <span>Instant UPI</span>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* STEP 2: Instant Dopamine & Celebration (The Endowment Effect)    */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {step === 2 && createdData && (
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200/90 p-6 sm:p-9 text-center space-y-6">
+              {/* Confetti Celebration Badge */}
+              <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 size={34} />
+              </div>
+
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold mb-2">
+                  <span>🎉 Storefront Activated</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Congratulations! Your shop is live
+                </h2>
+                <p className="text-sm text-slate-600 font-medium mt-1">
+                  <span className="font-extrabold text-slate-900">{createdData.organization?.name || shopName}</span> is ready to take orders with 0% platform fee.
+                </p>
+              </div>
+
+              {/* Reserved Storefront URL Box */}
+              <div className="p-4 rounded-2xl bg-[#F6F8FC] border border-[#E5EAF1] text-left space-y-2.5">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <span>Your Live Store Link</span>
+                  <span className="text-emerald-600 flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Online
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 gap-2">
+                  <span className="text-sm font-black text-[#0052FF] truncate font-mono">
+                    {createdData.store_url}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleCopyStoreLink}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Copy store link"
+                    >
+                      {copiedLink ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                      <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                    </button>
                     <a
                       href={createdData.store_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 shrink-0 ml-2"
+                      className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-[#0052FF] hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors"
+                      title="Preview live store"
                     >
                       <span>Visit</span>
                       <ExternalLink size={12} />
                     </a>
                   </div>
                 </div>
-
-                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-                  <a
-                    href={createdData.store_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full sm:flex-1 py-3.5 px-6 rounded-xl border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold text-sm text-center transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>Open Your Storefront</span>
-                    <ExternalLink size={14} />
-                  </a>
-                  <button
-                    onClick={() => navigate('/dashboard', { replace: true })}
-                    className="w-full sm:flex-1 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Continue to Dashboard</span>
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
               </div>
-            )}
-          </div>
+
+              {/* WhatsApp Share Card (The Shopkeeper's Viral Loop) */}
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-left flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Share2 size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-950">Share with your customers on WhatsApp</p>
+                    <p className="text-[11px] text-emerald-700 font-medium">Send your store link to family, friends, or post to Status.</p>
+                  </div>
+                </div>
+                <a
+                  href={`https://api.whatsapp.com/send?text=${whatsappShareText}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <Share2 size={13} />
+                  <span>Share on WhatsApp</span>
+                </a>
+              </div>
+
+              {/* Two Clear Next Actions (The Daily Rhythm) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard', { replace: true })}
+                  className="min-h-[48px] py-3.5 px-5 rounded-2xl bg-[#0052FF] hover:bg-blue-600 active:scale-[0.98] text-white font-extrabold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Go to Daily Counter</span>
+                  <ArrowRight size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/website-builder', { replace: true })}
+                  className="min-h-[48px] py-3.5 px-5 rounded-2xl border-2 border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Customize Store Design</span>
+                  <ExternalLink size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

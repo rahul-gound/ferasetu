@@ -770,6 +770,12 @@ router.patch('/:id/status',
       return;
     }
 
+    // Invariant: Once an order is delivered, it cannot be changed to other updates!
+    if (existingOrder.status === 'delivered') {
+      res.status(400).json({ error: 'Order is delivered and finalized. Status cannot be modified.' });
+      return;
+    }
+
     if (status === 'cancelled') {
       const cancelReason = 'Merchant marked order as cancelled';
       db.prepare(`
@@ -938,11 +944,26 @@ router.get('/:id/after-sales', async (req: AuthenticatedRequest, res: Response):
     const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user!.id) as any;
     const invoice = db.prepare('SELECT * FROM invoices WHERE order_id = ?').get(req.params.id);
 
+    let returns: any[] = [];
+    try {
+      returns = db.prepare('SELECT * FROM order_returns WHERE order_id = ? ORDER BY created_at DESC').all(req.params.id) as any[];
+      returns = (returns || []).map((r: any) => ({
+        ...r,
+        items: typeof r.items === 'string' ? JSON.parse(r.items) : r.items,
+      }));
+    } catch {}
+
+    const deliveryFeeMinor = order?.delivery_fee_minor || Math.round((Number(order?.delivery_fee) || 0) * 100);
+    const deliveryLossMinor = order?.delivery_type === 'delivery' ? deliveryFeeMinor : 0;
+
     res.json({
       financials: summary,
       summary,
       refunds,
       creditNotes,
+      returns,
+      delivery_loss_minor: deliveryLossMinor,
+      delivery_loss: deliveryLossMinor / 100,
       order: {
         ...order,
         items: typeof order?.items === 'string' ? JSON.parse(order.items) : order?.items,
@@ -951,6 +972,206 @@ router.get('/:id/after-sales', async (req: AuthenticatedRequest, res: Response):
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 10a. Merchant / Customer Create or Record Return Request
+// ---------------------------------------------------------------------------
+router.post('/:id/return', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const { reason = 'Defective / Damaged / Return requested', items } = req.body;
+
+  try {
+    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
+    if (!order) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+
+    const orderItems = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+    const returnItems = (Array.isArray(items) && items.length > 0) ? items : orderItems;
+
+    const returnId = `ret_${uuidv4()}`;
+    const returnNumber = `FS-RET-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomInt(1000, 10000)}`;
+    const deliveryFeeMinor = order.delivery_fee_minor || Math.round((Number(order.delivery_fee) || 0) * 100);
+    const deliveryLossMinor = order.delivery_type === 'delivery' ? deliveryFeeMinor : 0;
+
+    try {
+      db.prepare(`
+        INSERT INTO order_returns (
+          id, return_number, order_id, user_id, organization_id, shop_id,
+          customer_id, items, total_return_minor, currency, return_reason,
+          status, delivery_loss_minor, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'requested', ?, datetime('now'), datetime('now'))
+      `).run(
+        returnId, returnNumber, order.id, userId, order.organization_id || null,
+        order.shop_id || null, order.customer_id || null, JSON.stringify(returnItems),
+        order.total_minor || Math.round((Number(order.total) || 0) * 100), order.currency || 'INR',
+        String(reason), deliveryLossMinor
+      );
+    } catch {
+      // Fallback if delivery_loss_minor column not yet present
+      db.prepare(`
+        INSERT INTO order_returns (
+          id, return_number, order_id, user_id, organization_id, shop_id,
+          customer_id, items, total_return_minor, currency, return_reason,
+          status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'requested', datetime('now'), datetime('now'))
+      `).run(
+        returnId, returnNumber, order.id, userId, order.organization_id || null,
+        order.shop_id || null, order.customer_id || null, JSON.stringify(returnItems),
+        order.total_minor || Math.round((Number(order.total) || 0) * 100), order.currency || 'INR',
+        String(reason)
+      );
+    }
+
+    try {
+      db.prepare(`
+        UPDATE orders SET
+          return_status = 'requested',
+          return_reason = ?,
+          return_delivery_loss_minor = ?,
+          updated_at = datetime('now')
+        WHERE id = ? AND user_id = ?
+      `).run(String(reason), deliveryLossMinor, order.id, userId);
+    } catch {
+      db.prepare(`
+        UPDATE orders SET
+          return_status = 'requested',
+          return_reason = ?,
+          updated_at = datetime('now')
+        WHERE id = ? AND user_id = ?
+      `).run(String(reason), order.id, userId);
+    }
+
+    recordFinancialAudit({
+      userId,
+      orderId: order.id,
+      eventType: 'order_return_requested',
+      actorType: 'merchant',
+      actorId: userId,
+      metadata: { reason, deliveryLossMinor },
+    });
+
+    res.json({
+      success: true,
+      message: 'Return request submitted successfully.',
+      return_status: 'requested',
+      delivery_loss_minor: deliveryLossMinor,
+      delivery_loss: deliveryLossMinor / 100,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to submit return request' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 10b. Merchant Reject Return Request
+// ---------------------------------------------------------------------------
+router.post('/:id/return/reject', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const { reason = 'Return request rejected by merchant' } = req.body;
+
+  try {
+    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
+    if (!order) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE orders SET
+        return_status = 'rejected',
+        return_reason = ?,
+        updated_at = datetime('now')
+      WHERE id = ? AND user_id = ?
+    `).run(String(reason), order.id, userId);
+
+    try {
+      db.prepare(`
+        UPDATE order_returns SET
+          status = 'rejected',
+          merchant_notes = ?,
+          updated_at = datetime('now')
+        WHERE order_id = ?
+      `).run(String(reason), order.id);
+    } catch {}
+
+    recordFinancialAudit({
+      userId,
+      orderId: order.id,
+      eventType: 'order_return_rejected',
+      actorType: 'merchant',
+      actorId: userId,
+      metadata: { reason },
+    });
+
+    res.json({
+      success: true,
+      message: 'Return request rejected.',
+      return_status: 'rejected',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to reject return' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 10c. Merchant Approve Return Request
+// ---------------------------------------------------------------------------
+router.post('/:id/return/approve', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const { notes = 'Return approved by merchant' } = req.body;
+
+  try {
+    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId) as any;
+    if (!order) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE orders SET
+        return_status = 'approved',
+        updated_at = datetime('now')
+      WHERE id = ? AND user_id = ?
+    `).run(order.id, userId);
+
+    try {
+      db.prepare(`
+        UPDATE order_returns SET
+          status = 'approved',
+          merchant_notes = ?,
+          updated_at = datetime('now')
+        WHERE order_id = ?
+      `).run(String(notes), order.id);
+    } catch {}
+
+    const deliveryFeeMinor = order.delivery_fee_minor || Math.round((Number(order.delivery_fee) || 0) * 100);
+    const deliveryLossMinor = order.delivery_type === 'delivery' ? deliveryFeeMinor : 0;
+
+    recordFinancialAudit({
+      userId,
+      orderId: order.id,
+      eventType: 'order_return_approved',
+      actorType: 'merchant',
+      actorId: userId,
+      metadata: { notes, deliveryLossMinor },
+    });
+
+    res.json({
+      success: true,
+      message: 'Return request approved.',
+      return_status: 'approved',
+      delivery_loss_minor: deliveryLossMinor,
+      delivery_loss: deliveryLossMinor / 100,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to approve return' });
   }
 });
 

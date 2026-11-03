@@ -700,6 +700,12 @@ export default function ProductsPage() {
                       {product.name}
                     </h3>
 
+                    {(product.is_returnable === false || (product as any).non_returnable === true || (product.description || '').includes('Non-returnable')) && (
+                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100/90 text-amber-900 border border-amber-300">
+                        🚫 Non-returnable
+                      </span>
+                    )}
+
                     {product.sku && (
                       <div className="flex items-center gap-1 mt-1 text-[11px] font-mono text-slate-400">
                         <Tag size={11} />
@@ -795,7 +801,14 @@ export default function ProductsPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 m-0">{product.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900 m-0">{product.name}</p>
+                            {(product.is_returnable === false || (product as any).non_returnable === true || (product.description || '').includes('Non-returnable')) && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100/90 text-amber-900 border border-amber-300">
+                                Non-returnable
+                              </span>
+                            )}
+                          </div>
                           {product.variants && product.variants.length > 0 && (
                             <span className="text-[11px] font-semibold text-indigo-600">
                               {product.variants.length} Variants

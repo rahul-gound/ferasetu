@@ -135,6 +135,10 @@ router.post('/',
         ? (req.body.is_active === true || req.body.is_active === 'true' || req.body.is_active === 1 || req.body.is_active === '1' ? 1 : 0)
         : 1;
 
+      const isReturnable = req.body.is_returnable !== undefined
+        ? (req.body.is_returnable === false || req.body.is_returnable === 'false' || req.body.is_returnable === 0 || req.body.is_returnable === '0' || req.body.non_returnable === true || req.body.non_returnable === 'true' ? 0 : 1)
+        : (req.body.non_returnable === true || req.body.non_returnable === 'true' ? 0 : 1);
+
       // Handle Appwrite Storage Image URL or Upload
       let imageUrl: string | null = null;
       if (req.file) {
@@ -191,22 +195,42 @@ router.post('/',
       }
 
       const id = uuidv4();
-      db.prepare(`
-        INSERT INTO products (id, user_id, name, description, cost_price, price, sale_price, category, stock_quantity, image_url, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `).run(
-        id,
-        req.user!.id,
-        name.trim(),
-        description ? String(description).trim() : null,
-        costPrice,
-        price,
-        salePrice,
-        category ? String(category).trim() : null,
-        stockQuantity,
-        imageUrl,
-        isActive
-      );
+      try {
+        db.prepare(`
+          INSERT INTO products (id, user_id, name, description, cost_price, price, sale_price, category, stock_quantity, image_url, is_active, is_returnable, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(
+          id,
+          req.user!.id,
+          name.trim(),
+          description ? String(description).trim() : null,
+          costPrice,
+          price,
+          salePrice,
+          category ? String(category).trim() : null,
+          stockQuantity,
+          imageUrl,
+          isActive,
+          isReturnable
+        );
+      } catch {
+        db.prepare(`
+          INSERT INTO products (id, user_id, name, description, cost_price, price, sale_price, category, stock_quantity, image_url, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(
+          id,
+          req.user!.id,
+          name.trim(),
+          description ? String(description).trim() : null,
+          costPrice,
+          price,
+          salePrice,
+          category ? String(category).trim() : null,
+          stockQuantity,
+          imageUrl,
+          isActive
+        );
+      }
 
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
       res.status(201).json(product);
@@ -300,6 +324,12 @@ router.put('/:id',
         const isActive = (req.body.is_active === true || req.body.is_active === 'true' || req.body.is_active === 1 || req.body.is_active === '1') ? 1 : 0;
         fields.push('is_active = ?');
         values.push(isActive);
+      }
+
+      if (req.body.is_returnable !== undefined || req.body.non_returnable !== undefined) {
+        const isReturnable = (req.body.is_returnable === false || req.body.is_returnable === 'false' || req.body.is_returnable === 0 || req.body.is_returnable === '0' || req.body.non_returnable === true || req.body.non_returnable === 'true') ? 0 : 1;
+        fields.push('is_returnable = ?');
+        values.push(isReturnable);
       }
 
       // Handle image update: either uploaded file or Appwrite/HTTPS URL

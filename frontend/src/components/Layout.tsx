@@ -22,8 +22,10 @@ import {
   ArrowRightLeft,
   Tag,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
+  Wrench,
   Settings,
   Sliders,
   Zap,
@@ -133,71 +135,84 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   const totalCustomersCount = customersData?.stats?.total_customers ?? customersData?.customers?.length ?? 0;
 
-  // Nav groups: MAIN / GROW / ENGAGE / SETTINGS
-  const navGroups: NavGroup[] = useMemo(() => [
+  // ── 4+1 Daily Rhythm Anchors (Hick's Law - Zero Clutter) ──
+  const dailyItems: NavItem[] = useMemo(() => [
+    { path: '/dashboard', icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
     {
-      groupLabel: 'MAIN',
-      items: [
-        { path: '/dashboard', icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
-        { path: '/products', icon: <Package size={17} />, label: 'Products' },
-        {
-          path: '/transfers',
-          icon: <Truck size={17} />,
-          label: 'Transfers',
-          badge: 'BETA',
-          badgeColor: 'blue',
-        },
-        {
-          path: '/gift-cards',
-          icon: <Gift size={17} />,
-          label: 'Gift Cards',
-          badge: 'BETA',
-          badgeColor: 'orange',
-        },
-        {
-          path: '/orders', icon: <ShoppingCart size={17} />, label: 'Orders',
-          badge: totalOrdersCount > 0 ? totalOrdersCount : undefined,
-          badgeColor: 'orange',
-        },
-        {
-          path: '/customers', icon: <Users size={17} />, label: 'Customers',
-          badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
-          badgeColor: 'blue',
-        },
-        { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts' },
-        { path: '/analytics', icon: <BarChart3 size={17} />, label: 'Analytics' },
-      ],
+      path: '/orders',
+      icon: <ShoppingCart size={17} />,
+      label: 'Orders & Counter',
+      badge: totalOrdersCount > 0 ? totalOrdersCount : undefined,
+      badgeColor: 'orange',
+    },
+    { path: '/products', icon: <Package size={17} />, label: 'Products & Stock' },
+    {
+      path: '/customers',
+      icon: <Users size={17} />,
+      label: 'Customers & Khata',
+      badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
+      badgeColor: 'blue',
+    },
+    { path: '/website-builder', icon: <Globe size={17} />, label: 'Storefront Builder' },
+  ], [totalOrdersCount, totalCustomersCount]);
+
+  // ── Shop Toolkit (Shopify-Grade Power Features Drawer) ──
+  const toolkitItems: NavItem[] = useMemo(() => [
+    { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts & Offers' },
+    {
+      path: '/transfers',
+      icon: <Truck size={17} />,
+      label: 'Stock Transfers',
+      badge: 'BETA',
+      badgeColor: 'blue',
     },
     {
-      groupLabel: 'GROW',
-      items: [
-        {
-          path: '/ferasetu-ai', icon: <Sparkles size={17} />, label: 'FeraSetu AI',
-        },
-        {
-          path: '/ai-credits', icon: <Coins size={17} />, label: 'AI Credits',
-          badge: user?.ai_credits_balance ?? 20,
-          badgeColor: 'blue',
-        },
-        { path: '/website-builder', icon: <Globe size={17} />, label: 'Website Builder' },
-        { path: '/website-settings', icon: <Sliders size={17} />, label: 'Website Settings' },
-      ],
+      path: '/gift-cards',
+      icon: <Gift size={17} />,
+      label: 'Digital Gift Cards',
+      badge: 'BETA',
+      badgeColor: 'orange',
     },
+    { path: '/analytics', icon: <BarChart3 size={17} />, label: 'Analytics & Traffic' },
+    { path: '/ferasetu-ai', icon: <Sparkles size={17} />, label: 'Fera AI Copilot' },
     {
-      groupLabel: 'ENGAGE',
-      items: [
-        { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
-        { path: '/survey-feedback', icon: <MessageSquareText size={17} />, label: 'Survey & Feedback' },
-        { path: '/support', icon: <LifeBuoy size={17} />, label: 'Support' },
-      ],
+      path: '/ai-credits',
+      icon: <Coins size={17} />,
+      label: 'AI Credits',
+      badge: user?.ai_credits_balance ?? 20,
+      badgeColor: 'blue',
     },
-    {
-      groupLabel: 'SETTINGS',
-      items: [
-        { path: '/settings/email', icon: <Mail size={17} />, label: 'Domains & Email' },
-      ],
-    },
-  ], [totalOrdersCount, totalCustomersCount, user?.ai_credits_balance]);
+    { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
+    { path: '/website-settings', icon: <Sliders size={17} />, label: 'SEO & Search Engine' },
+    { path: '/settings/email', icon: <Mail size={17} />, label: 'Custom Domains & Mail' },
+    { path: '/support', icon: <LifeBuoy size={17} />, label: 'Merchant Support' },
+  ], [user?.ai_credits_balance]);
+
+  // Contextual expansion: Open toolkit if user is visiting any toolkit route
+  const isToolkitRoute = useMemo(() => {
+    const p = location.pathname;
+    return (
+      p.startsWith('/dashboard/discounts') ||
+      p.startsWith('/transfers') ||
+      p.startsWith('/gift-cards') ||
+      p.startsWith('/analytics') ||
+      p.startsWith('/ferasetu-ai') ||
+      p.startsWith('/ai-credits') ||
+      p.startsWith('/whatsapp-assistant') ||
+      p.startsWith('/website-settings') ||
+      p.startsWith('/settings') ||
+      p.startsWith('/support') ||
+      p.startsWith('/survey-feedback')
+    );
+  }, [location.pathname]);
+
+  const [toolkitOpen, setToolkitOpen] = useState(isToolkitRoute);
+
+  useEffect(() => {
+    if (isToolkitRoute) {
+      setToolkitOpen(true);
+    }
+  }, [isToolkitRoute]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -294,80 +309,122 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         </button>
       </div>
 
-      {/* Grouped Navigation */}
+      {/* ── 4+1 Daily Rhythm Navigation & Shop Toolkit ── */}
       <nav
         aria-label="Merchant Navigation"
         className={`flex flex-1 flex-col overflow-y-auto min-h-0 py-4 transition-all duration-300 ${
-          isCollapsed ? 'px-2 gap-4' : 'px-3 gap-5'
+          isCollapsed ? 'px-2 gap-3' : 'px-3 gap-3'
         }`}
       >
-        {navGroups.map((group, groupIdx) => (
-          <div key={group.groupLabel}>
-            {isCollapsed ? (
-              groupIdx > 0 && <div className="my-2 border-t border-[#E5EAF1]/60" />
-            ) : (
-              <p className="text-[9px] font-bold tracking-widest text-[#667085]/70 uppercase px-2 mb-1.5">
-                {group.groupLabel}
-              </p>
-            )}
-            <div className="flex flex-col gap-0.5">
-              {group.items.map(item => {
-                const badgeVal = item.badge;
-                const hasBadge = badgeVal !== undefined && (typeof badgeVal === 'string' || Number(badgeVal) > 0);
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    title={item.label}
-                    onClick={() => setSidebarOpen(false)}
-                    className={({ isActive }) =>
-                      `flex min-h-[38px] items-center rounded-xl text-[13px] font-medium transition-all duration-150 ${
-                        isCollapsed
-                          ? `justify-center px-0 py-2.5 ${
-                              isActive
-                                ? 'bg-blue-50 text-[#0052FF] font-semibold'
-                                : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'
-                            }`
-                          : `gap-2.5 px-3 py-2 ${
-                              isActive
-                                ? 'bg-blue-50 text-[#0052FF] font-semibold border-l-2 border-[#0052FF] pl-[10px]'
-                                : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'
-                            }`
-                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]`
-                    }
-                  >
-                    <span className="relative shrink-0 flex items-center justify-center">
-                      {item.icon}
-                      {isCollapsed && hasBadge && (
-                        <span
-                          className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ring-2 ring-white ${
-                            item.badgeColor === 'orange' ? 'bg-orange-500' : 'bg-[#0052FF]'
-                          }`}
-                        />
-                      )}
-                    </span>
-                    {!isCollapsed && (
-                      <>
-                        <span className="flex-1 truncate">{item.label}</span>
-                        {hasBadge && (
-                          <span
-                            className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide ${
-                              item.badgeColor === 'orange'
-                                ? 'bg-orange-100 text-orange-600'
-                                : 'bg-blue-100 text-[#0052FF]'
-                            }`}
-                          >
-                            {badgeVal}
-                          </span>
-                        )}
-                      </>
+        {/* Helper function for nav item rendering */}
+        {(() => {
+          const renderItem = (item: NavItem) => {
+            const badgeVal = item.badge;
+            const hasBadge = badgeVal !== undefined && (typeof badgeVal === 'string' || Number(badgeVal) > 0);
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                title={item.label}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex min-h-[38px] items-center rounded-xl text-[13px] font-medium transition-all duration-150 ${
+                    isCollapsed
+                      ? `justify-center px-0 py-2.5 ${
+                          isActive
+                            ? 'bg-blue-50 text-[#0052FF] font-semibold'
+                            : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'
+                        }`
+                      : `gap-2.5 px-3 py-2 ${
+                          isActive
+                            ? 'bg-blue-50 text-[#0052FF] font-semibold border-l-2 border-[#0052FF] pl-[10px]'
+                            : 'text-[#667085] hover:bg-slate-50 hover:text-[#152238]'
+                        }`
+                  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]`
+                }
+              >
+                <span className="relative shrink-0 flex items-center justify-center">
+                  {item.icon}
+                  {isCollapsed && hasBadge && (
+                    <span
+                      className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ring-2 ring-white ${
+                        item.badgeColor === 'orange' ? 'bg-orange-500' : 'bg-[#0052FF]'
+                      }`}
+                    />
+                  )}
+                </span>
+                {!isCollapsed && (
+                  <>
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {hasBadge && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide ${
+                          item.badgeColor === 'orange'
+                            ? 'bg-orange-100 text-orange-600'
+                            : 'bg-blue-100 text-[#0052FF]'
+                        }`}
+                      >
+                        {badgeVal}
+                      </span>
                     )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                  </>
+                )}
+              </NavLink>
+            );
+          };
+
+          return (
+            <>
+              {/* 1. Daily Core Anchors */}
+              <div>
+                {!isCollapsed && (
+                  <p className="text-[9px] font-bold tracking-widest text-[#667085]/70 uppercase px-2 mb-1.5">
+                    Daily Counter
+                  </p>
+                )}
+                <div className="flex flex-col gap-0.5">
+                  {dailyItems.map(renderItem)}
+                </div>
+              </div>
+
+              {/* 2. Soft Divider */}
+              <div className="my-1 border-t border-[#E5EAF1]/70" />
+
+              {/* 3. Shop Toolkit (Shopify-Grade Power Features Drawer) */}
+              <div>
+                {!isCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={() => setToolkitOpen(!toolkitOpen)}
+                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left hover:bg-slate-100/70 transition-colors cursor-pointer group"
+                    title={toolkitOpen ? 'Collapse power tools' : 'Expand power tools'}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 group-hover:text-slate-800 transition-colors">
+                        Shop Toolkit
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-[9px] font-bold text-[#0052FF]">
+                        Power Tools
+                      </span>
+                    </div>
+                    <div className="text-slate-400 group-hover:text-slate-700 transition-colors shrink-0">
+                      {toolkitOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </div>
+                  </button>
+                ) : (
+                  <div className="my-1 border-t border-[#E5EAF1]/60" />
+                )}
+
+                {/* If collapsed on desktop, always show icons. If expanded, toggle via toolkitOpen */}
+                {(toolkitOpen || isCollapsed) && (
+                  <div className="flex flex-col gap-0.5 mt-0.5">
+                    {toolkitItems.map(renderItem)}
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
       </nav>
 
       {/* Bottom: Plan + Store Profile */}

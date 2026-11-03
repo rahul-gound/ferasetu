@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
   Download, Share2, Copy, Check, ExternalLink, Sparkles, Mail, Ban, RotateCcw,
-  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt, Plus
+  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt, Plus, QrCode, Key
 } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -14,6 +14,9 @@ import { getStorefrontUrl } from '../utils/canonicalHostname';
 import InvoiceDocumentModal from '../components/orders/InvoiceDocumentModal';
 import AddOrderModal from '../components/orders/AddOrderModal';
 import CancelConfirmationModal from '../components/orders/CancelConfirmationModal';
+import OrderPaymentQrModal from '../components/orders/OrderPaymentQrModal';
+import EnterDeliveryCodeModal from '../components/orders/EnterDeliveryCodeModal';
+import ReturnDetailsModal from '../components/orders/ReturnDetailsModal';
 import posthog from '../lib/posthog';
 
 
@@ -82,7 +85,7 @@ async function downloadPdf(url: string, filename: string) {
   }
 }
 
-const ALL_STATUSES = ['all', 'pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
+const ALL_STATUSES = ['all', 'pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled', 'returns'];
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   pending:          { bg: 'rgba(245,158,11,0.15)',  color: '#D97706' },
@@ -91,12 +94,13 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   out_for_delivery: { bg: 'rgba(6,182,212,0.15)',   color: '#0891B2' },
   delivered:        { bg: 'rgba(16,185,129,0.15)',  color: '#059669' },
   cancelled:        { bg: 'rgba(239,68,68,0.15)',   color: '#DC2626' },
+  returns:          { bg: 'rgba(245,158,11,0.2)',   color: '#B45309' },
 };
 
 const STATUS_LABELS: Record<string, string> = {
   all: 'All', pending: 'Pending', confirmed: 'Confirmed',
   preparing: 'Preparing', out_for_delivery: 'Out for Delivery',
-  delivered: 'Delivered', cancelled: 'Cancelled',
+  delivered: 'Delivered', cancelled: 'Cancelled', returns: 'Returns',
 };
 
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
@@ -174,6 +178,9 @@ export default function OrdersPage() {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [qrModalOrder, setQrModalOrder] = useState<Order | null>(null);
+  const [orderForDeliveryCode, setOrderForDeliveryCode] = useState<Order | null>(null);
+  const [orderForReturnReview, setOrderForReturnReview] = useState<Order | null>(null);
 
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
@@ -288,6 +295,36 @@ export default function OrdersPage() {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error || 'Failed to issue credit note');
+    },
+  });
+
+  const returnRejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/orders/${id}/return/reject`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      refetchAfterSales();
+      toast.success('Return request rejected.');
+      setOrderForReturnReview(null);
+      setSelectedOrder(prev => prev ? { ...prev, return_status: 'rejected' } : null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to reject return');
+    },
+  });
+
+  const returnApproveMutation = useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.post(`/orders/${id}/return/approve`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      refetchAfterSales();
+      toast.success('Return request approved.');
+      setOrderForReturnReview(null);
+      setSelectedOrder(prev => prev ? { ...prev, return_status: 'approved' } : null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to approve return');
     },
   });
 
@@ -629,13 +666,24 @@ export default function OrdersPage() {
                     </div>
 
                     {order.status !== 'cancelled' ? (
-                      <button
-                        type="button"
-                        onClick={() => setInvoiceOrder(order)}
-                        className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        🧾 Invoice
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setQrModalOrder(order)}
+                          className="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Show Payment QR Code & Order Link"
+                        >
+                          <QrCode size={13} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
+                          <span>QR & Link</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInvoiceOrder(order)}
+                          className="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                          🧾 Invoice
+                        </button>
+                      </div>
                     ) : (
                       <span className="px-2.5 py-1.5 text-[11px] font-medium text-slate-400 italic">
                         Voided
@@ -737,13 +785,24 @@ export default function OrdersPage() {
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         {order.status !== 'cancelled' ? (
-                          <button
-                            className="btn btn-secondary"
-                            onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
-                            style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
-                          >
-                            🧾 Invoice
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={e => { e.stopPropagation(); setQrModalOrder(order); }}
+                              style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Show Payment QR Code & Order Link"
+                            >
+                              <QrCode size={13} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
+                              <span>QR & Link</span>
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
+                              style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                            >
+                              🧾 Invoice
+                            </button>
+                          </div>
                         ) : (
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                             No Invoice
@@ -862,6 +921,15 @@ export default function OrdersPage() {
                     <button
                       type="button"
                       className="btn btn-primary"
+                      onClick={() => setQrModalOrder(selectedOrder)}
+                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#EA580C', color: '#FFF' }}
+                    >
+                      <QrCode size={14} /> Payment QR & Link
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
                       onClick={() => setInvoiceOrder(selectedOrder)}
                       style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
                     >
@@ -1360,6 +1428,21 @@ export default function OrdersPage() {
           });
         }}
         isSubmitting={cancelOrderMutation.isPending}
+      />
+
+      {/* Order Payment QR & Link Modal */}
+      <OrderPaymentQrModal
+        isOpen={!!qrModalOrder}
+        onClose={() => setQrModalOrder(null)}
+        order={qrModalOrder}
+        user={user}
+        onPaymentConfirmed={(orderId) => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+          if (selectedOrder?.id === orderId) {
+            setSelectedOrder(prev => prev ? { ...prev, payment_status: 'paid', status: 'confirmed' } : null);
+          }
+          setQrModalOrder(prev => prev ? { ...prev, payment_status: 'paid', status: 'confirmed' } : null);
+        }}
       />
     </div>
   );
