@@ -1,4 +1,4 @@
-import { Check, ChevronRight, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, ChevronRight, Sparkles, ArrowRight, Banknote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface OnboardingStep {
@@ -8,17 +8,21 @@ interface OnboardingStep {
   done: boolean;
   href?: string;
   actionLabel?: string;
+  onClick?: () => void;
 }
 
 interface OnboardingProgressProps {
   shopCreated: boolean;
   hasProducts: boolean;
   hasOrders: boolean;
+  hasPaymentMethod?: boolean;
   storePublished?: boolean;
   storeSlug?: string;
   storeUrl?: string;
   /** Called when the user explicitly dismisses the widget (stores in localStorage) */
   onDismiss?: () => void;
+  /** Triggered to open the guided payment setup modal */
+  onSetupPayment?: () => void;
 }
 
 const DISMISS_KEY = 'fera_onboarding_dismissed_v2';
@@ -41,10 +45,12 @@ export default function OnboardingProgress({
   shopCreated,
   hasProducts,
   hasOrders,
+  hasPaymentMethod = false,
   storePublished = false,
   storeSlug,
   storeUrl,
   onDismiss,
+  onSetupPayment,
 }: OnboardingProgressProps) {
   const displayUrl = storeUrl || (storeSlug ? `https://${storeSlug}.ferasetu.com` : 'Store link reserved');
 
@@ -72,6 +78,16 @@ export default function OnboardingProgress({
       actionLabel: 'Add Product',
     },
     {
+      id: 'payment_setup',
+      label: 'Set up payment to receive money',
+      description: hasPaymentMethod
+        ? 'Direct UPI & cash payments active with 0% commission.'
+        : 'Add your UPI ID or payment details to receive 100% direct customer payments.',
+      done: hasPaymentMethod,
+      actionLabel: hasPaymentMethod ? 'Edit UPI / Payment' : 'Set Up Payment',
+      onClick: onSetupPayment,
+    },
+    {
       id: 'store_shared',
       label: 'Share WhatsApp store link',
       description: 'Send your store catalog to customers or post on WhatsApp Status.',
@@ -96,7 +112,7 @@ export default function OnboardingProgress({
   const nextUndoneIndex = steps.findIndex(s => !s.done);
 
   // Don't render if dismissed and products are already added, or if everything is complete
-  if (isDismissed() && completedCount >= 3) return null;
+  if (isDismissed() && completedCount >= 4) return null;
   if (allDone) return null;
 
   const handleDismiss = () => {
@@ -139,7 +155,7 @@ export default function OnboardingProgress({
               style={{ width: `${pct}%` }}
             />
           </div>
-          {completedCount >= 3 && (
+          {completedCount >= 4 && (
             <button
               onClick={handleDismiss}
               aria-label="Dismiss setup checklist"
@@ -206,19 +222,35 @@ export default function OnboardingProgress({
               </div>
 
               {/* Action Button */}
-              {!step.done && step.href && (
-                <Link
-                  to={step.href}
-                  id={`onboarding-step-${step.id}`}
-                  className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    isNext
-                      ? 'bg-[#0052FF] hover:bg-blue-700 text-white shadow-sm'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  <span>{step.actionLabel}</span>
-                  <ArrowRight size={12} />
-                </Link>
+              {!step.done && (
+                step.onClick ? (
+                  <button
+                    type="button"
+                    onClick={step.onClick}
+                    id={`onboarding-step-${step.id}`}
+                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isNext
+                        ? 'bg-[#0052FF] hover:bg-blue-700 text-white shadow-sm'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <span>{step.actionLabel}</span>
+                    <ArrowRight size={12} />
+                  </button>
+                ) : step.href ? (
+                  <Link
+                    to={step.href}
+                    id={`onboarding-step-${step.id}`}
+                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      isNext
+                        ? 'bg-[#0052FF] hover:bg-blue-700 text-white shadow-sm'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <span>{step.actionLabel}</span>
+                    <ArrowRight size={12} />
+                  </Link>
+                ) : null
               )}
             </div>
           );

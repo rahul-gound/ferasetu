@@ -53,6 +53,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useMarket } from '../contexts/MarketContext';
 import OnboardingProgress from '../components/ui/OnboardingProgress';
+import PaymentSetupModal from '../components/dashboard/PaymentSetupModal';
+import CounterQrModal from '../components/dashboard/CounterQrModal';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 function getGreeting(): string {
@@ -254,6 +256,26 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d');
   const [showQrModal, setShowQrModal] = useState(false);
   const [showFirstOrderModal, setShowFirstOrderModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const hasPaymentConfigured = useMemo(() => {
+    if ((user as any)?.upi_id || (user as any)?.payment_settings?.upi_id) return true;
+    try {
+      return localStorage.getItem('fera_payment_configured') === 'true' || !!localStorage.getItem('fera_upi_id');
+    } catch {
+      return false;
+    }
+  }, [user]);
+
+  const currentUpiId = useMemo(() => {
+    return (user as any)?.upi_id || (user as any)?.payment_settings?.upi_id || (() => {
+      try {
+        return localStorage.getItem('fera_upi_id') || '';
+      } catch {
+        return '';
+      }
+    })();
+  }, [user]);
 
   const greeting = useMemo(() => getGreeting(), []);
   const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
@@ -784,6 +806,8 @@ export default function DashboardPage() {
         shopCreated={true}
         hasProducts={products.length > 0}
         hasOrders={orders.length > 0}
+        hasPaymentMethod={hasPaymentConfigured}
+        onSetupPayment={() => setShowPaymentModal(true)}
         storePublished={!!(user?.subdomain || user?.organization?.store_slug)}
         storeSlug={user?.organization?.store_slug || user?.subdomain}
         storeUrl={user?.organization?.store_url || (user?.subdomain ? `https://${user.subdomain}.ferasetu.com` : undefined)}
@@ -1601,8 +1625,23 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Counter QR Code Modal (Physical Counter Display) ── */}
-      {showQrModal && (
+      {/* ── Counter QR Code Modal (Real Scannable Standee & Direct UPI) ── */}
+      <CounterQrModal
+        open={showQrModal}
+        onClose={() => setShowQrModal(false)}
+        storeUrl={storeUrl}
+        businessName={user?.business_name || user?.name || 'My Store'}
+        upiId={currentUpiId}
+        onOpenPaymentSetup={() => setShowPaymentModal(true)}
+      />
+
+      {/* ── Guided Payment Setup Modal (Add Payment to Receive Money) ── */}
+      <PaymentSetupModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+      />
+      {/* Old modal removed */}
+      {false && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setShowQrModal(false)}
