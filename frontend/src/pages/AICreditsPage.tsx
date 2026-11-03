@@ -57,7 +57,20 @@ interface DailyUsageItem {
 declare global {
   interface Window {
     Cashfree?: any;
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
   }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') { resolve(false); return; }
+    if (window.Razorpay) { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 function loadCashfreeScript(): Promise<boolean> {
@@ -192,7 +205,62 @@ export default function AICreditsPage() {
         return;
       }
 
-      // If gateway requires payment via Cashfree Checkout
+      // If gateway requires payment via Razorpay Checkout (Primary for India & Subscriptions)
+      if (res.data.requiresPayment && (res.data.gateway === 'razorpay' || res.data.razorpayOrderId)) {
+        const razorpayLoaded = await loadRazorpayScript();
+        if (!razorpayLoaded || !window.Razorpay) {
+          toast.error('Could not load Razorpay payment window. Please check your connection and try again.');
+          setBuying(null);
+          return;
+        }
+
+        const razorpay = new window.Razorpay({
+          key: res.data.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: res.data.amount * 100,
+          currency: res.data.currency || 'INR',
+          name: 'FeraSetu',
+          description: `AI Credits — ${res.data.pack?.label || 'Top-up Pack'}`,
+          order_id: res.data.razorpayOrderId,
+          prefill: { email: user?.email, name: user?.name },
+          theme: { color: '#FF6B35' },
+          handler: async (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            const toastId = toast.loading('Verifying payment with Razorpay...');
+            try {
+              const verifyRes = await api.post('/payment/verify', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                transaction_id: res.data.id,
+              });
+
+              if (verifyRes.data.success) {
+                toast.success(verifyRes.data.message || 'AI credits added successfully!', { id: toastId });
+                await fetchCredits();
+              } else {
+                toast.error(verifyRes.data.error || 'Payment verification failed.', { id: toastId });
+              }
+            } catch (verifyErr: any) {
+              toast.error(verifyErr?.response?.data?.error || 'Payment verification failed.', { id: toastId });
+            } finally {
+              setBuying(null);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setBuying(null);
+            }
+          }
+        });
+
+        razorpay.open();
+        return;
+      }
+
+      // If gateway requires payment via Cashfree Checkout (Fallback)
       if (res.data.requiresPayment && (res.data.gateway === 'cashfree' || res.data.paymentSessionId)) {
         try {
           const { paymentSessionId, mode } = validateCashfreePaymentResponse(res.data);
@@ -1070,7 +1138,7 @@ export default function AICreditsPage() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-slate-600">
-                        {log.model || 'sarvam-2b'}
+                        {log.model || 'fera-ai'}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className="font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100 text-[11px]">

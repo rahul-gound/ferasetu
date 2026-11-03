@@ -136,7 +136,7 @@ function HealthTab({ stats, loading }: any) {
           detail="Application database reachable"
         />
         <StatusCard 
-          label="AI Engine (Sarvam)" 
+          label="AI Engine (Fera AI)" 
           status="online" 
           icon={<Bot className="text-purple-500" />}
           detail="v1.0 / Complex Models"
@@ -378,7 +378,7 @@ function AiTab({ usage, loading }: any) {
                         <div className="font-black text-slate-900">{log.business_name || log.user_name || 'Partner'}</div>
                         <div className="text-xs text-slate-400">{log.email || '—'}</div>
                       </td>
-                      <td className="p-6"><span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase">{log.model || 'sarvam'}</span></td>
+                      <td className="p-6"><span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase">{log.model || 'fera-ai'}</span></td>
                       <td className="p-6">{(log.prompt_tokens || 0) + (log.completion_tokens || 0)}</td>
                       <td className="p-6 text-emerald-600 font-black">{log.credits_used || 0}</td>
                     </tr>

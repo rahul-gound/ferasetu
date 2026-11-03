@@ -168,7 +168,7 @@ export default function AIAssistantPage() {
       role: 'assistant',
       content: '**Namaste! 🙏 I\'m FeraSetu, your smart shopkeeper assistant.**\n\nI can help you:\n- **Build your website** in seconds\n- **Manage products** and apply discounts\n- **Analyze your sales** and suggest improvements\n- **Answer questions** about running your store\n\nTry asking me something in your language!',
       timestamp: new Date(),
-      model: 'sarvam-m',
+      model: 'fera-ai',
     },
   ]);
   const [input, setInput] = useState('');
@@ -224,7 +224,7 @@ export default function AIAssistantPage() {
         role: 'assistant',
         content: data.content,
         timestamp: new Date(),
-        model: data.model || 'sarvam-m',
+        model: data.model || 'fera-ai',
       }]);
       
       if (autoPlay) {

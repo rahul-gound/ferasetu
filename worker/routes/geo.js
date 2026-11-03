@@ -27,9 +27,9 @@ export const REGIONAL_CONFIGS = {
     symbol: "₹",
     pricingKey: "india",
     locale: "en-IN",
-    gateway: "cashfree",
-    subscriptionGateway: "cashfree",
-    supportedMerchantProviders: ["cashfree", "razorpay", "stripe"],
+    gateway: "razorpay",
+    subscriptionGateway: "razorpay",
+    supportedMerchantProviders: ["upi", "stripe", "razorpay", "cashfree"],
     permanentFreePlan: true,
     trialDays: 14,
     plans: {

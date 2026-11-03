@@ -60,6 +60,31 @@ await test('normalizeChatEndpoint: Correctly appends /chat/completions to base U
   );
 });
 
+await test('getProviderConfig: Resolves AI_ENDPOINT and API_AI from env/dev.vars', () => {
+  const mockEnv = {
+    AI_ENDPOINT: 'https://ai.fera-search.tech/v1',
+    API_AI: 'secret_api_ai_token_999',
+  };
+
+  const config = getProviderConfig(mockEnv);
+
+  assert.equal(config.feraAi.endpoint, 'https://ai.fera-search.tech/v1/chat/completions');
+  assert.equal(config.feraAi.apiKey, 'secret_api_ai_token_999');
+  assert.equal(config.feraAi.model, 'glm-5.3-flash');
+});
+
+await test('getProviderConfig: Resolves lowercase ai_endpoint and api_ai from env/dev.vars', () => {
+  const mockEnv = {
+    ai_endpoint: 'https://ai.fera-search.tech/v1',
+    api_ai: 'lowercase_api_ai_secret',
+  };
+
+  const config = getProviderConfig(mockEnv);
+
+  assert.equal(config.feraAi.endpoint, 'https://ai.fera-search.tech/v1/chat/completions');
+  assert.equal(config.feraAi.apiKey, 'lowercase_api_ai_secret');
+});
+
 await test('getProviderConfig: Resolves FERA_AI_ENDPOINT and FERA_AI_API_KEY from env', () => {
   const mockEnv = {
     FERA_AI_ENDPOINT: 'https://ai.fera-search.tech/v1',
@@ -215,8 +240,8 @@ await test('aiGatewayService: Dispatches through OpenAI-compatible endpoint with
 
   try {
     const env = {
-      FERA_AI_ENDPOINT: 'https://ai.fera-search.tech/v1',
-      FERA_AI_API_KEY: 'gw_secret_token_live',
+      AI_ENDPOINT: 'https://ai.fera-search.tech/v1',
+      API_AI: 'gw_secret_token_live',
       FERA_AI_MODEL: 'glm-5.3-flash',
     };
     const gateway = createAiGatewayService(env);

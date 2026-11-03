@@ -284,7 +284,7 @@ export default function AdminDashboardPage() {
                       icon={<CheckCircle2 size={18} />} 
                     />
                     <HealthItem 
-                      label="AI Engine (Sarvam)" 
+                      label="AI Engine (Fera AI)" 
                       status="operational" 
                       icon={<Bot size={18} />} 
                     />

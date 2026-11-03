@@ -17,7 +17,7 @@
 //   POST /api/orders    -> create an order
 //   GET  /api/users/me  -> fetch the logged-in user's profile (auth required)
 //   PUT  /api/users/me  -> create/update the logged-in user's profile (auth required)
-//   POST /api/ai/chat   -> Sarvam AI chat, deducts AI credits (auth required)
+//   POST /api/ai/chat   -> Fera AI chat, deducts AI credits (auth required)
 //
 // Auth: WorkOS AuthKit (frontend uses @workos-inc/authkit-react).
 // Authenticated routes expect `Authorization: Bearer <workos-jwt>`; the
@@ -3024,10 +3024,10 @@ RULES:
 }
 
 /**
- * Call Sarvam AI with retry and timeout handling.
+ * Call Fera AI with retry and timeout handling.
  */
-async function callSarvamAI({ messages, model, isComplex, sarvamApiKey, requestId }) {
-  const SARVAM_BASE_URL = 'https://api.sarvam.ai/v1';
+async function callFeraAI({ messages, model, isComplex, aiApiKey, requestId }) {
+  const FERA_AI_BASE_URL = 'https://ai.fera-search.tech/v1';
   const timeout = isComplex ? 90_000 : 30_000;
   const maxTokens = isComplex ? 2048 : 1024;
 
@@ -3040,7 +3040,7 @@ async function callSarvamAI({ messages, model, isComplex, sarvamApiKey, requestI
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sarvamApiKey}`,
+        'Authorization': `Bearer ${aiApiKey}`,
         'X-Request-ID': requestId,
       },
       body: JSON.stringify({ model, messages, temperature: 0.45, max_tokens: maxTokens }),
@@ -5255,8 +5255,83 @@ async function handlePaymentInitialize(request, env) {
   const transactionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  // FeraSetu's authoritative subscription billing gateway is Cashfree across ALL markets (IN, UK, US, EU, GLOBAL).
-  // Market determines currency (INR, GBP, USD, EUR), localized price, and tax/display, but the subscription gateway is Cashfree.
+  // FeraSetu's primary subscription billing gateway is Razorpay for India/INR
+  if (hasRazorpay) {
+    const basicAuth = btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
+
+    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${basicAuth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: Math.round(effectiveAmount * 100),
+        currency: marketConfig.currency,
+        receipt: transactionId,
+        notes: {
+          userId: me.$id,
+          plan: targetPlan,
+          billingCycle,
+          market,
+        },
+      }),
+    });
+
+    if (!rzpRes.ok) {
+      const errText = await rzpRes.text();
+      console.error("Razorpay order creation failed:", rzpRes.status, errText);
+      throw new HttpError("Failed to initiate payment with payment gateway", 502);
+    }
+
+    const rzpOrder = await rzpRes.json();
+
+    try {
+      await env.DB.prepare(
+        `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, is_test_payment, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, 'razorpay', ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        transactionId, me.$id, orgId, rzpOrder.id, effectiveAmount, marketConfig.currency, targetPlan, billingCycle, isTestPayment ? 1 : 0,
+        JSON.stringify({ market, razorpay_order_id: rzpOrder.id, billingCycle, is_test_payment: isTestPayment ? 1 : 0 }), now, now
+      ).run();
+    } catch {
+      await env.DB.prepare(
+        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, is_test_payment, metadata, created_at, updated_at)
+         VALUES (?, ?, 'razorpay', ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
+      ).bind(
+        transactionId, me.$id, rzpOrder.id, effectiveAmount, marketConfig.currency, targetPlan, billingCycle, isTestPayment ? 1 : 0,
+        JSON.stringify({ market, razorpay_order_id: rzpOrder.id, billingCycle, is_test_payment: isTestPayment ? 1 : 0 }), now, now
+      ).run();
+    }
+
+    // Mark subscription pending payment
+    await transitionSubscription({
+      env,
+      userId: me.$id,
+      organizationId: orgId,
+      event: 'PAYMENT_PENDING',
+      plan: targetPlan,
+      provider: 'razorpay',
+      providerOrderId: rzpOrder.id || transactionId,
+      metadata: { billingCycle, amount: effectiveAmount, currency: marketConfig.currency, is_test_payment: isTestPayment ? 1 : 0 }
+    });
+
+    return json({
+      success: true,
+      requiresPayment: true,
+      gateway: 'razorpay',
+      id: transactionId,
+      plan: targetPlan,
+      amount: expectedAmount,
+      currency: marketConfig.currency,
+      razorpayOrderId: rzpOrder.id,
+      razorpayKeyId: env.RAZORPAY_KEY_ID,
+      isTestPayment,
+      message: `Razorpay order created for plan: ${targetPlan}`
+    }, 201, {}, request);
+  }
+
+  // Fallback to Cashfree if configured
   if (cf.isValid) {
     const cfBaseUrl = cf.baseUrl;
     const appBaseUrl = (env.PUBLIC_APP_URL || env.APP_URL || "https://ferasetu.com").replace(/\/$/, "");
@@ -5938,7 +6013,9 @@ async function handlePaymentAiCreditsPurchase(request, env) {
   const cashfreeService = createCashfreeService(env);
   const cf = cashfreeService.getCredentials();
 
-  const isSimulation = body.simulate === true || (!cf.isValid && env.ENVIRONMENT !== 'production');
+  const hasRazorpay = Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && !env.RAZORPAY_KEY_ID.includes('your_key_id'));
+  const hasCashfree = cf.isValid;
+  const isSimulation = body.simulate === true || (!hasRazorpay && !hasCashfree && env.ENVIRONMENT !== 'production');
   if (isSimulation) {
     try {
       await env.DB.prepare(
@@ -5968,13 +6045,102 @@ async function handlePaymentAiCreditsPurchase(request, env) {
     }, 201, {}, request);
   }
 
-  if (!cf.isValid) {
+  if (!hasRazorpay && !hasCashfree) {
     const requestId = crypto.randomUUID();
-    console.warn(`[handlePaymentAiCreditsPurchase] Cashfree gateway credentials not configured. Request ID: ${requestId}`);
+    console.warn(`[handlePaymentAiCreditsPurchase] Payment gateway credentials not configured. Request ID: ${requestId}`);
     throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503, {
       code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
       request_id: requestId
     });
+  }
+
+  if (hasRazorpay) {
+    const basicAuth = btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
+    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${basicAuth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: Math.round(pack.amount * 100),
+        currency: 'INR',
+        receipt: transactionId,
+        notes: {
+          userId: me.$id,
+          pack: packKey,
+          credits: pack.credits,
+          usageScope,
+          type: 'ai_credits'
+        },
+      }),
+    });
+
+    if (!rzpRes.ok) {
+      const errText = await rzpRes.text();
+      console.error("Razorpay order creation for AI credits failed:", rzpRes.status, errText);
+      throw new HttpError("Failed to initiate AI credits payment with Razorpay", 502);
+    }
+
+    const rzpOrder = await rzpRes.json();
+
+    try {
+      await env.DB.prepare(`
+        INSERT INTO credit_purchases (
+          id, organization_id, user_id, pack_id, credits, amount, currency,
+          status, gateway, gateway_order_id, usage_scope, metadata, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'INR', 'payment_pending', 'razorpay', ?, ?, ?, ?, ?)
+      `).bind(
+        purchaseId, orgId || me.$id, me.$id, packKey, pack.credits, pack.amount,
+        rzpOrder.id || transactionId, usageScope,
+        JSON.stringify({ pack: packKey, credits: pack.credits, razorpay_order_id: rzpOrder.id }),
+        now, now
+      ).run();
+    } catch (cpErr) {
+      console.warn("Could not insert into credit_purchases:", cpErr?.message);
+    }
+
+    try {
+      await env.DB.prepare(
+        `INSERT INTO ai_credit_purchases (id, user_id, credits, amount, usage_scope, status, created_at)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?)`
+      ).bind(purchaseId, me.$id, pack.credits, pack.amount, usageScope, now).run();
+    } catch (err) {}
+
+    try {
+      await env.DB.prepare(
+        `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, 'razorpay', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
+      ).bind(
+        transactionId, me.$id, orgId, rzpOrder.id || transactionId, pack.amount,
+        JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, purchaseId, razorpay_order_id: rzpOrder.id }),
+        now, now
+      ).run();
+    } catch {
+      await env.DB.prepare(
+        `INSERT INTO transactions (id, user_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+         VALUES (?, ?, 'razorpay', ?, ?, 'INR', 'pending', 'credits', 'one_time', ?, ?, ?)`
+      ).bind(
+        transactionId, me.$id, rzpOrder.id || transactionId, pack.amount,
+        JSON.stringify({ type: 'ai_credits', pack: packKey, credits: pack.credits, purchaseId, razorpay_order_id: rzpOrder.id }),
+        now, now
+      ).run();
+    }
+
+    return json({
+      success: true,
+      requiresPayment: true,
+      gateway: 'razorpay',
+      id: transactionId,
+      purchaseId,
+      pack,
+      usage_scope: usageScope,
+      amount: pack.amount,
+      currency: 'INR',
+      razorpayOrderId: rzpOrder.id,
+      razorpayKeyId: env.RAZORPAY_KEY_ID,
+      message: `Razorpay order created for ${pack.label}`
+    }, 201, {}, request);
   }
 
   const requestOrigin = request.headers.get("origin") || request.headers.get("referer")?.split("/").slice(0, 3).join("/") || "https://ferasetu.com";

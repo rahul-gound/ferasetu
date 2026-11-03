@@ -240,7 +240,7 @@ const WELCOME_MESSAGE: Message = {
   role: 'assistant',
   content: '**Namaste! 🙏 I am FeraSetu AI, your personal store assistant.**\n\nI help Indian and global merchants:\n- **Sell more** with direct store recommendations\n- **Build & update your website** with zero technical hassle\n- **Check low stock & orders** automatically\n- **Write customer messages & product descriptions** in your language\n\nPick a quick action below or ask me any question about your store!',
   timestamp: new Date(),
-  model: 'sarvam-m',
+  model: 'fera-ai',
 };
 
 // ---------------------------------------------------------------------------
@@ -609,7 +609,7 @@ export default function FeraSetuAIPage() {
         role: 'assistant',
         content: data.content,
         timestamp: new Date(),
-        model: data.model || 'sarvam-m',
+        model: data.model || 'fera-ai',
         skillsUsed: data.skillsUsed,
         proposedActions: data.proposedActions,
       };

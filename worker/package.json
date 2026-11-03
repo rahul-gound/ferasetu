@@ -9,7 +9,6 @@
     "test": "node ../tests/worker-storefront.test.mjs"
   },
   "dependencies": {
-    "jose": "^5.9.6",
-    "posthog-node": "latest"
+    "jose": "^5.9.6"
   }
 }

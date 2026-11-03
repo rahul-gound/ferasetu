@@ -12,6 +12,7 @@ import { RESERVED_SUBDOMAINS } from './utils/canonicalHostname';
 import { ConsentProvider } from './contexts/ConsentContext';
 import ConsentBanner from './components/consent/ConsentBanner';
 import { trackPageView, initLifecycleTracking } from './lib/analytics/tracker';
+import SmoothScroll from './components/SmoothScroll';
 
 // Public landing page — lazy loaded for fast initial entry
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -361,12 +362,14 @@ function AppContent() {
             <BrowserRouter>
               <LanguageProvider>
                 <MarketProvider>
-                  <RouteTracker />
+                  <SmoothScroll>
+                    <RouteTracker />
                   <ErrorBoundary>
                     <AppRoutes />
                   </ErrorBoundary>
                   <ConsentBanner />
                   <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
+                  </SmoothScroll>
                 </MarketProvider>
               </LanguageProvider>
             </BrowserRouter>

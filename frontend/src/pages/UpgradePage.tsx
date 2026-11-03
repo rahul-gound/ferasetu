@@ -139,7 +139,72 @@ export default function UpgradePage() {
         payment_gateway: res.data.gateway || (res.data.stripeUrl ? 'stripe' : 'razorpay'),
       });
 
-      // Paid plans via Cashfree Checkout (India market)
+      // Paid plans via Razorpay Checkout (Primary for FeraSetu subscriptions)
+      if (res.data.gateway === 'razorpay' || (!res.data.gateway && !res.data.stripeUrl && res.data.razorpayOrderId)) {
+        const razorpayLoaded = await loadRazorpayScript();
+        if (!razorpayLoaded || !window.Razorpay) {
+          toast.error('Could not load Razorpay payment window. Please check your connection and try again.');
+          setUpgrading(null);
+          return;
+        }
+
+        const razorpay = new window.Razorpay({
+          key: res.data.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: res.data.amount * 100,
+          currency: res.data.currency || 'INR',
+          name: 'FeraSetu',
+          description: `${plan.displayName} plan (${billing})`,
+          order_id: res.data.razorpayOrderId,
+          prefill: { email: user.email, name: user.name },
+          theme: { color: '#FF6B35' },
+          handler: async (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              const verifyRes = await api.post('/payment/verify', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                transaction_id: res.data.id,
+              });
+
+              if (verifyRes.data.success) {
+                toast.success(`${plan.displayName} plan activated successfully!`);
+                if (updateUser) await updateUser({ plan: plan.id });
+                navigate('/dashboard');
+              } else {
+                toast.error(verifyRes.data.error || 'Payment verification failed.');
+              }
+            } catch (verifyErr: any) {
+              toast.error(verifyErr?.response?.data?.error || 'Payment verification failed.');
+            } finally {
+              setUpgrading(null);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setUpgrading(null);
+            }
+          }
+        });
+
+        razorpay.open();
+        return;
+      }
+
+      // Paid plans via Stripe Checkout (US & Europe markets)
+      if (res.data.gateway === 'stripe' || res.data.stripeUrl) {
+        if (res.data.stripeUrl) {
+          window.location.href = res.data.stripeUrl;
+          return;
+        }
+        toast.error('Stripe checkout session URL was not provided.');
+        return;
+      }
+
+      // Fallback: Paid plans via Cashfree Checkout
       if (res.data.gateway === 'cashfree') {
         try {
           const { paymentSessionId, mode } = validateCashfreePaymentResponse(res.data);
@@ -165,59 +230,6 @@ export default function UpgradePage() {
           throw err;
         }
       }
-
-      // Paid plans via Stripe Checkout (US & Europe markets)
-      if (res.data.gateway === 'stripe' || res.data.stripeUrl) {
-        if (res.data.stripeUrl) {
-          window.location.href = res.data.stripeUrl;
-          return;
-        }
-        toast.error('Stripe checkout session URL was not provided.');
-        return;
-      }
-
-      // Fallback: Paid plans via Razorpay Checkout.
-      const razorpayLoaded = await loadRazorpayScript();
-      if (!razorpayLoaded || !window.Razorpay) {
-        toast.error('Could not load the payment window. Please check your connection and try again.');
-        return;
-      }
-
-      const razorpay = new window.Razorpay({
-        key: res.data.razorpayKeyId,
-        amount: res.data.amount * 100,
-        currency: res.data.currency || 'INR',
-        name: 'FeraSetu',
-        description: `${plan.displayName} plan (${billing})`,
-        order_id: res.data.razorpayOrderId,
-        prefill: { email: user.email, name: user.name },
-        theme: { color: '#FF6B35' },
-        handler: async (response: {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        }) => {
-          try {
-            const verifyRes = await api.post('/payment/verify', {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              transaction_id: res.data.id,
-            });
-
-            if (verifyRes.data.success) {
-              toast.success(`${plan.displayName} plan activated successfully!`);
-              if (updateUser) await updateUser({ plan: plan.id });
-              navigate('/dashboard');
-            } else {
-              toast.error(verifyRes.data.error || 'Payment verification failed.');
-            }
-          } catch (verifyErr: any) {
-            toast.error(verifyErr?.response?.data?.error || 'Payment verification failed.');
-          } finally {
-            setUpgrading(null);
-          }
-        },
       });
       razorpay.open();
     } catch (err: any) {

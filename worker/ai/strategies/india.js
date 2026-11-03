@@ -43,9 +43,9 @@ export class IndiaStrategy extends BaseMarketStrategy {
       conversationLanguage: context.conversationLanguage || context.inputLanguage,
       reasoningLanguage: 'en',
       translationRequired: !isEnglish,
-      translator: isEnglish ? null : 'sarvam_translate',
+      translator: isEnglish ? null : 'fera_translate',
       reasoningModel: 'glm-5.3-flash',
-      provider: 'modal',
+      provider: 'fera_ai',
       fallbackPolicy: 'fail_on_input_degrade_on_output',
       task: context.task || 'general_chat',
     };

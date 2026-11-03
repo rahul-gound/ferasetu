@@ -39,8 +39,8 @@ export class USAStrategy extends BaseMarketStrategy {
       translationRequired: false,
       translator: null,
       reasoningModel: 'glm-5.3-flash',
-      provider: 'modal',
-      fallbackPolicy: 'modal_retry_or_error',
+      provider: 'fera_ai',
+      fallbackPolicy: 'fera_ai_retry_or_error',
       task: context.task || 'general_chat',
     };
   }

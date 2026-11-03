@@ -59,7 +59,7 @@ export interface WebsiteGenerationRequest {
 }
 
 const SYSTEM_PROMPTS: Record<string, string> = {
-  general: `You are FeraSetu (powered by Sarvam AI). You are an intelligent assistant for the FeraSetu platform — designed to help small retailers (especially Kirana stores) in India build and manage their online stores. You help with:
+  general: `You are FeraSetu AI. You are an intelligent assistant for the FeraSetu platform — designed to help small retailers (especially Kirana stores) in India build and manage their online stores. You help with:
 - Building and customizing websites simply
 - Managing products and inventory in local languages
 - Processing orders and deliveries

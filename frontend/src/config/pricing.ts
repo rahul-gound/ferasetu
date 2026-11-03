@@ -72,10 +72,10 @@ export interface PlanPricingTier {
   yearlyPerMonth: number;
 }
 
-export type FeraSetuBillingGateway = 'cashfree';
-export const FERASETU_SUBSCRIPTION_GATEWAY: FeraSetuBillingGateway = 'cashfree';
+export type FeraSetuBillingGateway = 'razorpay' | 'stripe' | 'cashfree';
+export const FERASETU_SUBSCRIPTION_GATEWAY: FeraSetuBillingGateway = 'razorpay';
 
-export type MerchantPaymentProvider = 'cashfree' | 'stripe' | 'razorpay' | 'paypal';
+export type MerchantPaymentProvider = 'upi' | 'stripe' | 'razorpay' | 'cashfree' | 'paypal' | 'offline';
 
 export interface MarketPricingConfig {
   market: Market;
@@ -115,7 +115,7 @@ export const MARKET_CONFIGS: Record<Market, MarketPricingConfig> = {
     taxNote: 'Inclusive of GST where applicable',
     gateway: FERASETU_SUBSCRIPTION_GATEWAY,
     subscriptionGateway: FERASETU_SUBSCRIPTION_GATEWAY,
-    supportedMerchantProviders: ['cashfree', 'razorpay', 'stripe'],
+    supportedMerchantProviders: ['upi', 'stripe', 'razorpay', 'cashfree'],
     plans: {
       free: { monthly: 0, yearly: 0, yearlyPerMonth: 0 },
       starter: { monthly: 199, yearly: 1990, yearlyPerMonth: 165.8 },

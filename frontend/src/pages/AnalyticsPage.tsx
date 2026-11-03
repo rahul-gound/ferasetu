@@ -834,7 +834,7 @@ export default function AnalyticsPage() {
                  </div>
                  <div>
                     <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Predictive Commercial Intelligence</h2>
-                    <p style={{ color: '#94A3B8', fontSize: '14px' }}>Powered by Sarvam 105B Core</p>
+                    <p style={{ color: '#94A3B8', fontSize: '14px' }}>Powered by Fera AI Core</p>
                  </div>
               </div>
 

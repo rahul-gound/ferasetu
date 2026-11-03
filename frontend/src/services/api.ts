@@ -1857,8 +1857,8 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
       ],
       dailyUsage: mockDaily,
       recentLogs: [
-        { id: 'log-1', model: 'sarvam-2b', prompt_tokens: 120, completion_tokens: 85, credits_used: 1, usage_type: 'shopkeeper_assistant', created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString() },
-        { id: 'log-2', model: 'sarvam-2b', prompt_tokens: 280, completion_tokens: 520, credits_used: 3, usage_type: 'website_ai', created_at: new Date(Date.now() - 1000 * 60 * 65).toISOString() },
+        { id: 'log-1', model: 'fera-ai', prompt_tokens: 120, completion_tokens: 85, credits_used: 1, usage_type: 'shopkeeper_assistant', created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString() },
+        { id: 'log-2', model: 'fera-ai', prompt_tokens: 280, completion_tokens: 520, credits_used: 3, usage_type: 'website_ai', created_at: new Date(Date.now() - 1000 * 60 * 65).toISOString() },
         { id: 'log-3', model: 'bulbul:v1', prompt_tokens: 60, completion_tokens: 45, credits_used: 2, usage_type: 'customer_assistant', created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString() },
       ],
       limits: {

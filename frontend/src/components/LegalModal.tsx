@@ -20,7 +20,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         },
         {
           h: '2. Use of AI Services',
-          p: 'Our platform uses advanced AI models (including Sarvam AI) to generate website content and business insights. While we strive for accuracy, AI-generated content should be reviewed by you. FeraSetu is not responsible for business decisions made based on AI suggestions.'
+          p: 'Our platform uses advanced AI models to generate website content and business insights. While we strive for accuracy, AI-generated content should be reviewed by you. FeraSetu is not responsible for business decisions made based on AI suggestions.'
         },
         {
           h: '3. Subscription and Fees',
@@ -54,7 +54,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         },
         {
           h: '4. Third-Party Services',
-          p: 'We work with partners like Sarvam AI for language processing and payment gateways for transactions. These partners only receive the data necessary to perform their specific functions.'
+          p: 'We work with trusted partners for cloud infrastructure and payment gateways for transactions. These partners only receive the data necessary to perform their specific functions.'
         },
         {
           h: '5. Your Rights',

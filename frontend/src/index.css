@@ -1060,3 +1060,99 @@ body {
   aspect-ratio: 1 / 1 !important;
 }
 
+/* 🌟 FeraSetu Vibrant Alive & Warm Orange Micro-Interactions */
+@keyframes alive-pulse-orange {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+  }
+}
+
+@keyframes alive-glow-breathing {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes alive-orange-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.alive-dot-orange {
+  position: relative;
+  display: inline-flex;
+}
+.alive-dot-orange::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: #f97316;
+  opacity: 0.45;
+  animation: alive-pulse-orange 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.alive-dot-emerald {
+  position: relative;
+  display: inline-flex;
+}
+.alive-dot-emerald::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: #10B981;
+  opacity: 0.45;
+  animation: alive-pulse-orange 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.btn-orange-alive {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%);
+  color: #ffffff;
+  box-shadow: 0 8px 24px -4px rgba(249, 115, 22, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-orange-alive:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 12px 28px -4px rgba(249, 115, 22, 0.55);
+}
+.btn-orange-alive:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+.alive-card-hover {
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.24s ease;
+  will-change: transform;
+}
+.alive-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 35px -12px rgba(15, 23, 42, 0.12), 0 0 0 1.5px rgba(249, 115, 22, 0.2);
+}
+
+.alive-orange-shimmer {
+  background: linear-gradient(90deg, #fff7ed 25%, #ffedd5 50%, #fff7ed 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.alive-border-focus:focus-within {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18) !important;
+}
+
+

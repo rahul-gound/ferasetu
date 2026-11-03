@@ -655,9 +655,9 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">Multilingual AI Inference — Sarvam AI</h3>
+                  <h3 className="font-bold text-slate-900 text-sm mb-1">Multilingual AI Inference — FeraSetu AI Engine</h3>
                   <p className="text-xs text-slate-600">
-                    Multilingual text generation and regional voice prompts for store catalog setup are processed via <strong>Sarvam AI</strong> without using merchant data to train public foundation models.
+                    Multilingual text generation and regional voice prompts for store catalog setup are processed via <strong>FeraSetu AI</strong> without using merchant data to train public foundation models.
                   </p>
                 </div>
               </div>

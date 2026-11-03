@@ -50,3 +50,11 @@ When the user shares a screenshot or photo of the UI:
   - **Global Platform:** 90%
 - Maintain this matrix live in Obsidian so that team members and agents always have instant, token-efficient visibility into project status.
 
+## 7. Cloudflare Worker Backend Architecture & AI Secrets Invariant
+- **Backend Environment:** FeraSetu's primary production backend runs serverless on Cloudflare Workers (`worker/`), NOT on Node.js Express.
+- **AI Upstream Endpoint:** The OpenAI-compatible backend endpoint variable is `AI_ENDPOINT` (or `ai_endpoint`), set to `https://ai.fera-search.tech/v1`.
+- **AI Secret Key:** The secret key is `API_AI` (or `api_ai`), configured in `worker/.dev.vars` for local development and Cloudflare Worker secrets for production.
+- **Strict Frontend Isolation:** Neither `AI_ENDPOINT` nor `API_AI` must ever be leaked, shown in client responses, or called directly by the frontend. The frontend communicates exclusively with `/api/v1/ai/chat` (or `/api/ai/chat`) on the Cloudflare Worker backend.
+- **Zero Sarvam Invariant:** We do NOT use Sarvam AI. NEVER show or mention "Powered by Sarvam", "Sarvam", or "savram" anywhere in UI pages, legal modals, privacy policies, system prompts, or merchant facing copy. The AI engine is branded exclusively as **FeraSetu AI** / **Fera AI** powered by our OpenAI-compatible backend cluster (`https://ai.fera-search.tech/v1`).
+
+

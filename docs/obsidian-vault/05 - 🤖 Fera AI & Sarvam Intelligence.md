@@ -17,8 +17,8 @@ Fera AI is an Indic-first conversational assistant and copilot for shopkeepers. 
 | **Fera AI Provider** | `worker/ai/providers/feraAi.js` | OpenAI-compatible client calling `https://ai.fera-search.tech/v1/chat/completions` with Bearer auth |
 | **Model Router** | `worker/ai/router.js` | Intent classification & model selection |
 | **AI Gateway Service** | `worker/services/aiGatewayService.js` | Unified edge gateway with bounded timeouts, retries & secret redaction |
-| **Provider Config** | `worker/ai/config.js` | Centralized resolver for `FERA_AI_ENDPOINT`, `FERA_AI_API_KEY`, `FERA_AI_MODEL` |
-| **Local Dev Secrets** | `worker/.dev.vars` | Mock secrets for local dev (never committed, never sent to client) |
+| **Provider Config** | `worker/ai/config.js` | Centralized resolver for `AI_ENDPOINT` (`ai_endpoint`), `API_AI` (`api_ai`), `FERA_AI_MODEL` |
+| **Local Dev Secrets** | `worker/.dev.vars`, `worker/dev.vars.example` | Mock secrets for Cloudflare Worker local dev (`AI_ENDPOINT`, `API_AI`, never committed, never sent to client) |
 | **Sarvam Provider** | `worker/ai/providers/sarvamTranslate.js` | REST API wrapper for Sarvam translation endpoints |
 | **Skill Orchestrator** | `worker/ai/skills/orchestrator.ts` | Dispatches actions (create product, check orders, sales summary) |
 | **Core AI Route** | `backend/src/routes/ai.ts` | Authenticated merchant proxy for AI calls with server-enforced monthly spend limits & feature pause toggles |
@@ -33,7 +33,7 @@ Fera AI is an Indic-first conversational assistant and copilot for shopkeepers. 
 | **Admin Credit Control** | `frontend/src/pages/AdminAICreditsPage.tsx`, `backend/src/routes/admin.ts` | Real-time platform AI credit telemetry, shopkeeper usage leaderboard, and manual balance adjustment |
 
 ## 3. Strict Frontend / Backend Security Isolation
-- **Private Backend Upstream:** `https://ai.fera-search.tech/v1` and its API secret (`FERA_AI_API_KEY`) are strictly held by the Cloudflare Worker backend.
+- **Cloudflare Worker Private Backend Upstream:** `AI_ENDPOINT` (`https://ai.fera-search.tech/v1`) and its secret `API_AI` are strictly held by the Cloudflare Worker backend (`worker/.dev.vars` locally, Cloudflare Worker secrets in production).
 - **Zero Frontend Leakage:** The client never receives, sees, or calls `ai.fera-search.tech/v1`. The frontend communicates exclusively with `/api/v1/ai/chat` (authenticated via WorkOS JWT and gated by D1 credits).
 - **Secret Redaction:** All error responses and status checks scrub authorization tokens, keys, and upstream hosts.
 

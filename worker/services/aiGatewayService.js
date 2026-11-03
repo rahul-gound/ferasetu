@@ -70,14 +70,14 @@ export function redactSecrets(val) {
  * @param {object} env - Cloudflare Worker environment bindings
  */
 export function createAiGatewayService(env = {}) {
-  // Fera AI / OpenAI-compatible reasoning config
-  const rawAiEndpoint = env?.FERA_AI_ENDPOINT || env?.FERA_AI_BASE_URL || env?.AI_ENDPOINT || env?.MODAL_GLM_ENDPOINT || env?.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
+  // Fera AI / OpenAI-compatible reasoning config (AI_ENDPOINT / ai_endpoint and API_AI / api_ai from Worker dev.vars / env)
+  const rawAiEndpoint = env?.AI_ENDPOINT || env?.ai_endpoint || env?.FERA_AI_ENDPOINT || env?.FERA_AI_BASE_URL || env?.MODAL_GLM_ENDPOINT || env?.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
   const cleanEndpoint = String(rawAiEndpoint || '').trim().replace(/\/+$/, '');
   const aiChatEndpoint = cleanEndpoint.endsWith('/chat/completions')
     ? cleanEndpoint
     : (cleanEndpoint.endsWith('/v1') ? `${cleanEndpoint}/chat/completions` : `${cleanEndpoint}/v1/chat/completions`);
-  const aiModel = env?.FERA_AI_MODEL || env?.AI_MODEL || env?.MODAL_GLM_MODEL || env?.GLM_MODEL_NAME || 'glm-5.3-flash';
-  const aiApiKey = env?.FERA_AI_API_KEY || env?.FERA_AI_KEY || env?.AI_API_KEY || env?.OPENAI_API_KEY || env?.MODAL_API_KEY || env?.GLM_MODAL_API_KEY || '';
+  const aiModel = env?.FERA_AI_MODEL || env?.AI_MODEL || env?.ai_model || env?.MODAL_GLM_MODEL || env?.GLM_MODEL_NAME || 'glm-5.3-flash';
+  const aiApiKey = env?.API_AI || env?.api_ai || env?.AI_API_KEY || env?.ai_api_key || env?.FERA_AI_API_KEY || env?.FERA_AI_KEY || env?.OPENAI_API_KEY || env?.MODAL_API_KEY || env?.GLM_MODAL_API_KEY || '';
 
   // Sarvam AI config
   const sarvamApiKey = env?.SARVAM_API_KEY || env?.SARVAM_30B_API_KEY || env?.SARVAM_105B_API_KEY || '';

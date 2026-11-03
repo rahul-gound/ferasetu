@@ -664,7 +664,7 @@ export default function AdminAICreditsPage() {
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-slate-900">Recent AI Request Audit Trail</h3>
-                <p className="text-xs text-slate-500 font-medium">Stream of the last 100 AI queries handled by Sarvam &amp; reasoning clusters</p>
+                <p className="text-xs text-slate-500 font-medium">Stream of the last 100 AI queries handled by Fera AI &amp; reasoning clusters</p>
               </div>
               <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">
                 {logs.length} Recorded Queries
@@ -708,7 +708,7 @@ export default function AdminAICreditsPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-slate-700 font-mono text-[11px]">
-                          {log.model || 'sarvam-2b'}
+                          {log.model || 'fera-ai'}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <span className="font-bold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-md border border-orange-100">

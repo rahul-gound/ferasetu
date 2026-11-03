@@ -12,3 +12,17 @@ B2_ENDPOINT=https://s3.eu-central-003.backblazeb2.com
 ZOHO_CHAT_ORG_ID="60088469696"
 ZOHO_CHAT_ENTITY_ID="12456000000002143"
 ZOHO_CHAT_KEY=""
+
+# Fera AI Service (OpenAI-compatible)
+# Cloudflare Worker backend secrets — NEVER exposed to or called by frontend
+AI_ENDPOINT="https://ai.fera-search.tech/v1"
+API_AI="your_ai_api_key_here"
+
+# Razorpay Credentials (FeraSetu SaaS subscription & AI credits billing)
+RAZORPAY_KEY_ID="rzp_test_your_key_id_here"
+RAZORPAY_KEY_SECRET="your_razorpay_key_secret_here"
+
+# Fera AI Service (OpenAI-compatible)
+FERA_AI_ENDPOINT="https://ai.fera-search.tech/v1"
+FERA_AI_API_KEY="fera-ai-secret-local-key"
+FERA_AI_MODEL="glm-5.3-flash"
