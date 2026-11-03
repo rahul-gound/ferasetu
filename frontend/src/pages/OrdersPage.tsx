@@ -451,6 +451,8 @@ export default function OrdersPage() {
 
   const filtered = activeTab === 'all'
     ? orders
+    : activeTab === 'returns'
+    ? orders.filter(o => o.return_status && o.return_status !== 'none')
     : orders.filter(o => o.status === activeTab);
 
   return (
@@ -497,7 +499,11 @@ export default function OrdersPage() {
         overflowX: 'auto', paddingBottom: '4px',
       }}>
         {ALL_STATUSES.map(status => {
-          const count = status === 'all' ? orders.length : orders.filter(o => o.status === status).length;
+          const count = status === 'all'
+            ? orders.length
+            : status === 'returns'
+            ? orders.filter(o => o.return_status && o.return_status !== 'none').length
+            : orders.filter(o => o.status === status).length;
           return (
             <button
               key={status}
@@ -630,6 +636,22 @@ export default function OrdersPage() {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={order.status} />
+                    {order.return_status === 'requested' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOrderForReturnReview(order); }}
+                        className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse flex items-center gap-1 cursor-pointer"
+                      >
+                        <RotateCcw size={10} />
+                        <span>Return Requested</span>
+                      </button>
+                    )}
+                    {order.return_status === 'rejected' && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">Return Rejected</span>
+                    )}
+                    {order.return_status === 'approved' && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Return Approved</span>
+                    )}
                     <PaymentBadge status={order.payment_status} />
                     <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
                       order.delivery_type === 'delivery'
@@ -645,36 +667,88 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-50" onClick={e => e.stopPropagation()}>
-                    <div className="relative flex-1">
-                      <select
-                        value={order.status}
-                        disabled={updatingId === order.id || order.status === 'cancelled'}
-                        onChange={e => handleStatusChange(order, e.target.value)}
-                        className={`w-full text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-lg border appearance-none transition-colors ${
-                          order.status === 'cancelled'
-                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                            : 'border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                        }`}
-                      >
-                        {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                          <option key={k} value={k} disabled={order.status === 'cancelled' && k !== 'cancelled'}>
-                            {order.status === 'cancelled' && k === 'cancelled' ? 'Cancelled (Locked)' : v}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-                    </div>
+                    {order.status === 'pending' ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(order, 'confirmed')}
+                          disabled={updatingId === order.id}
+                          className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Check size={14} strokeWidth={2.5} />
+                          <span>Confirm</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOrderToCancel(order)}
+                          disabled={updatingId === order.id}
+                          className="flex-1 py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Ban size={14} strokeWidth={2.5} />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    ) : order.status === 'delivered' ? (
+                      <span className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <ShieldCheck size={14} className="text-emerald-600" />
+                        <span>Delivered (Locked)</span>
+                      </span>
+                    ) : order.status === 'cancelled' ? (
+                      <span className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        <Ban size={14} className="text-rose-600" />
+                        <span>Cancelled (Locked)</span>
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => setOrderForDeliveryCode(order)}
+                          className="py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <Key size={13} strokeWidth={2.2} />
+                          <span>Enter Code</span>
+                        </button>
+                        <div className="relative flex-1">
+                          <select
+                            value={order.status}
+                            disabled={updatingId === order.id}
+                            onChange={e => {
+                              if (e.target.value === 'delivered') {
+                                setOrderForDeliveryCode(order);
+                              } else {
+                                handleStatusChange(order, e.target.value);
+                              }
+                            }}
+                            className="w-full text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                          >
+                            <option value="confirmed">Confirmed</option>
+                            <option value="preparing">Preparing</option>
+                            <option value="out_for_delivery">Out for Delivery</option>
+                            <option value="delivered">Delivered (Code)</option>
+                          </select>
+                          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                        </div>
+                      </div>
+                    )}
 
                     {order.status !== 'cancelled' ? (
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
+                          onClick={() => downloadPdf(`/orders/${order.id}/invoice/pdf`, `invoice-${order.invoice_number || order.id.slice(-8)}.pdf`)}
+                          className="px-2 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Download Invoice PDF"
+                        >
+                          <Download size={13} />
+                          <span>PDF</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setQrModalOrder(order)}
-                          className="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1"
+                          className="px-2 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1"
                           title="Show Payment QR Code & Order Link"
                         >
                           <QrCode size={13} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
-                          <span>QR & Link</span>
                         </button>
                         <button
                           type="button"

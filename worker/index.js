@@ -7908,6 +7908,8 @@ async function handlePublicCreateOrder(request, env) {
       sku: (priceInfo.variant ? priceInfo.variant.sku : priceInfo.product.sku) || null,
       price: unitPriceMinor / 100,
       unit_price_minor: unitPriceMinor,
+      unitPriceMinor: unitPriceMinor,
+      price_minor: unitPriceMinor,
       quantity: qty,
       total: itemTotalMinor / 100,
       total_minor: itemTotalMinor

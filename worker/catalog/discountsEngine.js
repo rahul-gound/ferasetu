@@ -340,14 +340,27 @@ export async function evaluateDiscountsForCart(db, {
 }) {
   const now = new Date().toISOString();
   const normalizedCode = normalizeDiscountCode(code);
-  const items = Array.isArray(cartItems) ? cartItems : [];
+  const items = Array.isArray(cartItems) ? cartItems.map(it => {
+    const unitPriceMinor = Math.max(0, Math.trunc(Number(
+      it.unitPriceMinor !== undefined ? it.unitPriceMinor :
+      it.unit_price_minor !== undefined ? it.unit_price_minor :
+      it.price_minor !== undefined ? it.price_minor :
+      (Number(it.price || 0) * 100)
+    )));
+    return {
+      ...it,
+      unitPriceMinor,
+      unit_price_minor: unitPriceMinor,
+      price_minor: unitPriceMinor,
+    };
+  }) : [];
 
   // Calculate cart baseline subtotal & quantity
   let cartSubtotalMinor = 0;
   let totalItemCount = 0;
   for (const it of items) {
     const qty = Math.max(1, Math.trunc(Number(it.quantity || 1)));
-    const unitPrice = Math.max(0, Math.trunc(Number(it.unitPriceMinor || it.price_minor || 0)));
+    const unitPrice = it.unitPriceMinor;
     cartSubtotalMinor = moneyAdd(cartSubtotalMinor, unitPrice * qty);
     totalItemCount += qty;
   }
