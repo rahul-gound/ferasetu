@@ -818,63 +818,211 @@ export default function OrdersPage() {
                         </span>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <StatusBadge status={order.status} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <StatusBadge status={order.status} />
+                          {order.return_status === 'requested' && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setOrderForReturnReview(order); }}
+                              style={{
+                                padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 800,
+                                background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
+                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title="Return requested. Click to review loss and approve/reject."
+                            >
+                              <RotateCcw size={10} />
+                              <span>Return Req</span>
+                            </button>
+                          )}
+                          {order.return_status === 'rejected' && (
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#dc2626' }}>Return Rejected</span>
+                          )}
+                          {order.return_status === 'approved' && (
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a' }}>Return Approved</span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <PaymentBadge status={order.payment_status} />
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: '12px' }}>
                         {new Date(order.created_at).toLocaleDateString('en-IN', {
-                          day: '2-digit', month: 'short', year: 'numeric',
+                           day: '2-digit', month: 'short', year: 'numeric',
                         })}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ position: 'relative' }}>
-                          <select
-                            value={order.status}
-                            disabled={updatingId === order.id || order.status === 'cancelled'}
-                            onChange={e => handleStatusChange(order, e.target.value)}
-                            onClick={e => e.stopPropagation()}
+                        {order.status === 'pending' ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(order, 'confirmed')}
+                              disabled={updatingId === order.id}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: 800,
+                                background: '#059669',
+                                color: '#ffffff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                              }}
+                              title="Confirm Order"
+                            >
+                              <Check size={13} strokeWidth={2.5} />
+                              <span>Confirm</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setOrderToCancel(order)}
+                              disabled={updatingId === order.id}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                background: '#fff',
+                                color: '#dc2626',
+                                border: '1px solid #fca5a5',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                              title="Cancel Order"
+                            >
+                              <Ban size={13} strokeWidth={2.5} />
+                              <span>Cancel</span>
+                            </button>
+                          </div>
+                        ) : order.status === 'delivered' ? (
+                          <span
                             style={{
-                              padding: '6px 28px 6px 10px', borderRadius: '6px', fontSize: '12px',
-                              border: '1px solid var(--border)',
-                              background: order.status === 'cancelled' ? '#f1f5f9' : 'var(--bg)',
-                              color: order.status === 'cancelled' ? '#94a3b8' : 'var(--text)',
-                              cursor: order.status === 'cancelled' ? 'not-allowed' : 'pointer',
-                              appearance: 'none',
-                              opacity: updatingId === order.id || order.status === 'cancelled' ? 0.7 : 1,
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              border: '1px solid #a7f3d0',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap',
                             }}
+                            title="Order is delivered and finalized. Status cannot be modified."
                           >
-                            {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                              <option key={k} value={k} disabled={order.status === 'cancelled' && k !== 'cancelled'}>
-                                {order.status === 'cancelled' && k === 'cancelled' ? 'Cancelled (Locked)' : v}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown size={12} style={{
-                            position: 'absolute', right: '6px', top: '50%',
-                            transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)',
-                          }} />
-                        </div>
+                            <ShieldCheck size={14} className="text-emerald-600" />
+                            <span>Delivered (Locked)</span>
+                          </span>
+                        ) : order.status === 'cancelled' ? (
+                          <span
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              background: '#fef2f2',
+                              color: '#dc2626',
+                              border: '1px solid #fecaca',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title="Order is cancelled (Locked)"
+                          >
+                            <Ban size={14} className="text-rose-600" />
+                            <span>Cancelled (Locked)</span>
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => setOrderForDeliveryCode(order)}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: 800,
+                                background: '#d97706',
+                                color: '#ffffff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                              }}
+                              title="Enter Customer Delivery Code / OTP to complete delivery"
+                            >
+                              <Key size={13} strokeWidth={2.2} />
+                              <span>Enter Code</span>
+                            </button>
+                            <div style={{ position: 'relative' }}>
+                              <select
+                                value={order.status}
+                                disabled={updatingId === order.id}
+                                onChange={e => {
+                                  if (e.target.value === 'delivered') {
+                                    setOrderForDeliveryCode(order);
+                                  } else {
+                                    handleStatusChange(order, e.target.value);
+                                  }
+                                }}
+                                style={{
+                                  padding: '6px 24px 6px 8px', borderRadius: '6px', fontSize: '11px',
+                                  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)',
+                                  cursor: 'pointer', appearance: 'none',
+                                }}
+                              >
+                                <option value="confirmed">Confirmed</option>
+                                <option value="preparing">Preparing</option>
+                                <option value="out_for_delivery">Out for Delivery</option>
+                                <option value="delivered">Delivered (Code)</option>
+                              </select>
+                              <ChevronDown size={11} style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         {order.status !== 'cancelled' ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <button
                               className="btn btn-secondary"
-                              onClick={e => { e.stopPropagation(); setQrModalOrder(order); }}
-                              style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                              title="Show Payment QR Code & Order Link"
+                              onClick={e => {
+                                e.stopPropagation();
+                                downloadPdf(`/orders/${order.id}/invoice/pdf`, `invoice-${order.invoice_number || order.id.slice(-8)}.pdf`);
+                              }}
+                              style={{ fontSize: '12px', padding: '5px 8px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Download Invoice PDF"
                             >
-                              <QrCode size={13} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
-                              <span>QR & Link</span>
+                              <Download size={12} />
+                              <span>PDF</span>
                             </button>
                             <button
                               className="btn btn-secondary"
                               onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
                               style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                              title="View Invoice Modal"
                             >
                               🧾 Invoice
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={e => { e.stopPropagation(); setQrModalOrder(order); }}
+                              style={{ fontSize: '12px', padding: '5px 8px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Show Payment QR Code & Order Link"
+                            >
+                              <QrCode size={12} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
                             </button>
                           </div>
                         ) : (

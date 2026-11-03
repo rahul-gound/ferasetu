@@ -302,7 +302,6 @@ await test('Payment initialize activates Free plan directly for IN market (no pa
   const res = await worker.fetch(req, mockEnv);
   assert.equal(res.status, 201);
   const data = await res.json();
-  console.log('DEBUG DATA.ORDER:', JSON.stringify(data.order));
   assert.equal(data.success, true);
   assert.equal(data.requiresPayment, false);
   assert.equal(data.amount, 0);
@@ -322,7 +321,6 @@ await test('Payment initialize activates 14-day trial for US market Free selecti
   const res = await worker.fetch(req, mockEnv);
   assert.equal(res.status, 201);
   const data = await res.json();
-  console.log('DEBUG DATA.ORDER:', JSON.stringify(data.order));
   assert.equal(data.success, true);
   assert.equal(data.requiresPayment, false);
   assert.equal(data.isTrial, true);
@@ -403,7 +401,6 @@ await test('POST /api/orders/create allows public customer order placement', asy
   const res = await worker.fetch(req, mockEnv);
   assert.equal(res.status, 201);
   const data = await res.json();
-  console.log('DEBUG DATA.ORDER:', JSON.stringify(data.order));
   assert.equal(data.success, true);
   assert.ok(data.order);
   assert.equal(data.order.total, 530);
