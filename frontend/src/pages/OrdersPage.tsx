@@ -1089,6 +1089,79 @@ export default function OrdersPage() {
                 </div>
               )}
 
+              {/* Return Request Banner & Delivery Loss Section */}
+              {selectedOrder.return_status && selectedOrder.return_status !== 'none' && (
+                <div style={{ background: '#FFFBEB', border: '2px solid #FCD34D', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontWeight: 800, fontSize: '13px', color: '#92400E', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <RotateCcw size={16} />
+                      <span>Return Status: <b style={{ textTransform: 'uppercase' }}>{selectedOrder.return_status}</b></span>
+                    </div>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800,
+                      background: selectedOrder.return_status === 'requested' ? '#FEF3C7' : selectedOrder.return_status === 'approved' ? '#DCFCE7' : '#FEE2E2',
+                      color: selectedOrder.return_status === 'requested' ? '#B45309' : selectedOrder.return_status === 'approved' ? '#15803D' : '#B91C1C',
+                    }}>
+                      {selectedOrder.return_status}
+                    </span>
+                  </div>
+
+                  {selectedOrder.return_reason && (
+                    <div style={{ fontSize: '12px', color: '#78350F', marginBottom: '12px' }}>
+                      <b>Reason:</b> {selectedOrder.return_reason}
+                    </div>
+                  )}
+
+                  {/* Delivery Man Total Loss Breakdown */}
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Truck size={13} />
+                      <span>Delivery Partner Operational Loss Analysis</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#7F1D1D', marginBottom: '4px' }}>
+                      <span>Mode: {selectedOrder.delivery_type === 'delivery' ? '🛵 Delivery Partner Assigned' : '🏪 Store Pickup'}</span>
+                      <span>Transit Courier Loss: <b>₹{selectedOrder.delivery_type === 'delivery' ? (selectedOrder.delivery_fee || 50).toLocaleString('en-IN') : 0}</b></span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#B91C1C', lineHeight: '1.4' }}>
+                      {selectedOrder.delivery_type === 'delivery' ? (
+                        <>⚠️ <b>Courier Fee Non-Refundable:</b> Because a delivery person was dispatched, the delivery transit fee of <b>₹{selectedOrder.delivery_fee || 50}</b> cannot be recovered from courier and represents a direct operational loss.</>
+                      ) : (
+                        <>✅ <b>Zero Courier Loss:</b> Customer used store pickup. No transit fees were lost.</>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Reject / Approve Buttons */}
+                  {selectedOrder.return_status === 'requested' && (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setOrderForReturnReview(selectedOrder)}
+                        style={{
+                          flex: 1, padding: '8px', background: '#DC2626', color: '#fff',
+                          border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                        }}
+                      >
+                        <Ban size={14} /> Reject Return
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => returnApproveMutation.mutate({ id: selectedOrder.id })}
+                        disabled={returnApproveMutation.isPending}
+                        style={{
+                          flex: 1, padding: '8px', background: '#059669', color: '#fff',
+                          border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                        }}
+                      >
+                        <Check size={14} /> Approve Return
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Financial Breakdown & Balances */}
               <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
                 <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1192,6 +1265,26 @@ export default function OrdersPage() {
                     >
                       <Ban size={14} /> Cancel Order
                     </button>
+
+                    {selectedOrder.status === 'delivered' && (
+                      <button
+                        type="button"
+                        onClick={() => setOrderForReturnReview(selectedOrder)}
+                        style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #FCD34D', color: '#B45309', background: '#FEF3C7', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        <RotateCcw size={14} /> {selectedOrder.return_status && selectedOrder.return_status !== 'none' ? 'Review Return Request' : 'Process / Record Return'}
+                      </button>
+                    )}
+
+                    {['confirmed', 'preparing', 'out_for_delivery'].includes(selectedOrder.status) && (
+                      <button
+                        type="button"
+                        onClick={() => setOrderForDeliveryCode(selectedOrder)}
+                        style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: 'none', color: '#FFF', background: '#D97706', fontWeight: 800, cursor: 'pointer' }}
+                      >
+                        <Key size={14} /> Enter Delivery Code
+                      </button>
+                    )}
                   </>
                 ) : (
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', fontSize: '12px', color: '#991B1B', fontWeight: 600 }}>

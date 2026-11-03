@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Users, LayoutDashboard, LifeBuoy,
+  Users, LayoutDashboard, LifeBuoy, Globe,
   ShoppingBag, Store, Bell, Calendar,
   Menu, LogOut, ChevronRight, Zap, Terminal, Bug, MessageSquare, Activity,
   Bot, Coins
@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     { id: 'dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Overview' },
+    { id: 'platform-sites', path: '/platform-sites', icon: <Globe size={20} />, label: 'Platform Sites' },
     { id: 'qa', path: '/admin/qa', icon: <Activity size={20} />, label: 'QA & Diagnostics' },
     { id: 'users', path: '/admin/users', icon: <Users size={20} />, label: 'Partners' },
     { id: 'ai-credits', path: '/admin/ai-credits', icon: <Bot size={20} />, label: 'AI Credits & Usage' },

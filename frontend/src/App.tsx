@@ -85,6 +85,20 @@ const OnboardingWizardPage = lazy(() => import('./pages/OnboardingWizardPage'));
 // 404 Not Found Page — lazy load
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
+// Platform Sites — Internal Infrastructure & AI Website Management
+const PlatformSitesRouteGuard = lazy(() => import('./pages/platform-sites/PlatformSitesRouteGuard'));
+const PlatformSitesLayout = lazy(() => import('./pages/platform-sites/PlatformSitesLayout'));
+const PlatformSitesOverview = lazy(() => import('./pages/platform-sites/PlatformSitesOverview'));
+const PlatformSitesList = lazy(() => import('./pages/platform-sites/PlatformSitesList'));
+const PlatformSiteDetailPage = lazy(() => import('./pages/platform-sites/PlatformSiteDetailPage'));
+const PlatformDeploymentsList = lazy(() => import('./pages/platform-sites/PlatformDeploymentsList'));
+const PlatformDomainsRegistry = lazy(() => import('./pages/platform-sites/PlatformDomainsRegistry'));
+const PlatformAiStudio = lazy(() => import('./pages/platform-sites/PlatformAiStudio'));
+const PlatformUsageAnalytics = lazy(() => import('./pages/platform-sites/PlatformUsageAnalytics'));
+const PlatformIntegrations = lazy(() => import('./pages/platform-sites/PlatformIntegrations'));
+const PlatformAuditLogView = lazy(() => import('./pages/platform-sites/PlatformAuditLogView'));
+const PlatformSitesSettings = lazy(() => import('./pages/platform-sites/PlatformSitesSettings'));
+
 function LanguageRouteGuard() {
   const { lang } = useParams<{ lang: string }>();
   if (lang === 'en') {
@@ -300,10 +314,28 @@ function AppRoutes() {
               <Route path="qa/runs/:runId" element={<AdminQARunDetailPage />} />
               <Route path="qa/issues/:issueId" element={<AdminQAIssueDetailPage />} />
               <Route path="qa/sandbox" element={<AdminQASandboxPage />} />
+              <Route path="platform-sites" element={<Navigate to="/platform-sites" replace />} />
+              <Route path="platform-sites/*" element={<Navigate to="/platform-sites" replace />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
           </AdminProtectedRoute>
         } />
+
+        {/* Platform Sites — Internal Infrastructure & AI Website Management */}
+        <Route path="/platform-sites" element={<PlatformSitesRouteGuard><PlatformSitesLayout /></PlatformSitesRouteGuard>}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<PlatformSitesOverview />} />
+          <Route path="websites" element={<PlatformSitesList />} />
+          <Route path="websites/:siteId/*" element={<PlatformSiteDetailPage />} />
+          <Route path="deployments" element={<PlatformDeploymentsList />} />
+          <Route path="domains" element={<PlatformDomainsRegistry />} />
+          <Route path="ai-studio" element={<PlatformAiStudio />} />
+          <Route path="usage" element={<PlatformUsageAnalytics />} />
+          <Route path="integrations" element={<PlatformIntegrations />} />
+          <Route path="activity" element={<PlatformAuditLogView />} />
+          <Route path="settings" element={<PlatformSitesSettings />} />
+          <Route path="*" element={<Navigate to="overview" replace />} />
+        </Route>
 
         {/* Verify Email Gate (Full Screen) */}
         <Route path="/verify-email" element={
