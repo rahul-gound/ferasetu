@@ -9,6 +9,26 @@ export interface CartItem extends ShopProduct {
   selected_options?: Record<string, string>;
 }
 
+export interface AppliedDiscountInfo {
+  code: string | null;
+  totalDiscount: number;
+  totalDiscountMinor: number;
+  productDiscount: number;
+  orderDiscount: number;
+  shippingDiscount: number;
+  effectiveShipping: number;
+  finalPayable: number;
+  discountsApplied: Array<{
+    id: string;
+    title: string;
+    type: string;
+    method: 'code' | 'automatic';
+    code?: string | null;
+    amountMinor: number;
+  }>;
+  savingsMessage?: string;
+}
+
 export interface OrderSuccessData {
   id: string;
   invoice: string;
@@ -20,6 +40,9 @@ export interface OrderSuccessData {
   total?: number;
   subtotal?: number;
   deliveryFee?: number;
+  discount?: number;
+  discountMinor?: number;
+  discountsApplied?: any[];
   deliveryAddress?: string;
   deliveryType?: 'pickup' | 'delivery';
   items?: Array<{ name: string; quantity: number; price: number }>;
@@ -100,6 +123,15 @@ export interface StorefrontContextValue {
   orderSuccess: OrderSuccessData | null;
   clearOrderSuccess: () => void;
   submitOrder: (formData: CheckoutFormData) => Promise<boolean>;
+
+  // Discounts & Promotional Pricing
+  appliedDiscount: AppliedDiscountInfo | null;
+  discountCodeInput: string;
+  setDiscountCodeInput: (code: string) => void;
+  isApplyingDiscount: boolean;
+  discountError: string | null;
+  applyDiscountCode: (codeToApply?: string) => Promise<{ success: boolean; error?: string }>;
+  removeDiscountCode: () => void;
 
   // Customer Authentication & Account
   customer: StorefrontCustomer | null;

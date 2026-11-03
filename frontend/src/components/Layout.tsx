@@ -12,15 +12,20 @@ import {
   X,
   LifeBuoy,
   Coins,
+  MessageSquare,
   MessageSquareText,
   Mail,
   Sparkles,
   Bell,
   Gift,
+  Truck,
+  ArrowRightLeft,
+  Tag,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Settings,
+  Sliders,
   Zap,
   ArrowUpRight,
   Users,
@@ -136,6 +141,20 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         { path: '/dashboard', icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
         { path: '/products', icon: <Package size={17} />, label: 'Products' },
         {
+          path: '/transfers',
+          icon: <Truck size={17} />,
+          label: 'Transfers',
+          badge: 'BETA',
+          badgeColor: 'blue',
+        },
+        {
+          path: '/gift-cards',
+          icon: <Gift size={17} />,
+          label: 'Gift Cards',
+          badge: 'BETA',
+          badgeColor: 'orange',
+        },
+        {
           path: '/orders', icon: <ShoppingCart size={17} />, label: 'Orders',
           badge: totalOrdersCount > 0 ? totalOrdersCount : undefined,
           badgeColor: 'orange',
@@ -145,6 +164,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
           badgeColor: 'blue',
         },
+        { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts' },
         { path: '/analytics', icon: <BarChart3 size={17} />, label: 'Analytics' },
       ],
     },
@@ -160,11 +180,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           badgeColor: 'blue',
         },
         { path: '/website-builder', icon: <Globe size={17} />, label: 'Website Builder' },
+        { path: '/website-settings', icon: <Sliders size={17} />, label: 'Website Settings' },
       ],
     },
     {
       groupLabel: 'ENGAGE',
       items: [
+        { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
         { path: '/survey-feedback', icon: <MessageSquareText size={17} />, label: 'Survey & Feedback' },
         { path: '/support', icon: <LifeBuoy size={17} />, label: 'Support' },
       ],
@@ -564,6 +586,36 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </form>
 
           <div className="ml-auto flex items-center gap-2.5">
+            {/* Transfers Beta Navbar Pill */}
+            <button
+              type="button"
+              onClick={() => navigate('/transfers/new')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 text-[12px] font-semibold transition-all shadow-2xs cursor-pointer group active:scale-[0.98]"
+              title="Create an Inventory Transfer (Beta)"
+              aria-label="Create an inventory transfer"
+            >
+              <Truck size={14} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Transfers</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                BETA
+              </span>
+            </button>
+
+            {/* Gift Cards Beta Navbar Pill */}
+            <button
+              type="button"
+              onClick={() => navigate('/gift-cards/new')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200/90 bg-amber-50/80 hover:bg-amber-100 text-amber-900 text-[12px] font-semibold transition-all shadow-2xs cursor-pointer group active:scale-[0.98]"
+              title="Create a Digital Gift Card product (Beta)"
+              aria-label="Create a digital gift card product"
+            >
+              <Gift size={14} className="text-amber-600 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Gift Cards</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                BETA
+              </span>
+            </button>
+
             {/* Refer & Earn */}
             <button
               onClick={() => navigate('/refer-earn')}

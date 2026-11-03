@@ -8,6 +8,7 @@ import type {
   StorefrontContextValue,
   StorefrontCustomer,
   CustomerOrder,
+  AppliedDiscountInfo,
 } from './storefrontState';
 import { formatWhatsAppPhone } from '../utilities/formatting';
 
@@ -70,6 +71,12 @@ export function StorefrontProvider({
   // Order state
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<OrderSuccessData | null>(null);
+
+  // Discounts & Promotional Pricing state
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscountInfo | null>(null);
+  const [discountCodeInput, setDiscountCodeInput] = useState('');
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   // Customer Authentication & Account state
   const [customer, setCustomer] = useState<StorefrontCustomer | null>(null);
@@ -494,6 +501,149 @@ export function StorefrontProvider({
     setOrderSuccess(null);
   }, []);
 
+  // Promotional Discounts Evaluation & Application
+  const evaluateDiscounts = useCallback(async (codeToTest?: string | null) => {
+    if (!shopId || cart.length === 0) {
+      if (!codeToTest) {
+        setAppliedDiscount(null);
+      }
+      return;
+    }
+
+    try {
+      const itemsPayload = cart.map(i => ({
+        productId: i.id,
+        variantId: i.variant_id || undefined,
+        quantity: i.quantity,
+        unitPriceMinor: Math.round(((i.sale_price != null && i.sale_price > 0 ? i.sale_price : i.price) || 0) * 100),
+        category: i.category,
+      }));
+
+      const activeCode = codeToTest !== undefined ? codeToTest : (appliedDiscount?.code || discountCodeInput || null);
+
+      const res = await axios.post(`${API}/storefront/discounts/evaluate`, {
+        shopId,
+        code: activeCode,
+        items: itemsPayload,
+        shippingFeeMinor: 3000,
+        customer: customer ? { id: customer.id, phone: customer.phone, email: customer.email } : null,
+      }, {
+        headers: getCustomerHeaders(),
+      });
+
+      if (res.data?.success && res.data.calculation) {
+        const calc = res.data.calculation;
+        if (calc.discountsApplied && calc.discountsApplied.length > 0) {
+          let savingsMsg = '';
+          const primaryDisc = calc.discountsApplied[0];
+          if (primaryDisc.type === 'free_shipping') {
+            savingsMsg = 'Free delivery promotion applied!';
+          } else {
+            savingsMsg = `Saved ${activeSymbol}${(calc.totalDiscountMinor / 100).toFixed(0)} with promotion`;
+          }
+
+          setAppliedDiscount({
+            code: calc.codeApplied || null,
+            totalDiscount: calc.totalDiscountMinor / 100,
+            totalDiscountMinor: calc.totalDiscountMinor,
+            productDiscount: calc.productDiscountMinor / 100,
+            orderDiscount: calc.orderDiscountMinor / 100,
+            shippingDiscount: calc.shippingDiscountMinor / 100,
+            effectiveShipping: calc.effectiveShippingMinor / 100,
+            finalPayable: calc.finalPayableMinor / 100,
+            discountsApplied: calc.discountsApplied,
+            savingsMessage: savingsMsg,
+          });
+          setDiscountError(null);
+        } else {
+          setAppliedDiscount(null);
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  }, [shopId, cart, customer, appliedDiscount?.code, discountCodeInput, activeSymbol, getCustomerHeaders]);
+
+  // Re-evaluate discounts when cart changes
+  useEffect(() => {
+    if (cart.length > 0) {
+      evaluateDiscounts();
+    } else {
+      setAppliedDiscount(null);
+    }
+  }, [cart, evaluateDiscounts]);
+
+  const applyDiscountCode = useCallback(async (codeToApply?: string) => {
+    const raw = (codeToApply || discountCodeInput || '').trim();
+    if (!raw) {
+      setDiscountError('Please enter a promo code');
+      return { success: false, error: 'Please enter a promo code' };
+    }
+    if (cart.length === 0) {
+      setDiscountError('Add items to your bag before applying a code');
+      return { success: false, error: 'Cart is empty' };
+    }
+
+    setIsApplyingDiscount(true);
+    setDiscountError(null);
+
+    try {
+      const itemsPayload = cart.map(i => ({
+        productId: i.id,
+        variantId: i.variant_id || undefined,
+        quantity: i.quantity,
+        unitPriceMinor: Math.round(((i.sale_price != null && i.sale_price > 0 ? i.sale_price : i.price) || 0) * 100),
+        category: i.category,
+      }));
+
+      const res = await axios.post(`${API}/storefront/discounts/validate`, {
+        shopId,
+        code: raw,
+        items: itemsPayload,
+        shippingFeeMinor: 3000,
+        customer: customer ? { id: customer.id, phone: customer.phone, email: customer.email } : null,
+      }, {
+        headers: getCustomerHeaders(),
+      });
+
+      if (res.data?.success && res.data.calculation) {
+        const calc = res.data.calculation;
+        setAppliedDiscount({
+          code: calc.codeApplied || raw.toUpperCase(),
+          totalDiscount: calc.totalDiscountMinor / 100,
+          totalDiscountMinor: calc.totalDiscountMinor,
+          productDiscount: calc.productDiscountMinor / 100,
+          orderDiscount: calc.orderDiscountMinor / 100,
+          shippingDiscount: calc.shippingDiscountMinor / 100,
+          effectiveShipping: calc.effectiveShippingMinor / 100,
+          finalPayable: calc.finalPayableMinor / 100,
+          discountsApplied: calc.discountsApplied,
+          savingsMessage: `Code ${raw.toUpperCase()} applied! Saved ${activeSymbol}${(calc.totalDiscountMinor / 100).toFixed(0)}`,
+        });
+        setDiscountCodeInput('');
+        setDiscountError(null);
+        return { success: true };
+      } else {
+        const err = res.data?.error || 'Invalid promotion code';
+        setDiscountError(err);
+        return { success: false, error: err };
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Discount code is invalid or not applicable to your order.';
+      setDiscountError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setIsApplyingDiscount(false);
+    }
+  }, [discountCodeInput, cart, shopId, customer, activeSymbol, getCustomerHeaders]);
+
+  const removeDiscountCode = useCallback(() => {
+    setAppliedDiscount(null);
+    setDiscountCodeInput('');
+    setDiscountError(null);
+    evaluateDiscounts(null);
+  }, [evaluateDiscounts]);
+
   // Submit direct checkout order via backend /api/orders/create
   const submitOrder = useCallback(
     async (formData: CheckoutFormData): Promise<boolean> => {
@@ -510,6 +660,7 @@ export function StorefrontProvider({
           paymentMethod: formData.paymentMethod,
           shopId: shopId,
           notes: formData.notes,
+          discountCode: appliedDiscount?.code || discountCodeInput || undefined,
           items: cart.map((i) => ({
             productId: i.id,
             variantId: i.variant_id || undefined,
@@ -540,6 +691,9 @@ export function StorefrontProvider({
           total: ord.total,
           subtotal: ord.subtotal,
           deliveryFee: ord.delivery_fee,
+          discount: ord.discount || (ord.discount_minor ? ord.discount_minor / 100 : 0) || (appliedDiscount ? appliedDiscount.totalDiscount : 0),
+          discountMinor: ord.discount_minor || ord.discountMinor || (appliedDiscount ? appliedDiscount.totalDiscountMinor : 0),
+          discountsApplied: ord.discountsApplied || (appliedDiscount ? appliedDiscount.discountsApplied : []),
           deliveryAddress: ord.delivery_address || formData.deliveryAddress,
           deliveryType: ord.delivery_type || formData.deliveryType,
           items: Array.isArray(ord.items)
@@ -670,6 +824,15 @@ export function StorefrontProvider({
 
     // Shared Order Info
     sharedOrderInfo,
+
+    // Discounts & Promotional Pricing
+    appliedDiscount,
+    discountCodeInput,
+    setDiscountCodeInput,
+    isApplyingDiscount,
+    discountError,
+    applyDiscountCode,
+    removeDiscountCode,
   };
 
 

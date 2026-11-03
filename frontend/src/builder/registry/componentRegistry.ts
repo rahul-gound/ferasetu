@@ -636,6 +636,65 @@ export const COMPONENT_DEFINITIONS: ComponentDefinition[] = [
       defaultTag: 'section',
     },
   },
+
+  {
+    id: 'block.bento',
+    version: 1,
+    name: 'Astryx Bento Grid',
+    category: 'blocks',
+    description: 'Asymmetric 4-card spotlight grid inspired by Aceternity and React Bits with radial cursor glow.',
+    iconName: 'LayoutGrid',
+    tags: ['bento', 'spotlight', 'astryx', 'reactbits', 'cards', 'grid'],
+    defaultProps: {
+      eyebrow: 'CURATED SHOWCASE',
+      headline: 'Collection & Standards',
+      subheadline: 'Engineered for quality, verified for transparency.',
+    },
+    propSchema: {
+      eyebrow: { type: 'string', control: 'text', label: 'Eyebrow', defaultValue: 'CURATED SHOWCASE', category: 'content' },
+      headline: { type: 'string', control: 'text', label: 'Headline', defaultValue: 'Collection & Standards', category: 'content' },
+      subheadline: { type: 'string', control: 'textarea', label: 'Sub-headline', defaultValue: '', category: 'content' },
+    },
+    variants: [
+      { id: 'spotlight-glow', label: 'Astryx Spotlight', props: {} },
+    ],
+    a11y: {
+      defaultTag: 'section',
+    },
+  },
+
+  {
+    id: 'block.marquee',
+    version: 1,
+    name: 'Infinite Ticker Marquee',
+    category: 'blocks',
+    description: 'Smooth hardware-accelerated continuous scrolling banner for merchant promises and guarantees.',
+    iconName: 'Sparkles',
+    tags: ['marquee', 'ticker', 'scroll', 'banner', 'astryx'],
+    defaultProps: {
+      speed: 'normal',
+    },
+    propSchema: {
+      speed: {
+        type: 'string',
+        control: 'select',
+        label: 'Scroll Speed',
+        defaultValue: 'normal',
+        category: 'style',
+        options: [
+          { label: 'Normal (28s)', value: 'normal' },
+          { label: 'Smooth (40s)', value: 'slow' },
+          { label: 'Fast (15s)', value: 'fast' },
+        ],
+      },
+    },
+    variants: [
+      { id: 'gradient-brand', label: 'Orange Saffron Glow', props: {} },
+    ],
+    a11y: {
+      defaultTag: 'section',
+    },
+  },
 ];
 
 export const COMPONENT_CATALOG = COMPONENT_DEFINITIONS;

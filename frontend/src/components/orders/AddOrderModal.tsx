@@ -23,6 +23,7 @@ import {
 import api from '../../services/api';
 import { getStorefrontUrl, getStorefrontPreviewUrl } from '../../utils/canonicalHostname';
 import { resolveMediaUrl } from '../../utils/media';
+import posthog from '../../lib/posthog';
 
 interface Product {
   id: string;
@@ -270,6 +271,12 @@ export default function AddOrderModal({
       };
 
       await api.post('/orders', payload);
+      posthog.capture('direct_order_created', {
+        delivery_type: deliveryType,
+        product_count: selectedItems.length,
+        unit_count: selectedItems.reduce((count, item) => count + item.quantity, 0),
+        order_total: totalAmount,
+      });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Order recorded in your order book!');
       if (onOrderCreated) onOrderCreated();

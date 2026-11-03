@@ -37,6 +37,7 @@
     "react-is": "^19.2.8",
     "react-router-dom": "^7.18.3",
     "recharts": "^3.8.1",
+    "posthog-js": "^1.407.2",
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.180.0",

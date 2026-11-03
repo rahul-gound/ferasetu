@@ -46,6 +46,11 @@ interface LocalProduct {
   stock_quantity: number;
   image_url?: string;
   is_active: boolean;
+  status?: string;
+  sku?: string;
+  barcode?: string;
+  options?: any[];
+  variants?: any[];
   created_at: string;
   updated_at: string;
 }
@@ -283,6 +288,117 @@ async function localGet(url: string) {
     const userId = requireAuth();
     const products = db.products.filter(p => p.user_id === userId);
     return Promise.resolve(createResponse({ products }));
+  }
+
+  if (path === '/gift-cards') {
+    const userId = requireAuth();
+    const products = db.products.filter(p => p.user_id === userId && (p.category === 'Gift Cards' || (p as any).is_gift_card));
+    const rawCards = localStorage.getItem('fera_local_issued_gift_cards_v1') || '[]';
+    let issued_cards: any[] = [];
+    try { issued_cards = JSON.parse(rawCards); } catch { issued_cards = []; }
+    issued_cards = issued_cards.filter((card: any) => card.user_id === userId);
+    const total_issued_value = issued_cards.reduce((acc: number, c: any) => acc + (Number(c.initial_value) || 0), 0);
+    const outstanding = issued_cards.reduce((acc: number, c: any) => acc + (Number(c.balance) || 0), 0);
+    const redeemed = Math.max(0, total_issued_value - outstanding);
+
+    return Promise.resolve(createResponse({
+      success: true,
+      products,
+      issued_cards,
+      stats: {
+        total_products: products.length,
+        total_issued_cards: issued_cards.length,
+        total_issued_value,
+        outstanding_balance_obligation: outstanding,
+        total_redeemed_value: redeemed,
+        currency: 'INR',
+      }
+    }));
+  }
+
+  if (path === '/customers/segments') {
+    const raw = localStorage.getItem('fera_local_customer_segments_v1') || '[]';
+    let segments: any[] = [];
+    try { segments = JSON.parse(raw); } catch { segments = []; }
+    return Promise.resolve(createResponse({
+      success: true,
+      segments,
+      templates: [
+        {
+          id: 'subscribers-no-orders',
+          name: 'Email subscribers who haven’t purchased yet',
+          description: 'Subscribed to emails but 0 completed orders. Perfect for first-purchase welcome discount.',
+          query_type: 'template',
+          conjunction: 'AND',
+          rules: [
+            { field: 'orders_count', operator: 'equals', value: 0 },
+            { field: 'email_subscribed', operator: 'equals', value: true }
+          ]
+        },
+        {
+          id: 'repeat-customers',
+          name: 'Repeat loyal buyers',
+          description: 'Customers with 2 or more orders placed.',
+          query_type: 'template',
+          conjunction: 'AND',
+          rules: [
+            { field: 'orders_count', operator: 'greater_than_or_equal', value: 2 }
+          ]
+        },
+        {
+          id: 'high-value-spenders',
+          name: 'High lifetime value (VIP)',
+          description: 'Shoppers who have spent ₹2,500 or more in your shop.',
+          query_type: 'template',
+          conjunction: 'AND',
+          rules: [
+            { field: 'total_spent', operator: 'greater_than_or_equal', value: 2500 }
+          ]
+        }
+      ]
+    }));
+  }
+
+  if (path === '/transfers/locations') {
+    const raw = localStorage.getItem('fera_local_inventory_locations_v1');
+    let locations = [
+      { id: 'loc-wh-1', name: 'Main Warehouse (Central Godown)', type: 'warehouse', address: 'Plot 42, Industrial Area', city: 'Delhi', is_default: 1 },
+      { id: 'loc-st-1', name: 'Primary Retail Dukaan (Front Store)', type: 'store', address: 'Shop 12, Main Market', city: 'Delhi', is_default: 0 },
+      { id: 'loc-sp-1', name: 'Regional Wholesale Supplier', type: 'supplier', address: 'APMC Market Yard', city: 'Karnal', is_default: 0 },
+      { id: 'loc-hb-1', name: 'Express Delivery Hub', type: 'hub', address: 'Ring Road Depot', city: 'Gurugram', is_default: 0 },
+    ];
+    if (raw) {
+      try { locations = JSON.parse(raw); } catch {}
+    } else {
+      localStorage.setItem('fera_local_inventory_locations_v1', JSON.stringify(locations));
+    }
+    return Promise.resolve(createResponse({ success: true, locations }));
+  }
+
+  if (path === '/transfers') {
+    const raw = localStorage.getItem('fera_local_inventory_transfers_v1') || '[]';
+    let transfers: any[] = [];
+    try { transfers = JSON.parse(raw); } catch { transfers = []; }
+    const stats = {
+      total_transfers: transfers.length,
+      in_transit: transfers.filter((t: any) => t.status === 'in_transit').length,
+      drafts: transfers.filter((t: any) => t.status === 'draft').length,
+      completed: transfers.filter((t: any) => t.status === 'completed' || t.status === 'received').length,
+      total_units_in_transit: transfers
+        .filter((t: any) => t.status === 'in_transit')
+        .reduce((sum: number, t: any) => sum + (Number(t.total_units) || 0), 0),
+    };
+    return Promise.resolve(createResponse({ success: true, transfers, stats }));
+  }
+
+  if (path.startsWith('/transfers/')) {
+    const id = path.replace('/transfers/', '');
+    const raw = localStorage.getItem('fera_local_inventory_transfers_v1') || '[]';
+    let transfers: any[] = [];
+    try { transfers = JSON.parse(raw); } catch { transfers = []; }
+    const found = transfers.find((t: any) => t.id === id);
+    if (!found) throw createHttpError(404, 'Transfer not found');
+    return Promise.resolve(createResponse({ success: true, transfer: found }));
   }
 
   if (path === '/orders') {
@@ -1098,6 +1214,34 @@ async function localGet(url: string) {
     }));
   }
 
+  if (path === '/whatsapp/status') {
+    const userId = requireAuth();
+    const raw = localStorage.getItem(`fera_local_wa_session_${userId}`);
+    const session = raw ? JSON.parse(raw) : {
+      status: 'disconnected',
+      phone_number_masked: null,
+      is_ai_replies_enabled: true,
+      is_notifications_enabled: true,
+      qr_code_raw: null,
+      stats: { messages_received: 0, ai_replies_sent: 0, pending_orders: 0, attention_needed: 0 }
+    };
+    return Promise.resolve(createResponse(session));
+  }
+
+  if (path === '/whatsapp/conversations') {
+    const userId = requireAuth();
+    const raw = localStorage.getItem(`fera_local_wa_conversations_${userId}`);
+    const conversations = raw ? JSON.parse(raw) : [];
+    return Promise.resolve(createResponse({ conversations }));
+  }
+
+  if (path === '/whatsapp/orders') {
+    const userId = requireAuth();
+    const raw = localStorage.getItem(`fera_local_wa_orders_${userId}`);
+    const orders = raw ? JSON.parse(raw) : [];
+    return Promise.resolve(createResponse({ orders }));
+  }
+
   throw createHttpError(404, `Unknown GET endpoint: ${path}`);
 }
 
@@ -1269,12 +1413,278 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
       stock_quantity: Number(payload.stock_quantity || 0),
       image_url: payload.image_url ? String(payload.image_url) : undefined,
       is_active: payload.is_active !== false,
+      status: payload.status || (payload.is_active !== false ? 'active' : 'draft'),
+      sku: payload.sku || undefined,
+      barcode: payload.barcode || undefined,
+      options: payload.options || [],
+      variants: payload.variants || [],
       created_at: now(),
       updated_at: now(),
     };
     db.products.push(product);
     saveDb(db);
     return createResponse(product, 201);
+  }
+
+  if (path === '/gift-cards/product') {
+    const userId = requireAuth();
+    const {
+      title,
+      description,
+      denominations,
+      currency = 'INR',
+      cross_currency_redemption = false,
+      image_url,
+      sales_channels,
+      tags,
+      product_type,
+      collection,
+      seo_title,
+      seo_description,
+    } = payload;
+
+    const validDenominations = Array.isArray(denominations)
+      ? denominations.map(Number).filter(d => Number.isFinite(d) && d > 0)
+      : [];
+    if (!String(title || '').trim() || validDenominations.length === 0) {
+      throw createHttpError(400, 'A gift card title and at least one positive denomination are required');
+    }
+
+    const giftCardProduct: any = {
+      id: createId(),
+      user_id: userId,
+      name: title || 'Digital Gift Card',
+      description: description || 'Give them the freedom to choose. Select a gift card amount and receive a digital gift card by email.',
+      cost_price: null,
+      price: validDenominations[0] || 1000,
+      sale_price: null,
+      category: 'Gift Cards',
+      stock_quantity: 9999,
+      image_url: image_url || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80',
+      is_active: true,
+      metadata: JSON.stringify({
+        is_gift_card: true,
+        currency,
+        cross_currency_redemption: Boolean(cross_currency_redemption),
+        denominations: validDenominations,
+        sales_channels: sales_channels || ['online_store', 'whatsapp_shop'],
+        tags: tags || ['Gift Card', 'Digital'],
+        product_type: product_type || 'Digital Gift Card',
+        collection: collection || 'Gift Cards',
+        seo: {
+          title: seo_title || title,
+          description: seo_description || description || '',
+        },
+      }),
+      created_at: now(),
+      updated_at: now(),
+    };
+
+    db.products.unshift(giftCardProduct);
+    saveDb(db);
+    return Promise.resolve(createResponse({ success: true, product: giftCardProduct }, 201));
+  }
+
+  if (path === '/gift-cards/issue') {
+    const userId = requireAuth();
+    const { amount, currency = 'INR', recipient_email, recipient_name, note } = payload;
+    const initialValue = Number(amount);
+    if (!Number.isFinite(initialValue) || initialValue <= 0) {
+      throw createHttpError(400, 'Gift card amount must be greater than zero');
+    }
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'FERA-';
+    const random = new Uint8Array(12);
+    crypto.getRandomValues(random);
+    for (let b = 0; b < 3; b++) {
+      for (let i = 0; i < 4; i++) code += chars.charAt(random[b * 4 + i] & 31);
+      if (b < 2) code += '-';
+    }
+    const newCard = {
+      id: createId(),
+      user_id: userId,
+      code,
+      initial_value: initialValue,
+      balance: initialValue,
+      currency,
+      recipient_email: recipient_email || null,
+      recipient_name: recipient_name || null,
+      note: note || null,
+      status: 'active',
+      created_at: now(),
+      updated_at: now(),
+    };
+    const rawCards = localStorage.getItem('fera_local_issued_gift_cards_v1') || '[]';
+    let cards: any[] = [];
+    try { cards = JSON.parse(rawCards); } catch { cards = []; }
+    cards.unshift(newCard);
+    localStorage.setItem('fera_local_issued_gift_cards_v1', JSON.stringify(cards));
+    return Promise.resolve(createResponse({ success: true, card: newCard }, 201));
+  }
+
+  if (path === '/gift-cards/simulate') {
+    const balance = payload.gift_card_balance === undefined ? 1000 : Number(payload.gift_card_balance);
+    const total = payload.order_total === undefined ? 700 : Number(payload.order_total);
+    if (!Number.isFinite(balance) || balance < 0 || !Number.isFinite(total) || total < 0) {
+      throw createHttpError(400, 'Gift card balance and order total must be valid non-negative amounts');
+    }
+    const applied = Math.min(balance, total);
+    const remainingBalance = Math.max(0, balance - applied);
+    const remainingToPay = Math.max(0, total - applied);
+    return Promise.resolve(createResponse({
+      success: true,
+      simulation: {
+        initial_card_balance: balance,
+        order_total: total,
+        applied_from_gift_card: applied,
+        remaining_gift_card_balance: remainingBalance,
+        remaining_order_to_pay: remainingToPay,
+        currency: 'INR',
+        explanation: total <= balance
+          ? `The ₹${applied.toLocaleString('en-IN')} order is fully covered by the gift card. Remaining ₹${remainingBalance.toLocaleString('en-IN')} stays on the card for a future purchase.`
+          : `The ₹${applied.toLocaleString('en-IN')} gift card covers part of the order. The customer pays the remaining ₹${remainingToPay.toLocaleString('en-IN')} using UPI, Card, or Cash.`
+      }
+    }));
+  }
+
+  if (path === '/customers/segments/preview') {
+    const { rules = [], conjunction = 'AND', customers = [] } = payload;
+    return Promise.resolve(createResponse({ success: true, count: customers.length, sample_customers: customers.slice(0, 5) }));
+  }
+
+  if (path === '/customers/segments') {
+    const { name, description, rules, conjunction = 'AND', template_id } = payload;
+    const newSeg = {
+      id: `seg_${createId().slice(0, 8)}`,
+      name,
+      description,
+      rules,
+      conjunction,
+      template_id: template_id || null,
+      created_at: now(),
+      updated_at: now(),
+    };
+    const raw = localStorage.getItem('fera_local_customer_segments_v1') || '[]';
+    let segments: any[] = [];
+    try { segments = JSON.parse(raw); } catch { segments = []; }
+    segments.unshift(newSeg);
+    localStorage.setItem('fera_local_customer_segments_v1', JSON.stringify(segments));
+    return Promise.resolve(createResponse({ success: true, segment: newSeg }, 201));
+  }
+
+  if (path === '/transfers/locations') {
+    const { name, type = 'warehouse', address, city } = payload;
+    const newLoc = {
+      id: `loc_${createId().slice(0, 8)}`,
+      name,
+      type,
+      address: address || null,
+      city: city || null,
+      is_default: 0,
+      created_at: now(),
+    };
+    const raw = localStorage.getItem('fera_local_inventory_locations_v1') || '[]';
+    let locations: any[] = [];
+    try { locations = JSON.parse(raw); } catch {}
+    locations.push(newLoc);
+    localStorage.setItem('fera_local_inventory_locations_v1', JSON.stringify(locations));
+    return Promise.resolve(createResponse({ success: true, location: newLoc }, 201));
+  }
+
+  if (path === '/transfers') {
+    const { origin_location_id, origin_name, destination_location_id, destination_name, status = 'draft', estimated_arrival, reference_name, note, tags, purchase_order_id, items = [] } = payload;
+    const transferId = `tr_${createId().slice(0, 10)}`;
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const transferNumber = `TR-${randomSuffix}`;
+    const totalUnits = items.reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
+    const newTransfer = {
+      id: transferId,
+      transfer_number: transferNumber,
+      reference_name: reference_name || null,
+      origin_location_id,
+      origin_name,
+      destination_location_id,
+      destination_name,
+      status,
+      estimated_arrival: estimated_arrival || null,
+      note: note || null,
+      tags: Array.isArray(tags) ? tags.join(', ') : (tags || null),
+      purchase_order_id: purchase_order_id || null,
+      total_items: items.length,
+      total_units: totalUnits,
+      items: items.map((it: any) => ({
+        id: `tri_${createId().slice(0, 8)}`,
+        transfer_id: transferId,
+        product_id: it.product_id || it.id || 'custom',
+        product_title: it.product_title || it.title || it.name || 'Product',
+        sku: it.sku || null,
+        quantity_requested: Number(it.quantity) || 1,
+        quantity_received: 0,
+        unit_cost: Number(it.unit_cost || it.price || 0),
+      })),
+      created_at: now(),
+      updated_at: now(),
+    };
+    const raw = localStorage.getItem('fera_local_inventory_transfers_v1') || '[]';
+    let transfers: any[] = [];
+    try { transfers = JSON.parse(raw); } catch {}
+    transfers.unshift(newTransfer);
+    localStorage.setItem('fera_local_inventory_transfers_v1', JSON.stringify(transfers));
+    return Promise.resolve(createResponse({ success: true, transfer: newTransfer }, 201));
+  }
+
+  if (path.startsWith('/transfers/') && path.endsWith('/status')) {
+    const id = path.replace('/transfers/', '').replace('/status', '');
+    const { status } = payload;
+    const raw = localStorage.getItem('fera_local_inventory_transfers_v1') || '[]';
+    let transfers: any[] = [];
+    try { transfers = JSON.parse(raw); } catch {}
+    const t = transfers.find((item: any) => item.id === id);
+    if (t) {
+      t.status = status;
+      t.updated_at = now();
+      localStorage.setItem('fera_local_inventory_transfers_v1', JSON.stringify(transfers));
+    }
+    return Promise.resolve(createResponse({ success: true, message: `Status updated to ${status}` }));
+  }
+
+  if (path.startsWith('/transfers/') && path.endsWith('/receive')) {
+    const id = path.replace('/transfers/', '').replace('/receive', '');
+    const { item_quantities } = payload;
+    const raw = localStorage.getItem('fera_local_inventory_transfers_v1') || '[]';
+    let transfers: any[] = [];
+    try { transfers = JSON.parse(raw); } catch {}
+    const t = transfers.find((item: any) => item.id === id);
+    if (t && t.items) {
+      let allDone = true;
+      t.items.forEach((it: any) => {
+        const rec = item_quantities && item_quantities[it.id] !== undefined ? Number(item_quantities[it.id]) : it.quantity_requested;
+        it.quantity_received = rec;
+        if (rec < it.quantity_requested) allDone = false;
+      });
+      t.status = allDone ? 'completed' : 'partially_received';
+      t.updated_at = now();
+      localStorage.setItem('fera_local_inventory_transfers_v1', JSON.stringify(transfers));
+    }
+    return Promise.resolve(createResponse({ success: true, message: 'Received successfully' }));
+  }
+
+  if (path === '/transfers/ai-sidekick') {
+    const { prompt = '' } = payload;
+    const numberMatch = prompt.match(/\b(\d+)\b/);
+    const qty = numberMatch ? parseInt(numberMatch[1], 10) : 20;
+    return Promise.resolve(createResponse({
+      success: true,
+      reply: `Transfer proposal ready: moving ${qty} units from "Main Warehouse (Central Godown)" to "Primary Retail Dukaan (Front Store)".`,
+      proposal: {
+        origin_name: 'Main Warehouse (Central Godown)',
+        destination_name: 'Primary Retail Dukaan (Front Store)',
+        quantity: qty,
+        tags: 'Sidekick Assistant, Fast Transfer',
+        note: 'Created via Fera AI Sidekick inventory copilot',
+        estimated_arrival: '2026-11-05',
+      }
+    }));
   }
 
   if (path === '/orders' || path === '/orders/create') {
@@ -1799,6 +2209,24 @@ async function localPost(url: string, payload: Record<string, any> = {}) {
     return Promise.resolve(createResponse({ success: true, settings: payload }));
   }
 
+  if (path === '/whatsapp/connect') {
+    return Promise.reject(createHttpError(503, 'WhatsApp connection requires the configured connector service'));
+  }
+
+  if (path === '/whatsapp/disconnect') {
+    const userId = requireAuth();
+    const session = {
+      status: 'disconnected',
+      phone_number_masked: null,
+      is_ai_replies_enabled: true,
+      is_notifications_enabled: true,
+      qr_code_raw: null,
+      stats: { messages_received: 0, ai_replies_sent: 0, pending_orders: 0, attention_needed: 0 }
+    };
+    localStorage.setItem(`fera_local_wa_session_${userId}`, JSON.stringify(session));
+    return Promise.resolve(createResponse({ success: true, status: 'disconnected' }));
+  }
+
   throw createHttpError(404, `Unknown POST endpoint: ${path}`);
 }
 
@@ -1973,6 +2401,58 @@ async function localPatch(url: string, payload: Record<string, any>) {
     return Promise.resolve(createResponse({ success: true, message: 'Identity updated' }));
   }
 
+  if (path === '/whatsapp/settings') {
+    const userId = requireAuth();
+    const storageKey = `fera_local_wa_session_${userId}`;
+    const raw = localStorage.getItem(storageKey);
+    const session = raw ? JSON.parse(raw) : {
+      status: 'disconnected',
+      phone_number_masked: null,
+      is_ai_replies_enabled: true,
+      is_notifications_enabled: true,
+      qr_code_raw: null,
+      stats: { messages_received: 0, ai_replies_sent: 0, pending_orders: 0, attention_needed: 0 }
+    };
+    if (typeof payload.isAiRepliesEnabled === 'boolean') session.is_ai_replies_enabled = payload.isAiRepliesEnabled;
+    if (typeof payload.isNotificationsEnabled === 'boolean') session.is_notifications_enabled = payload.isNotificationsEnabled;
+    localStorage.setItem(storageKey, JSON.stringify(session));
+    return Promise.resolve(createResponse(session));
+  }
+
+  if (path.startsWith('/whatsapp/conversations/') && path.endsWith('/handover')) {
+    const userId = requireAuth();
+    const conversationId = path.split('/')[3];
+    const storageKey = `fera_local_wa_conversations_${userId}`;
+    const raw = localStorage.getItem(storageKey) || '[]';
+    let conversations: any[];
+    try { conversations = JSON.parse(raw); } catch { conversations = []; }
+    const conversation = conversations.find(item => item.id === conversationId);
+    if (!conversation) throw createHttpError(404, 'Conversation not found');
+    if (typeof payload.requiresAttention === 'boolean') conversation.requires_attention = payload.requiresAttention;
+    if (typeof payload.isAiPaused === 'boolean') conversation.is_ai_paused = payload.isAiPaused;
+    conversation.updated_at = now();
+    localStorage.setItem(storageKey, JSON.stringify(conversations));
+    return Promise.resolve(createResponse({ success: true, conversation }));
+  }
+
+  if (path.startsWith('/whatsapp/orders/') && path.endsWith('/status')) {
+    const userId = requireAuth();
+    if (!['confirmed', 'rejected', 'cancelled'].includes(payload.status)) {
+      throw createHttpError(400, 'Invalid WhatsApp order status');
+    }
+    const orderId = path.split('/')[3];
+    const storageKey = `fera_local_wa_orders_${userId}`;
+    const raw = localStorage.getItem(storageKey) || '[]';
+    let orders: any[];
+    try { orders = JSON.parse(raw); } catch { orders = []; }
+    const order = orders.find(item => item.id === orderId);
+    if (!order) throw createHttpError(404, 'WhatsApp order request not found');
+    order.status = payload.status;
+    order.updated_at = now();
+    localStorage.setItem(storageKey, JSON.stringify(orders));
+    return Promise.resolve(createResponse({ success: true, status: order.status }));
+  }
+
   throw createHttpError(404, `Unknown PATCH endpoint: ${path}`);
 }
 
@@ -1986,6 +2466,26 @@ async function localDelete(url: string) {
     db.products = db.products.filter(p => !(p.id === id && p.user_id === userId));
     saveDb(db);
     return Promise.resolve(createResponse({ success: true }));
+  }
+
+  if (path.startsWith('/customers/segments/')) {
+    const id = path.replace('/customers/segments/', '');
+    const raw = localStorage.getItem('fera_local_customer_segments_v1') || '[]';
+    let segments: any[] = [];
+    try { segments = JSON.parse(raw); } catch { segments = []; }
+    const filtered = segments.filter((s: any) => s.id !== id);
+    localStorage.setItem('fera_local_customer_segments_v1', JSON.stringify(filtered));
+    return Promise.resolve(createResponse({ success: true, message: 'Segment deleted' }));
+  }
+
+  if (path.startsWith('/transfers/')) {
+    const id = path.replace('/transfers/', '');
+    const raw = localStorage.getItem('fera_local_inventory_transfers_v1') || '[]';
+    let transfers: any[] = [];
+    try { transfers = JSON.parse(raw); } catch { transfers = []; }
+    const filtered = transfers.filter((t: any) => t.id !== id);
+    localStorage.setItem('fera_local_inventory_transfers_v1', JSON.stringify(filtered));
+    return Promise.resolve(createResponse({ success: true, message: 'Transfer deleted' }));
   }
 
   if (path.startsWith('/email/domains/')) {

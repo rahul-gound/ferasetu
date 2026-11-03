@@ -37,6 +37,11 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const AICreditsPage = lazy(() => import('./pages/AICreditsPage'));
+const GiftCardsPage = lazy(() => import('./pages/GiftCardsPage'));
+const CreateGiftCardPage = lazy(() => import('./pages/CreateGiftCardPage'));
+const TransfersPage = lazy(() => import('./pages/TransfersPage'));
+const CreateTransferPage = lazy(() => import('./pages/CreateTransferPage'));
+const DiscountsPage = lazy(() => import('./pages/DiscountsPage'));
 const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
 const WebsiteSettingsPage = lazy(() => import('./pages/WebsiteSettingsPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
@@ -66,6 +71,9 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
 // FeraSetu AI — lazy load
 const FeraSetuAIPage = lazy(() => import('./pages/FeraSetuAIPage'));
+
+// WhatsApp Assistant — lazy load
+const WhatsAppAssistantPage = lazy(() => import('./pages/WhatsAppAssistantPage'));
 
 // VerifyEmailPage — lazy load
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
@@ -177,7 +185,16 @@ function AppRoutes() {
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/gift-cards" element={<GiftCardsPage />} />
+          <Route path="/gift-cards/new" element={<CreateGiftCardPage />} />
+          <Route path="/products/gift-cards/new" element={<CreateGiftCardPage />} />
+          <Route path="/products/gift-card" element={<Navigate to="/gift-cards/new" replace />} />
+          <Route path="/transfers" element={<TransfersPage />} />
+          <Route path="/transfers/new" element={<CreateTransferPage />} />
+          <Route path="/products/transfers/new" element={<CreateTransferPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/dashboard/discounts" element={<DiscountsPage />} />
+          <Route path="/discounts" element={<Navigate to="/dashboard/discounts" replace />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/ferasetu-ai" element={<FeraSetuAIPage />} />
@@ -189,6 +206,8 @@ function AppRoutes() {
           <Route path="/website-builder/settings" element={<WebsiteSettingsPage />} />
           <Route path="/pro-studio" element={<Navigate to="/website-builder" replace />} />
           <Route path="/pro" element={<Navigate to="/website-builder" replace />} />
+          <Route path="/whatsapp-assistant" element={<WhatsAppAssistantPage />} />
+          <Route path="/dashboard/whatsapp-assistant" element={<Navigate to="/whatsapp-assistant" replace />} />
           <Route path="/survey-feedback" element={<SurveyFeedbackPage />} />
           <Route path="/settings/email" element={<EmailSettingsPage />} />
           <Route path="/refer-earn" element={<ReferEarnPage />} />

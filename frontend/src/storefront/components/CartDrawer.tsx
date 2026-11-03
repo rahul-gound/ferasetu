@@ -15,6 +15,9 @@ import {
   Mail,
   FileText,
   Download,
+  Tag,
+  Percent,
+  Loader2,
 } from 'lucide-react';
 import { useStorefront } from '../runtime/StorefrontProvider';
 import { formatPrice, sanitizeText } from '../utilities/formatting';
@@ -40,6 +43,13 @@ export default function CartDrawer() {
     openWhatsAppCartOrder,
     shopName,
     sharedOrderInfo,
+    appliedDiscount,
+    discountCodeInput,
+    setDiscountCodeInput,
+    isApplyingDiscount,
+    discountError,
+    applyDiscountCode,
+    removeDiscountCode,
   } = useStorefront();
 
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
@@ -220,6 +230,15 @@ export default function CartDrawer() {
                   </span>
                 </div>
               )}
+              {orderSuccess.discount && orderSuccess.discount > 0 ? (
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 text-emerald-700 font-medium">
+                  <span className="flex items-center gap-1">
+                    <Tag size={12} />
+                    <span>Promotional Savings</span>
+                  </span>
+                  <span className="font-bold">-{formatPrice(orderSuccess.discount)}</span>
+                </div>
+              ) : null}
               {typeof orderSuccess.total === 'number' && (
                 <div className="flex justify-between items-center pt-1 font-bold text-slate-900 text-sm">
                   <span>Total Amount</span>
@@ -383,14 +402,107 @@ export default function CartDrawer() {
               })}
             </div>
 
+            {/* Promo Code & Discounts Section */}
+            <div className="px-4 py-3 border-t border-slate-100 bg-white">
+              {appliedDiscount && (appliedDiscount.totalDiscount > 0 || appliedDiscount.shippingDiscount > 0) ? (
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                      <Tag size={12} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                        <span>{appliedDiscount.code || 'PROMO'}</span>
+                        <span className="text-[10px] font-semibold bg-emerald-200/80 text-emerald-900 px-1.5 py-0.2 rounded">Applied</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700">
+                        {appliedDiscount.savingsMessage || `Saved ${formatPrice(appliedDiscount.totalDiscount)}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeDiscountCode}
+                    className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 underline px-1.5 py-1"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    applyDiscountCode();
+                  }}
+                  className="flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={discountCodeInput}
+                        onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
+                        placeholder="Discount code / coupon"
+                        className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-md focus:border-slate-900 focus:outline-none uppercase font-mono tracking-wider"
+                      />
+                      <Tag size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isApplyingDiscount || !discountCodeInput.trim()}
+                      className="px-3.5 py-2 text-xs font-bold bg-slate-900 text-white rounded-md hover:bg-slate-800 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                    >
+                      {isApplyingDiscount ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Applying…</span>
+                        </>
+                      ) : (
+                        'Apply'
+                      )}
+                    </button>
+                  </div>
+                  {discountError && (
+                    <p className="text-[11px] text-rose-600 font-medium pl-1">
+                      {discountError}
+                    </p>
+                  )}
+                </form>
+              )}
+            </div>
+
             {/* Footer Summary & Triggers */}
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col gap-2.5">
-              <div className="flex justify-between items-center text-sm font-bold text-slate-900">
+              <div className="flex justify-between items-center text-xs text-slate-600">
                 <span>Subtotal</span>
-                <span>{formatPrice(cartSubtotal)}</span>
+                <span className="font-semibold text-slate-900">{formatPrice(cartSubtotal)}</span>
+              </div>
+
+              {appliedDiscount && appliedDiscount.totalDiscount > 0 && (
+                <div className="flex justify-between items-center text-xs text-emerald-600 font-medium">
+                  <span className="flex items-center gap-1">
+                    <Percent size={12} />
+                    <span>Discount {appliedDiscount.code ? `(${appliedDiscount.code})` : ''}</span>
+                  </span>
+                  <span className="font-bold">-{formatPrice(appliedDiscount.totalDiscount)}</span>
+                </div>
+              )}
+
+              {appliedDiscount && appliedDiscount.shippingDiscount > 0 && (
+                <div className="flex justify-between items-center text-xs text-emerald-600 font-medium">
+                  <span>Shipping promotion</span>
+                  <span className="font-bold">FREE</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-200">
+                <span>Estimated Total</span>
+                <span className="text-base text-slate-950 font-black">
+                  {formatPrice(appliedDiscount ? appliedDiscount.finalPayable : cartSubtotal)}
+                </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Taxes and shipping calculated at final confirmation.
+                Taxes and shipping confirmed at next step.
               </p>
 
               <button
@@ -548,13 +660,58 @@ export default function CartDrawer() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50">
+            {/* Checkout Pricing Breakdown */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-1.5">
+              <div className="flex justify-between text-xs text-slate-600">
+                <span>Subtotal</span>
+                <span className="font-semibold text-slate-900">{formatPrice(cartSubtotal)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-600">
+                <span>Delivery</span>
+                <span>
+                  {formData.deliveryType === 'delivery'
+                    ? (appliedDiscount && appliedDiscount.shippingDiscount > 0
+                        ? <span className="text-emerald-700 font-bold">FREE <span className="line-through text-slate-400 font-normal">₹30</span></span>
+                        : formatPrice(30))
+                    : 'FREE (Pickup)'}
+                </span>
+              </div>
+              {appliedDiscount && appliedDiscount.totalDiscount > 0 && (
+                <div className="flex justify-between text-xs text-emerald-700 font-medium">
+                  <span className="flex items-center gap-1">
+                    <Tag size={11} />
+                    <span>Discount {appliedDiscount.code ? `(${appliedDiscount.code})` : ''}</span>
+                  </span>
+                  <span className="font-bold">-{formatPrice(appliedDiscount.totalDiscount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-black text-slate-950 pt-1.5 border-t border-slate-200">
+                <span>Final Payable</span>
+                <span>
+                  {formatPrice(
+                    appliedDiscount
+                      ? (formData.deliveryType === 'pickup'
+                          ? Math.max(0, appliedDiscount.finalPayable - (appliedDiscount.effectiveShipping || 0))
+                          : appliedDiscount.finalPayable)
+                      : (cartSubtotal + (formData.deliveryType === 'delivery' ? 30 : 0))
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-white">
               <button
                 type="submit"
                 disabled={isSubmittingOrder}
                 className="w-full py-3 px-4 rounded-[var(--theme-radius-button)] bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isSubmittingOrder ? 'Placing Order…' : `Confirm Order (${formatPrice(cartSubtotal)})`}
+                {isSubmittingOrder ? 'Placing Order…' : `Confirm Order (${formatPrice(
+                  appliedDiscount
+                    ? (formData.deliveryType === 'pickup'
+                        ? Math.max(0, appliedDiscount.finalPayable - (appliedDiscount.effectiveShipping || 0))
+                        : appliedDiscount.finalPayable)
+                    : (cartSubtotal + (formData.deliveryType === 'delivery' ? 30 : 0))
+                )})`}
               </button>
             </div>
           </form>

@@ -19,6 +19,7 @@ import MarketSelector from '../components/marketing/MarketSelector';
 import { getMarketPlans, normalizePlanId, getPlan, getNextPlan, isFreePlan } from '../config/plans';
 import type { PlanDefinition } from '../config/plans';
 import { validateCashfreePaymentResponse, CashfreeConfigurationError } from '../utils/cashfree';
+import posthog from '../lib/posthog';
 
 declare global {
   interface Window {
@@ -132,6 +133,12 @@ export default function UpgradePage() {
         return;
       }
 
+      posthog.capture('subscription_checkout_started', {
+        plan_id: plan.id,
+        billing_cycle: billing,
+        payment_gateway: res.data.gateway || (res.data.stripeUrl ? 'stripe' : 'razorpay'),
+      });
+
       // Paid plans via Cashfree Checkout (India market)
       if (res.data.gateway === 'cashfree') {
         try {
@@ -226,6 +233,9 @@ export default function UpgradePage() {
     try {
       const res = await api.post('/payment/cancel-subscription');
       if (res.data.success) {
+        posthog.capture('subscription_renewal_cancelled', {
+          plan_id: currentPlanId,
+        });
         toast.success('Subscription renewal cancelled. Access continues until your billing period ends.');
         if (updateUser) {
           await updateUser({
@@ -249,6 +259,9 @@ export default function UpgradePage() {
     try {
       const res = await api.post('/payment/resume-subscription');
       if (res.data.success) {
+        posthog.capture('subscription_renewal_resumed', {
+          plan_id: currentPlanId,
+        });
         toast.success('Subscription renewal resumed.');
         if (updateUser) {
           await updateUser({

@@ -14,6 +14,7 @@ import { getStorefrontUrl } from '../utils/canonicalHostname';
 import InvoiceDocumentModal from '../components/orders/InvoiceDocumentModal';
 import AddOrderModal from '../components/orders/AddOrderModal';
 import CancelConfirmationModal from '../components/orders/CancelConfirmationModal';
+import posthog from '../lib/posthog';
 
 
 interface OrderItem {
@@ -293,7 +294,8 @@ export default function OrdersPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/orders/${id}/status`, { status }),
-    onSuccess: () => {
+    onSuccess: (_data, { status }) => {
+      posthog.capture('order_status_updated', { status });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Order status updated!');
       setUpdatingId(null);

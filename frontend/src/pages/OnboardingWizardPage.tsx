@@ -6,6 +6,8 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
 import { getGoogleStyleAvatar, getGithubStyleAvatar, resolveEffectiveProfilePicture } from '../utils/avatarUtils';
+import posthog from '../lib/posthog';
+import { posthogLogger } from '../lib/posthogLogger';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
@@ -266,9 +268,24 @@ export default function OnboardingWizardPage() {
         store_url: data.store_url || `https://${data.store_slug}.ferasetu.com`
       });
 
+      posthog.capture('organization_created', {
+        market: region,
+        invitation_count: validInvites.length,
+        invitations_skipped: skipInvitations,
+      });
+      posthogLogger.info('organization onboarding completed', {
+        workflow: 'organization_onboarding',
+        market: region,
+        invitation_count: validInvites.length,
+      });
       setStep(4); // Move to success transition screen
       toast.success('Your store and organization have been created!');
     } catch (err: any) {
+      posthogLogger.warn('organization onboarding request failed', {
+        workflow: 'organization_onboarding',
+        market: region,
+        http_status: Number(err?.response?.status || 0),
+      });
       console.error('Failed to create organization:', err);
       const serverErr = typeof err.response?.data === 'object'
         ? (err.response.data?.error || err.response.data?.message)

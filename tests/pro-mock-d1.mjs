@@ -150,6 +150,9 @@ export function createProMockD1() {
     site_backup_operations: [],
     site_restore_operations: [],
     site_export_operations: [],
+    discounts: [],
+    discount_codes: [],
+    discount_redemptions: [],
   };
 
   const db = {

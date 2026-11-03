@@ -58,6 +58,7 @@ export class USAStrategy extends BaseMarketStrategy {
     systemPrompt,
     config,
     requestId,
+    aiObservability,
     plan,
     task,
   }) {
@@ -92,6 +93,19 @@ export class USAStrategy extends BaseMarketStrategy {
       config,
       requestId,
     });
+
+    if (aiObservability?.captureGeneration) {
+      await aiObservability.captureGeneration({
+        ...aiObservability,
+        messages,
+        content: reasoningResult.content,
+        model: reasoningResult.model,
+        provider: reasoningResult.provider,
+        promptTokens: reasoningResult.promptTokens,
+        completionTokens: reasoningResult.completionTokens,
+        latencyMs: reasoningResult.latencyMs,
+      });
+    }
 
     return {
       content: reasoningResult.content,

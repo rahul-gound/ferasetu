@@ -100,6 +100,9 @@ import {
 } from "./backfills/sliceABackfill.js";
 import { handleEmailRoutes } from "./routes/emailRoutes.js";
 import { handleDomainRoutes } from "./routes/domainRoutes.js";
+import { handleWhatsAppRoutes } from "./routes/whatsappRoutes.js";
+import { handleDiscountsRoutes } from "./routes/discountsRoutes.js";
+import { evaluateDiscountsForCart, recordDiscountRedemptions } from "./catalog/discountsEngine.js";
 import { EmailService, ensureMerchantEmailProvisioning } from "./services/emailService.js";
 import { createCashfreeService, getCashfreeCredentials, classifyCashfreeError } from "./services/cashfreeService.js";
 import { createTurnstileService } from "./services/turnstileService.js";
@@ -1280,6 +1283,240 @@ async function listCustomers(request, env) {
 
   // Privacy Protection: customer email is completely omitted from returned merchant response
   return json({ customers: results || [] }, 200, {}, request);
+}
+
+function parseWorkerCsv(text) {
+  const clean = text.replace(/^\uFEFF/, '');
+  const rows = [];
+  let currentRow = [];
+  let currentField = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    const nextChar = clean[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentField += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentField += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\r') {
+        if (nextChar === '\n') i++;
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      } else if (char === '\n') {
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+  }
+
+  if (currentField.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    rows.push(currentRow);
+  }
+
+  return rows.filter(r => r.some(c => c.length > 0));
+}
+
+async function exportCustomersCsv(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const { results } = await env.DB.prepare(
+    "SELECT id, name, phone, address, created_at, updated_at FROM customers WHERE organization_id = ? ORDER BY created_at DESC"
+  ).bind(ctx.organizationId).all();
+
+  const escapeVal = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const headers = ['Customer ID', 'Name', 'Phone', 'Address', 'Created Date'];
+  const rows = (results || []).map(c => [
+    escapeVal(c.id),
+    escapeVal(c.name || ''),
+    escapeVal(c.phone || ''),
+    escapeVal(c.address || ''),
+    escapeVal(c.created_at || '')
+  ].join(','));
+
+  const csv = [headers.map(escapeVal).join(','), ...rows].join('\r\n');
+  const url = new URL(request.url);
+  if (url.searchParams.get('format') === 'json' || (request.headers.get('accept') || '').includes('application/json')) {
+    return json({ success: true, count: (results || []).length, csv }, 200, {}, request);
+  }
+
+  return new Response(csv, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="FeraSetu_Customers_${new Date().toISOString().slice(0, 10)}.csv"`,
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    }
+  });
+}
+
+async function importCustomersCsv(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const contentType = request.headers.get("content-type") || "";
+  let body = {};
+  let rawCsv = "";
+
+  if (contentType.includes("application/json")) {
+    body = await request.json().catch(() => ({}));
+    rawCsv = body.csv || "";
+  } else {
+    rawCsv = await request.text().catch(() => "");
+  }
+
+  let itemsToProcess = [];
+
+  if (Array.isArray(body.customers)) {
+    itemsToProcess = body.customers;
+  } else if (rawCsv.trim()) {
+    const parsedRows = parseWorkerCsv(rawCsv);
+    if (parsedRows.length > 0) {
+      const firstRow = parsedRows[0];
+      const isHeader = firstRow.some(cell => {
+        const norm = cell.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return ['name', 'fullname', 'customername', 'phone', 'phonenumber', 'mobile', 'email', 'address', 'customer'].includes(norm);
+      });
+
+      let nameIdx = -1, phoneIdx = -1, emailIdx = -1, addressIdx = -1;
+      firstRow.forEach((h, idx) => {
+        const norm = h.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (nameIdx === -1 && ['name', 'fullname', 'customername', 'customer', 'naam'].includes(norm)) nameIdx = idx;
+        else if (phoneIdx === -1 && ['phone', 'phonenumber', 'mobile', 'whatsapp', 'contact'].includes(norm)) phoneIdx = idx;
+        else if (emailIdx === -1 && ['email', 'emailaddress'].includes(norm)) emailIdx = idx;
+        else if (addressIdx === -1 && ['address', 'deliveryaddress', 'shippingaddress', 'city'].includes(norm)) addressIdx = idx;
+      });
+
+      if (nameIdx === -1 && firstRow.length > 0) nameIdx = 0;
+      if (phoneIdx === -1 && firstRow.length > 1) phoneIdx = 1;
+      if (emailIdx === -1 && firstRow.length > 2) emailIdx = 2;
+      if (addressIdx === -1 && firstRow.length > 3) addressIdx = 3;
+
+      const dataRows = isHeader ? parsedRows.slice(1) : parsedRows;
+      itemsToProcess = dataRows.map(row => ({
+        name: nameIdx !== -1 && row[nameIdx] !== undefined ? row[nameIdx].trim() : '',
+        phone: phoneIdx !== -1 && row[phoneIdx] !== undefined ? row[phoneIdx].trim() : '',
+        email: emailIdx !== -1 && row[emailIdx] !== undefined ? row[emailIdx].trim() : '',
+        address: addressIdx !== -1 && row[addressIdx] !== undefined ? row[addressIdx].trim() : '',
+      }));
+    }
+  }
+
+  if (itemsToProcess.length === 0) {
+    return json({ error: "No customer records found to import" }, 400, {}, request);
+  }
+
+  let imported = 0;
+  let updated = 0;
+  let skipped = 0;
+  const now = new Date().toISOString();
+
+  for (const item of itemsToProcess) {
+    const rawName = (item.name || '').trim();
+    const cleanPhone = (item.phone || '').trim();
+    const rawEmail = (item.email || '').trim().toLowerCase();
+    const address = (item.address || '').trim();
+
+    if (!rawName && !cleanPhone && !rawEmail && !address) {
+      skipped++;
+      continue;
+    }
+
+    const cleanEmail = rawEmail || (cleanPhone ? `${cleanPhone.replace(/\D/g, '')}@offline.ferasetu.local` : `cust_${crypto.randomUUID().slice(0, 8)}@offline.ferasetu.local`);
+    const custName = rawName || (cleanPhone ? `Customer ${cleanPhone}` : (rawEmail ? rawEmail.split('@')[0] : 'Store Customer'));
+
+    try {
+      let existing = null;
+      if (rawEmail) {
+        existing = await env.DB.prepare(
+          "SELECT id FROM customers WHERE organization_id = ? AND LOWER(email) = ? LIMIT 1"
+        ).bind(ctx.organizationId, cleanEmail).first();
+      }
+      if (!existing && cleanPhone) {
+        existing = await env.DB.prepare(
+          "SELECT id FROM customers WHERE organization_id = ? AND phone != '' AND phone = ? LIMIT 1"
+        ).bind(ctx.organizationId, cleanPhone).first();
+      }
+
+      if (existing) {
+        await env.DB.prepare(
+          "UPDATE customers SET name = COALESCE(NULLIF(?, ''), name), phone = COALESCE(NULLIF(?, ''), phone), address = COALESCE(NULLIF(?, ''), address), updated_at = ? WHERE id = ?"
+        ).bind(custName, cleanPhone, address, now, existing.id).run();
+        updated++;
+      } else {
+        const id = `cust_${crypto.randomUUID()}`;
+        await env.DB.prepare(
+          "INSERT INTO customers (id, organization_id, name, email, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(id, ctx.organizationId, custName, cleanEmail, cleanPhone, address, now, now).run();
+        imported++;
+      }
+    } catch {
+      skipped++;
+    }
+  }
+
+  return json({
+    success: true,
+    message: `Imported ${imported} new customers, updated ${updated}, skipped ${skipped}`,
+    imported,
+    updated,
+    skipped,
+    total_processed: itemsToProcess.length
+  }, 200, {}, request);
+}
+
+async function createCustomer(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await request.json().catch(() => ({}));
+  const name = (body.name || '').trim();
+  const phone = (body.phone || '').trim();
+  const email = (body.email || '').trim().toLowerCase();
+  const address = (body.address || '').trim();
+
+  if (!name) {
+    return json({ error: "Customer name is required" }, 422, {}, request);
+  }
+
+  const cleanEmail = email || (phone ? `${phone.replace(/\D/g, '')}@offline.ferasetu.local` : `cust_${crypto.randomUUID().slice(0, 8)}@offline.ferasetu.local`);
+  const now = new Date().toISOString();
+  const id = `cust_${crypto.randomUUID()}`;
+
+  const existing = await env.DB.prepare(
+    "SELECT id FROM customers WHERE organization_id = ? AND LOWER(email) = ? LIMIT 1"
+  ).bind(ctx.organizationId, cleanEmail).first();
+
+  if (existing) {
+    return json({ error: "A customer with this email already exists" }, 409, {}, request);
+  }
+
+  await env.DB.prepare(
+    "INSERT INTO customers (id, organization_id, name, email, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(id, ctx.organizationId, name, cleanEmail, phone, address, now, now).run();
+
+  return json({
+    success: true,
+    customer: { id, name, email: cleanEmail, phone, address, created_at: now }
+  }, 201, {}, request);
 }
 
 async function getProfile(request, env) {
@@ -7111,6 +7348,46 @@ async function handlePublicCreateOrder(request, env) {
     }
   }
 
+  // Evaluate promotional discounts (automatic + entered coupon code)
+  const discountCodeToApply = (
+    body.discountCode ||
+    body.discount_code ||
+    body.code ||
+    null
+  );
+
+  let discountEval = {
+    valid: true,
+    totalDiscountMinor: 0,
+    productDiscountMinor: 0,
+    orderDiscountMinor: 0,
+    shippingDiscountMinor: 0,
+    effectiveShippingMinor: deliveryFeeMinor,
+    finalPayableMinor: moneyAdd(subtotalMinor, deliveryFeeMinor),
+    discountsApplied: [],
+    itemDiscounts: {},
+  };
+
+  try {
+    discountEval = await evaluateDiscountsForCart(env.DB, {
+      organizationId: orgId,
+      shopId: storeShopId,
+      cartItems: resolvedItems,
+      code: discountCodeToApply,
+      customer: { id: customerId, phone: customerPhone, email: customerEmail },
+      shippingFeeMinor: deliveryFeeMinor,
+    });
+  } catch (discErr) {
+    console.warn("Discount evaluation note:", discErr?.message);
+  }
+
+  const totalDiscountMinor = discountEval.totalDiscountMinor || 0;
+  const effectiveShippingMinor = discountEval.effectiveShippingMinor !== undefined ? discountEval.effectiveShippingMinor : deliveryFeeMinor;
+  const finalTotalMinor = discountEval.finalPayableMinor !== undefined ? discountEval.finalPayableMinor : moneyAdd(subtotalMinor, effectiveShippingMinor);
+  const finalTotal = finalTotalMinor / 100;
+  const finalDeliveryFee = effectiveShippingMinor / 100;
+  const discount = totalDiscountMinor / 100;
+
   // P0 Correction 15: Store-scoped, collision-safe invoice number
   const invoiceNumber = `INV-${storeSlug.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
@@ -7131,7 +7408,7 @@ async function handlePublicCreateOrder(request, env) {
     customerEmail || null,
     customerPhone.trim(),
     JSON.stringify(resolvedItems),
-    total,
+    finalTotal,
     'pending',
     now,
     storeShopId,
@@ -7139,10 +7416,10 @@ async function handlePublicCreateOrder(request, env) {
     deliveryAddress || null,
     deliveryType,
     subtotal,
-    deliveryFee,
+    finalDeliveryFee,
     subtotalMinor,
-    deliveryFeeMinor,
-    totalMinor,
+    effectiveShippingMinor,
+    finalTotalMinor,
     'INR',
     'unpaid',
     invoiceNumber,
@@ -7157,6 +7434,32 @@ async function handlePublicCreateOrder(request, env) {
     'PENDING',
     now
   ).run();
+
+  // Record discount redemptions & update order discount fields
+  try {
+    await env.DB.prepare(
+      "UPDATE orders SET discount_minor = ?, shipping_minor = ? WHERE id = ?"
+    ).bind(totalDiscountMinor, effectiveShippingMinor, orderId).run();
+  } catch (updErr) {
+    console.warn("Orders discount columns update notice:", updErr?.message);
+  }
+
+  if (discountEval.discountsApplied && discountEval.discountsApplied.length > 0) {
+    try {
+      await recordDiscountRedemptions(env.DB, {
+        organizationId: orgId,
+        shopId: storeShopId,
+        orderId,
+        discountsApplied: discountEval.discountsApplied,
+        customer: { id: customerId, phone: customerPhone, email: customerEmail },
+        orderSubtotalMinor: subtotalMinor,
+        orderTotalMinor: finalTotalMinor,
+        attributionSource: body.attributionSource || body.utm_source || 'storefront',
+      });
+    } catch (redErr) {
+      console.warn("Discount redemption record notice:", redErr?.message);
+    }
+  }
 
   // Insert authoritative order items snapshot
   if (orderItemsToInsert.length > 0) {
@@ -7345,7 +7648,10 @@ async function handlePublicCreateOrder(request, env) {
     success: true,
     order: {
       id: orderId,
-      total,
+      total: finalTotal,
+      discount,
+      discountMinor: totalDiscountMinor,
+      discountsApplied: discountEval.discountsApplied,
       subtotal,
       deliveryFee,
       deliveryCode,
@@ -9916,6 +10222,15 @@ async function route(request, env) {
   if (path === "/api/customers" && method === "GET") {
     return listCustomers(request, env);
   }
+  if (path === "/api/customers" && method === "POST") {
+    return createCustomer(request, env);
+  }
+  if ((path === "/api/customers/export" || path === "/api/customers/export/csv") && method === "GET") {
+    return exportCustomersCsv(request, env);
+  }
+  if ((path === "/api/customers/import" || path === "/api/customers/import/csv") && method === "POST") {
+    return importCustomersCsv(request, env);
+  }
 
   // Merchant Locations
   if (path === "/api/locations") {
@@ -10252,6 +10567,18 @@ async function route(request, env) {
   if (path.startsWith("/api/domains") || path.startsWith("/api/domainconnect") || path.startsWith("/v2/domainTemplates")) {
     const domainRes = await handleDomainRoutes(request, env);
     return withCors(domainRes, request, env);
+  }
+
+  // FeraSetu Promotional Pricing & Discounts Engine Endpoints
+  if (path.startsWith("/api/discounts") || path.startsWith("/api/storefront/discounts")) {
+    const discRes = await handleDiscountsRoutes(path, method, request, env);
+    if (discRes) return withCors(discRes, request, env);
+  }
+
+  // FeraSetu WhatsApp Assistant Endpoints
+  if (path.startsWith("/api/whatsapp")) {
+    const waRes = await handleWhatsAppRoutes(request, env);
+    return withCors(waRes, request, env);
   }
 
   // SMTP Settings

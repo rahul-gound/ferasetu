@@ -523,6 +523,7 @@ export default function FeraSetuAIPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const hasInitializedQuery = useRef(false);
+  const conversationIdRef = useRef(crypto.randomUUID());
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -570,6 +571,7 @@ export default function FeraSetuAIPage() {
         const res = await api.post('/v1/ai/chat', {
           message: payload.message,
           language: lang,
+          conversationId: conversationIdRef.current,
           conversationHistory: payload.conversationHistory,
         });
         return res.data as {
@@ -585,6 +587,7 @@ export default function FeraSetuAIPage() {
         const res = await api.post('/ai/chat', {
           message: payload.message,
           language: lang,
+          conversationId: conversationIdRef.current,
         });
         return res.data as {
           content: string;

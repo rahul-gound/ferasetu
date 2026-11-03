@@ -22,6 +22,7 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 | **AST Builder Runtime** | `worker/templates/` | Low-latency server-rendered dynamic storefront components |
 | **Builder Service** | `worker/services/builderService.js` | Draft persistence, versioning, rollback, connection vault & SSRF proxy |
 | **Storefront CSP** | `worker/storefront.js` | Strict Content Security Policy headers & verification hashes |
+| **Discounts & Promotions Engine** | `worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js` | Authoritative calculation of percentage, fixed amount, BOGO, free shipping, automatic discounts, collision-safe bulk codes, customer segments, profit audits, and atomic redemptions |
 | **Email & SMTP Router** | `worker/routes/emailRoutes.js` | Multi-tenant sender identities, external SMTP sockets, transactional delivery |
 | **AI Edge Interceptor** | `worker/ai/` | Edge pre-filtering of AI prompts before calling Sarvam API |
 
@@ -61,3 +62,30 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 - **D1 SQLite Database:** Distributed read replicas worldwide. Write queries execute against the primary D1 node.
 - **Cache API:** Frequently accessed store catalogs are cached at Cloudflare edge PoPs with automatic invalidation on product update events.
 - **Security & Rate Limiting:** JWT validation and IP burst throttling occur at the edge layer before requests can reach Express origin servers.
+
+## 6. Discounts & Promotional Pricing Engine Edge Contracts
+- **Authoritative Math & Currency Invariants (`worker/catalog/discountsEngine.js`)**:
+  - All monetary values stored and computed as integer minor units (paise/cents).
+  - All percentages represented in integer basis points (`10000 bps = 100%`, `1500 bps = 15%`) to completely prevent IEEE-754 floating-point drift.
+  - Final payable amounts are strictly bounded: `Math.max(0, subtotal - discount)`. No discount can ever produce a negative order payable or negative shipping fee.
+- **Deterministic Discount Stacking Order**:
+  1. Product-level discounts (`percentage`, `fixed_amount`, `bogo`) applied against eligible item line totals.
+  2. Order-level discounts applied against the remaining eligible subtotal.
+  3. Shipping discounts applied against eligible customer delivery fees (never touches courier quote/cost).
+- **BOGO Fraud & Manipulation Guard**:
+  - Requires qualifying companion products to actually exist in the cart items.
+  - Maximum discounted reward items capped at `Math.floor(qualifyingCount / buyQuantity) * getQuantity`.
+- **Customer Eligibility & Segment Verification**:
+  - Enforced server-side using authenticated customer token or normalized phone/email historical order counts in D1.
+  - Guest checkouts cannot claim "first-time buyer" if an existing completed order is recorded with the same phone or email.
+- **Atomic Checkout Redemption (`handlePublicCreateOrder` in `worker/index.js`)**:
+  - Live re-evaluates promotional discounts during order placement.
+  - Records `discount_minor`, `shipping_minor`, and `total_minor` snapshots on the order record.
+  - Atomically increments `usage_count` on `discounts` and logs audit entry to `discount_redemptions`.
+- **Merchant & Storefront Edge Endpoints (`worker/routes/discountsRoutes.js`)**:
+  - `GET/POST /api/discounts`: Merchant listing and creation with plan limits.
+  - `GET /api/discounts/analytics`: Real-time aggregated financial metrics.
+  - `GET/PUT/DELETE /api/discounts/:id`: CRUD and status mutation.
+  - `POST /api/discounts/:id/generate-codes`: Collision-safe batch code generator.
+  - `POST /api/storefront/discounts/validate`: Pre-checkout code validation.
+  - `POST /api/storefront/discounts/evaluate`: Public cart evaluation for automatic & manual discounts.

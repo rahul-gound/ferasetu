@@ -62,5 +62,6 @@ __pycache__/
 ferasetu-smtp/.codex/
 extracted-mono-template/
 ferasetu-experiment/
+.posthog-wizard-cache/
 
 

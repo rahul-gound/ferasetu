@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -48,6 +48,7 @@ import type { ThemeId, StorefrontSection, MerchantThemeOverrides } from '../stor
 import { THEMES_LIST, THEME_REGISTRY } from '../storefront/theme/themeDefinitions';
 import { normalizeLegacySections } from '../storefront/compatibility/legacySectionAdapter';
 import type { WorkflowDefinition, ConnectionConfig } from '../builder/types/builderTypes';
+import posthog from '../lib/posthog';
 
 // Realistic deterministic demo products for preview
 const DEMO_PRODUCTS: ShopProduct[] = [
@@ -482,6 +483,11 @@ export default function WebsiteBuilderPage() {
         if (!saved) throw siteErr;
       }
 
+      posthog.capture('storefront_draft_saved', {
+        theme: selectedThemeId,
+        section_count: sections.length,
+        workflow_count: workflows.length,
+      });
       toast.success('Working draft saved safely');
       refetchDraft();
       queryClient.invalidateQueries({ queryKey: ['website'] });
@@ -517,6 +523,10 @@ export default function WebsiteBuilderPage() {
       }
 
       setIsPublished(true);
+      posthog.capture('storefront_published', {
+        theme: selectedThemeId,
+        section_count: sections.length,
+      });
       toast.success('🎉 Store successfully published live!', {
         duration: 5000,
       });
@@ -655,6 +665,16 @@ export default function WebsiteBuilderPage() {
             <span className="hidden md:inline">Versions</span>
           </button>
 
+          {/* Website Settings Link */}
+          <Link
+            to="/website-settings"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 transition-all cursor-pointer shadow-2xs"
+            title="Configure Google search indexing, visibility & SEO metadata"
+          >
+            <Sliders size={14} className="text-slate-500" />
+            <span className="hidden md:inline">Settings</span>
+          </Link>
+
           {isPublished && (
             <a
               href={liveUrl}
@@ -764,6 +784,17 @@ export default function WebsiteBuilderPage() {
             <Wand2 size={18} />
             <span className="text-[10px] font-bold">AI</span>
           </button>
+
+          <div className="w-8 border-t border-slate-200 my-1" />
+
+          <Link
+            to="/website-settings"
+            title="Website & SEO Settings"
+            className="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          >
+            <Sliders size={18} />
+            <span className="text-[10px] font-bold">Settings</span>
+          </Link>
         </div>
 
         {/* Studio Controls Container */}

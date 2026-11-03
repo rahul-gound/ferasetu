@@ -64,6 +64,7 @@ export class IndiaStrategy extends BaseMarketStrategy {
     systemPrompt,
     config,
     requestId,
+    aiObservability,
     plan,
     task,
   }) {
@@ -118,6 +119,19 @@ export class IndiaStrategy extends BaseMarketStrategy {
       config,
       requestId,
     });
+
+    if (aiObservability?.captureGeneration) {
+      await aiObservability.captureGeneration({
+        ...aiObservability,
+        messages,
+        content: reasoningResult.content,
+        model: reasoningResult.model,
+        provider: reasoningResult.provider,
+        promptTokens: reasoningResult.promptTokens,
+        completionTokens: reasoningResult.completionTokens,
+        latencyMs: reasoningResult.latencyMs,
+      });
+    }
 
     let finalResponseText = reasoningResult.content;
     let degraded = false;

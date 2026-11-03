@@ -9,6 +9,7 @@ import '@fontsource/inter/700.css'
 import '@fontsource/inter/800.css'
 import './index.css'
 import App from './App.tsx'
+import './lib/posthog.ts'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

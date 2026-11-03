@@ -31,6 +31,8 @@ import customerAuthRoutes from './routes/customerAuth';
 import customerRoutes from './routes/customers';
 import referralRoutes from './routes/referrals';
 import announcementsRoutes from './routes/announcements';
+import giftCardsRoutes from './routes/giftCards';
+import transfersRoutes from './routes/transfers';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -264,6 +266,8 @@ app.use('/api/storefront/customer', customerAuthRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/announcements', announcementsRoutes);
+app.use('/api/gift-cards', giftCardsRoutes);
+app.use('/api/transfers', transfersRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

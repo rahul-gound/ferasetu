@@ -24,11 +24,19 @@ import {
   UserPlus,
   ArrowUpDown,
   RefreshCw,
+  Sparkles,
+  Layers,
+  Sliders,
+  HelpCircle,
+  Send,
+  Trash2,
+  Info,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import SEO from '../components/SEO';
+import CustomerSegmentModal, { type SegmentRule, PRESET_TEMPLATES } from '../components/customers/CustomerSegmentModal';
 
 interface CustomerRecord {
   id: string;
@@ -67,6 +75,12 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // Customer Segments State (Saved dynamic searches)
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string>('all');
+  const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
+  const [segmentInitialTemplate, setSegmentInitialTemplate] = useState<string | null>(null);
+  const [showSegmentGuide, setShowSegmentGuide] = useState(true);
+
   // New Customer Form State
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -83,6 +97,77 @@ export default function CustomersPage() {
     },
     staleTime: 15000,
   });
+
+  // Fetch saved customer segments
+  const { data: segmentsData } = useQuery<{
+    success: boolean;
+    segments: any[];
+    templates: any[];
+  }>({
+    queryKey: ['customer-segments'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/customers/segments');
+        return res.data;
+      } catch {
+        const raw = localStorage.getItem('fera_local_customer_segments_v1') || '[]';
+        let parsed = [];
+        try { parsed = JSON.parse(raw); } catch { parsed = []; }
+        return { success: true, segments: parsed, templates: [] };
+      }
+    },
+    staleTime: 15000,
+  });
+
+  const savedSegments = segmentsData?.segments || [];
+  const activeSegment = useMemo(() => {
+    if (selectedSegmentId === 'all') return null;
+    return savedSegments.find((s) => s.id === selectedSegmentId) || null;
+  }, [selectedSegmentId, savedSegments]);
+
+  // Evaluate customer against a segment rule
+  const evaluateCustomerAgainstSegment = (c: CustomerRecord, rule: SegmentRule): boolean => {
+    if (rule.field === 'orders_count') {
+      const val = Number(c.total_orders || 0);
+      const tgt = Number(rule.value);
+      if (rule.operator === 'equals') return val === tgt;
+      if (rule.operator === 'greater_than') return val > tgt;
+      if (rule.operator === 'less_than') return val < tgt;
+      if (rule.operator === 'greater_than_or_equal') return val >= tgt;
+      if (rule.operator === 'less_than_or_equal') return val <= tgt;
+      if (rule.operator === 'not_equals') return val !== tgt;
+    }
+    if (rule.field === 'total_spent') {
+      const val = Number(c.total_spent || 0);
+      const tgt = Number(rule.value);
+      if (rule.operator === 'equals') return val === tgt;
+      if (rule.operator === 'greater_than') return val > tgt;
+      if (rule.operator === 'less_than') return val < tgt;
+      if (rule.operator === 'greater_than_or_equal') return val >= tgt;
+      if (rule.operator === 'less_than_or_equal') return val <= tgt;
+    }
+    if (rule.field === 'email_subscribed') {
+      const isSub = Boolean(c.email && c.email.length > 3);
+      return isSub === Boolean(rule.value);
+    }
+    if (rule.field === 'account_type') {
+      return rule.value === 'registered' ? c.has_password : !c.has_password;
+    }
+    if (rule.field === 'days_since_last_order') {
+      if (!c.last_order_at) return rule.operator === 'greater_than' || rule.operator === 'greater_than_or_equal';
+      const days = Math.floor((Date.now() - new Date(c.last_order_at).getTime()) / (1000 * 60 * 60 * 24));
+      const tgt = Number(rule.value);
+      if (rule.operator === 'greater_than') return days > tgt;
+      if (rule.operator === 'less_than') return days < tgt;
+      if (rule.operator === 'greater_than_or_equal') return days >= tgt;
+      if (rule.operator === 'less_than_or_equal') return days <= tgt;
+      if (rule.operator === 'equals') return days === tgt;
+    }
+    if (rule.field === 'city') {
+      return String(c.address || '').toLowerCase().includes(String(rule.value || '').toLowerCase());
+    }
+    return true;
+  };
 
   // Query single customer details when selected
   const { data: customerDetail, isLoading: isLoadingDetail } = useQuery({
@@ -103,14 +188,22 @@ export default function CustomersPage() {
     total_revenue: customersList.reduce((sum, c) => sum + (c.total_spent || 0), 0),
   };
 
-  // Filtered & Searched Customers
+  // Filtered & Searched Customers with dynamic Segment matching
   const filteredCustomers = useMemo(() => {
     return customersList.filter((c) => {
-      // Type Filter
-      if (filterType === 'registered' && !c.has_password) return false;
-      if (filterType === 'guest' && c.has_password) return false;
+      // 1. Dynamic Segment Filter
+      if (activeSegment && Array.isArray(activeSegment.rules) && activeSegment.rules.length > 0) {
+        const conj = activeSegment.conjunction || 'AND';
+        const tests = activeSegment.rules.map((r: SegmentRule) => evaluateCustomerAgainstSegment(c, r));
+        const passedSegment = conj === 'OR' ? tests.some(Boolean) : tests.every(Boolean);
+        if (!passedSegment) return false;
+      } else if (selectedSegmentId === 'all') {
+        // Standard Tab Filter
+        if (filterType === 'registered' && !c.has_password) return false;
+        if (filterType === 'guest' && c.has_password) return false;
+      }
 
-      // Text Search
+      // 2. Text Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = c.name?.toLowerCase().includes(q);
@@ -120,7 +213,21 @@ export default function CustomersPage() {
       }
       return true;
     });
-  }, [customersList, filterType, searchQuery]);
+  }, [customersList, activeSegment, selectedSegmentId, filterType, searchQuery]);
+
+  const handleDeleteSegment = async (segId: string, segName: string) => {
+    if (!window.confirm(`Delete the segment "${segName}"? Customers in this group will NOT be deleted.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/customers/segments/${segId}`);
+      toast.success(`Segment "${segName}" deleted`);
+      setSelectedSegmentId('all');
+      queryClient.invalidateQueries({ queryKey: ['customer-segments'] });
+    } catch {
+      toast.error('Failed to delete segment');
+    }
+  };
 
   // Add Customer Mutation
   const handleAddCustomer = async (e: React.FormEvent) => {
@@ -252,6 +359,158 @@ export default function CustomersPage() {
           <p className="text-[11px] text-[#667085] mt-1">Total revenue generated</p>
         </div>
       </div>
+
+      {/* Customer Segments Navigation Bar */}
+      <div className="bg-white rounded-2xl border border-[#E5EAF1] p-3 sm:p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Segment Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              type="button"
+              onClick={() => setSelectedSegmentId('all')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                selectedSegmentId === 'all'
+                  ? 'bg-[#152238] text-white shadow-xs'
+                  : 'bg-slate-100 text-[#667085] hover:text-[#152238] hover:bg-slate-200'
+              }`}
+            >
+              <span>All Customers</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                selectedSegmentId === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {customersList.length}
+              </span>
+            </button>
+
+            {savedSegments.map((seg: any) => {
+              const isSelected = selectedSegmentId === seg.id;
+              // Compute dynamic match count
+              const matchCount = customersList.filter((c) => {
+                if (!seg.rules || seg.rules.length === 0) return true;
+                const conj = seg.conjunction || 'AND';
+                const tests = seg.rules.map((r: SegmentRule) => evaluateCustomerAgainstSegment(c, r));
+                return conj === 'OR' ? tests.some(Boolean) : tests.every(Boolean);
+              }).length;
+
+              return (
+                <button
+                  key={seg.id}
+                  type="button"
+                  onClick={() => setSelectedSegmentId(seg.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-[#0052FF] text-white shadow-xs'
+                      : 'bg-blue-50/70 text-[#0052FF] hover:bg-blue-100/80 border border-blue-100'
+                  }`}
+                >
+                  <Layers size={13} />
+                  <span>{seg.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-blue-200/60 text-[#0052FF]'
+                  }`}>
+                    {matchCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Create Segment Button */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setSegmentInitialTemplate(null);
+                setIsSegmentModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-[#0052FF] border border-blue-200 hover:bg-blue-50 transition-all shadow-2xs"
+            >
+              <Plus size={14} />
+              <span>Create segment</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Active Segment Toolbar */}
+        {activeSegment && (
+          <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center flex-wrap gap-2">
+              <span className="font-bold text-[#152238] flex items-center gap-1.5">
+                <Filter size={13} className="text-[#0052FF]" />
+                {activeSegment.name}:
+              </span>
+              <span className="text-[#667085] text-[11px]">
+                {activeSegment.description || 'Dynamic filter'}
+              </span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {activeSegment.rules?.map((r: SegmentRule, idx: number) => (
+                  <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[10px] font-mono border border-slate-200">
+                    {r.field.replace('_', ' ')} {r.operator.replace('_', ' ')} {String(r.value)}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleDeleteSegment(activeSegment.id, activeSegment.name)}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                title="Delete this segment filter"
+              >
+                <Trash2 size={12} />
+                <span>Delete segment</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Customer Segment Educational Guide */}
+      {showSegmentGuide && (
+        <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-white rounded-2xl border border-blue-100/80 p-4 sm:p-5 text-xs text-slate-700 space-y-3 relative shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setShowSegmentGuide(false)}
+            className="absolute top-3 right-3 p-1 rounded-lg text-slate-400 hover:text-slate-700"
+            title="Dismiss guide"
+          >
+            <X size={15} />
+          </button>
+          
+          <div className="flex items-start gap-3 pr-6">
+            <div className="p-2 rounded-xl bg-blue-600 text-white shrink-0 mt-0.5">
+              <Sparkles size={16} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-bold text-[#152238] text-sm">
+                Understand Customer Segments
+              </h3>
+              <p className="text-slate-600 leading-relaxed">
+                Think of a segment as a saved customer search that keeps itself up to date. You choose the rules, and FeraSetu automatically groups matching customers. When a shopper buys, they automatically leave or join groups based on their live orders.
+              </p>
+              <p className="text-[11px] text-slate-500 italic">
+                * Note: A segment is an audience list, not an automatic action. Saving a segment will never send an email or charge anyone.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-blue-100/60">
+            <span className="text-[11px] font-bold text-slate-600">Recommended starter:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSegmentInitialTemplate('subscribers-no-orders');
+                setIsSegmentModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-[#0052FF] font-bold text-xs hover:bg-blue-50 transition-all shadow-2xs"
+            >
+              <span>Build "Email subscribers who haven't purchased yet"</span>
+              <ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="bg-white rounded-2xl border border-[#E5EAF1] p-3 sm:p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -678,6 +937,21 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      {/* Customer Segment Builder Modal */}
+      <CustomerSegmentModal
+        isOpen={isSegmentModalOpen}
+        onClose={() => {
+          setIsSegmentModalOpen(false);
+          setSegmentInitialTemplate(null);
+        }}
+        onSegmentSaved={(newSegment) => {
+          queryClient.invalidateQueries({ queryKey: ['customer-segments'] });
+          setSelectedSegmentId(newSegment.id);
+        }}
+        initialTemplateId={segmentInitialTemplate || undefined}
+        customersList={customersList}
+      />
     </div>
   );
 }

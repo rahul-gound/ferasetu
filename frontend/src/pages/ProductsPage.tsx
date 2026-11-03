@@ -6,15 +6,17 @@ import {
   Plus, Search, Edit2, Trash2, X, Upload, Package,
   AlertTriangle, ChevronDown, ToggleLeft, ToggleRight,
   Download, Sparkles, Check, ArrowRight, ShieldCheck,
-  Layers, Tag,
+  Layers, Tag, Gift, Truck,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import UpgradePrompt from '../components/ui/UpgradePrompt';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
+import ImportInventoryModal from '../components/products/ImportInventoryModal';
 import { getPlanLimits, normalizePlanId, hasReachedProductLimit } from '../config/plans';
 import { resolveMediaUrl } from '../utils/media';
+import posthog from '../lib/posthog';
 
 interface ProductOption {
   id?: string;
@@ -117,10 +119,14 @@ export default function ProductsPage() {
     if (q !== null) {
       setSearch(q);
     }
+    if (searchParams.get('import') === 'true') {
+      setShowImportModal(true);
+    }
   }, [searchParams]);
   const [category, setCategory] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all');
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(searchParams.get('import') === 'true');
   const [showGrowthModal, setShowGrowthModal] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -520,9 +526,19 @@ export default function ProductsPage() {
 
       if (editProduct) {
         await api.put(`/products/${editProduct.id}`, payload);
+        posthog.capture('product_updated', {
+          category: form.category || 'uncategorized',
+          status: form.status,
+          variant_count: parsedVariants.length,
+        });
         toast.success('Product updated!');
       } else {
         await api.post('/products', payload);
+        posthog.capture('product_created', {
+          category: form.category || 'uncategorized',
+          status: form.status,
+          variant_count: parsedVariants.length,
+        });
         toast.success('Product added!');
       }
 
@@ -559,6 +575,37 @@ export default function ProductsPage() {
             <Download size={16} />
             <span>{exportingCsv ? 'Exporting...' : 'Export CSV'}</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setShowImportModal(true)}
+            className="btn btn-secondary flex-1 sm:flex-none inline-flex items-center justify-center gap-2 cursor-pointer border-blue-200 hover:border-blue-300 text-blue-700 hover:bg-blue-50/50"
+            title="Import inventory CSV from Shopify, WooCommerce, Excel, or standard CSV"
+          >
+            <Upload size={16} />
+            <span>Import CSV</span>
+          </button>
+          <Link
+            to="/transfers/new"
+            className="btn btn-secondary border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs font-semibold"
+            title="Create an Inventory Transfer (Beta)"
+          >
+            <Truck size={16} className="text-indigo-600" />
+            <span>Transfers</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[9px] font-black uppercase">
+              BETA
+            </span>
+          </Link>
+          <Link
+            to="/gift-cards/new"
+            className="btn btn-secondary border-amber-200 bg-amber-50/80 hover:bg-amber-100 text-amber-900 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs font-semibold"
+            title="Create a Digital Gift Card product (Beta)"
+          >
+            <Gift size={16} className="text-amber-600" />
+            <span>Gift Card</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase">
+              BETA
+            </span>
+          </Link>
           <button
             type="button"
             onClick={openAdd}
@@ -663,9 +710,11 @@ export default function ProductsPage() {
             <ActionableEmptyState
               icon={<Package size={28} />}
               title="Your store needs products"
-              description="Add your first product with a name, price, and photo so customers can browse and place orders."
+              description="Add your first product manually or import your catalog from Shopify, WooCommerce, or CSV in seconds."
               actionLabel="Add Your First Product"
               onAction={openAdd}
+              secondaryActionLabel="Import CSV Catalog"
+              onSecondaryAction={() => setShowImportModal(true)}
               expectedOutcome="Products appear instantly in your store catalog."
             />
           ) : (
@@ -1235,6 +1284,16 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* Import Inventory CSV Modal (Shopify, WooCommerce, Excel, Standard) */}
+      <ImportInventoryModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['products'] });
+        }}
+        currentProductCount={products.length}
+      />
 
       <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
     </div>

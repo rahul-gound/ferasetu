@@ -25,7 +25,13 @@ import {
   ExternalLink,
   Zap,
   Bot,
+  Wand2,
+  Check,
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
+import toast from 'react-hot-toast';
+import SpotlightCard from '../../components/ui/SpotlightCard';
+import InCanvasInspectorModal from '../modals/InCanvasInspectorModal';
 import { COMPONENT_CATALOG } from '../registry/componentRegistry';
 import { SEARCHABLE_ICONS, ICON_CATEGORIES } from '../registry/iconsCatalog';
 import type { WorkflowDefinition } from '../types/builderTypes';
@@ -54,6 +60,8 @@ export { THEME_PRESETS };
 
 export const AVAILABLE_BLOCKS = [
   { type: 'hero', label: 'Hero Showcase', category: 'Page Block', desc: 'Prominent headline, imagery, and primary CTA' },
+  { type: 'bento-grid', label: 'Astryx Bento Grid', category: 'Showcase', desc: 'Asymmetric 4-card spotlight grid with React Bits hover glow' },
+  { type: 'marquee', label: 'Infinite Ticker Marquee', category: 'Social Proof', desc: 'Seamless continuous scrolling guarantees and announcements' },
   { type: 'ai-assistant', label: 'Storefront AI Assistant', category: 'Fera AI', desc: 'Interactive customer shopping assistant with 1-click remove button' },
   { type: 'image-banner', label: 'Image Section / Banner', category: 'Media & Story', desc: 'Promo image or photo banner with custom click action' },
   { type: 'divider', label: 'Straight Line / Divider', category: 'Visual Separator', desc: 'Clean straight line with customizable style, thickness & color' },
@@ -98,6 +106,7 @@ export default function DesignPanel({
   const [selectedIconCategory, setSelectedIconCategory] = useState<string>('all');
   const [componentCategoryFilter, setComponentCategoryFilter] = useState<string>('all');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
 
   // Filter components
   const filteredComponents = COMPONENT_CATALOG.filter((c) =>
@@ -334,47 +343,83 @@ export default function DesignPanel({
 
             {/* Quick Add Visual Blocks */}
             <div className="border-t border-slate-200 dark:border-slate-800 pt-5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">
-                + Add Pre-designed Block
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  + Add Pre-designed Block
+                </h4>
+                <span className="text-[11px] text-orange-600 font-bold">
+                  Drag onto preview or tap +
+                </span>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {AVAILABLE_BLOCKS.map((blk) => (
-                  <button
+                  <div
                     key={blk.type}
-                    type="button"
-                    onClick={() => onAddSection(blk.type)}
-                    className="text-left p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 bg-white dark:bg-slate-900 transition-all flex flex-col justify-between group shadow-2xs hover:shadow-xs"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        'application/json',
+                        JSON.stringify({ type: blk.type, label: blk.label })
+                      );
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-orange-500 bg-white dark:bg-slate-900 transition-all flex flex-col justify-between group shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing"
                   >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
-                        {blk.label}
-                      </span>
-                      <Plus size={14} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                    <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="text-slate-400 group-hover:text-orange-500 shrink-0">
+                          <GripVertical size={14} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 transition-colors truncate">
+                          {blk.label}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onAddSection(blk.type)}
+                        className="p-1 rounded-lg bg-slate-100 hover:bg-orange-500 hover:text-white text-slate-500 transition-all shrink-0"
+                        title={`+ Add ${blk.label}`}
+                      >
+                        <Plus size={13} />
+                      </button>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{blk.desc}</p>
-                  </button>
+                    <p className="text-[11px] text-slate-500 leading-snug line-clamp-2 pl-5">
+                      {blk.desc}
+                    </p>
+                  </div>
                 ))}
               </div>
             </div>
 
             {/* CONTEXTUAL SECTION INSPECTOR (Edit Logic, Colors, Images & Dividers) */}
             {selectedSection && (
-              <div className="border-2 border-blue-500 bg-blue-50/20 p-4 sm:p-5 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between border-b border-blue-200 pb-3">
+              <div className="border-2 border-orange-500 bg-orange-50/20 p-4 sm:p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-orange-200 pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-orange-950">
                       Configure: {selectedSection.label || selectedSection.type.replace(/-/g, ' ')}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => onSelectNode(null)}
-                    className="text-xs text-blue-600 hover:underline font-bold"
+                    className="text-xs text-orange-600 hover:underline font-bold"
                   >
                     Done
                   </button>
                 </div>
+
+                {/* Primary In-Canvas Visual Inspector Launch Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsInspectorOpen(true)}
+                  className="w-full py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs active:scale-98 cursor-pointer"
+                >
+                  <Wand2 size={15} />
+                  <span>Open Full Visual Editor (Shape, Text, Animations &amp; Icons)</span>
+                </button>
 
                 {/* 1. STRAIGHT LINE / DIVIDER SETTINGS */}
                 {(selectedSection.type === 'divider' || selectedSection.type === 'separator') && onUpdateSectionConfig && (
@@ -787,7 +832,7 @@ export default function DesignPanel({
           </div>
         )}
 
-        {/* SUBTAB 3: COMPONENT REGISTRY */}
+        {/* SUBTAB 3: COMPONENT REGISTRY & INTERACTIVE CARDS */}
         {activeSubTab === 'components' && (
           <div className="space-y-4">
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
@@ -798,7 +843,7 @@ export default function DesignPanel({
                   onClick={() => setComponentCategoryFilter(cat)}
                   className={`px-3 py-1.5 rounded-xl capitalize font-semibold whitespace-nowrap transition-all ${
                     componentCategoryFilter === cat
-                      ? 'bg-slate-900 text-white shadow-xs'
+                      ? 'bg-orange-500 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -807,24 +852,122 @@ export default function DesignPanel({
               ))}
             </div>
 
-            <div className="space-y-3">
-              {filteredComponents.map((comp) => (
-                <div
-                  key={comp.id}
-                  className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2.5 shadow-2xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-slate-900">{comp.name}</span>
-                      <span className="ml-2 text-[10px] font-mono text-slate-400">v{comp.version}</span>
+            <div className="space-y-4">
+              {filteredComponents.map((comp) => {
+                let targetBlockType = 'hero';
+                if (comp.category === 'commerce') targetBlockType = 'product-grid';
+                else if (comp.id.includes('card') || comp.id.includes('bento')) targetBlockType = 'bento-grid';
+                else if (comp.id.includes('button')) targetBlockType = 'hero';
+                else if (comp.id.includes('input') || comp.id.includes('form')) targetBlockType = 'newsletter';
+                else if (comp.category === 'page-blocks') targetBlockType = comp.id.replace('page.', '');
+
+                return (
+                  <div
+                    key={comp.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        'application/json',
+                        JSON.stringify({
+                          type: targetBlockType,
+                          label: comp.name,
+                          config: comp.defaultProps || {},
+                        })
+                      );
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-orange-500/80 bg-white space-y-3 shadow-2xs hover:shadow-xs transition-all group"
+                  >
+                    {/* Header with Drag Handle & Badge */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="cursor-grab active:cursor-grabbing text-slate-400 group-hover:text-orange-500 p-0.5"
+                          title="Drag this component directly into the preview screen"
+                        >
+                          <GripVertical size={16} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 group-hover:text-orange-600 transition-colors">
+                            {comp.name}
+                          </span>
+                          <span className="ml-2 text-[10px] font-mono text-slate-400">v{comp.version}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {comp.category}
+                      </span>
                     </div>
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                      {comp.category}
-                    </span>
+
+                    <p className="text-xs text-slate-500 leading-relaxed">{comp.description}</p>
+
+                    {/* Live Interactive Preview Box (Astryx, shadcn & React Bits styled) */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden flex flex-col items-center justify-center gap-2">
+                      {comp.id === 'primitive.button' ? (
+                        <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+                          <button
+                            type="button"
+                            className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition-all active:scale-95"
+                          >
+                            Solid Primary
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs"
+                          >
+                            <MessageCircle size={13} />
+                            <span>WhatsApp</span>
+                          </button>
+                          <div className="relative px-3 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs font-bold overflow-hidden">
+                            <span className="relative z-10">Shimmer Beam</span>
+                            <div className="absolute inset-0 shimmer-badge-beam pointer-events-none" />
+                          </div>
+                        </div>
+                      ) : comp.id === 'primitive.card' || comp.id.includes('card') ? (
+                        <SpotlightCard
+                          spotlightColor="rgba(234, 88, 12, 0.15)"
+                          spotlightSize={180}
+                          className="w-full p-3 rounded-xl border border-slate-200 bg-white text-left"
+                        >
+                          <div className="text-[11px] font-bold text-orange-600 mb-0.5">✦ React Bits Spotlight</div>
+                          <div className="text-xs font-bold text-slate-900">Cursor Hover Glow</div>
+                          <div className="text-[10px] text-slate-500">Radial illumination follows cursor</div>
+                        </SpotlightCard>
+                      ) : comp.id === 'primitive.badge' ? (
+                        <div className="flex items-center gap-2">
+                          <span className="relative inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200 overflow-hidden">
+                            <span>✨ Astryx Badge</span>
+                            <span className="absolute inset-0 shimmer-badge-beam pointer-events-none" />
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-center py-1">
+                          <span className="text-xs font-mono font-bold text-slate-700">{`<${comp.name} />`}</span>
+                          <p className="text-[10px] text-slate-400">Ready to drag onto canvas</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions: Drag or Add */}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        Drag to preview canvas
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onAddSection(targetBlockType)}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-orange-500 hover:text-white text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <Plus size={13} />
+                        <span>+ Add to Page</span>
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">{comp.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -843,6 +986,15 @@ export default function DesignPanel({
               />
             </div>
 
+            {selectedSection && (
+              <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between text-xs">
+                <span className="text-orange-950 font-medium truncate mr-2">
+                  Active target: <strong className="font-bold">{selectedSection.label || selectedSection.type}</strong>
+                </span>
+                <span className="text-[11px] text-orange-700 font-bold shrink-0">Tap icon to apply</span>
+              </div>
+            )}
+
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
               {['all', ...ICON_CATEGORIES].map((cat) => (
                 <button
@@ -851,7 +1003,7 @@ export default function DesignPanel({
                   onClick={() => setSelectedIconCategory(cat)}
                   className={`px-3 py-1.5 rounded-xl text-xs capitalize whitespace-nowrap font-medium transition-all ${
                     selectedIconCategory === cat
-                      ? 'bg-blue-600 text-white shadow-xs'
+                      ? 'bg-orange-500 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -860,26 +1012,68 @@ export default function DesignPanel({
               ))}
             </div>
 
-            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2">
-              {filteredIcons.slice(0, 60).map((icon) => (
-                <button
-                  key={icon.name}
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(icon.name);
-                  }}
-                  title={`${icon.name} (${icon.category}) — tap to copy`}
-                  className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-slate-700 transition-all text-center group active:scale-95 shadow-2xs"
-                >
-                  <span className="text-[11px] font-mono text-slate-600 group-hover:text-blue-600 truncate w-full">
-                    {icon.name}
-                  </span>
-                </button>
-              ))}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {filteredIcons.slice(0, 80).map((icon) => {
+                const IconComp = (LucideIcons as any)[icon.name] || LucideIcons.Sparkles;
+                const isCurrent = selectedConfig.iconName === icon.name;
+
+                return (
+                  <button
+                    key={icon.name}
+                    type="button"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        'application/json',
+                        JSON.stringify({
+                          type: 'trust-strip',
+                          label: icon.label,
+                          config: { iconName: icon.name },
+                        })
+                      );
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onClick={() => {
+                      if (selectedSection && onUpdateSectionConfig) {
+                        onUpdateSectionConfig(selectedSection.id, { iconName: icon.name });
+                        toast.success(`Applied ${icon.name} to ${selectedSection.label || selectedSection.type}`);
+                      } else {
+                        navigator.clipboard.writeText(icon.name);
+                        toast.success(`Copied icon: ${icon.name}`);
+                      }
+                    }}
+                    title={`${icon.name} (${icon.category}) — tap to ${
+                      selectedSection ? 'apply to section' : 'copy'
+                    } or drag to canvas`}
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center group cursor-grab active:cursor-grabbing ${
+                      isCurrent
+                        ? 'border-orange-500 bg-orange-50 text-orange-600 font-bold ring-2 ring-orange-500/20 shadow-xs'
+                        : 'border-slate-200 hover:border-orange-400 hover:bg-orange-50/40 text-slate-700 bg-white shadow-2xs hover:shadow-xs'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 group-hover:bg-white flex items-center justify-center text-slate-700 group-hover:text-orange-600 group-hover:scale-110 transition-transform mb-1.5">
+                      <IconComp size={20} strokeWidth={1.75} />
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-600 group-hover:text-orange-600 truncate w-full">
+                      {icon.name}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
       </div>
+
+      {/* In-Canvas Visual Inspector Modal */}
+      {selectedSection && onUpdateSectionConfig && (
+        <InCanvasInspectorModal
+          isOpen={isInspectorOpen}
+          onClose={() => setIsInspectorOpen(false)}
+          section={selectedSection}
+          onUpdateConfig={onUpdateSectionConfig}
+        />
+      )}
     </div>
   );
 }

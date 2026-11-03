@@ -10,6 +10,7 @@ import { IndiaStrategy } from './strategies/india.js';
 import { USAStrategy } from './strategies/usa.js';
 import { EuropeStrategy } from './strategies/europe.js';
 import { buildUsageMetadata } from './usage.js';
+import { captureAiGeneration } from './observability.js';
 
 export class FeraRouter {
   constructor() {
@@ -216,6 +217,13 @@ GROUNDING RULES:
 
     // 10. Execute Pipeline via Strategy
     const config = getProviderConfig(env);
+    const aiObservability = {
+      captureGeneration: captureAiGeneration,
+      env,
+      distinctId: user?.id,
+      sessionId: typeof conversationId === 'string' && conversationId.trim() ? `ai-chat-${conversationId}` : null,
+      traceId: requestId,
+    };
     const executionResult = await strategy.execute({
       originalUserMessage: message,
       normalizedMessage,
@@ -226,6 +234,7 @@ GROUNDING RULES:
       systemPrompt,
       config,
       requestId,
+      aiObservability,
       plan,
       task,
     });

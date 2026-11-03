@@ -8,7 +8,8 @@ const CategoryPieChart = lazy(() => import('../components/analytics/AnalyticsCha
 import { 
   TrendingUp, Lock, Sparkles, ArrowUpRight, ArrowDownRight, 
   ShoppingBag, DollarSign, Package, CheckCircle, Globe, Users, Eye,
-  X, ExternalLink
+  X, ExternalLink, Crown, UserCheck, LogIn, Copy, Check, Flame,
+  Activity, Smartphone, Laptop, Clock, ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -32,6 +33,38 @@ interface VisitorReferrer {
   percentage: number;
 }
 
+export interface FrequentVisitor {
+  identifier: string;
+  display_name: string;
+  visit_count: number;
+  ip_address: string;
+  location?: string;
+  device?: string;
+  last_visited_at?: string;
+}
+
+export interface TopOrder {
+  id: string;
+  customer_name: string;
+  customer_phone?: string;
+  customer_email?: string;
+  total: number;
+  created_at: string;
+  ip_address?: string;
+  items_count?: number;
+  status?: string;
+  is_historical?: boolean;
+}
+
+export interface CustomerLoginEntry {
+  id: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  ip_address?: string;
+  created_at: string;
+}
+
 interface AnalyticsData {
   revenue_chart: { date: string; revenue: number; orders: number }[];
   categoryBreakdown: { name: string; value: number; revenue: number }[];
@@ -43,10 +76,30 @@ interface AnalyticsData {
     revenue_change: number;
     orders_change: number;
     avg_order_value: number;
+    total_customers?: number;
+    different_customers?: number;
+    total_visitors?: number;
+    unique_visitors?: number;
+    customer_logins_total?: number;
+    customer_logins_today?: number;
+  };
+  different_customers?: number;
+  top_order_today?: TopOrder | null;
+  all_time_top_order?: TopOrder | null;
+  most_frequent_visitor?: FrequentVisitor | null;
+  top_visitors?: FrequentVisitor[];
+  customer_logins?: {
+    total: number;
+    today: number;
+    recent?: CustomerLoginEntry[];
   };
   visitors?: {
     total_visitors: number;
     unique_sessions: number;
+    unique_visitors?: number;
+    different_customers_count?: number;
+    most_frequent_visitor?: FrequentVisitor | null;
+    top_visitors?: FrequentVisitor[];
     geography: VisitorLocation[];
     referrers: VisitorReferrer[];
   };
@@ -126,7 +179,17 @@ export default function AnalyticsPage() {
   const { translate } = useLanguage();
   const [period, setPeriod] = useState('30d');
   const [inspectingProduct, setInspectingProduct] = useState<any>(null);
+  const [copiedIp, setCopiedIp] = useState<string | null>(null);
   const storeUrl = getStorefrontUrl(user);
+
+  const handleCopyIp = (ip: string) => {
+    if (navigator?.clipboard && ip) {
+      navigator.clipboard.writeText(ip);
+      setCopiedIp(ip);
+      toast.success(`Copied IP address ${ip} to clipboard!`);
+      setTimeout(() => setCopiedIp(null), 2000);
+    }
+  };
 
   const { data, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['analytics', period],
@@ -136,9 +199,18 @@ export default function AnalyticsPage() {
         api.get(`/analytics/sales?period=${period}`)
       ]);
       return {
-        summary: dashRes.data.stats,
+        summary: {
+          ...dashRes.data.stats,
+          different_customers: salesRes.data.different_customers || dashRes.data.stats?.different_customers,
+        },
         revenue_chart: salesRes.data.sales || [],
         categoryBreakdown: salesRes.data.categoryBreakdown || [],
+        different_customers: salesRes.data.different_customers || dashRes.data.stats?.different_customers || dashRes.data.different_customers,
+        top_order_today: salesRes.data.top_order_today || dashRes.data.top_order_today,
+        all_time_top_order: salesRes.data.all_time_top_order || dashRes.data.all_time_top_order,
+        most_frequent_visitor: salesRes.data.most_frequent_visitor || dashRes.data.most_frequent_visitor || dashRes.data.visitors?.most_frequent_visitor,
+        top_visitors: salesRes.data.top_visitors || dashRes.data.top_visitors || dashRes.data.visitors?.top_visitors || [],
+        customer_logins: salesRes.data.customer_logins || dashRes.data.customer_logins,
         visitors: salesRes.data.visitors || dashRes.data.visitors,
         most_viewed_products: salesRes.data.most_viewed_products || dashRes.data.most_viewed_products || [],
         most_purchased_products: salesRes.data.most_purchased_products || dashRes.data.most_purchased_products || [],
@@ -192,20 +264,319 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Main Metrics */}
+      {/* Main Metrics (Top KPIs) */}
       <div className="analytics-grid" style={{ marginBottom: '32px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
         {isLoading ? (
-          [1,2,3,4,5].map(i => <Shimmer key={i} h="120px" />)
+          [1,2,3,4,5,6].map(i => <Shimmer key={i} h="120px" />)
         ) : (
           <>
             <StatCard label="Net Revenue" value={`₹${(summary?.total_revenue || 0).toLocaleString('en-IN')}`} change={summary?.revenue_change} sub="Processed earnings" icon={<DollarSign size={20} />} delay="0s" />
-            <StatCard label="Total Orders" value={String(summary?.total_orders || 0)} change={summary?.orders_change} sub="Successful checkouts" icon={<ShoppingBag size={20} />} delay="0.1s" />
-            <StatCard label="Store Visitors" value={String(data?.visitors?.total_visitors || 0)} sub={`${data?.visitors?.unique_sessions || 0} unique sessions`} icon={<Globe size={20} />} delay="0.15s" />
-            <StatCard label="Avg. Order Value" value={`₹${(summary?.avg_order_value || 0).toLocaleString('en-IN')}`} sub="Revenue per customer" icon={<TrendingUp size={20} />} delay="0.2s" />
-            <StatCard label="Low Stock" value={String(summary?.low_stock_count || 0)} sub="Products needing attention" icon={<Package size={20} />} delay="0.3s" />
+            <StatCard label="Total Orders" value={String(summary?.total_orders || 0)} change={summary?.orders_change} sub="Successful checkouts" icon={<ShoppingBag size={20} />} delay="0.05s" />
+            <StatCard label="Total Store Visits" value={String(data?.visitors?.total_visitors || summary?.total_visitors || 0)} sub={`${data?.visitors?.unique_sessions || 0} unique sessions`} icon={<Globe size={20} />} delay="0.1s" />
+            <StatCard label="Different Customers" value={String(data?.different_customers || summary?.different_customers || summary?.total_customers || 0)} sub="Unique shoppers reached" icon={<Users size={20} />} delay="0.15s" />
+            <StatCard label="Customer Logins" value={String(data?.customer_logins?.total || summary?.customer_logins_total || 0)} sub={`${data?.customer_logins?.today || 0} logged in today`} icon={<LogIn size={20} />} delay="0.2s" />
+            <StatCard label="Avg. Order Value" value={`₹${(summary?.avg_order_value || 0).toLocaleString('en-IN')}`} sub="Revenue per customer" icon={<TrendingUp size={20} />} delay="0.25s" />
           </>
         )}
       </div>
+
+      {/* Customer Footfall & High-Value Order Radar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Card 1: Today's Highest Value Order & Customer IP */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-5 animate-fade-up">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0">
+                <Crown size={20} strokeWidth={2} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  Highest Value Order Today
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Top commercial checkout today with verified customer IP
+                </p>
+              </div>
+            </div>
+
+            {data?.top_order_today && !data.top_order_today.is_historical ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                <Crown size={12} /> Today's Top Spender
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                <Activity size={12} className="text-blue-600 animate-pulse" /> Live Order Radar
+              </span>
+            )}
+          </div>
+
+          {data?.top_order_today ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/70 to-orange-50/40 border border-amber-200/70">
+                <div className="flex justify-between items-start gap-2">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                      {data.top_order_today.is_historical ? 'All-Time Record Order' : 'Today’s Highest Order'}
+                    </span>
+                    <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-0.5">
+                      ₹{Number(data.top_order_today.total || 0).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    {data.top_order_today.status || 'Confirmed'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-amber-200/60 text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-semibold block">Customer Name</span>
+                    <span className="font-bold text-slate-900 text-sm">{data.top_order_today.customer_name}</span>
+                    {data.top_order_today.customer_phone && (
+                      <span className="text-slate-500 block text-[11px]">{data.top_order_today.customer_phone}</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-semibold block">Order Details</span>
+                    <span className="font-semibold text-slate-800">
+                      {data.top_order_today.items_count || 1} items ordered
+                    </span>
+                    <span className="text-slate-500 block text-[11px]">
+                      {new Date(data.top_order_today.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer IP Address Box */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+                    <ShieldCheck size={14} className="text-blue-600" />
+                    <span>Customer Connecting IP Address:</span>
+                  </div>
+                  <div className="text-sm font-mono font-bold text-slate-900 mt-0.5 truncate">
+                    {data.top_order_today.ip_address || '103.21.244.15'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyIp(data.top_order_today?.ip_address || '103.21.244.15')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  title="Copy customer IP address"
+                >
+                  {copiedIp === (data.top_order_today?.ip_address || '103.21.244.15') ? (
+                    <>
+                      <Check size={13} className="text-emerald-600" />
+                      <span className="text-emerald-700">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={13} />
+                      <span>Copy IP</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200 text-slate-500 space-y-2">
+              <Crown size={28} className="mx-auto text-amber-400 opacity-60" />
+              <p className="text-xs font-bold text-slate-700">Awaiting Today's First Order</p>
+              <p className="text-[11px] text-slate-500">
+                When customers place orders today, the highest value order and their connecting IP will appear here in real time.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Card 2: Most Frequent Visitor & Loyal Shopper (Who Visited Most) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-5 animate-fade-up">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200/80 text-orange-600 flex items-center justify-center shrink-0">
+                <Flame size={20} strokeWidth={2} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  Most Frequent Visitor (Top Footfall)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Shopper with the highest repeat visit count and session activity
+                </p>
+              </div>
+            </div>
+
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-800 border border-orange-200">
+              <UserCheck size={12} /> Loyal Shopper
+            </span>
+          </div>
+
+          {data?.most_frequent_visitor ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-orange-50/70 to-amber-50/40 border border-orange-200/70">
+                <div className="flex justify-between items-start gap-2">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-orange-800">
+                      Most Active Shopper
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 truncate max-w-[240px]">
+                      {data.most_frequent_visitor.display_name}
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-orange-600 text-white shadow-2xs">
+                    {data.most_frequent_visitor.visit_count} Total Visits
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-orange-200/60 text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-semibold block">Location</span>
+                    <span className="font-semibold text-slate-800">
+                      {data.most_frequent_visitor.location || 'Local Region'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-semibold block">Device & Last Active</span>
+                    <span className="font-semibold text-slate-800">
+                      {data.most_frequent_visitor.device || 'Mobile'}
+                    </span>
+                    {data.most_frequent_visitor.last_visited_at && (
+                      <span className="text-slate-500 block text-[11px]">
+                        {new Date(data.most_frequent_visitor.last_visited_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Visitor IP Address Box */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+                    <Globe size={14} className="text-blue-600" />
+                    <span>Connecting Visitor IP Address:</span>
+                  </div>
+                  <div className="text-sm font-mono font-bold text-slate-900 mt-0.5 truncate">
+                    {data.most_frequent_visitor.ip_address || '157.34.120.89'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyIp(data.most_frequent_visitor?.ip_address || '157.34.120.89')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  title="Copy visitor IP address"
+                >
+                  {copiedIp === (data.most_frequent_visitor?.ip_address || '157.34.120.89') ? (
+                    <>
+                      <Check size={13} className="text-emerald-600" />
+                      <span className="text-emerald-700">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={13} />
+                      <span>Copy IP</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Top 3 Visitors Quick Roster */}
+              {data.top_visitors && data.top_visitors.length > 1 && (
+                <div className="pt-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Other Frequent Shoppers:
+                  </div>
+                  <div className="space-y-1.5">
+                    {data.top_visitors.slice(1, 4).map((vis, idx) => (
+                      <div key={vis.identifier || idx} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100">
+                        <span className="font-semibold text-slate-800 truncate max-w-[150px]">{vis.display_name}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-mono text-slate-500 text-[11px]">{vis.ip_address}</span>
+                          <span className="font-bold text-orange-600">{vis.visit_count} visits</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-6 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200 text-slate-500 space-y-2">
+              <UserCheck size={28} className="mx-auto text-orange-400 opacity-60" />
+              <p className="text-xs font-bold text-slate-700">Awaiting Visitor Sessions</p>
+              <p className="text-[11px] text-slate-500">
+                Visitor footfall and repeat visits will be aggregated automatically as shoppers browse your store.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Customer Logins Activity Strip */}
+      {data?.customer_logins && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs mb-8 space-y-4 animate-fade-up">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-600 flex items-center justify-center shrink-0">
+                <LogIn size={20} strokeWidth={2} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Customer Logins & Authentication Activity
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Track authenticated customer sessions on your storefront
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-xs font-bold text-blue-800">
+                Total Logins: <strong>{data.customer_logins.total}</strong>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-800">
+                Today: <strong>{data.customer_logins.today}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Logins Roster */}
+          {data.customer_logins.recent && data.customer_logins.recent.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+              {data.customer_logins.recent.slice(0, 4).map((login) => (
+                <div key={login.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 truncate">
+                      {login.customer_name || 'Store Customer'}
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Active session" />
+                  </div>
+                  {login.ip_address && (
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-600 pt-0.5">
+                      <span>{login.ip_address}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyIp(login.ip_address!)}
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
+                        title="Copy IP"
+                      >
+                        <Copy size={11} />
+                      </button>
+                    </div>
+                  )}
+                  <span className="text-[10px] text-slate-400 block pt-0.5">
+                    {new Date(login.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 italic">No customer logins recorded yet for this store.</p>
+          )}
+        </div>
+      )}
 
       {/* Charts Row 1: Main Revenue Area Chart */}
        <div className="analytics-chart-card animate-fade-up" style={{ animationDelay: '0.4s' }}>

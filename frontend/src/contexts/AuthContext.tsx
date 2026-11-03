@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, useMemo, useCal
 import { useAuth as useWorkOSAuth } from '@workos-inc/authkit-react';
 import api from '../services/api';
 import { setUnauthorizedHandler, setWorkOSTokenGetter, clearCachedToken } from '../services/authBridge';
+import posthog from '../lib/posthog';
 
 // ─── AUTH DEV LOGGING ────────────────────────────────────────────────────────
 // All AUTH_* logs are DEV-only. Sensitive values (tokens, codes) are never logged.
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Track whether we've already done the initial profile load to prevent
   // re-clearing on subsequent renders where workosUser may briefly be null.
   const initialLoadDoneRef = useRef(false);
+  const identifiedUserIdRef = useRef<string | null>(null);
 
   const {
     isLoading: isWorkOSLoading,
@@ -340,6 +342,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { mounted = false; };
   }, [workosUser, isWorkOSLoading]);
 
+  // Identify only after WorkOS and the authoritative profile have both settled.
+  // The D1 user id is the stable distinct id; email and name remain person properties.
+  useEffect(() => {
+    if (isWorkOSLoading || isProfileLoading || !workosUser || !profile?.id) return;
+    if (identifiedUserIdRef.current === profile.id) return;
+
+    // This can occur if an auth provider changes accounts without the app's logout action.
+    if (identifiedUserIdRef.current) {
+      posthog.reset();
+    }
+
+    posthog.identify(profile.id, {
+      email: profile.email,
+      name: profile.name,
+      plan: profile.plan,
+      market: profile.market,
+    });
+    identifiedUserIdRef.current = profile.id;
+  }, [isWorkOSLoading, isProfileLoading, workosUser, profile]);
+
   // Proactively revalidate / refresh token when the tab regains visibility/focus
   useEffect(() => {
     const handleVisibilityChange = async () => {
@@ -434,6 +456,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     authLog('AUTH_LOGOUT');
+    posthog.reset();
+    identifiedUserIdRef.current = null;
     localStorage.removeItem('fera_user');
     setProfile(null);
     initialLoadDoneRef.current = false;

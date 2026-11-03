@@ -18,6 +18,7 @@ import {
   Coins,
   ArrowRight,
   Download,
+  Upload,
   Users,
   Target,
   Sparkles,
@@ -691,6 +692,16 @@ export default function DashboardPage() {
             <span>{downloading ? 'Generating…' : 'Export CSV'}</span>
           </button>
 
+          {/* Import CSV / Inventory */}
+          <Link
+            to="/products?import=true"
+            className="inline-flex items-center gap-1.5 bg-white border border-blue-200 hover:border-blue-300 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-700 shadow-xs hover:bg-blue-50/50 transition-all cursor-pointer"
+            title="Import inventory CSV from Shopify, WooCommerce, or Excel"
+          >
+            <Upload size={14} className="text-blue-600" />
+            <span>Import CSV</span>
+          </Link>
+
           {/* Primary Action */}
           <Link
             to="/products"
@@ -1021,6 +1032,12 @@ export default function DashboardPage() {
                   className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-colors"
                 >
                   <Plus size={12} /> Add Items
+                </Link>
+                <Link
+                  to="/products?import=true"
+                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-colors"
+                >
+                  <Upload size={12} /> Import CSV
                 </Link>
               </div>
             )}
