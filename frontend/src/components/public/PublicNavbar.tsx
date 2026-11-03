@@ -74,7 +74,7 @@ export default function PublicNavbar() {
               <div className='flex items-center gap-2.5'>
                 <Link
                   to='/dashboard'
-                  className='inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
+                  className='inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:-translate-y-0.5 hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2'
                 >
                   <LayoutDashboard size={15} />
                   <span>{t('nav.dashboard') || 'Dashboard'}</span>
@@ -167,7 +167,7 @@ export default function PublicNavbar() {
                   <Link
                     to='/dashboard'
                     onClick={() => setMobileMenuOpen(false)}
-                    className='flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-blue-600 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700'
+                    className='flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-orange-500 text-base font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
                   >
                     <LayoutDashboard size={18} />
                     <span>{t('nav.dashboard') || 'Dashboard'}</span>
