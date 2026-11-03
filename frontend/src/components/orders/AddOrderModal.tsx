@@ -18,7 +18,14 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  FileCheck
+  FileCheck,
+  Users,
+  UserPlus,
+  TrendingUp,
+  AlertTriangle,
+  Star,
+  Award,
+  Sparkles,
 } from 'lucide-react';
 import api from '../../services/api';
 import { getStorefrontUrl, getStorefrontPreviewUrl } from '../../utils/canonicalHostname';
@@ -63,7 +70,11 @@ export default function AddOrderModal({
   const [productSearch, setProductSearch] = useState('');
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 
-  // Customer state
+  // Customer state & Saved customer picker
+  const [customerMode, setCustomerMode] = useState<'saved' | 'new'>('saved');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [saveToCustomerBook, setSaveToCustomerBook] = useState(true);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
@@ -76,6 +87,49 @@ export default function AddOrderModal({
   const [isSavingDirect, setIsSavingDirect] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [createdOrderForQr, setCreatedOrderForQr] = useState<any>(null);
+
+  // Fetch Saved Customers Directory
+  const { data: rawCustomers = [], isLoading: isLoadingCustomers } = useQuery<any[]>({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      const res = await api.get('/customers');
+      const data = res.data;
+      return data?.customers || (Array.isArray(data) ? data : []);
+    },
+    enabled: isOpen,
+  });
+
+  const customers = useMemo(() => Array.isArray(rawCustomers) ? rawCustomers : [], [rawCustomers]);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers.slice(0, 8);
+    const q = customerSearch.toLowerCase().trim();
+    return customers.filter((c: any) =>
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.includes(q))
+    ).slice(0, 10);
+  }, [customers, customerSearch]);
+
+  const activeCustomer = useMemo(() => {
+    if (!selectedCustomerId) return null;
+    return customers.find((c: any) => c.id === selectedCustomerId) || null;
+  }, [selectedCustomerId, customers]);
+
+  const handleSelectCustomer = (c: any) => {
+    setSelectedCustomerId(c.id);
+    setCustomerName(c.name || '');
+    setCustomerPhone(c.phone || '');
+    if (c.address) {
+      setDeliveryAddress(c.address);
+    }
+  };
+
+  const handleClearCustomer = () => {
+    setSelectedCustomerId(null);
+    setCustomerName('');
+    setCustomerPhone('');
+    setDeliveryAddress('');
+  };
 
   // Fetch Merchant Catalog
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
@@ -107,6 +161,25 @@ export default function AddOrderModal({
 
   const deliveryFee = deliveryType === 'delivery' ? 30 : 0;
   const totalAmount = subtotal + deliveryFee;
+
+  // Estimated gross profit & margin calculation
+  const estimatedProfitInfo = useMemo(() => {
+    let cost = 0;
+    for (const it of selectedItems) {
+      const prodCost = (it.product as any).cost_price != null && Number((it.product as any).cost_price) > 0
+        ? Number((it.product as any).cost_price)
+        : (it.price * 0.65);
+      cost += prodCost * it.quantity;
+    }
+    const profit = Math.round((totalAmount - cost) * 100) / 100;
+    const margin = totalAmount > 0 ? Math.round((profit / totalAmount) * 100) : 0;
+    return {
+      cost: Math.round(cost * 100) / 100,
+      profit,
+      margin,
+      isLoss: profit < 0
+    };
+  }, [selectedItems, totalAmount]);
 
   // Cart operations
   const handleAddItem = (product: Product) => {
