@@ -1,8 +1,8 @@
 # 📊 FeraSetu Progress & Completion Matrix
 
 > **Live Status:** Active Audit & Production Hardening  
-> **Global Platform Completion:** **95%**  
-> **Last Synchronized:** 2026-11-03  
+> **Global Platform Completion:** **96%**  
+> **Last Synchronized:** 2026-11-04  
 > **Index:** [[00 - 🗺️ System Architecture Overview]] | **Upcoming Roadmap:** [[feature that wil added soon]]
 
 ---
@@ -11,15 +11,15 @@
 
 | Subsystem | Completion % | Status | Key Completed Deliverables | Remaining Polish / Backlog | Note Link |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| **Edge Gateway & D1** | `96%` | 🟢 Production | Subdomain routing, D1 multi-tenant SQL, order cancellation & after-sales endpoints (`/cancel`, `/refund`), invoice voiding, customer email dispatch, Discounts & Promotional Pricing Engine (`worker/catalog/discountsEngine.js`, migration 0022) | Cold-start edge cache warming optimization | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
-| **Core API & Express** | `96%` | 🟢 Production | AuthKit/Appwrite auth, customer roster & login tracking (`/api/customers`), dynamic Customer Segments (`/api/customers/segments`), Inventory Transfers API (`/api/transfers`, `/api/transfers/locations`, `/api/transfers/ai-sidekick`), Digital Gift Cards (`/api/gift-cards`), visitor analytics | Background job queue scaling under high burst | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] |
-| **Frontend & UI/UX** | `99.8%` | 🟢 Production | React 19 SPA, 30-Second Reverse Onboarding Launchpad (`OnboardingWizardPage.tsx`), 4+1 Calm Navigation Hierarchy & Shop Toolkit (`Layout.tsx`), Vibrant alive Product Catalog with live stats ribbon, dual Grid/Table view toggles, Add New Product modal with live Profit Margin calculator, Inventory Transfers Studio (`/transfers/new`), Customer Segments, Digital Gift Cards Studio | Final squint-test passes on low-end Android viewports | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
-| **Fera AI Intelligence**| `95%` | 🟢 Production | OpenAI-compatible endpoint, Sarvam Indic LLM, Sidekick Inventory Copilot (`/api/transfers/ai-sidekick`) for speech & natural language transfer generation, Merchant spend limits & toggles, Storefront AI Assistant section, Admin AI credits telemetry & adjustment, 58 tests | Real-time audio streaming duplex optimization | [[05 - 🤖 Fera AI & Sarvam Intelligence]] |
+| **Edge Gateway & D1** | `97%` | 🟢 Production | Subdomain routing, D1 multi-tenant SQL, order confirmation & customer delivery verification code handshake (`POST /api/orders/:id/verify-otp`, `status === 'delivered'`), irreversible status locking on delivered orders, order return review & unrecoverable delivery loss tracking (`POST /api/orders/:id/return`, `/reject`, `/approve`), order cancellation & after-sales endpoints (`/cancel`, `/refund`), invoice voiding, customer email dispatch, Discounts & Promotional Pricing Engine (`worker/catalog/discountsEngine.js`, migration 0022) | Cold-start edge cache warming optimization | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
+| **Core API & Express** | `96%` | 🟢 Production | AuthKit/Appwrite auth, customer roster & login tracking (`/api/customers`), dynamic Customer Segments (`/api/customers/segments`), Inventory Transfers API (`/api/transfers`, `/api/transfers/locations`, `/api/transfers/ai-sidekick`), Digital Gift Cards (`/api/gift-cards`), visitor analytics, order status locking on `delivered`, order returns after-sales endpoints with `delivery_loss_minor` calculation, product non-returnable setting (`is_returnable` column & API support) | Background job queue scaling under high burst | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] |
+| **Frontend & UI/UX** | `99.9%` | 🟢 Production | React 19 SPA, Pending order quick actions (Confirm & Cancel), Intermediate status customer delivery code input modal (`EnterDeliveryCodeModal.tsx`), Delivered status permanent lock & 1-click Tax Invoice PDF download, Shopkeeper Return review & courier loss breakdown modal (`ReturnDetailsModal.tsx`), Product non-returnable setting switch in Add/Edit Product modal (`AddProductModal.tsx`) with catalog badges (`ProductsPage.tsx`) & Customer Account drawer protection (`CustomerAccountDrawer.tsx`), 30-Second Reverse Onboarding Launchpad (`OnboardingWizardPage.tsx`), 4+1 Calm Navigation Hierarchy & Shop Toolkit (`Layout.tsx`), Vibrant alive Product Catalog with live stats ribbon, dual Grid/Table view toggles, Add New Product modal with live Profit Margin calculator, Inventory Transfers Studio (`/transfers/new`), Customer Segments, Digital Gift Cards Studio | Final squint-test passes on low-end Android viewports | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
+| **Fera AI Intelligence**| `95%` | 🟢 Production | OpenAI-compatible endpoint cluster (`https://ai.fera-search.tech/v1`), Sidekick Inventory Copilot (`/api/transfers/ai-sidekick`) for speech & natural language transfer generation, Merchant spend limits & toggles, Storefront AI Assistant section, Admin AI credits telemetry & adjustment, 58 tests | Real-time audio streaming duplex optimization | [[05 - 🤖 Fera AI & Intelligence]] |
 | **Pricing & Billing** | `96%` | 🟢 Production | Free/Business/Pro tier limits, AI credit top-up packs (250/1k/3k cr), Cashfree sandbox simulation, Cashfree + Razorpay + Stripe geo-pricing | Automated invoice email delivery confirmation checks | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] |
 | **GST & Compliance** | `90%` | 🟢 Production | HSN/SAC codes, CGST/SGST/IGST breakdown, PDF invoice generation, voided invoices on cancelled orders | Multi-state reverse charge edge cases | [[07 - 🧾 GST Invoicing & Accounting]] |
 | **Custom Domains & DNS**| `96%` | 🟢 Production | Automated DNS provider detection, Domain Connect v2 1-click sync (GoDaddy, Namecheap, IONOS), Spaceship API, DoH verification radar | Ingress Caddy proxy live cluster deployment | [[08 - 🌐 Subdomains, Custom Domains & DNS]] |
-| **QA & Verification** | `99.5%` | 🟢 Production | 50+ test suites (incl. customer-segments-feature.test.mjs 3/3, transfers-feature.test.mjs 4/4, gift-cards-feature.test.mjs 6/6, inventory-csv-import.test.mjs 9/9, discounts-engine.test.mjs 14/14, admin-ai-credits.test.mjs 10/10) | Extended load testing across 10k concurrent simulated shops | [[09 - 🧪 QA, Testing & Control Plane]] |
-| **Database Schemas** | `96%` | 🟢 Production | D1 migrations & SQLite schemas for `inventory_locations`, `inventory_transfers`, `inventory_transfer_items`, `customer_segments`, `gift_cards`, `gift_card_transactions`, tenant isolation | Automated read-replica failover scripts | [[10 - 🗄️ Database Schemas & Data Flow]] |
+| **QA & Verification** | `99.8%` | 🟢 Production | 52+ test suites (incl. order-delivery-code-and-returns.test.mjs 6/6, order-confirmation-and-quota.test.mjs 10/10, customer-segments-feature.test.mjs 3/3, transfers-feature.test.mjs 4/4, gift-cards-feature.test.mjs 6/6, inventory-csv-import.test.mjs 9/9, discounts-engine.test.mjs 14/14, admin-ai-credits.test.mjs 10/10) | Extended load testing across 10k concurrent simulated shops | [[09 - 🧪 QA, Testing & Control Plane]] |
+| **Database Schemas** | `96%` | 🟢 Production | D1 migrations & SQLite schemas for `products.is_returnable`, `orders.return_delivery_loss_minor`, `order_returns.delivery_loss_minor`, `inventory_locations`, `inventory_transfers`, `inventory_transfer_items`, `customer_segments`, `gift_cards`, `gift_card_transactions`, tenant isolation | Automated read-replica failover scripts | [[10 - 🗄️ Database Schemas & Data Flow]] |
 | **Merchant SMTP & Email**| `96%` | 🟢 Production | CORS-hardened REST API, External SMTP bare-address relaying, new user welcome email (`noreply@ferasetu.com`), first order congratulatory email, dashboard milestone popup, Modal SQLite schema migration order fix | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
 | **WhatsApp Assistant** | `98%` | 🟢 Production | Multi-tenant Baileys persistent connector, AES-256-GCM session crypto, catalog-grounded AI answering, pending order capture, dashboard notifications, 4-stage UI, 19 test suites | Extended multi-device stress test under variable mobile networks | [[11 - 💬 WhatsApp Assistant Architecture]] |
 
@@ -27,19 +27,24 @@
 
 ## 2. Granular Task & Feature Progress
 
-### A. Edge Gateway (`worker/`) — **96% DONE**
+### A. Edge Gateway (`worker/`) — **97% DONE**
 - [x] Subdomain parser & tenant resolution (`worker/index.js`) — **100%**
 - [x] Strict CSP hash whitelist & CORS ingress wrapper for Email & Domain APIs (`worker/storefront.js`, `worker/index.js`) — **100%**
 - [x] Order cancellation & after-sales routing (`POST /api/orders/:id/cancel`, `POST /api/orders/public/:id/cancel`, `POST /api/orders/:id/refund`) with irreversible locking, inventory restocking, invoice voiding, and customer email alerts (`worker/index.js`) — **100%**
+- [x] Order delivery code handshake (`POST /api/orders/:id/verify-otp`) & permanent delivered status locking (`updateOrderStatus` blocks modification once `status === 'delivered'`) (`worker/index.js`) — **100%**
+- [x] Order return management & unrecoverable delivery fee operational loss analysis (`POST /api/orders/:id/return`, `/reject`, `/approve`) (`worker/index.js`) — **100%**
 - [x] D1 multi-tenant sharding & SQL migrations (`worker/sharding/`) — **95%**
 - [x] Cloudflare Custom Hostname SSL integration — **90%**
 - [x] AST Builder sandboxed runtime (`worker/templates/`) — **90%**
 - [x] Discounts & Promotional Pricing Engine (`worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js`, migration `0022_discounts_engine.sql`): Server-side percentage, fixed amount, BOGO with fraud guard, free shipping, automatic discounts, collision-safe bulk code generator, profit margin checks, and atomic checkout order redemptions — **100%**
 - [ ] Edge streaming SSR for heavy storefront catalogs — **70%**
 
-### B. Core API (`backend/`) — **94% DONE**
+### B. Core API (`backend/`) — **96% DONE**
 - [x] Appwrite & AuthKit authentication wrapper (`backend/src/routes/auth.ts`) — **100%**
 - [x] Order cancellation locking & customer email alerts (`backend/src/routes/orders.ts`) — **100%**
+- [x] Order status locking on `delivered` status & delivery code verification (`backend/src/routes/orders.ts`) — **100%**
+- [x] Order return management, audit logging & delivery courier fee loss computation (`POST /api/orders/:id/return`, `/reject`, `/approve`) (`backend/src/routes/orders.ts`) — **100%**
+- [x] Product non-returnable policy switch & persistence (`is_returnable` column) (`backend/src/models/database.ts`, `backend/src/routes/products.ts`) — **100%**
 - [x] Order status state machine & customer notifications (`backend/src/routes/orders.ts`) — **95%**
 - [x] Customer Directory & Login/Signup Aggregation API (`backend/src/routes/customers.ts`) — **100%**
 - [x] Website Builder SEO & Search Engine Indexing API (`GET/PUT/POST /api/website/settings`) with Googlebot, Bingbot, robots.txt, auto-sitemap, and store access controls (`backend/src/routes/website.ts`) — **100%**
@@ -51,9 +56,11 @@
 - [x] FeraSetu Merchant Updates, Announcements & Feature Changelog API (`backend/src/routes/announcements.ts`) — **100%**
 - [ ] Redis job queue for bulk merchant broadcasts — **70%**
 
-### C. Frontend Web Application (`frontend/`) — **98% DONE**
+### C. Frontend Web Application (`frontend/`) — **99.9% DONE**
 - [x] React 19 + Vite 8 scaffold & routing (`frontend/src/App.tsx`) — **100%**
 - [x] 48-region localization dictionary & context (`frontend/src/contexts/LanguageContext.tsx`) — **95%**
+- [x] Orders Dashboard: Pending order quick action buttons (Confirm in emerald & Cancel in rose), intermediate status customer delivery code input modal (`EnterDeliveryCodeModal.tsx`), irreversible delivered status locking, 1-click tax invoice PDF download, shopkeeper return review & courier loss modal (`ReturnDetailsModal.tsx`) (`OrdersPage.tsx`) — **100%**
+- [x] Non-Returnable Product Configuration: Policy switch in Add/Edit Product modal (`AddProductModal.tsx`), catalog badges in Table and Grid views (`ProductsPage.tsx`), and return eligibility enforcement in storefront customer account drawer (`CustomerAccountDrawer.tsx`) — **100%**
 - [x] Visual Store Builder with edge-to-edge canvas touching navigation, header auto-suppression, warm orange & color-coded tool strip, and spacious Cockpit bar (`WebsiteBuilderPage.tsx`, `Layout.tsx`, `DesignPanel.tsx`) — **98%**
 - [x] Website Settings Page (`WebsiteSettingsPage.tsx`, `/website-settings`, `/website-builder/settings`) with Google/Bing indexing toggles, meta title/description/keywords character counters, live Google SERP card preview, WhatsApp share card preview, and 1-click re-crawl ping (`WebsiteSettingsPage.tsx`, `Layout.tsx`) — **100%**
 - [x] Analytics Customer Footfall & High-Value Order Radar (`AnalyticsPage.tsx`) displaying different customer count, total store visits, most frequent visitor with device & 1-click IP copy, today's highest value order with 1-click IP copy, and customer login authentication activity — **100%**
@@ -92,12 +99,17 @@
 - [ ] Offline caching via Service Worker for poor connectivity kiranas — **60%**
 
 
-### D. Fera AI Indic Engine — **94% DONE**
+### D. Fera AI Indic Engine — **95% DONE**
 - [x] OpenAI-compatible Fera AI endpoint (`https://ai.fera-search.tech/v1/chat/completions`) — **100%**
 - [x] Backend-only secret isolation in `worker/.dev.vars` (`AI_ENDPOINT`, `API_AI`) with zero frontend exposure — **100%**
 - [x] Canonical AI Gateway Service with bounded timeouts & secret redaction — **100%**
-- [x] Sarvam Indic API integration (`worker/ai/providers/sarvamTranslate.js`) — **100%**
+- [x] Indic dialect translation pipeline (`worker/ai/providers/`) — **100%**
 - [x] Intent orchestrator & context builder (`worker/ai/router.js`) — **95%**
+- [x] Platform AI Credit Monitoring & Shopkeeper Quota Tracking (`/api/admin/ai-credits`, `/api/admin/users/:id/ai-credits`, audit logging) — **100%**
+- [x] Merchant AI Spend Limits & Safety Controls (`ferasetu_ai_limit`, `website_ai_limit`, `ferasetu_ai_enabled`, `website_ai_enabled`) with 403 pause enforcement & 429 monthly quota cap in `chargeAiCredits` — **100%**
+- [x] Merchant AI Credits, Limits & Template Assistant test suite (`tests/merchant-ai-credits-limits-template.test.mjs`, 5/5 passing) — **100%**
+- [x] Voice prompt router (`backend/src/routes/voice.ts`) — **85%**
+- [ ] End-to-end voice duplex streaming via WebSockets — **65%**
 - [x] Platform AI Credit Monitoring & Shopkeeper Quota Tracking (`/api/admin/ai-credits`, `/api/admin/users/:id/ai-credits`, audit logging) — **100%**
 - [x] Merchant AI Spend Limits & Safety Controls (`ferasetu_ai_limit`, `website_ai_limit`, `ferasetu_ai_enabled`, `website_ai_enabled`) with 403 pause enforcement & 429 monthly quota cap in `chargeAiCredits` — **100%**
 - [x] Merchant AI Credits, Limits & Template Assistant test suite (`tests/merchant-ai-credits-limits-template.test.mjs`, 5/5 passing) — **100%**

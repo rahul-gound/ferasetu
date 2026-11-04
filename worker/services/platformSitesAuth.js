@@ -375,16 +375,16 @@ export async function getPlatformUserEntitlement(userId, userEmail, env) {
  * Validates authentication, Admin Plan entitlement, role, and permission.
  */
 export async function requirePlatformSitesAccess(request, env, requiredPermission = null, siteId = null) {
-  // 1. Authenticate Identity via WorkOS JWKS / verified platform admin
-  let authContext;
+  // 1. Authenticate Identity via WorkOS JWKS (or dev HMAC)
+  let identity;
   try {
-    authContext = await requirePlatformAdmin(request, env);
+    identity = await authenticateIdentity(request, env);
   } catch (err) {
     throw new PlatformAuthError(err.message || "Authentication required", 401, "UNAUTHENTICATED");
   }
 
-  const userId = authContext.sub;
-  const userEmail = authContext.email;
+  const userId = identity.sub;
+  const userEmail = identity.email;
 
   // 2. Validate Entitlement Plan
   const entitlement = await getPlatformUserEntitlement(userId, userEmail, env);
