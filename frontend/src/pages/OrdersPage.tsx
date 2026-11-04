@@ -1672,37 +1672,157 @@ export default function OrdersPage() {
               )}
 
               {/* Update status */}
-              <div style={{ marginTop: '20px' }}>
+              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
-                  Update Status
+                  Update Order
                 </label>
-                <select
-                  value={selectedOrder.status}
-                  disabled={selectedOrder.status === 'cancelled'}
-                  onChange={e => {
-                    handleStatusChange(selectedOrder, e.target.value);
-                    if (e.target.value !== 'cancelled') {
-                      setSelectedOrder({ ...selectedOrder, status: e.target.value });
-                    }
-                  }}
-                  className="input"
-                  style={{
-                    width: '100%',
-                    background: selectedOrder.status === 'cancelled' ? '#f1f5f9' : undefined,
-                    color: selectedOrder.status === 'cancelled' ? '#94a3b8' : undefined,
-                    cursor: selectedOrder.status === 'cancelled' ? 'not-allowed' : undefined,
-                  }}
-                >
-                  {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
-                    <option key={k} value={k} disabled={selectedOrder.status === 'cancelled' && k !== 'cancelled'}>
-                      {selectedOrder.status === 'cancelled' && k === 'cancelled' ? 'Cancelled (Locked — Irreversible)' : v}
-                    </option>
-                  ))}
-                </select>
-                {selectedOrder.status === 'cancelled' && (
-                  <p style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
-                    🔒 This order is cancelled and cannot be changed to other updates.
-                  </p>
+
+                {selectedOrder.status === 'pending' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleStatusChange(selectedOrder, 'confirmed');
+                        setSelectedOrder({ ...selectedOrder, status: 'confirmed' });
+                      }}
+                      className="btn"
+                      style={{
+                        minHeight: '48px',
+                        background: '#10B981',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(16,185,129,0.25)',
+                      }}
+                    >
+                      <CheckCircle2 size={18} /> Confirm Order
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrderToCancel(selectedOrder)}
+                      className="btn"
+                      style={{
+                        minHeight: '48px',
+                        background: '#EF4444',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(239,68,68,0.25)',
+                      }}
+                    >
+                      <X size={18} /> Cancel Order
+                    </button>
+                  </div>
+                )}
+
+                {(selectedOrder.status === 'confirmed' || selectedOrder.status === 'preparing' || selectedOrder.status === 'out_for_delivery') && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setOrderForDeliveryCode(selectedOrder)}
+                      className="btn"
+                      style={{
+                        width: '100%',
+                        minHeight: '48px',
+                        background: '#4F46E5',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 10px rgba(79,70,229,0.25)',
+                      }}
+                    >
+                      <Key size={18} /> Enter Customer Code to Deliver
+                    </button>
+                  </div>
+                )}
+
+                {selectedOrder.status === 'delivered' ? (
+                  <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#047857', fontWeight: 700, fontSize: '13px' }}>
+                      <CheckCircle2 size={18} /> Order Delivered & Finalized
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#065f46', marginTop: '4px' }}>
+                      🔒 This order is delivered. The status is permanently locked and cannot be changed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceOrder(selectedOrder)}
+                      className="btn"
+                      style={{
+                        width: '100%',
+                        minHeight: '44px',
+                        marginTop: '10px',
+                        background: '#047857',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <FileText size={16} /> Download Tax Invoice (PDF)
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={selectedOrder.status}
+                      disabled={selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
+                      onChange={e => {
+                        handleStatusChange(selectedOrder, e.target.value);
+                        if (e.target.value !== 'cancelled') {
+                          setSelectedOrder({ ...selectedOrder, status: e.target.value });
+                        }
+                      }}
+                      className="input"
+                      style={{
+                        width: '100%',
+                        background: selectedOrder.status === 'cancelled' ? '#f1f5f9' : undefined,
+                        color: selectedOrder.status === 'cancelled' ? '#94a3b8' : undefined,
+                        cursor: selectedOrder.status === 'cancelled' ? 'not-allowed' : undefined,
+                      }}
+                    >
+                      {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'all').map(([k, v]) => (
+                        <option
+                          key={k}
+                          value={k}
+                          disabled={
+                            (selectedOrder.status === 'cancelled' && k !== 'cancelled') ||
+                            (k === 'delivered' && selectedOrder.status !== 'delivered')
+                          }
+                        >
+                          {selectedOrder.status === 'cancelled' && k === 'cancelled'
+                            ? 'Cancelled (Locked — Irreversible)'
+                            : k === 'delivered' && selectedOrder.status !== 'delivered'
+                            ? 'Delivered (Requires Delivery Code)'
+                            : v}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedOrder.status === 'cancelled' && (
+                      <p style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                        🔒 This order is cancelled and cannot be changed to other updates.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -1757,6 +1877,32 @@ export default function OrdersPage() {
             setSelectedOrder(prev => prev ? { ...prev, payment_status: 'paid', status: 'confirmed' } : null);
           }
           setQrModalOrder(prev => prev ? { ...prev, payment_status: 'paid', status: 'confirmed' } : null);
+        }}
+      />
+
+      {/* Customer Delivery Code Modal */}
+      <EnterDeliveryCodeModal
+        isOpen={!!orderForDeliveryCode}
+        order={orderForDeliveryCode as any}
+        onClose={() => setOrderForDeliveryCode(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+          if (selectedOrder && orderForDeliveryCode && selectedOrder.id === orderForDeliveryCode.id) {
+            setSelectedOrder(prev => prev ? { ...prev, status: 'delivered', payment_status: 'paid' } : null);
+          }
+          setOrderForDeliveryCode(null);
+        }}
+      />
+
+      {/* Return Request & Loss Analysis Modal */}
+      <ReturnDetailsModal
+        isOpen={!!orderForReturnReview}
+        order={orderForReturnReview as any}
+        onClose={() => setOrderForReturnReview(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+          refetchAfterSales();
+          setOrderForReturnReview(null);
         }}
       />
     </div>
