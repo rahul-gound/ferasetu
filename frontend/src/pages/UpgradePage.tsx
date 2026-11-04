@@ -230,8 +230,6 @@ export default function UpgradePage() {
           throw err;
         }
       }
-      });
-      razorpay.open();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Something went wrong. Please try again.');
       setUpgrading(null);
