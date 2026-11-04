@@ -442,6 +442,27 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </>
           );
         })()}
+
+        {hasPlatformAccess && (
+          <div className="mt-3 pt-3 border-t border-[#E5EAF1]/70 px-3">
+            <button
+              type="button"
+              onClick={() => navigate('/platform-sites')}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#0052FF] bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200/60 transition-colors cursor-pointer"
+              title="Platform Sites — Internal Infrastructure"
+            >
+              <Server size={16} className="text-[#0052FF] shrink-0" />
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 text-left font-bold truncate">Platform Sites</span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#0052FF] text-white">
+                    ADMIN
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Bottom: Plan + Store Profile */}
