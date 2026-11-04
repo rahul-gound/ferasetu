@@ -279,15 +279,23 @@ export default function AddOrderModal({
     try {
       // 1. Automatically make the order in backend
       const payload = {
+        customer_name: customerName.trim() || 'WhatsApp Customer',
         customerName: customerName.trim() || 'WhatsApp Customer',
+        customer_phone: customerPhone.trim() || null,
         customerPhone: customerPhone.trim() || null,
+        customer_id: selectedCustomerId || null,
+        customerId: selectedCustomerId || null,
+        delivery_address: deliveryAddress.trim() || null,
         deliveryAddress: deliveryAddress.trim() || null,
+        delivery_type: deliveryType,
         deliveryType,
         items: selectedItems.map((i) => ({
           productId: i.product.id,
+          product_id: i.product.id,
           name: i.product.name,
           quantity: i.quantity,
           price: i.price,
+          cost_price: (i.product as any).cost_price ?? null,
         })),
         notes: orderNotes.trim()
           ? `${orderNotes.trim()} (WhatsApp 1-Click Order)`
@@ -297,7 +305,19 @@ export default function AddOrderModal({
       };
 
       const res = await api.post('/orders', payload);
-      const newOrder = res.data;
+      const newOrder = res.data?.order || res.data;
+
+      // Save new customer to customer directory if requested
+      if (customerMode === 'new' && saveToCustomerBook && customerPhone.trim()) {
+        try {
+          await api.post('/customers', {
+            name: customerName.trim() || `Customer ${customerPhone.trim()}`,
+            phone: customerPhone.trim(),
+            address: deliveryAddress.trim() || null,
+          });
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        } catch {}
+      }
 
       posthog.capture('whatsapp_order_created', {
         delivery_type: deliveryType,
@@ -375,15 +395,23 @@ export default function AddOrderModal({
     setIsSavingDirect(true);
     try {
       const payload = {
+        customer_name: customerName.trim() || 'Walk-in Customer',
         customerName: customerName.trim() || 'Walk-in Customer',
+        customer_phone: customerPhone.trim() || null,
         customerPhone: customerPhone.trim() || null,
+        customer_id: selectedCustomerId || null,
+        customerId: selectedCustomerId || null,
+        delivery_address: deliveryAddress.trim() || null,
         deliveryAddress: deliveryAddress.trim() || null,
+        delivery_type: deliveryType,
         deliveryType,
         items: selectedItems.map((i) => ({
           productId: i.product.id,
+          product_id: i.product.id,
           name: i.product.name,
           quantity: i.quantity,
           price: i.price,
+          cost_price: (i.product as any).cost_price ?? null,
         })),
         notes: orderNotes.trim() || 'Counter / Cash Sale',
         status: 'pending',
@@ -391,7 +419,19 @@ export default function AddOrderModal({
       };
 
       const res = await api.post('/orders', payload);
-      const newOrder = res.data;
+      const newOrder = res.data?.order || res.data;
+
+      // Save new customer to customer directory if requested
+      if (customerMode === 'new' && saveToCustomerBook && customerPhone.trim()) {
+        try {
+          await api.post('/customers', {
+            name: customerName.trim() || `Customer ${customerPhone.trim()}`,
+            phone: customerPhone.trim(),
+            address: deliveryAddress.trim() || null,
+          });
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        } catch {}
+      }
 
       posthog.capture('direct_order_created', {
         delivery_type: deliveryType,
@@ -624,39 +664,215 @@ export default function AddOrderModal({
               )}
             </div>
 
-            {/* Customer Details Inputs */}
+            {/* Customer Details & Saved Customer Picker */}
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <span className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Customer Details (Optional)
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    Customer Name
-                  </label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. Ramesh Patel"
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    WhatsApp Mobile Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="10-digit mobile number"
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
-                  />
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users size={14} className="text-orange-600" />
+                  Customer Details
+                </span>
+                <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerMode('saved')}
+                    className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                      customerMode === 'saved'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Users size={12} />
+                    Saved ({customers.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerMode('new');
+                      handleClearCustomer();
+                    }}
+                    className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                      customerMode === 'new'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <UserPlus size={12} />
+                    + New Customer
+                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Mode A: Choose Saved Customer */}
+              {customerMode === 'saved' && (
+                <div className="space-y-2">
+                  {selectedCustomerId && activeCustomer ? (
+                    <div className="p-3 bg-white border border-emerald-300 rounded-xl flex items-center justify-between gap-3 shadow-xs">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {activeCustomer.name}
+                          </span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Active
+                          </span>
+                          {activeCustomer.total_spent > 3000 && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-0.5">
+                              <Award size={10} /> Top Spender
+                            </span>
+                          )}
+                          {activeCustomer.ai_risk === 'suspicious' && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-red-100 text-red-800 border border-red-200 flex items-center gap-0.5">
+                              <AlertTriangle size={10} /> Past Cancellations
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                          📞 {activeCustomer.phone || 'No phone'} • 🛍️ {activeCustomer.total_orders || 1} orders • 💵 ₹{(activeCustomer.total_spent || 0).toLocaleString('en-IN')} spend
+                        </p>
+                        {deliveryAddress && (
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                            📍 {deliveryAddress}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearCustomer}
+                        className="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors flex-shrink-0"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          placeholder="Search customer by name or phone..."
+                          className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
+                        />
+                      </div>
+                      {isLoadingCustomers ? (
+                        <div className="py-3 text-center text-xs text-slate-500">Loading saved customers...</div>
+                      ) : filteredCustomers.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-slate-600 bg-white border border-slate-200 rounded-xl space-y-1">
+                          <p>No saved customer found.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomerMode('new');
+                              if (customerSearch.trim()) {
+                                if (/^\d+$/.test(customerSearch.trim())) {
+                                  setCustomerPhone(customerSearch.trim());
+                                } else {
+                                  setCustomerName(customerSearch.trim());
+                                }
+                              }
+                            }}
+                            className="text-xs text-orange-600 font-bold hover:underline"
+                          >
+                            + Add as New Customer
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                          {filteredCustomers.map((c: any) => (
+                            <div
+                              key={c.id}
+                              onClick={() => handleSelectCustomer(c)}
+                              className="p-2 bg-white border border-slate-200 hover:border-orange-400 hover:bg-orange-50/50 rounded-lg cursor-pointer flex items-center justify-between gap-2 transition-all"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-slate-900 truncate">{c.name}</span>
+                                  {c.total_orders > 1 && (
+                                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded">
+                                      {c.total_orders} orders
+                                    </span>
+                                  )}
+                                  {c.total_spent > 3000 && (
+                                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 rounded flex items-center gap-0.5">
+                                      <Star size={9} /> VIP
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[11px] text-slate-500">{c.phone || 'No phone'}</span>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <span className="text-xs font-bold text-slate-800">
+                                  ₹{(c.total_spent || 0).toLocaleString('en-IN')}
+                                </span>
+                                <span className="block text-[10px] text-orange-600 font-semibold">Select →</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mode B: Add New Customer */}
+              {customerMode === 'new' && (
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Customer Name
+                      </label>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="e.g. Ramesh Patel"
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        WhatsApp Mobile Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="10-digit mobile number"
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Delivery Address (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="e.g. Flat 301, Sunshine Apts, Sector 4"
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={saveToCustomerBook}
+                      onChange={(e) => setSaveToCustomerBook(e.target.checked)}
+                      className="w-3.5 h-3.5 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
+                    />
+                    <span className="text-[11px] font-medium text-slate-600">
+                      Save this customer to store contacts for future 1-click orders
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* Fulfillment Method & Order Note */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                     Fulfillment Method
@@ -688,13 +904,13 @@ export default function AddOrderModal({
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                    Order Note / Address
+                    Order Note / Instructions
                   </label>
                   <input
                     type="text"
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="e.g. Leave with security / Urgent"
+                    placeholder="e.g. Leave at door / Urgent"
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-800"
                   />
                 </div>

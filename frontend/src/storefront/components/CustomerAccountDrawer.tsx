@@ -252,17 +252,27 @@ export default function CustomerAccountDrawer() {
                 <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Items in Order</h4>
                   <div className="divide-y divide-slate-100">
-                    {(selectedCustomerOrder.items || []).map((it: any, idx: number) => (
-                      <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
-                        <div>
-                          <div className="font-semibold text-slate-900">{it.name || it.product_name}</div>
-                          <div className="text-slate-500">Qty: {it.quantity} × {currencySymbol}{it.price?.toLocaleString()}</div>
+                    {(selectedCustomerOrder.items || []).map((it: any, idx: number) => {
+                      const isNonReturnable = it.is_returnable === false || it.is_returnable === 0 || it.non_returnable === true;
+                      return (
+                        <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
+                          <div>
+                            <div className="font-semibold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                              <span>{it.name || it.product_name}</span>
+                              {isNonReturnable && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">
+                                  🚫 Non-returnable
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-slate-500">Qty: {it.quantity} × {currencySymbol}{it.price?.toLocaleString()}</div>
+                          </div>
+                          <div className="font-bold text-slate-900">
+                            {currencySymbol}{((it.quantity || 1) * (it.price || 0)).toLocaleString()}
+                          </div>
                         </div>
-                        <div className="font-bold text-slate-900">
-                          {currencySymbol}{((it.quantity || 1) * (it.price || 0)).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="pt-3 border-t border-slate-200 space-y-1.5 text-xs text-slate-600">
@@ -316,21 +326,42 @@ export default function CustomerAccountDrawer() {
 
                   {/* Return Request Action */}
                   {selectedCustomerOrder.status === 'delivered' && selectedCustomerOrder.return_status !== 'requested' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const initItems: Record<string, number> = {};
-                        (selectedCustomerOrder.items || []).forEach((i: any) => {
-                          initItems[i.productId || i.product_id || i.name] = i.quantity || 1;
-                        });
-                        setSelectedReturnItems(initItems);
-                        setShowReturnModal(true);
-                      }}
-                      className="w-full py-2 px-4 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <RotateCcw size={14} />
-                      <span>Request Item Return</span>
-                    </button>
+                    (() => {
+                      const returnableItems = (selectedCustomerOrder.items || []).filter((i: any) =>
+                        i.is_returnable !== false && i.is_returnable !== 0 && i.non_returnable !== true
+                      );
+                      const hasReturnable = returnableItems.length > 0;
+                      return (
+                        <div className="space-y-1">
+                          <button
+                            type="button"
+                            disabled={!hasReturnable}
+                            onClick={() => {
+                              if (!hasReturnable) return;
+                              const initItems: Record<string, number> = {};
+                              returnableItems.forEach((i: any) => {
+                                initItems[i.productId || i.product_id || i.name] = i.quantity || 1;
+                              });
+                              setSelectedReturnItems(initItems);
+                              setShowReturnModal(true);
+                            }}
+                            className={`w-full py-2 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-colors ${
+                              hasReturnable
+                                ? 'border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer'
+                                : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'
+                            }`}
+                          >
+                            <RotateCcw size={14} />
+                            <span>{hasReturnable ? 'Request Item Return' : 'All Items Non-Returnable'}</span>
+                          </button>
+                          {!hasReturnable && (
+                            <p className="text-[11px] text-center text-slate-400">
+                              Items in this order are designated non-returnable by store policy.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
 
@@ -373,19 +404,33 @@ export default function CustomerAccountDrawer() {
                       {(selectedCustomerOrder.items || []).map((it: any, idx: number) => {
                         const key = it.productId || it.product_id || it.name;
                         const currentQty = selectedReturnItems[key] || 0;
+                        const isNonReturnable = it.is_returnable === false || it.is_returnable === 0 || it.non_returnable === true;
                         return (
                           <div key={idx} className="flex items-center justify-between text-xs p-2 bg-white rounded-lg border border-slate-200">
-                            <span className="font-medium text-slate-800">{it.name || it.product_name}</span>
+                            <div>
+                              <span className="font-medium text-slate-800">{it.name || it.product_name}</span>
+                              {isNonReturnable && (
+                                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                                  🚫 Non-returnable
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-slate-400">Qty:</span>
-                              <input
-                                type="number"
-                                min={0}
-                                max={it.quantity || 1}
-                                value={currentQty}
-                                onChange={e => setSelectedReturnItems(prev => ({ ...prev, [key]: Math.min(it.quantity || 1, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                                className="w-14 p-1 border border-slate-200 rounded text-center text-xs"
-                              />
+                              {isNonReturnable ? (
+                                <span className="text-[11px] font-medium text-slate-400 italic">Not eligible</span>
+                              ) : (
+                                <>
+                                  <span className="text-slate-400">Qty:</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={it.quantity || 1}
+                                    value={currentQty}
+                                    onChange={e => setSelectedReturnItems(prev => ({ ...prev, [key]: Math.min(it.quantity || 1, Math.max(0, parseInt(e.target.value) || 0)) }))}
+                                    className="w-14 p-1 border border-slate-200 rounded text-center text-xs"
+                                  />
+                                </>
+                              )}
                             </div>
                           </div>
                         );
