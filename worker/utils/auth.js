@@ -224,22 +224,10 @@ export function timingSafeEqual(a, b) {
 }
 
 /**
- * Enforces platform-level administrator authentication and authorization.
- *
- * Flow:
- * 1. Validates Authorization: Bearer <token>.
- * 2. Cryptographically verifies token against WorkOS JWKS keys.
- *    (In dev/test environments, supports fallback HMAC verification).
- * 3. Enforces server-side authorization against platform administrator allowlist:
- *    - env.ADMIN_USER_IDS: comma-separated list of immutable WorkOS User IDs (sub)
- *    - env.ADMIN_EMAILS: comma-separated list of authorized admin emails
- *    - env.ADMIN_EMAIL / env.ADMIN_USERNAME (backward compatibility fallback)
- * 4. In production, ensures email is verified (email_verified === true) when matching by email.
- *
- * Throws 401 on unauthenticated / invalid signature / expired session.
- * Throws 403 on authenticated user who is not on the admin allowlist.
+ * Authenticates an incoming request identity using WorkOS JWKS (or dev HMAC).
+ * Returns the verified user identity { sub, email, emailVerified, method, payload }.
  */
-export async function requirePlatformAdmin(request, env) {
+export async function authenticateIdentity(request, env) {
   const authHeader = request.headers.get("Authorization") || request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("Missing or invalid Authorization header");
@@ -288,6 +276,40 @@ export async function requirePlatformAdmin(request, env) {
   const rawEmail = typeof verifiedPayload.email === "string" ? verifiedPayload.email : (userId.includes("@") ? userId : "");
   const email = rawEmail.trim().toLowerCase();
   const emailVerified = Boolean(verifiedPayload.email_verified ?? (verificationMethod === "HMAC" ? true : false));
+
+  return {
+    sub: userId,
+    email: email || userId,
+    emailVerified,
+    method: verificationMethod,
+    payload: verifiedPayload
+  };
+}
+
+/**
+ * Enforces platform-level administrator authentication and authorization.
+ *
+ * Flow:
+ * 1. Validates Authorization: Bearer <token>.
+ * 2. Cryptographically verifies token against WorkOS JWKS keys.
+ *    (In dev/test environments, supports fallback HMAC verification).
+ * 3. Enforces server-side authorization against platform administrator allowlist:
+ *    - env.ADMIN_USER_IDS: comma-separated list of immutable WorkOS User IDs (sub)
+ *    - env.ADMIN_EMAILS: comma-separated list of authorized admin emails
+ *    - env.ADMIN_EMAIL / env.ADMIN_USERNAME (backward compatibility fallback)
+ * 4. In production, ensures email is verified (email_verified === true) when matching by email.
+ *
+ * Throws 401 on unauthenticated / invalid signature / expired session.
+ * Throws 403 on authenticated user who is not on the admin allowlist.
+ */
+export async function requirePlatformAdmin(request, env) {
+  const identity = await authenticateIdentity(request, env);
+  const isProd = isProduction(env);
+  const userId = identity.sub;
+  const email = identity.email;
+  const emailVerified = identity.emailVerified;
+  const verificationMethod = identity.method;
+  const verifiedPayload = identity.payload;
 
   // Build allowlists from server environment configuration
   const allowedUserIds = (env.ADMIN_USER_IDS || "")

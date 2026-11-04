@@ -10,7 +10,7 @@
  * All platform operations are enforced server-side. Never trusts frontend checks.
  */
 
-import { requirePlatformAdmin } from "../utils/auth.js";
+import { authenticateIdentity } from "../utils/auth.js";
 
 export const INTERNAL_ADMIN_PLAN = "FERASETU_INTERNAL_ADMIN_PLAN";
 
@@ -347,8 +347,8 @@ export async function getPlatformUserEntitlement(userId, userEmail, env) {
       await env.DB.prepare(`
         INSERT INTO platform_admin_entitlements 
         (id, user_id, user_email, role, entitlement_plan, status, quotas_json, granted_by, granted_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'active', ?, 'SYSTEM_ROOT_BOOTSTRAP', ?, ?)
-      `).bind(id, userId, userEmail, PLATFORM_ROLES.SUPERADMIN, INTERNAL_ADMIN_PLAN, quotasJson, now, now).run();
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(id, userId, userEmail, PLATFORM_ROLES.SUPERADMIN, INTERNAL_ADMIN_PLAN, 'active', quotasJson, 'SYSTEM_ROOT_BOOTSTRAP', now, now).run();
     } catch (e) {
       // Ignore conflict on concurrent bootstrap
     }

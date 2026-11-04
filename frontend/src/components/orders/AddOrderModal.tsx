@@ -937,6 +937,17 @@ export default function AddOrderModal({
                   <span>Total Amount</span>
                   <span className="text-base text-emerald-700">₹{totalAmount.toLocaleString('en-IN')}</span>
                 </div>
+                <div className="pt-2 border-t border-slate-200/80 flex justify-between items-center text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                    <TrendingUp size={13} className="text-emerald-600" />
+                    Est. Store Profit
+                  </span>
+                  <span className={`font-bold ${estimatedProfitInfo.isLoss ? 'text-red-600' : 'text-emerald-700'}`}>
+                    {estimatedProfitInfo.isLoss
+                      ? `-₹${Math.abs(estimatedProfitInfo.profit).toLocaleString('en-IN')} (Loss Alert)`
+                      : `+₹${estimatedProfitInfo.profit.toLocaleString('en-IN')} (${estimatedProfitInfo.margin}% margin)`}
+                  </span>
+                </div>
               </div>
 
               {/* Official Storefront Target Banner */}
