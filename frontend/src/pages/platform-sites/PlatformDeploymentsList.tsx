@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, RefreshCw, RotateCcw, ExternalLink } from 'lucide-react';
-import { platformSitesApi, PlatformDeployment } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformDeployment } from '../../services/platformSitesApi';
 import toast from 'react-hot-toast';
 
 export default function PlatformDeploymentsList() {

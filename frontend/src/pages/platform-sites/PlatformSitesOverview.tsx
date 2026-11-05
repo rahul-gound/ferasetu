@@ -4,7 +4,7 @@ import {
   Globe, Server, Layers, ShieldAlert, AlertTriangle, CheckCircle2,
   Clock, ArrowUpRight, Sparkles, Plus, RefreshCw, Cpu, Activity
 } from 'lucide-react';
-import { platformSitesApi, PlatformSitesOverviewData } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformSitesOverviewData } from '../../services/platformSitesApi';
 
 export default function PlatformSitesOverview() {
   const navigate = useNavigate();

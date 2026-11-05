@@ -6,8 +6,8 @@ import {
   Trash2, RotateCcw, AlertTriangle, CheckCircle2, ShieldAlert, Cpu
 } from 'lucide-react';
 import {
-  platformSitesApi, PlatformSite, PlatformDomain,
-  PlatformDeployment, PlatformSecret, PlatformUsage, PlatformAuditLog
+  platformSitesApi, type PlatformSite, type PlatformDomain,
+  type PlatformSecret, type PlatformDeployment, type PlatformLog
 } from '../../services/platformSitesApi';
 import PlatformAiStudioView from './PlatformAiStudioView';
 import toast from 'react-hot-toast';
