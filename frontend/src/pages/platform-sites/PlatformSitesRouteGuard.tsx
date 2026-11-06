@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ShieldAlert, ShieldCheck, Loader2, ArrowLeft, LogOut } from 'lucide-react';
-import { platformSitesApi, PlatformEntitlement } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformEntitlement } from '../../services/platformSitesApi';
 import { useAuth } from '../../contexts/AuthContext';
 import SEO from '../../components/SEO';
 

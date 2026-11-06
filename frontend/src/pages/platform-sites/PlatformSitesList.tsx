@@ -4,7 +4,7 @@ import {
   Globe, Server, Search, Plus, ExternalLink, ArrowRight,
   ShieldCheck, Layers, Cpu, AlertCircle, RefreshCw
 } from 'lucide-react';
-import { platformSitesApi, PlatformSite } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformSite } from '../../services/platformSitesApi';
 
 export default function PlatformSitesList() {
   const navigate = useNavigate();

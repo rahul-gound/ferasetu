@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Globe, ArrowRight, Loader2 } from 'lucide-react';
-import { platformSitesApi, PlatformSite } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformSite } from '../../services/platformSitesApi';
 import PlatformAiStudioView from './PlatformAiStudioView';
 
 export default function PlatformAiStudio() {

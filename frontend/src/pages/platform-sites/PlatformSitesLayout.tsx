@@ -16,7 +16,7 @@ import {
   ExternalLink,
   ChevronRight
 } from 'lucide-react';
-import { platformSitesApi, PlatformEntitlement } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformEntitlement } from '../../services/platformSitesApi';
 import PlatformSiteWizardModal from './PlatformSiteWizardModal';
 import SEO from '../../components/SEO';
 

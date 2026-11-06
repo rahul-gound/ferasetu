@@ -45,6 +45,8 @@ export async function runDailyAggregation(env, dateStr = null, tenantId = null) 
   const results = rows.results || [];
   let writeCount = 0;
 
+  const batchStatements = [];
+
   for (const row of results) {
     const tId = row.tenant_id || 'platform';
     const evt = row.event_name;
@@ -53,27 +55,39 @@ export async function runDailyAggregation(env, dateStr = null, tenantId = null) 
 
     // 1. Metric: Total event count (Idempotent upsert via unique index)
     const totalId = `agg_${tId}_${targetDate}_${evt}_total`;
-    await env.DB.prepare(`
+    batchStatements.push(env.DB.prepare(`
       INSERT INTO analytics_aggregates_daily (id, tenant_id, date, metric_name, dimension, count, value, updated_at)
       VALUES (?, ?, ?, ?, 'total', ?, ?, ?)
       ON CONFLICT(tenant_id, date, metric_name, dimension) DO UPDATE SET
         count = excluded.count,
         value = excluded.value,
         updated_at = excluded.updated_at
-    `).bind(totalId, tId, targetDate, evt, count, count, nowIso).run();
+    `).bind(totalId, tId, targetDate, evt, count, count, nowIso));
 
     // 2. Metric: Unique visitors (Idempotent upsert via unique index)
     const uniqId = `agg_${tId}_${targetDate}_${evt}_unique_visitors`;
-    await env.DB.prepare(`
+    batchStatements.push(env.DB.prepare(`
       INSERT INTO analytics_aggregates_daily (id, tenant_id, date, metric_name, dimension, count, value, updated_at)
       VALUES (?, ?, ?, ?, 'unique_visitors', ?, ?, ?)
       ON CONFLICT(tenant_id, date, metric_name, dimension) DO UPDATE SET
         count = excluded.count,
         value = excluded.value,
         updated_at = excluded.updated_at
-    `).bind(uniqId, tId, targetDate, evt, visitors, visitors, nowIso).run();
+    `).bind(uniqId, tId, targetDate, evt, visitors, visitors, nowIso));
 
     writeCount += 2;
+  }
+
+  if (batchStatements.length > 0) {
+    if (typeof env.DB.batch === 'function') {
+      for (let i = 0; i < batchStatements.length; i += 50) {
+        await env.DB.batch(batchStatements.slice(i, i + 50));
+      }
+    } else {
+      for (const stmt of batchStatements) {
+        await stmt.run();
+      }
+    }
   }
 
   return { targetDate, aggregatedRecords: writeCount };

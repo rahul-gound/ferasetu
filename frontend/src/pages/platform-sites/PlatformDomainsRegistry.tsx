@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GitBranch, Globe, ShieldCheck, CheckCircle2, RefreshCw } from 'lucide-react';
-import { platformSitesApi, PlatformDomain } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformDomain } from '../../services/platformSitesApi';
 
 export default function PlatformDomainsRegistry() {
   const [domains, setDomains] = useState<PlatformDomain[]>([]);
