@@ -1,4 +1,4 @@
-# FeraSetu (फेरासेतु)
+# FeraSetu 
 
 > **AI-Powered E-Commerce & Edge Commerce Operating System for Global Shopkeepers & Independent Retailers**
 
@@ -134,9 +134,7 @@ FeraSetu features a 48-target localization engine designed for non-technical use
 Fera AI is an embedded operational co-pilot built specifically for retail merchants (`docs/FERASETU_AI.md`):
 
 - **Sarvam AI Multi-Model Routing**:
-  - **Sarvam-30B**: Instant chat, inventory inquiries, colloquial Hinglish/regional understanding, conversational operations.
-  - **Sarvam-105B**: Long-range reasoning, complex website configuration synthesis, automated predictive analytics.
-  - **Saarika:v2 Speech-to-Text**: High-accuracy voice transcription for 11+ Indic languages (`hi-IN`, `bn-IN`, `kn-IN`, `ml-IN`, `mr-IN`, `ta-IN`, `te-IN`, `gu-IN`, etc.).
+  - **Saarika:v2 Speech-to-Text**: it is used for High-accuracy voice transcription for 11+ Indian languages (`hi-IN`, `bn-IN`, `kn-IN`, `ml-IN`, `mr-IN`, `ta-IN`, `te-IN`, `gu-IN`, etc.).
   - **Sarvam Text-to-Speech (TTS)**: Natural voice feedback in regional dialects.
   - **Sarvam Translate**: Multi-way translation between English and Indian regional languages.
 - **Human-in-the-Loop Safeguards**: High-risk or state-modifying actions (adding inventory, changing prices, sending customer broadcast updates) render interactive approval cards before execution. Read-only queries run automatically.
@@ -429,6 +427,32 @@ node tests/e2e/run_all_e2e.mjs
 
 ---
 
-## License
+---
+## how to run it 
 
-This project is licensed under the [MIT License](LICENSE).
+to run it you have :
+
+###frontend 
+
+```bash
+cd ferasetu/frontend
+npm run dev  ```
+
+###backend
+
+```bash
+cd ferasetu/backend
+npm run de
+```
+
+### Required for self hosted 
+
+workos auth 
+ai api ( ai.ferasetu.com)
+
+
+##where i used Ai
+
+i used ai to code and fix bug but i do research and find bugs and try to add new features and see how to increase ui 
+
+
