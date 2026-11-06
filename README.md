@@ -1,8 +1,8 @@
 # FeraSetu 
 
-> **AI-Powered E-Commerce & Edge Commerce Operating System for Global Shopkeepers & Independent Retailers**
+> **AI-Powered E-Commerce shopify alternative **
 
-FeraSetu bridges the digital divide for local shopkeepers, kirana merchants, and independent businesses across India and global markets. It transforms offline, catalog, and WhatsApp-based commerce into an enterprise-grade digital storefront, complete with an Indic-first conversational AI manager, edge-accelerated performance, multi-language localization, GST-compliant invoicing, and low-code visual website building—requiring zero technical or coding knowledge.
+FeraSetu bridge the shopkeeper store to internet by making website . it is very simple , transparent nd easy for begginer not like shopify or other which is good but hard and complex . our vision is to make simplicity .
 
 ---
 
@@ -30,55 +30,16 @@ FeraSetu bridges the digital divide for local shopkeepers, kirana merchants, and
 
 ## What FeraSetu Does
 
-- **Guided Store Creation**: Walks non-technical merchants step-by-step from raw business information to an active, shareable online store.
-- **Zero Commission Commerce**: Unlike traditional aggregators that charge 15–30% per order, FeraSetu operates on a flat, transparent SaaS model with 0% platform commission on store sales.
-- **Embedded Fera AI Business Manager**: A single unified AI copilot powered by Sarvam AI that handles inventory queries, catalog descriptions, marketing campaigns, and business performance summaries via natural text and voice.
+- **Guided Store Creation**: help non-technical user to make the website .
+- **Zero Commission Commerce**: Unlike traditional aggregators that charge 15–30% per order, FeraSetu work on a fixed pricing SaaS model with 0% platform commission on store order.
+- **Embedded Fera AI Business Manager**: A AI copilot powered by Sarvam and chatgpt and anthropic . it can handles inventory queries, catalog descriptions, marketing campaigns, and business performance summaries via natural text and voice.
 - **Edge-First Speed**: Powered by Cloudflare Workers and Cloudflare D1 distributed SQLite for sub-50ms storefront responses worldwide.
-- **Omnichannel Ordering**: Seamless support for local pickup, doorstep delivery, WhatsApp order automation, and self-serve customer order tracking.
-- **GST & Tax Compliance**: Automatic generation of Indian GST tax invoices with HSN/SAC codes, CGST/SGST/IGST breakdown, credit notes, and downloadable vector PDF receipts.
+- **Omnichannel Ordering**: Seamless support for local pickup, doorstep delivery, WhatsApp order automation, and self-serve customer order tracking by using our supported delivery partner or use own delivery .
+- **Invoice**: it generate invoice for the customers and send to their email.
 
 ---
 
-## High-Level Architecture
 
-FeraSetu uses a resilient **Dual-Backend Architecture**:
-
-1. **Edge API (Cloudflare Workers + D1)**: Handles edge routing, storefront product catalogs, limit checks, custom subdomain resolution, and buyer-facing endpoints with near-zero latency.
-2. **Core API (Node.js + Express + TypeScript)**: Handles business logic, merchant authentication, order processing lifecycle, payment gateways, GST invoicing, Sarvam AI coordination, transactional emails, and admin operations.
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             BUYER / MERCHANT CLIENT                              │
-│         React 19 SPA (Cloudflare Pages) • Vite 8 • Tailwind CSS • Three.js       │
-└───────────────────────┬──────────────────────────────────┬───────────────────────┘
-                        │                                  │
-         Edge Requests  │                                  │  Core API & Auth
-     (Catalog / Stores) │                                  │  (Payments / Orders / AI)
-                        ▼                                  ▼
-       ┌─────────────────────────────────┐       ┌──────────────────────────────────┐
-       │   CLOUDFLARE WORKER (Edge API)  │       │      NODE.JS / EXPRESS CORE      │
-       │   - Subdomain / Custom Domains  │       │   - AuthKit & Appwrite Auth      │
-       │   - Edge Limit Enforcement      │       │   - Cashfree / Razorpay / Stripe │
-       │   - Pro Studio AST Engine       │       │   - GST Invoicing & PDF Service  │
-       │   - Sandboxed Runtime (Fera SDK)│       │   - Sarvam AI & Speech Router    │
-       └────────────────┬────────────────┘       │   - Admin & Ticketing Services   │
-                        │                        └────────────────┬─────────────────┘
-                        ▼                                         │
-       ┌─────────────────────────────────┐                        ▼
-       │     CLOUDFLARE D1 (Edge SQL)    │       ┌──────────────────────────────────┐
-       │   - Multi-Tenant Sharded SQL    │       │        DATABASE & STORAGE        │
-       │   - Automated Daily Snapshots   │       │   - MySQL (Prod) / SQLite (Dev)  │
-       │   - Low-latency Global Replicas │       │   - Appwrite Cloud / CDN Media   │
-       └─────────────────────────────────┘       └────────────────┬─────────────────┘
-                                                                  │
-                                                                  ▼
-                                                 ┌──────────────────────────────────┐
-                                                 │   EMAIL & MESSAGING SERVICES     │
-                                                 │   - Brevo Transactional API      │
-                                                 │   - Self-Hosted ferasetu-smtp    │
-                                                 │     (Postfix, DKIM, CF DNS)      │
-                                                 └──────────────────────────────────┘
-```
 
 ---
 
@@ -87,25 +48,18 @@ FeraSetu uses a resilient **Dual-Backend Architecture**:
 The platform implements a centralized, authoritative plan and entitlement system (`config/plans.ts` and `backend/src/config/pricing.ts`).
 
 ### Canonical Domestic Pricing (India — INR ₹)
-
-| Tier | Monthly | Annual (2 Mos Free) | Catalog Limit | AI Credits | Core Entitlements |
-| :--- | :---: | :---: | :---: | :---: | :--- |
-| **Free** | **₹0** | **₹0** | 25 products | 20 / mo | Online storefront, order management, basic analytics, community support |
-| **Business** *(Most Popular)* | **₹399** | **₹3,990** *(₹332/mo)* | 500 products | 200 / mo | Custom WhatsApp alerts, priority support, full sales analytics, CSV export |
-| **Pro** | **₹999** | **₹9,990** *(₹832/mo)* | **Unlimited** | 1,000 / mo | Unbranded white-label store, custom domain + SSL, Fera Pro Visual Studio, multi-page builder |
-
+see : ferasetu.com/pricing 
 ### Multi-Region Geo-Pricing
 
-FeraSetu serves localized pricing and payment gateways depending on visitor geography:
+FeraSetu uses local pricing and payment gateways depending on visitor geography and country :
 - **India (`IN`)**: INR (`₹`), permanent Free tier, Cashfree & Razorpay payment gateways.
-- **United States (`US`)**: USD (`$`), 14-day free trial, Stripe gateway:
+- **United States (`US`)**: USD (`$`), 14-day free trial, Stripe gateway or user own gateways:
   - *Starter*: $19/mo | *Business*: $39/mo | *Pro*: $79/mo | *Scale*: $179/mo
-- **European Union (`EU`)**: EUR (`€`), 14-day free trial, Stripe gateway:
+- **European Union (`EU`)**: EUR (`€`), 14-day free trial, Stripe gateway or user own gateway :
   - *Starter*: €19/mo | *Business*: €39/mo | *Pro*: €79/mo | *Scale*: €179/mo
 
 ### Commercial Features
-- **A/B Pricing Experiment Engine**: Deterministic variant allocation supporting dynamic testing (e.g., ₹299 vs. ₹399 vs. ₹499 for Business).
-- **Legacy Tier Normalization**: Automatically maps legacy plan names (`beta`, `trial`, `starter`, `basic`, `standard`, `growth`, `scale`) to canonical tiers.
+**legacy Tier Normalization**: Automatically maps legacy plan names ( `trial`, `starter`, `basic`, `standard`, `growth`, `scale`) to canonical tiers.
 - **Contextual Gating**: Non-intrusive modal alerts when limits are approached; hard limits enforce HTTP 403 with `{ upgradeRequired: true }` without disrupting current operations.
 - **Top-Up Credit Packs**: Small (250 credits / ₹149), Growth (1,000 credits / ₹499), Scale (3,000 credits / ₹1,299). Extra storage available at ₹20/GB.
 
@@ -123,23 +77,16 @@ FeraSetu features a 48-target localization engine designed for non-technical use
    - Bulgarian, Croatian, Czech, Danish, Dutch, English (EU), Estonian, Finnish, French, German, Greek, Hungarian, Irish, Italian, Latvian, Lithuanian, Maltese, Polish, Portuguese, Romanian, Slovak, Slovenian, Spanish, Swedish.
 
 ### Technical Implementation
-- **Dynamic ESM Chunk Loading**: Regional dictionaries are code-split into independent bundles (`import('./hi.ts')`). Switching languages loads only the required dictionary chunk.
 - **Bidirectional Script Support**: Automatic document direction toggle (`ltr` vs. `rtl`) and script-aware font switching for Urdu, Kashmiri, and Sindhi.
-- **Privacy-First Geolocation Suggestion**: Derives country from Cloudflare edge headers (`CF-IPCountry`, `CF-Region`) and displays an unobtrusive suggestion banner without triggering invasive browser GPS prompts.
+- **Privacy-First Geolocation Suggestion**: finds country from Cloudflare edge headers (`CF-IPCountry`, `CF-Region`) and displays and change the pricing and currency .
 
 ---
 
 ## Fera AI & Indic Voice Intelligence
 
-Fera AI is an embedded operational co-pilot built specifically for retail merchants (`docs/FERASETU_AI.md`):
+Fera AI is an co-pilot built specifically build for retail merchants (`docs/FERASETU_AI.md`):
 
-- **Sarvam AI Multi-Model Routing**:
-  - **Saarika:v2 Speech-to-Text**: it is used for High-accuracy voice transcription for 11+ Indian languages (`hi-IN`, `bn-IN`, `kn-IN`, `ml-IN`, `mr-IN`, `ta-IN`, `te-IN`, `gu-IN`, etc.).
-  - **Sarvam Text-to-Speech (TTS)**: Natural voice feedback in regional dialects.
-  - **Sarvam Translate**: Multi-way translation between English and Indian regional languages.
-- **Human-in-the-Loop Safeguards**: High-risk or state-modifying actions (adding inventory, changing prices, sending customer broadcast updates) render interactive approval cards before execution. Read-only queries run automatically.
-- **Contextual Shop Snapshot Injection**: Compresses shop inventory, sales volume, and open orders into structured context blocks with strict customer PII masking.
-- **Quota Accounting**: Transparent credit consumption (Chat: 1 credit; Website AI: 3 credits; Customer Assistant: 2 credits) with monthly resets and top-up support.
+Transparent credit consumption (Chat: 1 credit; Website AI: 3 credits; Customer Assistant: 2 credits) with monthly resets and top-up support.
 
 ---
 
@@ -398,32 +345,19 @@ FeraSetu maintains a comprehensive automated testing suite across unit, integrat
 ### Test Execution Commands
 
 ```bash
-# 1. Backend Jest Suite (143 tests passing)
+# 1. Backend Jest checking Suite 
 cd backend && npm test
 
-# 2. Security Regression Suite (118 tests passing)
-node tests/security-regression.test.mjs
-
-# 3. Pro Platform Master Suite (38 tests passing)
+# 3. Pro Platform Master checking Suite 
 node tests/run-all-pro-tests.mjs
 
-# 4. Fera AI Integration Suite (32 tests passing)
+# 4. Fera AI Integration Suite checking
 node tests/fera-ai.test.mjs
 
-# 5. E2E 4-Tier SaaS Verification Suite (21 tests passing)
+# 5. E2E 4-Tier SaaS Verification checking Suite 
 node tests/e2e/run_all_e2e.mjs
 ```
 
-### Verified Status Matrix
-
-| Test Suite | Scope | Tests | Status |
-| :--- | :--- | :---: | :---: |
-| **Backend Jest** | API routes, health, D1 edge abstraction, auth, orders, survey | 143 / 143 | ✅ PASS |
-| **Security Regression** | IDOR fixes, CSRF, JWT validation, SQLi/XSS filters, rate limits | 118 / 118 | ✅ PASS |
-| **Pro Platform** | Billing gates, sandbox security, capabilities, AST multi-page | 38 / 38 | ✅ PASS |
-| **Fera AI Suite** | Intent classification, credit deduction, shop context, injection defense | 32 / 32 | ✅ PASS |
-| **E2E 4-Tier SaaS** | R1–R6 pricing, boundaries, lifecycle telemetry, retailer workflows | 21 / 21 | ✅ PASS |
-| **Frontend Production Build** | Vite 8 + Rolldown compilation, chunking, 48 language bundles | — | ✅ PASS (2m 11s) |
 
 ---
 
