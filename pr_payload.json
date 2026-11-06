@@ -1,0 +1,6 @@
+{
+  "title": "⚡ Bolt: Optimize getPublicShop product N+1 queries",
+  "body": "## 💡 What\nReplaced sequential database queries inside a `for` loop with batched `IN (...)` queries when fetching `product_options` and `product_variants` in the `getPublicShop` function.\n\n## 🎯 Why\nThe previous implementation caused an N+1 query problem, making a separate database roundtrip for every product in a shop's catalog. This creates significant latency for merchants with many products.\n\n## 📊 Impact\nExpected impact: Drastic reduction in Cloudflare D1 database latency for shop API calls containing multiple products, converting O(N) database queries into O(1) batched queries (in chunks of 100).\n\n## 🔬 Measurement\nIdentified via code inspection. D1 limits require chunking the `IN` clause to maximum 100 bound parameters.\n\n## 🛡️ Safety\nThe original fallback and error handling logic remains untouched. The chunked fetching maps results exactly as they were returned individually, preserving response structures completely.\n\n## ✅ Verification\nRun `node tests/security-regression.test.mjs` and native `vitest` tests within the `worker` directory.\n\n## 📁 Scope\n- `worker/index.js`",
+  "head": "bolt-fix-product-n-plus-1",
+  "base": "main"
+}
