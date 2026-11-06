@@ -5,27 +5,7 @@
 FeraSetu bridge the shopkeeper store to internet by making website . it is very simple , transparent nd easy for begginer not like shopify or other which is good but hard and complex . our vision is to make simplicity .
 
 ---
-
-## Table of Contents
-
-1. [What FeraSetu Does](#what-ferasetu-does)
-2. [High-Level Architecture](#high-level-architecture)
-3. [Canonical 3-Tier SaaS Model & Multi-Region Pricing](#canonical-3-tier-saas-model--multi-region-pricing)
-4. [Global Localization System (48 Targets)](#global-localization-system-48-targets)
-5. [Fera AI & Indic Voice Intelligence](#fera-ai--indic-voice-intelligence)
-6. [Fera Pro Visual Studio & Site Builder](#fera-pro-visual-studio--site-builder)
-7. [Orders, Invoicing & GST Financial Compliance](#orders-invoicing--gst-financial-compliance)
-8. [Customer Storefront Experience](#customer-storefront-experience)
-9. [Email & Custom Domain Deliverability Infrastructure](#email--custom-domain-deliverability-infrastructure)
-10. [Programmatic SEO & Marketing Engine](#programmatic-seo--marketing-engine)
-11. [Administrator Operations Suite](#administrator-operations-suite)
-12. [Security, Governance & Resilience](#security-governance--resilience)
-13. [Technology Stack](#technology-stack)
-14. [Repository Structure](#repository-structure)
-15. [Getting Started & Local Development](#getting-started--local-development)
-16. [Verification & Testing Infrastructure](#verification--testing-infrastructure)
-17. [License](#license)
-
+for the help see the docs folder 
 ---
 
 ## What FeraSetu Does
@@ -128,9 +108,9 @@ FeraSetu provides a dedicated buyer experience for each shopkeeper:
 
 ## Email & Custom Domain Deliverability Infrastructure
 
-High-deliverability email infrastructure supporting transactional notices and merchant-branded emails:
+production ready email infrastructure supporting transactional emails and merchant-branded emails:
 
-- **Brevo API (Primary Outbound)**: High-reputation transactional delivery for OTPs, onboarding messages, order receipts, and invoices over REST API.
+- **7smtp (Primary Outbound)**: High-reputation transactional delivery for OTPs, onboarding messages, order receipts, and invoices over REST API.
 - **Self-Hosted `ferasetu-smtp` Engine**:
   - Full-featured Python SMTP delivery subsystem in `ferasetu-smtp/`.
   - Automated Cloudflare DNS management for DKIM, SPF, and DMARC record provisioning (`cloudflare_dns.py`).
@@ -142,52 +122,14 @@ High-deliverability email infrastructure supporting transactional notices and me
 
 ---
 
-## Programmatic SEO & Marketing Engine
-
-Built to capture organic merchant intent across India:
-
-- **Targeted SEO Landing Pages**:
-  - `/online-dukaan-banaye` (Online Dukaan Banaye)
-  - `/kirana-store-online` (Kirana Store Online)
-  - `/free-online-store` (Free Online Store India)
-  - `/shopify-alternative-india` (Shopify Alternative India)
-- **Dynamic XML Sitemap**: Automatic sitemap generation at `/sitemap.xml` indexing all localized routes and public landing pages.
-- **Dynamic Commission Calculator**: Live comparison demonstrating financial savings with FeraSetu's 0% platform fee compared to marketplace aggregator commissions.
-- **Interactive 3D Hero Visual**: Three.js and React Three Fiber interactive scene (`HeroScene.tsx`) on the main landing page.
-
+for comparison visit the following links :
+- 
+  - `ferasetu.com/online-dukaan-banaye` 
+  - `ferasetu.com/kirana-store-online` 
+  - `ferasetu.com/free-online-store` 
+  - `ferasetu.com/shopify-alternative-india` 
 ---
 
-## Administrator Operations Suite
-
-Comprehensive back-office tools for platform operators accessible at `/admin/*`:
-
-- **Admin Authentication**: Hardened PBKDF2 password verification with JWT session tokens and dedicated rate limiting (max 5 attempts/minute).
-- **Management Portals**:
-  - **Overview Dashboard**: High-level platform GMV, user acquisition, and system metrics.
-  - **Users & Shops**: Merchant lifecycle management, tier overrides, shop status audits.
-  - **Orders & Financials**: Platform-wide transaction auditing and dispute reviews.
-  - **Support Tickets & Feedback**: In-app ticketing system with merchant survey analysis (`surveyAssistant.ts`).
-  - **System Health & Logs**: Real-time error log inspection (`AdminErrorLogsPage.tsx`) and edge database status.
-
----
-
-## Security, Governance & Resilience
-
-FeraSetu adheres to strict defensive security standards documented in `SECURITY_AUDIT.md`:
-
-- **Strict Tenant Isolation**: All database queries are cryptographically bound to the authenticated `user_id` or `organization_id`.
-- **Injection Prevention**: 100% of SQL queries across Express and Worker D1 use parameterized prepared statements.
-- **Dual Authentication Hardening**:
-  - WorkOS AuthKit JWTs validated cryptographically via remote JWKS.
-  - Internal customer and merchant passwords hashed via bcrypt (cost 10) or PBKDF2 (100,000 iterations).
-  - OTP codes hashed before storage; plain text OTPs never stored in database columns or logs.
-- **CSRF & Browser Defenses**:
-  - Double-submit CSRF cookie protection for state-changing requests.
-  - Production Content Security Policy (CSP), HTTP Strict Transport Security (HSTS), and restrictive Permissions-Policy headers.
-  - Hostile URL protocol sanitizer neutralizes `javascript:`, `data:`, `vbscript:`, and cross-site script injections.
-- **Disaster Recovery**: Automated Cloudflare D1 snapshots with point-in-time recovery runbooks documented in `BACKUP_RESTORE_PROCEDURE.md`.
-
----
 
 ## Technology Stack
 
@@ -212,59 +154,13 @@ FeraSetu adheres to strict defensive security standards documented in `SECURITY_
 - **Email**: Brevo REST API, Nodemailer, custom Python `ferasetu-smtp` service
 
 ### AI & Speech Services
-- **LLM Engine**: Sarvam AI (Sarvam-30B, Sarvam-105B) & Modal GLM
-- **Voice / Speech**: Saarika:v2 (Speech-to-Text) & Sarvam TTS (Text-to-Speech)
+- **LLM Engine**: sarvam ai & other model
+- **Voice / Speech**: eleven labs 
 - **Language**: Sarvam Indic Translation API
 
 ---
 
-## Repository Structure
 
-```text
-fera-shopkeeper/
-├── backend/                  # Node.js + Express Core API
-│   ├── src/
-│   │   ├── config/           # Regional pricing and feature flags
-│   │   ├── middleware/       # Auth, CSRF, rate limiters, error handling
-│   │   ├── models/           # D1 & MySQL/SQLite database abstraction
-│   │   ├── routes/           # Core API route handlers (orders, payment, AI, admin)
-│   │   ├── services/         # Sarvam AI, PDF invoice generator, Brevo mailer
-│   │   └── utils/            # Money minor-units, tracking HMACs
-│   └── tests/                # Jest API, health, and database tests
-├── frontend/                 # React 19 Merchant & Storefront Web App
-│   ├── src/
-│   │   ├── components/       # UI library, 3D scenes, layout, Pro editor panels
-│   │   ├── contexts/         # Auth, Language (i18n), and Market contexts
-│   │   ├── dictionaries/     # Regional language translation bundles
-│   │   ├── i18n/             # 48-target language configurations and loaders
-│   │   ├── pages/            # Merchant dashboard, Pro Studio, SEO landing pages
-│   │   └── services/         # Axios API client & offline local database
-│   └── tests/                # Client route stress and localization tests
-├── worker/                   # Cloudflare Worker Edge API
-│   ├── ai/                   # Edge AI orchestrator and geo-strategies
-│   ├── catalog/              # SKU registry and price resolvers
-│   ├── pro/                  # Pro visual studio AST converter and zip parser
-│   ├── routes/               # Worker admin, email, geo, and Pro routes
-│   ├── sandbox/              # Fera SDK and sandboxed runtime
-│   ├── services/             # Pro platform and storage services
-│   ├── sharding/             # Multi-tenant D1 database sharding
-│   ├── templates/            # Email and storefront starter templates
-│   ├── index.js              # Edge worker entry point
-│   └── schema.sql            # D1 database schema
-├── ferasetu-smtp/            # Dedicated Python SMTP & DKIM Delivery Engine
-│   ├── cloudflare_dns.py     # Automated Cloudflare DNS DKIM/SPF provisioning
-│   ├── dkim_signer.py        # Cryptographic DKIM email signing
-│   ├── queue_manager.py      # Resilient outbound email queue
-│   ├── reputation.py         # Domain & IP deliverability reputation monitor
-│   └── modal_app.py          # Modal serverless deployment
-├── config/                   # Canonical plans and feature entitlements
-├── packages/                 # Shared TypeScript packages (@ferasetu/shared-types)
-├── docs/                     # Technical specifications and architectural guides
-├── scripts/                  # Database migration and utility scripts
-├── tests/                    # End-to-end and security regression suites
-├── wrangler.toml             # Root Cloudflare Wrangler configuration
-└── package.json              # Monorepo root package definition
-```
 
 ---
 
@@ -277,13 +173,6 @@ fera-shopkeeper/
 - **Cloudflare Wrangler** (optional, for edge testing): `npm install -g wrangler`
 - **Python 3.10+** (optional, if testing `ferasetu-smtp`)
 
-### Clone and Install Dependencies
-
-```bash
-git clone https://github.com/rahul-gound/ferasetu.git
-cd ferasetu
-npm run install:all
-```
 
 ### Environment Configuration
 
@@ -301,9 +190,9 @@ Key environment variables:
 - `FRONTEND_URL`: `http://localhost:5173`
 - `PORT`: `3001` (backend dev)
 - `SARVAM_30B_API_KEY`: API key for Sarvam AI models
-- `BREVO_API_KEY`: Brevo transactional email key
-- `WORKOS_CLIENT_ID` / `WORKOS_API_KEY`: WorkOS credentials
-- `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY`: Cashfree payment credentials
+- `7smtp_api`: to send the smtp emaill key
+- `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`: WorkOS credentials for login 
+- `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY`: Cashfree payment credentials for pament 
 
 ### Run Development Servers
 
@@ -338,30 +227,6 @@ npm run build:backend
 
 ---
 
-## Verification & Testing Infrastructure
-
-FeraSetu maintains a comprehensive automated testing suite across unit, integration, edge, and security layers (**352+ passing tests**):
-
-### Test Execution Commands
-
-```bash
-# 1. Backend Jest checking Suite 
-cd backend && npm test
-
-# 3. Pro Platform Master checking Suite 
-node tests/run-all-pro-tests.mjs
-
-# 4. Fera AI Integration Suite checking
-node tests/fera-ai.test.mjs
-
-# 5. E2E 4-Tier SaaS Verification checking Suite 
-node tests/e2e/run_all_e2e.mjs
-```
-
-
----
-
----
 ## how to run it 
 
 to run it you have :
