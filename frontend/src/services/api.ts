@@ -410,6 +410,151 @@ async function localGet(url: string) {
     return Promise.resolve(createResponse({ orders }));
   }
 
+  if (path === '/orders/intelligence') {
+    const userId = requireAuth();
+    const orders = db.orders.filter(o => o.user_id === userId);
+    const userProducts = db.products.filter(p => p.user_id === userId);
+    const productCostMap = {};
+    for (const p of userProducts) {
+      if (p.cost_price != null) productCostMap[p.id] = Number(p.cost_price);
+    }
+    const customerMap = new Map();
+    let totalRevenue = 0;
+    let totalGrossProfit = 0;
+    let totalCancelledCount = 0;
+    let totalCancelledValue = 0;
+    const analyzedOrders = [];
+    for (const ord of orders) {
+      const isCancelled = ord.status === 'cancelled';
+      const orderTotal = Number(ord.total) || 0;
+      let orderCost = 0;
+      let totalUnits = 0;
+      for (const it of (ord.items || [])) {
+        const qty = Number(it.quantity || 1);
+        totalUnits += qty;
+        const unitCost = productCostMap[it.product_id] ?? (Number(it.price || 0) * 0.65);
+        orderCost += unitCost * qty;
+      }
+      const orderProfit = Math.round((orderTotal - orderCost) * 100) / 100;
+      const marginPercent = orderTotal > 0 ? Math.round((orderProfit / orderTotal) * 100) : 0;
+      const isLoss = isCancelled || orderProfit <= 0;
+      if (!isCancelled) {
+        totalRevenue += orderTotal;
+        totalGrossProfit += orderProfit;
+      } else {
+        totalCancelledCount++;
+        totalCancelledValue += orderTotal;
+      }
+      const riskFlags = [];
+      let riskScore = 10;
+      const phoneDigits = (ord.customer_phone || '').replace(/\D/g, '');
+      if (phoneDigits && /^(\d)\1{6,}$/.test(phoneDigits)) {
+        riskFlags.push('Suspicious phone number pattern (repeated digits)');
+        riskScore += 45;
+      }
+      if (totalUnits >= 15) {
+        riskFlags.push(`Abnormally high cart volume ( units)`);
+        riskScore += 30;
+      }
+      if (ord.delivery_type === 'delivery' && ord.payment_status === 'unpaid' && orderTotal >= 5000) {
+        riskFlags.push('High-value Cash on Delivery (> ₹5,000) unverified COD risk');
+        riskScore += 35;
+      }
+      const riskLevel = riskScore >= 60 ? 'high' : (riskScore >= 35 ? 'medium' : 'safe');
+      analyzedOrders.push({
+        id: ord.id,
+        customer_name: ord.customer_name,
+        customer_phone: ord.customer_phone,
+        total: orderTotal,
+        order_cost: orderCost,
+        gross_profit: orderProfit,
+        margin_percent: marginPercent,
+        is_profitable: !isCancelled && orderProfit > 0,
+        is_loss: isLoss,
+        status: ord.status,
+        payment_status: ord.payment_status,
+        created_at: ord.created_at,
+        risk_score: Math.min(100, riskScore),
+        risk_level: riskLevel,
+        risk_flags: riskFlags,
+        items_count: ord.items?.length || 0,
+        units_count: totalUnits
+      });
+      const custKey = ord.customer_phone || ord.customer_name || 'unknown';
+      let c = customerMap.get(custKey);
+      if (!c) {
+        c = {
+          id: `cust_`,
+          name: ord.customer_name,
+          phone: ord.customer_phone,
+          total_orders: 0,
+          completed_orders: 0,
+          cancelled_orders: 0,
+          total_spent: 0,
+          total_profit: 0,
+          average_order_value: 0,
+          cancellation_rate: 0,
+          is_profitable: true,
+          is_loss: false,
+          ai_risk: 'safe',
+          risk_flags: []
+        };
+        customerMap.set(custKey, c);
+      }
+      c.total_orders++;
+      if (isCancelled) {
+        c.cancelled_orders++;
+      } else {
+        c.completed_orders++;
+        c.total_spent += orderTotal;
+        c.total_profit += orderProfit;
+      }
+    }
+    const customersList = Array.from(customerMap.values()).map(c => {
+      const cancelRate = c.total_orders > 0 ? (c.cancelled_orders / c.total_orders) : 0;
+      const isSuspicious = c.cancelled_orders >= 2 && cancelRate >= 0.5;
+      return {
+        ...c,
+        total_spent: Math.round(c.total_spent * 100) / 100,
+        total_profit: Math.round(c.total_profit * 100) / 100,
+        average_order_value: c.completed_orders > 0 ? Math.round(c.total_spent / c.completed_orders) : 0,
+        cancellation_rate: Math.round(cancelRate * 100),
+        is_profitable: c.total_profit > 0,
+        is_loss: isSuspicious || c.total_profit <= 0,
+        ai_risk: isSuspicious ? 'suspicious' : 'safe',
+        risk_flags: isSuspicious ? ['High cancellation rate'] : []
+      };
+    });
+    const topBuyers = [...customersList].sort((a, b) => b.total_spent - a.total_spent).slice(0, 10);
+    const profitableCustomers = [...customersList].filter(c => c.is_profitable).sort((a, b) => b.total_profit - a.total_profit).slice(0, 10);
+    const lossCustomers = [...customersList].filter(c => c.is_loss).sort((a, b) => a.total_profit - b.total_profit);
+    const profitableOrders = analyzedOrders.filter(o => o.is_profitable).sort((a, b) => b.gross_profit - a.gross_profit).slice(0, 10);
+    const lossOrders = analyzedOrders.filter(o => o.is_loss).sort((a, b) => a.gross_profit - b.gross_profit).slice(0, 10);
+    const suspiciousOrders = analyzedOrders.filter(o => o.risk_level === 'high' || o.risk_level === 'medium').sort((a, b) => b.risk_score - a.risk_score);
+    const overallMargin = totalRevenue > 0 ? Math.round((totalGrossProfit / totalRevenue) * 100) : 0;
+    return Promise.resolve(createResponse({
+      success: true,
+      summary: {
+        total_orders: orders.length,
+        total_revenue: Math.round(totalRevenue * 100) / 100,
+        total_estimated_profit: Math.round(totalGrossProfit * 100) / 100,
+        overall_margin_percent: overallMargin,
+        total_cancelled_orders: totalCancelledCount,
+        total_cancelled_value: Math.round(totalCancelledValue * 100) / 100,
+        top_buyer: topBuyers.length > 0 && topBuyers[0].total_spent > 0 ? topBuyers[0] : null,
+        profitable_customers_count: profitableCustomers.length,
+        loss_customers_count: lossCustomers.length,
+        suspicious_orders_count: suspiciousOrders.length
+      },
+      top_buyers: topBuyers,
+      profitable_customers: profitableCustomers,
+      loss_customers: lossCustomers,
+      profitable_orders: profitableOrders,
+      loss_orders: lossOrders,
+      suspicious_orders: suspiciousOrders
+    }));
+  }
+
   if (path === '/website') {
     const userId = requireAuth();
     const website = db.websites.find(w => w.user_id === userId);

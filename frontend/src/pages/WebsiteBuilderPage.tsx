@@ -145,6 +145,7 @@ export default function WebsiteBuilderPage() {
   const [currentVersion, setCurrentVersion] = useState<number>(1);
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
 
   // Authoritative Branding & Token Overrides
   const [logoUrl, setLogoUrl] = useState<string>('');
@@ -701,7 +702,7 @@ export default function WebsiteBuilderPage() {
           {/* Publish Store Button (Emerald Green Primary) */}
           <button
             type="button"
-            onClick={handlePublish}
+            onClick={() => setShowPublishModal(true)}
             disabled={publishing}
             className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl shadow-xs shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer active:scale-98"
           >
@@ -992,6 +993,110 @@ export default function WebsiteBuilderPage() {
           </div>
         </div>
       </div>
+
+            {/* 🚀 Staging Pipeline & Deployment Confirmation Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Globe size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Publish Storefront Changes</h3>
+                  <p className="text-xs text-slate-500 font-medium">Deploy draft modifications to production</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPublishModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* Staging Pipeline Progress */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-bold text-slate-600">
+                  <span>Staging Pipeline</span>
+                  <span className="text-emerald-700 font-bold">Ready for deployment</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="h-1.5 rounded-full bg-emerald-600" />
+                  <div className="h-1.5 rounded-full bg-emerald-600" />
+                  <div className="h-1.5 rounded-full bg-emerald-600" />
+                  <div className="h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                </div>
+                <div className="flex justify-between text-[11px] text-slate-400 font-medium pt-0.5">
+                  <span>Draft Edit</span>
+                  <span>Auto-Saved</span>
+                  <span>Previewed</span>
+                  <span className="font-bold text-emerald-700">Deploy</span>
+                </div>
+              </div>
+
+              {/* Target & Component Details */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                <div className="flex items-center justify-between font-medium">
+                  <span className="text-slate-500">Live Production Target:</span>
+                  <span className="font-mono text-blue-600 font-bold truncate max-w-[220px]">{liveUrl}</span>
+                </div>
+                <div className="flex items-center justify-between font-medium">
+                  <span className="text-slate-500">Theme & Sections:</span>
+                  <span className="font-bold text-slate-900">{activeThemeDef.name} ({sections.length} active sections)</span>
+                </div>
+              </div>
+
+              {/* Review Pending Changes Summary */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-slate-900">Summary of Production Updates:</p>
+                <ul className="space-y-2 text-xs text-slate-600 font-medium">
+                  <li className="flex items-start gap-2">
+                    <Check size={15} className="text-emerald-600 mt-0.5 shrink-0" />
+                    <span><strong>Theme & Aesthetics:</strong> Primary brand token set to <span className="font-mono text-slate-800">{overrides.primaryColor || activeThemeDef.colors.primary}</span> with high-contrast human readability.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check size={15} className="text-emerald-600 mt-0.5 shrink-0" />
+                    <span><strong>Catalog Grounding:</strong> Synced with {activeProducts.length} live products and WhatsApp checkout direct integration.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-3 bg-blue-50/60 rounded-xl text-xs text-blue-800 font-medium border border-blue-100">
+                Publishing will update your live storefront immediately with zero downtime. Shoppers can continue checkout uninterrupted.
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowPublishModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors"
+              >
+                Return to Studio
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowPublishModal(false);
+                  await handlePublish();
+                }}
+                disabled={publishing}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Globe size={14} />
+                <span>{publishing ? 'Deploying…' : 'Confirm & Deploy Live'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Version History & Rollback Modal */}
       <VersionHistoryModal

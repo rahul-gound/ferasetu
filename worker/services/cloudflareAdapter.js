@@ -63,9 +63,9 @@ export async function encryptPlatformSecret(plaintext, masterKeyStr) {
   }
   const ivBase64 = btoa(ivBinary);
 
-  // Masked preview (e.g. "cf_tok_...9f2a")
+  // Masked preview (e.g. "ghp_...7766")
   const maskedPreview = plaintext.length > 8 
-    ? `${plaintext.slice(0, 3)}...${plaintext.slice(-4)}`
+    ? `${plaintext.slice(0, 4)}...${plaintext.slice(-4)}`
     : "********";
 
   return { encryptedValue, iv: ivBase64, maskedPreview };

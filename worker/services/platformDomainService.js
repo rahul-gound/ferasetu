@@ -117,19 +117,20 @@ export async function validatePlatformHostnameAvailability(db, rawHostname, curr
   }
 
   // 4. Check merchant custom storefront domains (custom_storefront_domains)
+  let merchantCustomDomain = null;
   try {
-    const merchantCustomDomain = await db.prepare(
+    merchantCustomDomain = await db.prepare(
       "SELECT id, shop_id FROM custom_storefront_domains WHERE domain = ?"
     ).bind(normalized).first();
-
-    if (merchantCustomDomain) {
-      throw new HostnameConflictError(
-        `Hostname collision: '${normalized}' is currently registered by an active merchant shop. Takeovers are strictly prohibited.`,
-        "MERCHANT_DOMAIN_COLLISION"
-      );
-    }
   } catch (err) {
-    // If table doesn't exist yet, proceed
+    // If table doesn't exist yet in certain test environments, proceed
+  }
+
+  if (merchantCustomDomain) {
+    throw new HostnameConflictError(
+      `Hostname collision: '${normalized}' is currently registered by an active merchant shop. Takeovers are strictly prohibited.`,
+      "MERCHANT_DOMAIN_COLLISION"
+    );
   }
 
   // 5. Check if another platform site already claims this as primary_hostname
@@ -200,13 +201,13 @@ export async function registerPlatformHostname(db, {
   await db.prepare(`
     INSERT INTO platform_domains 
     (hostname_id, normalized_hostname, site_id, ownership_type, provider, resource_reference, verification_status, tls_status, provisioning_status, routing_target, created_at, updated_at)
-    VALUES (?, ?, ?, 'platform', ?, ?, 'verified', 'active', 'active', ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, 'verified', 'active', 'active', ?, ?, ?)
     ON CONFLICT(normalized_hostname) DO UPDATE SET
       site_id = excluded.site_id,
       ownership_type = 'platform',
       provisioning_status = 'active',
       updated_at = excluded.updated_at
-  `).bind(hostnameId, normalized, siteId, provider, resourceReference, routingTarget, now, now).run();
+  `).bind(hostnameId, normalized, siteId, 'platform', provider, resourceReference, routingTarget, now, now).run();
 
   return {
     hostnameId,

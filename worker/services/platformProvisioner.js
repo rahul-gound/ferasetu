@@ -56,8 +56,8 @@ export async function createProvisioningJob(db, {
   await db.prepare(`
     INSERT INTO platform_provisioning_jobs
     (id, idempotency_key, site_id, action, state, retry_count, max_retries, payload_json, created_by, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 'draft', 0, 3, ?, ?, ?, ?)
-  `).bind(jobId, idempotencyKey, siteId, action, payloadJson, actorId, now, now).run();
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(jobId, idempotencyKey, siteId, action, PROVISIONING_STATES.DRAFT, 0, 3, payloadJson, actorId, now, now).run();
 
   const job = {
     id: jobId,
@@ -182,10 +182,13 @@ export async function executeSiteProvisioning(env, jobId, actorContext) {
     await db.prepare(`
       INSERT INTO platform_deployments
       (id, site_id, version, environment, status, source_type, commit_hash, commit_message, commit_author, build_logs, deployed_by, manifest_json, created_at, finished_at)
-      VALUES (?, ?, 'v1.0.0', 'production', 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       deploymentId,
       siteId,
+      'v1.0.0',
+      'production',
+      'active',
       payload.github_repo ? "github" : "template",
       payload.commit_hash || "init-rev",
       "Initial infrastructure provisioning",
@@ -284,11 +287,14 @@ export async function executeDeploymentRollback(env, { siteId, targetDeploymentI
   await db.prepare(`
     INSERT INTO platform_deployments
     (id, site_id, version, environment, status, source_type, commit_hash, commit_message, commit_author, build_logs, rollback_target_id, deployed_by, manifest_json, created_at, finished_at)
-    VALUES (?, ?, ?, 'production', 'active', 'rollback', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     newDepId,
     siteId,
     `rollback-to-${targetDep.version}`,
+    'production',
+    'active',
+    'rollback',
     targetDep.commit_hash || "rollback",
     `Rollback to deployment ${targetDep.id} (${targetDep.version})`,
     actorContext.userEmail,

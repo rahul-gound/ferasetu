@@ -67,7 +67,53 @@ export default function ProductsPage() {
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [category, setCategory] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+
+  // Bulk actions handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedProductIds(filtered.map(p => p.id));
+    } else {
+      setSelectedProductIds([]);
+    }
+  };
+
+  const handleToggleSelectProduct = (id: string) => {
+    setSelectedProductIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkToggleVisibility = async () => {
+    if (selectedProductIds.length === 0) return;
+    try {
+      await Promise.all(
+        selectedProductIds.map(id => {
+          const prod = products.find(p => p.id === id);
+          return api.put(`/products/${id}`, { is_active: prod ? (prod.is_active ? 0 : 1) : 1 });
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success(`Updated visibility for ${selectedProductIds.length} products`);
+      setSelectedProductIds([]);
+    } catch {
+      toast.error('Failed to update product visibility');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedProductIds.length} products?`)) return;
+    try {
+      await Promise.all(selectedProductIds.map(id => api.delete(`/products/${id}`)));
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success(`Deleted ${selectedProductIds.length} products`);
+      setSelectedProductIds([]);
+    } catch {
+      toast.error('Failed to delete selected products');
+    }
+  };
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductItem | null>(null);
@@ -397,7 +443,77 @@ export default function ProductsPage() {
             </div>
           </div>
         </div>
+        {/* Category Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setCategory('')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              !category ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <span>All Products</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${!category ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {products.length}
+            </span>
+          </button>
+          {CATEGORIES.slice(0, 6).map((catName) => {
+            const count = products.filter(p => (p.category || '').toLowerCase() === catName.toLowerCase()).length;
+            const isCatSelected = category.toLowerCase() === catName.toLowerCase();
+            return (
+              <button
+                key={catName}
+                type="button"
+                onClick={() => setCategory(isCatSelected ? '' : catName)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  isCatSelected ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>{catName}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isCatSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Contextual Bulk Action Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-lg animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={18} className="text-blue-400" />
+            <span className="text-xs font-bold font-mono">
+              {selectedProductIds.length} product{selectedProductIds.length > 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleBulkToggleVisibility}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors cursor-pointer"
+            >
+              Toggle Visibility
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <Trash2 size={13} />
+              Delete Selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds([])}
+              className="px-2.5 py-1 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Celebratory Milestone Banner on reaching product limit (Gain-Framed) */}
       {atLimit && (
@@ -552,7 +668,77 @@ export default function ProductsPage() {
             </button>
           </div>
         </div>
+        {/* Category Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setCategory('')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              !category ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <span>All Products</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${!category ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {products.length}
+            </span>
+          </button>
+          {CATEGORIES.slice(0, 6).map((catName) => {
+            const count = products.filter(p => (p.category || '').toLowerCase() === catName.toLowerCase()).length;
+            const isCatSelected = category.toLowerCase() === catName.toLowerCase();
+            return (
+              <button
+                key={catName}
+                type="button"
+                onClick={() => setCategory(isCatSelected ? '' : catName)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  isCatSelected ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>{catName}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isCatSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Contextual Bulk Action Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-lg animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={18} className="text-blue-400" />
+            <span className="text-xs font-bold font-mono">
+              {selectedProductIds.length} product{selectedProductIds.length > 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleBulkToggleVisibility}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors cursor-pointer"
+            >
+              Toggle Visibility
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <Trash2 size={13} />
+              Delete Selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds([])}
+              className="px-2.5 py-1 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 📦 PRODUCTS LIST / GRID CONTENT */}
       {isLoading ? (

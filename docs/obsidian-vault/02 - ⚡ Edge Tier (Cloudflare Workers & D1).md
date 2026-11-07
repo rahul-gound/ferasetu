@@ -24,9 +24,9 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 | **Storefront CSP** | `worker/storefront.js` | Strict Content Security Policy headers & verification hashes |
 | **Discounts & Promotions Engine** | `worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js` | Authoritative calculation of percentage, fixed amount, BOGO, free shipping, automatic discounts, collision-safe bulk codes, customer segments, profit audits, and atomic redemptions |
 | **Email & SMTP Router** | `worker/routes/emailRoutes.js` | Multi-tenant sender identities, external SMTP sockets, transactional delivery |
-| **AI Edge Interceptor** | `worker/ai/` | Edge pre-filtering of AI prompts before calling Sarvam API |
+| **AI Edge Interceptor** | `worker/ai/` | Edge pre-filtering of AI prompts before calling OpenAI-compatible Fera AI backend cluster |
 
-## 3. Order Cancellation & After-Sales Edge Contracts
+## 3. Order Lifecycle, Delivery Code & After-Sales Edge Contracts
 - **`POST /api/orders/:id/cancel`**:
   - Merchant staff authorization via `requireOrgContext(request, env, 'staff')`.
   - Irreversible status check: Rejects already-cancelled orders with `400 Bad Request`.
@@ -36,8 +36,17 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
   - Automatically dispatches customer transactional cancellation email (`order.cancelled` template).
 - **`POST /api/orders/public/:id/cancel`**:
   - Storefront customer cancellation verified via `customerPhone` or `customerEmail`.
-- **Status Locking (`PATCH /api/orders/:id/status`)**:
+- **Customer Delivery Verification Code Handshake (`POST /api/orders/:id/verify-otp`)**:
+  - Verifies customer delivery code / OTP against secure hash.
+  - Upon successful verification, immediately transitions order status to `delivered` and sets `otp_used_at = CURRENT_TIMESTAMP`.
+- **Status Locking (`PATCH /api/orders/:id/status`, `updateOrderStatus`)**:
   - Prevents modifying any order that has `status === 'cancelled'` (`400 Bad Request: Order is cancelled and cannot be changed to another status`).
+  - Prevents modifying any order that has `status === 'delivered'` (`400 Bad Request: Order is delivered and finalized. Status cannot be modified.`). Status is permanently locked.
+- **Order Returns & Unrecoverable Courier Loss Contracts**:
+  - **`POST /api/orders/:id/return`**: Records return request. If `delivery_type === 'delivery'`, the courier delivery fee (`delivery_loss_minor`) is non-refundable by the carrier and recorded as an unrecoverable operational loss incurred by the shopkeeper.
+  - **`POST /api/orders/:id/return/reject`**: Merchant can reject return request with explanatory reason, updating `order_returns.status = 'rejected'` and `orders.return_status = 'rejected'`.
+  - **`POST /api/orders/:id/return/approve`**: Merchant approves return request.
+  - **`GET /api/orders/:id/after-sales`**: Returns itemized return breakdown, rejection reason, and computed `delivery_loss_minor`.
 - **Invoice Lockdown (`GET /api/orders/:id/invoice`)**:
   - Cancelled orders return `400 Bad Request: Invoices are not available for cancelled orders`.
 - **Revenue Invariant (`GET /api/analytics/dashboard`)**:

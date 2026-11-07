@@ -6,7 +6,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Area,
-  AreaChart,
+  Bar,
+  ComposedChart,
   PieChart,
   Pie,
   Cell,
@@ -32,23 +33,23 @@ function CustomSalesTooltip({ active, payload, label, symbol = '₹' }: CustomTo
     const ord = payload.find(p => p.dataKey === 'orders')?.value ?? 0;
 
     return (
-      <div className="bg-slate-900/95 text-white backdrop-blur-md px-3.5 py-2.5 rounded-xl shadow-xl border border-slate-700/60 text-xs">
+      <div className="bg-slate-900/95 text-white backdrop-blur-md px-3.5 py-2.5 rounded-xl shadow-xl border border-slate-700/60 text-xs select-none">
         <p className="text-[11px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">{label}</p>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-4">
             <span className="flex items-center gap-1.5 text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-blue-500" /> Revenue:
+              <span className="w-2.5 h-1 rounded-full bg-blue-500 inline-block" /> Revenue:
             </span>
-            <span className="font-mono font-bold text-white">
+            <span className="font-mono font-bold text-blue-300">
               {symbol}{Number(rev).toLocaleString()}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="flex items-center gap-1.5 text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Orders:
+              <span className="w-2 h-2 rounded-xs bg-[#b7c4ff] inline-block" /> Orders:
             </span>
-            <span className="font-mono font-bold text-emerald-300">
-              {ord}
+            <span className="font-mono font-bold text-slate-200">
+              {ord} {ord === 1 ? 'order' : 'orders'}
             </span>
           </div>
         </div>
@@ -61,23 +62,19 @@ function CustomSalesTooltip({ active, payload, label, symbol = '₹' }: CustomTo
 export function SalesOverviewChart({ data, maxRevenue, maxOrders, symbol }: SalesOverviewChartProps) {
   return (
     <ResponsiveContainer width="100%" height={260} minWidth={100} minHeight={240}>
-      <AreaChart data={data} margin={{ top: 12, right: 10, left: -20, bottom: 4 }}>
+      <ComposedChart data={data} margin={{ top: 16, right: 12, left: -16, bottom: 4 }}>
         <defs>
-          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.22} />
-            <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
-          </linearGradient>
-          <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#10B981" stopOpacity={0.18} />
-            <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
+          <linearGradient id="colorRevenueComposite" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0052FF" stopOpacity={0.16} />
+            <stop offset="100%" stopColor="#0052FF" stopOpacity={0.0} />
           </linearGradient>
         </defs>
 
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" strokeOpacity={0.7} />
 
         <XAxis
           dataKey="date"
-          axisLine={false}
+          axisLine={{ stroke: '#CBD5E1', strokeWidth: 1 }}
           tickLine={false}
           tick={{ fontSize: 11, fill: '#64748B', fontWeight: 500 }}
           dy={8}
@@ -85,7 +82,7 @@ export function SalesOverviewChart({ data, maxRevenue, maxOrders, symbol }: Sale
 
         <YAxis
           yAxisId="left"
-          domain={[0, maxRevenue]}
+          domain={[0, Math.max(100, maxRevenue)]}
           axisLine={false}
           tickLine={false}
           tick={{ fontSize: 11, fill: '#64748B', fontWeight: 500 }}
@@ -95,41 +92,39 @@ export function SalesOverviewChart({ data, maxRevenue, maxOrders, symbol }: Sale
         <YAxis
           yAxisId="right"
           orientation="right"
-          domain={[0, maxOrders]}
+          domain={[0, Math.max(5, maxOrders)]}
           axisLine={false}
           tickLine={false}
           tick={{ fontSize: 11, fill: '#94A3B8' }}
+          tickFormatter={(val) => `${val} ord`}
         />
 
         <Tooltip content={<CustomSalesTooltip symbol={symbol} />} />
 
+        {/* Volume Bars */}
+        <Bar
+          yAxisId="right"
+          dataKey="orders"
+          fill="#D9DFF4"
+          radius={[4, 4, 0, 0]}
+          maxBarSize={28}
+          animationDuration={600}
+        />
+
+        {/* Revenue Spline Area */}
         <Area
-          isAnimationActive={false}
           yAxisId="left"
           type="monotone"
           dataKey="revenue"
-          stroke="#2563EB"
+          stroke="#003EC7"
           strokeWidth={2.5}
-          dot={{ r: 3.5, fill: '#2563EB', strokeWidth: 2, stroke: '#FFFFFF' }}
-          activeDot={{ r: 5, fill: '#2563EB', strokeWidth: 2, stroke: '#FFFFFF' }}
+          dot={{ r: 3.5, fill: '#FFFFFF', strokeWidth: 2, stroke: '#003EC7' }}
+          activeDot={{ r: 5.5, fill: '#E8590C', strokeWidth: 2.5, stroke: '#FFFFFF' }}
           fillOpacity={1}
-          fill="url(#colorRevenue)"
+          fill="url(#colorRevenueComposite)"
+          animationDuration={800}
         />
-
-        <Area
-          isAnimationActive={false}
-          yAxisId="right"
-          type="monotone"
-          dataKey="orders"
-          stroke="#10B981"
-          strokeWidth={2}
-          strokeDasharray="4 4"
-          dot={{ r: 3, fill: '#10B981', strokeWidth: 1.5, stroke: '#FFFFFF' }}
-          activeDot={{ r: 4.5, fill: '#10B981', strokeWidth: 2, stroke: '#FFFFFF' }}
-          fillOpacity={1}
-          fill="url(#colorOrders)"
-        />
-      </AreaChart>
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

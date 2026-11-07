@@ -446,7 +446,7 @@ export async function requirePlatformSitesAccess(request, env, requiredPermissio
   }
 
   return {
-    identity: authContext,
+    identity,
     entitlement,
     userId,
     userEmail,

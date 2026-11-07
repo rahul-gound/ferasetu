@@ -294,10 +294,15 @@ export async function approveAndApplyProposal(env, { proposalId, siteId, actorCo
   await db.prepare(`
     INSERT INTO platform_deployments
     (id, site_id, version, environment, status, source_type, commit_hash, commit_message, commit_author, build_logs, deployed_by, manifest_json, created_at, finished_at)
-    VALUES (?, ?, 'v1.1.0-ai', 'production', 'active', 'ai_studio', 'ai-applied', ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     deploymentId,
     siteId,
+    'v1.1.0-ai',
+    'production',
+    'active',
+    'ai_studio',
+    'ai-applied',
     `AI Studio: ${proposal.summary}`,
     actorContext.userEmail,
     `[${now}] Approved by ${actorContext.userEmail}. Applied ${siteSpec.pages?.length || 1} pages and navigation components.`,

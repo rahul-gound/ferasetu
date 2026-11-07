@@ -115,7 +115,7 @@ export async function handlePlatformSitesRoutes(request, env) {
       await db.prepare(`
         INSERT INTO platform_admin_entitlements
         (id, user_id, user_email, role, entitlement_plan, status, quotas_json, granted_by, granted_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
           role = excluded.role,
           status = 'active',
@@ -129,6 +129,7 @@ export async function handlePlatformSitesRoutes(request, env) {
         body.targetEmail.toLowerCase(),
         body.role,
         INTERNAL_ADMIN_PLAN,
+        'active',
         JSON.stringify(quotas),
         auth.userId,
         now,
@@ -460,7 +461,7 @@ export async function handlePlatformSitesRoutes(request, env) {
         // Detach hostnames safely
         await db.prepare("UPDATE platform_domains SET site_id = NULL, provisioning_status = 'detached', updated_at = ? WHERE site_id = ?").bind(now, siteId).run();
         // Mark site as archived
-        await db.prepare("UPDATE platform_sites SET status = 'archived', updated_at = ? WHERE id = ?").bind(now, siteId).run();
+        await db.prepare("UPDATE platform_sites SET status = ?, updated_at = ? WHERE id = ?").bind('archived', now, siteId).run();
 
         await logPlatformAudit(env, {
           siteId,

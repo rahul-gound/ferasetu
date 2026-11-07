@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
-  ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
+  Search, ShoppingCart, X, Package, Phone, MapPin, ChevronDown, ShieldCheck, Printer, Clock,
   Download, Share2, Copy, Check, ExternalLink, Sparkles, Mail, Ban, RotateCcw,
-  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt, Plus, QrCode, Key
+  DollarSign, FileText, AlertCircle, CheckCircle2, ArrowRight, Receipt, Plus, QrCode, Key,
+  ShieldAlert, Award, TrendingUp
 } from 'lucide-react';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -17,6 +18,16 @@ import CancelConfirmationModal from '../components/orders/CancelConfirmationModa
 import OrderPaymentQrModal from '../components/orders/OrderPaymentQrModal';
 import EnterDeliveryCodeModal from '../components/orders/EnterDeliveryCodeModal';
 import ReturnDetailsModal from '../components/orders/ReturnDetailsModal';
+import {
+  OrderIntelligenceRadar,
+  AiRiskModal,
+  TopBuyersModal,
+  computeOrderIntelligence,
+  SmartFilterType,
+  OrderIntelligence,
+  CustomerIntelligence,
+  IntelligenceData
+} from '../components/orders/OrderIntelligenceRadar';
 import posthog from '../lib/posthog';
 
 
@@ -181,7 +192,10 @@ export default function OrdersPage() {
   const [qrModalOrder, setQrModalOrder] = useState<Order | null>(null);
   const [orderForDeliveryCode, setOrderForDeliveryCode] = useState<Order | null>(null);
   const [orderForReturnReview, setOrderForReturnReview] = useState<Order | null>(null);
-
+  const [activeSmartFilter, setActiveSmartFilter] = useState<SmartFilterType>('all');
+  const [selectedRiskOrder, setSelectedRiskOrder] = useState<OrderIntelligence | null>(null);
+  const [showTopBuyersModal, setShowTopBuyersModal] = useState(false);
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ['orders'],
@@ -191,6 +205,57 @@ export default function OrdersPage() {
       return Array.isArray(data) ? data : (data?.orders || []);
     },
   });
+
+  const { data: rawIntelligence } = useQuery<IntelligenceData | null>({
+    queryKey: ['orders-intelligence'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/orders/intelligence');
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 30000,
+  });
+
+  const { data: products = [] } = useQuery<any[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/products');
+        const data = res.data;
+        return Array.isArray(data) ? data : (data?.products || []);
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 60000,
+  });
+
+  const intelligence: IntelligenceData = useMemo(() => {
+    if (rawIntelligence && rawIntelligence.summary) {
+      return rawIntelligence;
+    }
+    return computeOrderIntelligence(orders, products);
+  }, [rawIntelligence, orders, products]);
+
+  const analyzedOrderMap = useMemo(() => {
+    const map = new Map<string, OrderIntelligence>();
+    const allAnalyzed = [
+      ...(intelligence.suspicious_orders || []),
+      ...(intelligence.profitable_orders || []),
+      ...(intelligence.loss_orders || [])
+    ];
+    for (const o of allAnalyzed) {
+      if (!map.has(o.id)) map.set(o.id, o);
+    }
+    return map;
+  }, [intelligence]);
+
+  const topBuyerPhoneSet = useMemo(() => {
+    return new Set(intelligence.top_buyers.map(c => (c.phone || '').replace(/\D/g, '')).filter(Boolean));
+  }, [intelligence]);
 
   const { data: afterSales, refetch: refetchAfterSales } = useQuery({
     queryKey: ['order-after-sales', selectedOrder?.id],
@@ -449,11 +514,51 @@ export default function OrdersPage() {
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  const filtered = activeTab === 'all'
-    ? orders
-    : activeTab === 'returns'
-    ? orders.filter(o => o.return_status && o.return_status !== 'none')
-    : orders.filter(o => o.status === activeTab);
+  const filtered = useMemo(() => {
+    let base = activeTab === 'all'
+      ? orders
+      : activeTab === 'returns'
+      ? orders.filter(o => o.return_status && o.return_status !== 'none')
+      : orders.filter(o => o.status === activeTab);
+
+    if (orderSearchQuery.trim()) {
+      const q = orderSearchQuery.toLowerCase().trim();
+      base = base.filter(o =>
+        (o.id && o.id.toLowerCase().includes(q)) ||
+        (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
+        (o.customer_phone && o.customer_phone.includes(q)) ||
+        (o.items && o.items.some((it: any) => (it.product_name || it.name || '').toLowerCase().includes(q)))
+      );
+    }
+
+    if (activeSmartFilter === 'all') return base;
+
+    if (activeSmartFilter === 'highest_buyers') {
+      const topBuyerPhones = new Set(intelligence.top_buyers.map(c => (c.phone || '').replace(/\D/g, '')).filter(Boolean));
+      const topBuyerNames = new Set(intelligence.top_buyers.map(c => c.name.toLowerCase()));
+      return base.filter(o => {
+        const phone = (o.customer_phone || '').replace(/\D/g, '');
+        return (phone && topBuyerPhones.has(phone)) || topBuyerNames.has((o.customer_name || '').toLowerCase());
+      });
+    }
+
+    if (activeSmartFilter === 'profitable') {
+      const profitableIds = new Set(intelligence.profitable_orders.map(o => o.id));
+      return base.filter(o => profitableIds.has(o.id));
+    }
+
+    if (activeSmartFilter === 'loss') {
+      const lossIds = new Set(intelligence.loss_orders.map(o => o.id));
+      return base.filter(o => lossIds.has(o.id) || o.status === 'cancelled');
+    }
+
+    if (activeSmartFilter === 'suspicious') {
+      const suspiciousIds = new Set(intelligence.suspicious_orders.map(o => o.id));
+      return base.filter(o => suspiciousIds.has(o.id));
+    }
+
+    return base;
+  }, [orders, activeTab, activeSmartFilter, intelligence, orderSearchQuery]);
 
   return (
     <div>
@@ -493,34 +598,72 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Status tabs */}
-      <div style={{
-        display: 'flex', gap: '6px', marginBottom: '24px',
-        overflowX: 'auto', paddingBottom: '4px',
-      }}>
-        {ALL_STATUSES.map(status => {
-          const count = status === 'all'
-            ? orders.length
-            : status === 'returns'
-            ? orders.filter(o => o.return_status && o.return_status !== 'none').length
-            : orders.filter(o => o.status === status).length;
-          return (
+      {/* AI Customer & Profitability Intelligence Radar */}
+      <OrderIntelligenceRadar
+        intelligence={intelligence}
+        activeSmartFilter={activeSmartFilter}
+        onSelectSmartFilter={setActiveSmartFilter}
+        onInspectOrderRisk={(order) => setSelectedRiskOrder(order)}
+        onOpenTopBuyersModal={() => setShowTopBuyersModal(true)}
+        merchantStoreName={user?.business_name || 'Our Store'}
+      />
+
+      {/* Status tabs & Orders Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          {ALL_STATUSES.map(status => {
+            const count = status === 'all'
+              ? orders.length
+              : status === 'returns'
+              ? orders.filter(o => o.return_status && o.return_status !== 'none').length
+              : orders.filter(o => o.status === status).length;
+            const isActive = activeTab === status;
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setActiveTab(status)}
+                className={`px-3.5 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-[#003EC7] text-white shadow-xs'
+                    : 'bg-white hover:bg-slate-100/80 text-slate-600 border border-slate-200/80'
+                }`}
+              >
+                <span>{STATUS_LABELS[status]}</span>
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    isActive
+                      ? 'bg-blue-800 text-blue-100'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Real-time Order Search Input */}
+        <div className="relative w-full sm:w-72">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={orderSearchQuery}
+            onChange={e => setOrderSearchQuery(e.target.value)}
+            placeholder="Search order #, customer, phone..."
+            className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+          />
+          {orderSearchQuery && (
             <button
-              key={status}
-              onClick={() => setActiveTab(status)}
-              style={{
-                padding: '8px 14px', borderRadius: '20px', cursor: 'pointer',
-                fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap',
-                background: activeTab === status ? 'var(--primary)' : 'var(--surface)',
-                color: activeTab === status ? '#fff' : 'var(--text-muted)',
-                border: activeTab === status ? '1px solid transparent' : '1px solid var(--border)',
-                transition: 'all 0.15s',
-              }}
+              type="button"
+              onClick={() => setOrderSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
-              {STATUS_LABELS[status]} {count > 0 && `(${count})`}
+              <X size={12} />
             </button>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* Orders Table */}
@@ -636,6 +779,43 @@ export default function OrdersPage() {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={order.status} />
+                    {topBuyerPhoneSet.has((order.customer_phone || '').replace(/\D/g, '')) && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                        <Award size={10} />
+                        <span>VIP Buyer</span>
+                      </span>
+                    )}
+                    {(() => {
+                      const intel = analyzedOrderMap.get(order.id);
+                      if (intel && intel.risk_level !== 'safe') {
+                        return (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setSelectedRiskOrder(intel); }}
+                            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 animate-pulse flex items-center gap-1 cursor-pointer"
+                            title="AI Risk Detected: Click to inspect signals"
+                          >
+                            <ShieldAlert size={10} />
+                            <span>Risk {intel.risk_score}</span>
+                          </button>
+                        );
+                      }
+                      if (intel && intel.is_profitable) {
+                        return (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            +₹{intel.gross_profit} ({intel.margin_percent}%)
+                          </span>
+                        );
+                      }
+                      if (intel && intel.is_loss) {
+                        return (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            Loss: ₹{Math.abs(intel.gross_profit || 0)}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                     {order.return_status === 'requested' && (
                       <button
                         type="button"
@@ -770,66 +950,161 @@ export default function OrdersPage() {
 
             {/* Desktop Table View (visible on >= md) */}
             <div className="hidden md:block overflow-x-auto">
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                    {['Customer', 'Phone', 'Items', 'Total', 'Type', 'Status', 'Payment', 'Date', 'Update', ''].map(h => (
-                      <th key={h} style={{
-                        padding: '12px 16px', textAlign: 'left',
-                        fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
-                      }}>{h}</th>
-                    ))}
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    <th className="py-3.5 px-4">Order & Time</th>
+                    <th className="py-3.5 px-4">Customer</th>
+                    <th className="py-3.5 px-4">Items Summary</th>
+                    <th className="py-3.5 px-4">Amount</th>
+                    <th className="py-3.5 px-4">Profit / Risk</th>
+                    <th className="py-3.5 px-4">Fulfillment</th>
+                    <th className="py-3.5 px-4">Lifecycle State</th>
+                    <th className="py-3.5 px-4">Settlement & Pay</th>
+                    <th className="py-3.5 px-4 text-center">Update State</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {filtered.map(order => (
                     <tr
                       key={order.id}
-                      style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                      className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                      onClick={() => setSelectedOrder(order)}
                     >
-                      <td
-                        style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text)' }}
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        {order.customer_name}
+                      {/* Order & Time */}
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-extrabold text-xs text-blue-700 tracking-wide font-mono group-hover:underline">
+                            #{order.id.slice(-6).toUpperCase()}
+                          </span>
+                          <span className="text-[11px] text-slate-400 whitespace-nowrap">
+                            {new Date(order.created_at).toLocaleDateString('en-IN', {
+                              day: '2-digit', month: 'short'
+                            })} • {new Date(order.created_at).toLocaleTimeString('en-IN', {
+                              hour: '2-digit', minute: '2-digit', hour12: true
+                            })}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Phone size={12} /> {order.customer_phone}
-                        </span>
+
+                      {/* Customer */}
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-xs">
+                              {order.customer_name}
+                            </span>
+                            {topBuyerPhoneSet.has((order.customer_phone || '').replace(/\D/g, '')) && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300" title="Top Spender / VIP Customer">
+                                VIP
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
+                            <Phone size={11} className="text-slate-400" />
+                            {order.customer_phone}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Package size={12} /> {order.items_count || order.items?.length || 0}
-                        </span>
+
+                      {/* Items Summary */}
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="flex flex-col gap-0.5 max-w-[200px]">
+                          <span className="font-bold text-xs text-slate-800 flex items-center gap-1">
+                            <Package size={12} className="text-slate-400" />
+                            {order.items_count || order.items?.length || 0} items
+                          </span>
+                          <span
+                            className="text-[11px] text-slate-500 truncate"
+                            title={(order.items || []).map((it: any) => `${it.product_name || it.name || 'Item'} (x${it.quantity})`).join(', ')}
+                          >
+                            {(order.items && order.items.length > 0)
+                              ? order.items.map((it: any) => `${it.product_name || it.name || 'Item'} (x${it.quantity})`).join(', ')
+                              : (order.notes || 'Storefront order')}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text)' }}>
-                        ₹{order.total.toLocaleString('en-IN')}
+
+                      {/* Amount */}
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-extrabold text-slate-900 tabular-nums text-sm">
+                            ₹{order.total.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {order.delivery_fee ? `+₹${order.delivery_fee} delivery` : 'Free Delivery'}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                          background: order.delivery_type === 'delivery' ? 'rgba(6,182,212,0.15)' : 'rgba(16,185,129,0.15)',
-                          color: order.delivery_type === 'delivery' ? '#0891B2' : '#059669',
-                        }}>
+
+                      {/* Profit / Risk */}
+                      <td className="py-3.5 px-4 align-top" onClick={e => e.stopPropagation()}>
+                        {(() => {
+                          const intel = analyzedOrderMap.get(order.id);
+                          if (intel && intel.risk_level !== 'safe') {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedRiskOrder(intel)}
+                                className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 animate-pulse flex items-center gap-1 cursor-pointer"
+                                title="AI Risk Detected. Click to inspect signals."
+                              >
+                                <ShieldAlert size={11} />
+                                <span>Risk {intel.risk_score}</span>
+                              </button>
+                            );
+                          }
+                          if (intel && intel.is_profitable) {
+                            return (
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-emerald-700">
+                                  +₹{intel.gross_profit}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  {intel.margin_percent}% margin
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (intel && intel.is_loss) {
+                            return (
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-rose-600">
+                                  Loss (₹{Math.abs(intel.gross_profit || 0)})
+                                </span>
+                                <span className="text-[10px] text-rose-400 font-medium">
+                                  Below cost
+                                </span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <span className="text-xs text-slate-400 font-medium">-</span>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Fulfillment */}
+                      <td className="py-3.5 px-4 align-top">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                          order.delivery_type === 'delivery'
+                            ? 'bg-cyan-50 text-cyan-700 border border-cyan-200/60'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                        }`}>
                           {order.delivery_type === 'delivery' ? '🛵 Delivery' : '🏪 Pickup'}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+
+                      {/* Lifecycle State */}
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="flex flex-col gap-1 items-start">
                           <StatusBadge status={order.status} />
                           {order.return_status === 'requested' && (
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); setOrderForReturnReview(order); }}
-                              style={{
-                                padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 800,
-                                background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
-                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                whiteSpace: 'nowrap',
-                              }}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse flex items-center gap-1 cursor-pointer whitespace-nowrap"
                               title="Return requested. Click to review loss and approve/reject."
                             >
                               <RotateCcw size={10} />
@@ -837,136 +1112,77 @@ export default function OrdersPage() {
                             </button>
                           )}
                           {order.return_status === 'rejected' && (
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#dc2626' }}>Return Rejected</span>
+                            <span className="text-[10px] font-bold text-rose-600">Return Rejected</span>
                           )}
                           {order.return_status === 'approved' && (
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a' }}>Return Approved</span>
+                            <span className="text-[10px] font-bold text-emerald-600">Return Approved</span>
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <PaymentBadge status={order.payment_status} />
+
+                      {/* Settlement & Pay */}
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="flex flex-col gap-0.5">
+                          <PaymentBadge status={order.payment_status} />
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {order.payment_method ? order.payment_method.toUpperCase() : 'Direct UPI / Cash'}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                        {new Date(order.created_at).toLocaleDateString('en-IN', {
-                           day: '2-digit', month: 'short', year: 'numeric',
-                        })}
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
+
+                      {/* Update State */}
+                      <td className="py-3.5 px-4 align-top text-center" onClick={e => e.stopPropagation()}>
                         {order.status === 'pending' ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleStatusChange(order, 'confirmed')}
                               disabled={updatingId === order.id}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                fontWeight: 800,
-                                background: '#059669',
-                                color: '#ffffff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                              }}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg shadow-xs transition-colors inline-flex items-center gap-1 cursor-pointer"
                               title="Confirm Order"
                             >
-                              <Check size={13} strokeWidth={2.5} />
+                              <Check size={12} strokeWidth={2.5} />
                               <span>Confirm</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setOrderToCancel(order)}
                               disabled={updatingId === order.id}
-                              style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                fontWeight: 700,
-                                background: '#fff',
-                                color: '#dc2626',
-                                border: '1px solid #fca5a5',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
+                              className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 font-extrabold text-xs rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
                               title="Cancel Order"
                             >
-                              <Ban size={13} strokeWidth={2.5} />
+                              <Ban size={12} strokeWidth={2.5} />
                               <span>Cancel</span>
                             </button>
                           </div>
                         ) : order.status === 'delivered' ? (
                           <span
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: 700,
-                              background: '#ecfdf5',
-                              color: '#059669',
-                              border: '1px solid #a7f3d0',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              whiteSpace: 'nowrap',
-                            }}
-                            title="Order is delivered and finalized. Status cannot be modified."
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 whitespace-nowrap"
+                            title="Order is delivered and finalized."
                           >
-                            <ShieldCheck size={14} className="text-emerald-600" />
-                            <span>Delivered (Locked)</span>
+                            <ShieldCheck size={13} className="text-emerald-600" />
+                            <span>Delivered</span>
                           </span>
                         ) : order.status === 'cancelled' ? (
                           <span
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: 700,
-                              background: '#fef2f2',
-                              color: '#dc2626',
-                              border: '1px solid #fecaca',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              whiteSpace: 'nowrap',
-                            }}
-                            title="Order is cancelled (Locked)"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200/80 whitespace-nowrap"
+                            title="Order is cancelled."
                           >
-                            <Ban size={14} className="text-rose-600" />
-                            <span>Cancelled (Locked)</span>
+                            <Ban size={13} className="text-rose-600" />
+                            <span>Cancelled</span>
                           </span>
                         ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => setOrderForDeliveryCode(order)}
-                              style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                fontWeight: 800,
-                                background: '#d97706',
-                                color: '#ffffff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                whiteSpace: 'nowrap',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                              }}
+                              className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg shadow-xs transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
                               title="Enter Customer Delivery Code / OTP to complete delivery"
                             >
-                              <Key size={13} strokeWidth={2.2} />
-                              <span>Enter Code</span>
+                              <Key size={12} strokeWidth={2.2} />
+                              <span>Code</span>
                             </button>
-                            <div style={{ position: 'relative' }}>
+                            <div className="relative">
                               <select
                                 value={order.status}
                                 disabled={updatingId === order.id}
@@ -977,57 +1193,52 @@ export default function OrdersPage() {
                                     handleStatusChange(order, e.target.value);
                                   }
                                 }}
-                                style={{
-                                  padding: '6px 24px 6px 8px', borderRadius: '6px', fontSize: '11px',
-                                  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)',
-                                  cursor: 'pointer', appearance: 'none',
-                                }}
+                                className="text-xs font-medium py-1 pl-2 pr-6 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer"
                               >
                                 <option value="confirmed">Confirmed</option>
                                 <option value="preparing">Preparing</option>
                                 <option value="out_for_delivery">Out for Delivery</option>
                                 <option value="delivered">Delivered (Code)</option>
                               </select>
-                              <ChevronDown size={11} style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
+                              <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                             </div>
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 align-top text-right" onClick={e => e.stopPropagation()}>
                         {order.status !== 'cancelled' ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div className="inline-flex items-center gap-1 justify-end">
                             <button
-                              className="btn btn-secondary"
-                              onClick={e => {
-                                e.stopPropagation();
-                                downloadPdf(`/orders/${order.id}/invoice/pdf`, `invoice-${order.invoice_number || order.id.slice(-8)}.pdf`);
-                              }}
-                              style={{ fontSize: '12px', padding: '5px 8px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              type="button"
+                              onClick={() => downloadPdf(`/orders/${order.id}/invoice/pdf`, `invoice-${order.invoice_number || order.id.slice(-8)}.pdf`)}
+                              className="px-2 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
                               title="Download Invoice PDF"
                             >
-                              <Download size={12} />
+                              <Download size={11} />
                               <span>PDF</span>
                             </button>
                             <button
-                              className="btn btn-secondary"
-                              onClick={e => { e.stopPropagation(); setInvoiceOrder(order); }}
-                              style={{ fontSize: '12px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                              type="button"
+                              onClick={() => setInvoiceOrder(order)}
+                              className="px-2 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer shadow-xs"
                               title="View Invoice Modal"
                             >
                               🧾 Invoice
                             </button>
                             <button
-                              className="btn btn-secondary"
-                              onClick={e => { e.stopPropagation(); setQrModalOrder(order); }}
-                              style={{ fontSize: '12px', padding: '5px 8px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              type="button"
+                              onClick={() => setQrModalOrder(order)}
+                              className="p-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer shadow-xs"
                               title="Show Payment QR Code & Order Link"
                             >
-                              <QrCode size={12} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
+                              <QrCode size={13} className={order.payment_status === 'paid' ? 'text-emerald-600' : 'text-orange-600'} />
                             </button>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
-                            No Invoice
+                          <span className="text-[11px] text-slate-400 italic">
+                            Voided
                           </span>
                         )}
                       </td>
@@ -1035,6 +1246,17 @@ export default function OrdersPage() {
                   ))}
                 </tbody>
               </table>
+
+              {/* Table Footer with Sovereignty & Sync Guarantees */}
+              <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>Direct Merchant Settlement • Non-custodial ledger automatically synchronizes with tally & GST filing</span>
+                </div>
+                <div className="font-semibold text-slate-700 tabular-nums">
+                  Showing {filtered.length} of {orders.length} orders
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -1905,6 +2127,27 @@ export default function OrdersPage() {
           setOrderForReturnReview(null);
         }}
       />
+
+      {/* AI Risk Assessment & Safeguard Modal */}
+      {selectedRiskOrder && (
+        <AiRiskModal
+          order={selectedRiskOrder}
+          onClose={() => setSelectedRiskOrder(null)}
+          onCancelOrder={(orderId, reason) => {
+            cancelOrderMutation.mutate({ id: orderId, reason });
+          }}
+          merchantStoreName={user?.business_name || 'Our Store'}
+        />
+      )}
+
+      {/* Top Buyers & Spenders Modal */}
+      {showTopBuyersModal && (
+        <TopBuyersModal
+          customers={intelligence.top_buyers}
+          onClose={() => setShowTopBuyersModal(false)}
+          merchantStoreName={user?.business_name || 'Our Store'}
+        />
+      )}
     </div>
   );
 }

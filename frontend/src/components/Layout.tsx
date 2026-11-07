@@ -34,6 +34,10 @@ import {
   Server,
   ExternalLink,
   Copy,
+  CreditCard,
+  Warehouse,
+  ShieldCheck,
+  Megaphone,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -200,6 +204,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       badgeColor: 'blue',
     },
     { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
+    { path: '/website-design', icon: <Palette size={17} />, label: 'Website & Design' },
+    { path: '/domains', icon: <Globe size={17} />, label: 'Domains & DNS' },
+    { path: '/marketing-and-seo', icon: <Megaphone size={17} />, label: 'Marketing & SEO' },
+    { path: '/payments', icon: <CreditCard size={17} />, label: 'Payments & Settlements' },
+    { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
+    { path: '/staff', icon: <ShieldCheck size={17} />, label: 'Staff & Access' },
     { path: '/website-settings', icon: <Sliders size={17} />, label: 'SEO & Search Engine' },
     { path: '/settings/email', icon: <Mail size={17} />, label: 'Custom Domains & Mail' },
     { path: '/support', icon: <LifeBuoy size={17} />, label: 'Merchant Support' },
@@ -217,6 +227,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       p.startsWith('/ai-credits') ||
       p.startsWith('/whatsapp-assistant') ||
       p.startsWith('/website-settings') ||
+      p.startsWith('/website-design') ||
+      p.startsWith('/website-and-design') ||
+      p.startsWith('/domains') ||
+      p.startsWith('/marketing-and-seo') ||
+      p.startsWith('/payments') ||
+      p.startsWith('/inventory-and-locations') ||
+      p.startsWith('/staff') ||
       p.startsWith('/settings') ||
       p.startsWith('/support') ||
       p.startsWith('/survey-feedback')

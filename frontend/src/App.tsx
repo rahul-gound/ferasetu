@@ -45,6 +45,12 @@ const CreateTransferPage = lazy(() => import('./pages/CreateTransferPage'));
 const DiscountsPage = lazy(() => import('./pages/DiscountsPage'));
 const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
 const WebsiteSettingsPage = lazy(() => import('./pages/WebsiteSettingsPage'));
+const WebsiteDesignPage = lazy(() => import('./pages/WebsiteDesignPage'));
+const DomainsPage = lazy(() => import('./pages/DomainsPage'));
+const MarketingSeoPage = lazy(() => import('./pages/MarketingSeoPage'));
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
+const InventoryLocationsPage = lazy(() => import('./pages/InventoryLocationsPage'));
+const StaffPage = lazy(() => import('./pages/StaffPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
 const SurveyFeedbackPage = lazy(() => import('./pages/SurveyFeedbackPage'));
 const EmailSettingsPage = lazy(() => import('./pages/EmailSettingsPage'));
@@ -219,6 +225,17 @@ function AppRoutes() {
           <Route path="/website-builder" element={<WebsiteBuilderPage />} />
           <Route path="/website-settings" element={<WebsiteSettingsPage />} />
           <Route path="/website-builder/settings" element={<WebsiteSettingsPage />} />
+          <Route path="/website-design" element={<WebsiteDesignPage />} />
+          <Route path="/website-and-design" element={<WebsiteDesignPage />} />
+          <Route path="/domains" element={<DomainsPage />} />
+          <Route path="/marketing-and-seo" element={<MarketingSeoPage />} />
+          <Route path="/marketing-seo" element={<Navigate to="/marketing-and-seo" replace />} />
+          <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/operations/payments" element={<Navigate to="/payments" replace />} />
+          <Route path="/inventory-and-locations" element={<InventoryLocationsPage />} />
+          <Route path="/inventory-locations" element={<Navigate to="/inventory-and-locations" replace />} />
+          <Route path="/staff" element={<StaffPage />} />
+          <Route path="/operations/staff" element={<Navigate to="/staff" replace />} />
           <Route path="/pro-studio" element={<Navigate to="/website-builder" replace />} />
           <Route path="/pro" element={<Navigate to="/website-builder" replace />} />
           <Route path="/whatsapp-assistant" element={<WhatsAppAssistantPage />} />
