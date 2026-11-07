@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, RefreshCw, Eye } from 'lucide-react';
-import { platformSitesApi, PlatformAuditLog } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformAuditLog } from '../../services/platformSitesApi';
 
 export default function PlatformAuditLogView() {
   const [logs, setLogs] = useState<PlatformAuditLog[]>([]);

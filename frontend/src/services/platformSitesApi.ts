@@ -6,7 +6,7 @@
  * Communicates with /api/platform-sites/* on Cloudflare Worker backend.
  */
 
-import { getStoredAdminToken } from './adminAuth';
+import { getAdminToken } from './adminAuth';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -174,7 +174,7 @@ export interface PlatformSitesOverviewData {
 }
 
 function getAuthHeaders(): HeadersInit {
-  const token = getStoredAdminToken();
+  const token = getAdminToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

@@ -3,7 +3,7 @@ import {
   X, Check, ChevronRight, ChevronLeft, Globe, Server, GitBranch,
   Settings, ShieldAlert, Cpu, Layers, AlertCircle, Loader2, Sparkles
 } from 'lucide-react';
-import { platformSitesApi, PlatformSite } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformSite } from '../../services/platformSitesApi';
 import toast from 'react-hot-toast';
 
 interface PlatformSiteWizardModalProps {
