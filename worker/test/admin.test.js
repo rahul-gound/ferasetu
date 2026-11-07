@@ -51,7 +51,7 @@ describe('Admin Authentication Utilities', () => {
     });
 
     it('should reject a malformed JWT', async () => {
-      await expect(verifyAdminJwt('not.a.jwt', secret)).rejects.toThrow('Malformed JWT');
+      await expect(verifyAdminJwt('not_a_jwt', secret)).rejects.toThrow('Malformed JWT');
     });
   });
 });
