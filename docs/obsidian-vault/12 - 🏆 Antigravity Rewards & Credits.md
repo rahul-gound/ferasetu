@@ -19,6 +19,7 @@ This register permanently documents engineering credits, peer recognition, and t
 | **AGY-REW-003** | `2026-11-07` | 🌐 Global Readiness | **Global Nomenclature Standardization**: Seamless eradication of regional "Khata" colloquialisms from navigation bars, layout anchors, and analytics retention reports to cater to 48+ international retail regions. | Project Leadership / User |
 | **AGY-REW-004** | `2026-11-07` | 🛡️ Security & Reliability | **Adversarial Gate Clearance & Admin Architecture**: 88/88 security tests passed, viewport-pinned admin navigation bar, and D1 automated entitlement multi-statement bootstrap. | Project Leadership / User |
 | **AGY-REW-005** | `2026-11-07` | 🛡️ Security & Telemetry | **CSP Whitelist & Resilient Analytics Pipeline (2 Points)**: Fixed Content Security Policy inline execution on `/admin` with `'sha256-3jwW1buoFj0Sy3PpEg/F4V5zwghQ+aHyJ/fGSuWlneo='`; eradicated 500 server errors on `POST /analytics/events` and `GET /admin/analytics?days=30` via live D1 schema self-healing (`ip_address`, `device_category`, `event_type`, `event_data`), fast-path entitlement validation, graceful query fallbacks, and multi-route endpoint normalization. | Project Leadership / User (**+2 Points**) |
+| **AGY-REW-006** | `2026-11-07` | ⚡ Worker API & Platform Sites | **Website Settings & Telemetry Hardening (+2 Points)**: Resolved 404 on `/api/website/settings` by implementing serverless GET/PUT/POST handlers in `worker/index.js` backed by D1 `websites.config` and `users` data; eliminated unhandled 500 errors on `POST /analytics/events` with double-layered 202 fail-soft ingestion guards; connected platform site edge routing (`services/platformSiteRenderer.js`) enabling `*.ferasetu.com` platform sites (e.g., `nothing.ferasetu.com`) to resolve and render HTML seamlessly. | Project Leadership / User (**+2 Points**) |
 
 ---
 
@@ -49,6 +50,11 @@ This register permanently documents engineering credits, peer recognition, and t
 - **Resilient Analytics Ingestion**: Enhanced `worker/analytics/ingestion.js` with automated column reconciliation and graceful 202 fail-soft pipeline buffering, eliminating all 500 status codes.
 - **Multi-Route Endpoint Normalization**: Wired `GET /api/admin/analytics`, `GET /admin/analytics`, `GET /api/analytics`, and `GET /analytics` with safe try-catch wrappers returning default metric objects if D1 tables are warming up.
 - **Tracker Canonical Endpoint**: Standardized `tracker.ts` and `AdminDashboardPage.tsx` URL builders to consistently append `/api/`.
+
+### ⚡ E. Website Settings & Telemetry Safety Guard (`AGY-REW-006` — +2 Points)
+- **Website Settings Serverless Handlers**: Implemented `getWebsiteSettings(request, env)`, `updateWebsiteSettings(request, env)`, and `pingCrawlSearchEngines(request, env)` in `worker/index.js`, registered on both `/api/website/settings` and `/website/settings` for `GET`, `PUT`, and `POST`. Resolves the 404 error when navigating to Website Settings / SEO.
+- **Fail-Soft Analytics Ingestion**: Wrapped `handleAnalyticsEvents()` in `worker/analytics/ingestion.js` and the route handler in `worker/index.js` with outer try/catch fallback blocks returning HTTP 202 `Buffered`, ensuring telemetry events never throw 500 errors to client apps even during database cold-starts or migrations.
+- **Platform Sites Edge Rendering**: Integrated `worker/services/platformSiteRenderer.js` and `handlePlatformSiteRequest` in `worker/index.js`, ensuring platform sites such as `nothing.ferasetu.com` resolve cleanly with dynamic HTML, branding, live status, and AI customization hooks.
 
 ---
 

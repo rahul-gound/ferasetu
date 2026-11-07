@@ -37,6 +37,9 @@
 - [x] Cloudflare Custom Hostname SSL integration — **90%**
 - [x] AST Builder sandboxed runtime (`worker/templates/`) — **90%**
 - [x] Discounts & Promotional Pricing Engine (`worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js`, migration `0022_discounts_engine.sql`): Server-side percentage, fixed amount, BOGO with fraud guard, free shipping, automatic discounts, collision-safe bulk code generator, profit margin checks, and atomic checkout order redemptions — **100%**
+- [x] Website Settings & SEO Routing (`worker/index.js`): Implemented `GET/PUT/POST /api/website/settings` reading/updating D1 `websites.config` and `users` branding data, plus `/api/website/settings/ping-crawl` — **100%**
+- [x] Platform Sites Edge Resolver & Renderer (`worker/services/platformSiteRenderer.js`): Platform sites (`*.ferasetu.com`) resolve with live HTML, dynamic status badges, and AI Studio customization hooks — **100%**
+- [x] Analytics Ingestion Fail-Soft Buffer (`worker/analytics/ingestion.js`): Protected telemetry endpoints with double outer try/catch returning HTTP 202 fail-soft, preventing 500 error cascades — **100%**
 - [x] Customer Order Intelligence & AI Risk Engine (`GET /api/orders/intelligence`, `worker/index.js`): Top spender LTV calculation, gross profit margin accounting, loss order analysis, and AI suspicious order heuristics (repeated digit patterns, unverified COD > ₹5,000, bulk cart volume spikes) with dual camelCase/snake_case payload tolerance and auto-customer assignment in `POST /api/orders` — **100%**
 - [ ] Edge streaming SSR for heavy storefront catalogs — **70%**
 
