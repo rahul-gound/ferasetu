@@ -36,7 +36,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import UpgradePrompt from '../components/ui/UpgradePrompt';
 import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import ImportInventoryModal from '../components/products/ImportInventoryModal';
-import AddProductModal, { ProductItem } from '../components/products/AddProductModal';
+import AddProductModal, { type ProductItem } from '../components/products/AddProductModal';
 import { getPlanLimits, hasReachedProductLimit } from '../config/plans';
 import { resolveMediaUrl } from '../utils/media';
 import posthog from '../lib/posthog';
@@ -452,7 +452,7 @@ export default function ProductsPage() {
               tab === 'all'
                 ? stats.total
                 : tab === 'active'
-                : stats.active
+                ? stats.active
                 : tab === 'draft'
                 ? stats.draft
                 : stats.archived;

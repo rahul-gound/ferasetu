@@ -4,7 +4,7 @@ import {
   Code, RefreshCw, Send, CheckCircle2, AlertCircle, Search, HelpCircle,
   BookOpen, Mail, ExternalLink, ShieldCheck
 } from 'lucide-react';
-import { platformSitesApi, PlatformSite, PlatformAiProposal } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformSite, type PlatformAiProposal } from '../../services/platformSitesApi';
 import toast from 'react-hot-toast';
 
 interface PlatformAiStudioViewProps {

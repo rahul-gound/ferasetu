@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Server, GitBranch, ShieldCheck, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { platformSitesApi, CloudflareHealth } from '../../services/platformSitesApi';
+import { platformSitesApi, type CloudflareHealth } from '../../services/platformSitesApi';
 
 export default function PlatformIntegrations() {
   const [cf, setCf] = useState<CloudflareHealth | null>(null);
