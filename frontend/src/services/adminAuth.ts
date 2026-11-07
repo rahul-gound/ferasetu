@@ -17,6 +17,17 @@ export interface AdminVerificationResult {
 }
 
 /**
+ * Synchronously retrieves the cached admin token from localStorage.
+ */
+export function getStoredAdminToken(): string | null {
+  try {
+    return localStorage.getItem('admin_token');
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Retrieves the most authoritative authentication token for platform administration.
  * Prefers the live WorkOS session token, falling back to cached admin_token.
  */
@@ -34,11 +45,7 @@ export async function getAdminToken(): Promise<string | null> {
     console.warn('[adminAuth] Could not fetch fresh WorkOS token:', err);
   }
 
-  try {
-    return localStorage.getItem('admin_token');
-  } catch {
-    return null;
-  }
+  return getStoredAdminToken();
 }
 
 /**
