@@ -16,6 +16,7 @@ export default defineConfig({
     include: ['react-is']
   },
   build: {
+    sourcemap: true,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true

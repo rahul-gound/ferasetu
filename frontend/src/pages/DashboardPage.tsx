@@ -2,12 +2,6 @@ import { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 
-const SalesOverviewChart = lazy(() =>
-  import('../components/dashboard/DashboardCharts').then(m => ({ default: m.SalesOverviewChart }))
-);
-const OrderStatusPieChart = lazy(() =>
-  import('../components/dashboard/DashboardCharts').then(m => ({ default: m.OrderStatusPieChart }))
-);
 
 import {
   TrendingUp,
@@ -59,6 +53,7 @@ import OnboardingProgress from '../components/ui/OnboardingProgress';
 import PaymentSetupModal from '../components/dashboard/PaymentSetupModal';
 import CounterQrModal from '../components/dashboard/CounterQrModal';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
+import { SalesOverviewChart, OrderStatusPieChart } from '../components/dashboard/DashboardCharts';
 
 function getGreeting(): string {
   const h = new Date().getHours();

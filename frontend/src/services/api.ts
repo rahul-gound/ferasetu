@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getWorkOSToken, clearCachedToken, notifyUnauthorized } from './authBridge';
 import { generateCanonicalStorefront } from '../utils/canonicalHostname';
 
 const USE_LOCAL_STORAGE_API = import.meta.env?.VITE_USE_LOCAL_STORAGE === 'true';
@@ -2661,7 +2662,6 @@ export const remoteApi = axios.create({
   withCredentials: true,
 });
 
-import { getWorkOSToken, clearCachedToken, notifyUnauthorized } from './authBridge';
 
 // Inject Authorization Bearer token automatically & normalize redundant /api prefixes
 remoteApi.interceptors.request.use(async (config) => {

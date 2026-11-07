@@ -41,6 +41,7 @@ import {
   Palette,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import SEO from './SEO';

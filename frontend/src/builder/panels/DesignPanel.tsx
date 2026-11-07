@@ -35,6 +35,7 @@ import InCanvasInspectorModal from '../modals/InCanvasInspectorModal';
 import { COMPONENT_CATALOG } from '../registry/componentRegistry';
 import { SEARCHABLE_ICONS, ICON_CATEGORIES } from '../registry/iconsCatalog';
 import type { WorkflowDefinition } from '../types/builderTypes';
+import { THEME_PRESETS } from '../../storefront/theme/themeDefinitions';
 
 export interface DesignPanelProps {
   selectedTheme: string;
@@ -55,7 +56,6 @@ export interface DesignPanelProps {
   onDuplicateSection?: (id: string) => void;
 }
 
-import { THEME_PRESETS } from '../../storefront/theme/themeDefinitions';
 export { THEME_PRESETS };
 
 export const AVAILABLE_BLOCKS = [

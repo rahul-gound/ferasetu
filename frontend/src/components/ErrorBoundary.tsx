@@ -171,9 +171,21 @@ export default class ErrorBoundary extends Component<Props, State> {
             )}
 
             {this.state.error?.message && (
-              <div className="mb-5 max-h-32 overflow-y-auto rounded-xl bg-red-50 p-3 text-left font-mono text-xs text-red-700 border border-red-200">
+              <div className="mb-4 max-h-32 overflow-y-auto rounded-xl bg-red-50 p-3 text-left font-mono text-xs text-red-700 border border-red-200">
                 {this.state.error.message}
               </div>
+            )}
+
+            {(this.state.error?.stack || this.state.errorInfo?.componentStack) && (
+              <details className="mb-4 text-left text-[11px] font-mono text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <summary className="cursor-pointer font-bold text-slate-700 select-none">Technical error stack</summary>
+                {this.state.error?.stack && (
+                  <pre className="mt-2 whitespace-pre-wrap max-h-40 overflow-y-auto text-[10px] text-slate-700">{this.state.error.stack}</pre>
+                )}
+                {this.state.errorInfo?.componentStack && (
+                  <pre className="mt-2 whitespace-pre-wrap max-h-40 overflow-y-auto text-[10px] text-slate-500">{this.state.errorInfo.componentStack}</pre>
+                )}
+              </details>
             )}
 
             {/* User & Subscription Specifications Badge */}
