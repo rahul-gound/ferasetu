@@ -49,7 +49,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ) || navItems[0];
 
   return (
-    <div className="min-h-screen bg-[#F4F7FE] font-sans antialiased">
+    <div className="flex h-screen overflow-hidden bg-[#F4F7FE] font-sans antialiased">
       <SEO title="FeraSetu Admin" noindex />
 
       {/* Sidebar Overlay for Mobile Viewports */}
@@ -61,16 +61,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         />
       )}
 
-      {/* Persistent Fixed Left Sidebar (Locked to left viewport) */}
+      {/* Persistent Left Sidebar: Position fixed/pinned on desktop, independent scroll for items */}
       <aside 
         className={`
-          fixed inset-y-0 left-0 z-50 w-72 bg-[#111827] text-white flex flex-col
+          fixed inset-y-0 left-0 z-50 w-72 bg-[#111827] text-white flex flex-col h-screen
           transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:static lg:translate-x-0 lg:shrink-0
         `}
       >
         <div className="flex flex-col h-full min-h-0">
-          {/* Brand header - pinned at top of sidebar */}
+          {/* Brand header - pinned at top */}
           <div className="p-6 sm:p-7 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-3.5">
               <div className="flex items-center justify-center w-10 h-10 font-black rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg shadow-orange-500/20 text-white shrink-0">
@@ -83,7 +83,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           </div>
 
-          {/* Navigation links - scroll independently within sidebar, sidebar stays fixed */}
+          {/* Navigation links - can scroll up and down independently, but sidebar is fixed in position */}
           <nav className="flex-1 px-4 py-5 space-y-1 overflow-y-auto min-h-0 overscroll-contain">
             {navItems.map((item) => {
               const isCurrent = location.pathname === item.path || 
@@ -133,8 +133,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content Area (Offset by lg:pl-72 to never collide with fixed sidebar) */}
-      <div className="lg:pl-72 flex flex-col min-h-screen min-w-0 transition-all duration-300">
+      {/* Main Content Area: ONLY THE PAGE IN RIGHT GOES DOWN AND UP */}
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto min-w-0">
         {/* Topbar: Sticky at top */}
         <header className="flex items-center justify-between px-6 lg:px-8 py-4 bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-4">
@@ -168,7 +168,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </header>
 
-        {/* Page body content */}
+        {/* Page body content: ONLY THIS RIGHT SIDE SCROLLS UP AND DOWN */}
         <main className="p-6 lg:p-8 max-w-[1600px] w-full mx-auto flex-1 animate-in fade-in duration-300">
           {children}
         </main>

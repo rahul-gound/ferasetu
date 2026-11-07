@@ -204,6 +204,22 @@ router.patch('/error-logs/:id/resolve', (req: AdminRequest, res: Response): void
   }
 });
 
+router.delete('/error-logs', (req: AdminRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const status = req.query.status as string;
+    if (status && status !== 'all') {
+      db.prepare('DELETE FROM error_logs WHERE status = ?').run(status);
+    } else {
+      db.prepare('DELETE FROM error_logs').run();
+    }
+    writeAuditLog(req, 'CLEAR_ALL_ERROR_LOGS', 'error_logs', status || 'all');
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/error-logs/:id', (req: AdminRequest, res: Response): void => {
   try {
     const db = getDatabase();

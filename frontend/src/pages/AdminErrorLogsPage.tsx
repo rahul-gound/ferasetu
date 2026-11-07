@@ -76,6 +76,54 @@ export default function AdminErrorLogsPage() {
     }
   };
 
+  const handleClearAll = async () => {
+    const count = logs.length;
+    if (count === 0) {
+      toast('No logs to delete');
+      return;
+    }
+    if (!confirm(`Are you sure you want to permanently delete all ${count} error logs? This cannot be undone.`)) return;
+    try {
+      await axios.delete(`${ADMIN_API}/admin/error-logs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Cleared all ${count} error logs`);
+      setSelectedLog(null);
+      fetchLogs();
+    } catch {
+      try {
+        await axios.delete(`${API_BASE}/admin/error-logs`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success(`Cleared all ${count} error logs`);
+        setSelectedLog(null);
+        fetchLogs();
+      } catch (err) {
+        toast.error('Failed to clear error logs');
+      }
+    }
+  };
+
+  const handleBatchDelete = async (logsToDelete: any[]) => {
+    if (!confirm(`Are you sure you want to delete these ${logsToDelete.length} error logs?`)) return;
+    try {
+      await Promise.all(
+        logsToDelete.map(l =>
+          axios.delete(`${ADMIN_API}/admin/error-logs/${l.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(() => null)
+        )
+      );
+      toast.success(`Deleted ${logsToDelete.length} incident logs`);
+      if (selectedLog && logsToDelete.some(l => l.id === selectedLog.id)) {
+        setSelectedLog(null);
+      }
+      fetchLogs();
+    } catch {
+      toast.error('Failed to delete incident logs');
+    }
+  };
+
 
   const recurringIncidents = useMemo(() => {
     const map = new Map<string, {
@@ -165,9 +213,15 @@ export default function AdminErrorLogsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={fetchLogs}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs transition-colors cursor-pointer"
             >
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+            <button
+              onClick={handleClearAll}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-semibold text-rose-700 shadow-xs transition-colors cursor-pointer"
+            >
+              <Trash2 size={13} /> Delete All Logs
             </button>
           </div>
         </div>
@@ -223,6 +277,13 @@ export default function AdminErrorLogsPage() {
                     className="px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
                     Inspect ({incident.logs.length})
+                  </button>
+                  <button
+                    onClick={() => handleBatchDelete(incident.logs)}
+                    className="px-3.5 py-2 rounded-xl border border-rose-300 bg-white hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 size={13} />
+                    Delete All ({incident.logs.length})
                   </button>
                   <button
                     onClick={() => handleBatchResolve(incident.logs.map(l => l.id))}
@@ -367,10 +428,10 @@ export default function AdminErrorLogsPage() {
                         <button
                           type="button"
                           onClick={() => handleDelete(log.id)}
-                          className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg text-xs transition-colors cursor-pointer"
-                          title="Delete"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+                          title="Delete Log"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={12} /> Delete
                         </button>
                       </td>
                     </tr>
@@ -524,6 +585,13 @@ export default function AdminErrorLogsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(selectedLog.id)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={14} /> Delete Log
+                  </button>
                   {selectedLog.status !== 'resolved' && (
                     <button
                       type="button"

@@ -1152,6 +1152,17 @@ export async function handleAdminRoutes(request, env) {
       return json({ success: true, id: logId, status: "resolved", resolved_at: nowIso });
     }
 
+    if (path === "/api/admin/error-logs" && method === "DELETE") {
+      const status = url.searchParams.get("status");
+      if (status && status !== "all") {
+        await env.DB.prepare("DELETE FROM error_logs WHERE status = ?").bind(status).run();
+      } else {
+        await env.DB.prepare("DELETE FROM error_logs").run();
+      }
+      await logAdminAction(env, adminEmail, "CLEAR_ALL_ERROR_LOGS", "error_logs", status || "all");
+      return json({ success: true });
+    }
+
     const errDeleteMatch = path.match(/^\/api\/admin\/error-logs\/([^/]+)$/);
     if (errDeleteMatch && method === "DELETE") {
       const logId = errDeleteMatch[1];
