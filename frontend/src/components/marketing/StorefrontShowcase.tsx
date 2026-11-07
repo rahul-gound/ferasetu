@@ -598,7 +598,7 @@ export default function StorefrontShowcase() {
             <div className="w-32 h-1.5 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
               <div
                 className="h-full bg-blue-600 transition-all duration-150 rounded-full"
-                style={{ width: `${Math.max(scrollProgress * 100, 16)}%` }}
+                style={{ width: `${Math.max(((activeCard + 1) / SHOWCASE_STORES.length) * 100, 20)}%` }}
               />
             </div>
           </div>
