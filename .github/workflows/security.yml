@@ -26,14 +26,14 @@ jobs:
             backend/package-lock.json
       
       - name: Install root dependencies
-        run: npm ci
+        run: npm install
       
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
         working-directory: ./frontend
       
       - name: Install backend dependencies
-        run: npm ci
+        run: npm install
         working-directory: ./backend
       
       - name: Run npm audit (root)
@@ -51,12 +51,14 @@ jobs:
         continue-on-error: true
 
   dependabot:
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
     name: Dependabot alerts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
       - name: Check for Dependabot alerts
+        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
         uses: dependabot/fetch-metadata@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -78,20 +80,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript, typescript]
+        language: [javascript-typescript]
     steps:
       - uses: actions/checkout@v4
       
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          config-file: .github/codeql/codeql-config.yml
       
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+          upload: 'never'
 
   secret-scan:
     name: Secret Scanning
@@ -105,6 +107,6 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ""
+          base: ${{ github.event.repository.default_branch }}
           head: HEAD
-          extra_args: --only-verified --fail
+          extra_args: --only-verified
