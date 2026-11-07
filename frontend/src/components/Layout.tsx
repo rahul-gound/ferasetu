@@ -38,6 +38,7 @@ import {
   Warehouse,
   ShieldCheck,
   Megaphone,
+  Palette,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
