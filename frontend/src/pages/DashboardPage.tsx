@@ -607,16 +607,6 @@ export default function DashboardPage() {
     ];
   }, [totalOrders, statusCounts]);
 
-  const filteredRecentOrders = useMemo(() => {
-    if (!orderSearchQuery.trim()) return recentOrders;
-    const q = orderSearchQuery.toLowerCase();
-    return recentOrders.filter((o: any) =>
-      String(o.id || '').toLowerCase().includes(q) ||
-      String(o.customer_name || '').toLowerCase().includes(q) ||
-      String(o.total || '').includes(q)
-    );
-  }, [recentOrders, orderSearchQuery]);
-
   const recentOrders = useMemo(() => {
     if (dashboardData?.recent_orders && dashboardData.recent_orders.length > 0) {
       return dashboardData.recent_orders;
@@ -630,6 +620,16 @@ export default function DashboardPage() {
       delivery_type: o.delivery_type || 'delivery',
     }));
   }, [dashboardData, orders]);
+
+  const filteredRecentOrders = useMemo(() => {
+    if (!orderSearchQuery.trim()) return recentOrders;
+    const q = orderSearchQuery.toLowerCase();
+    return recentOrders.filter((o: any) =>
+      String(o.id || '').toLowerCase().includes(q) ||
+      String(o.customer_name || '').toLowerCase().includes(q) ||
+      String(o.total || '').includes(q)
+    );
+  }, [recentOrders, orderSearchQuery]);
 
   // AI Credits
   const aiCreditsBalance = user?.ai_credits_balance ?? 20;

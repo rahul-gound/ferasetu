@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { 
   AlertTriangle, CheckCircle2, RefreshCw, Bug,
-  Search, Eye, Globe, Clock, ShieldCheck, Terminal, Trash2, X, Check, User
+  Search, Eye, Globe, Clock, ShieldCheck, Terminal, Trash2, X, Check, User, Users, Flame
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -76,6 +76,62 @@ export default function AdminErrorLogsPage() {
     }
   };
 
+
+  const recurringIncidents = useMemo(() => {
+    const map = new Map<string, {
+      message: string;
+      errorName: string;
+      logs: any[];
+      users: Set<string>;
+      firstReported: string;
+      lastReported: string;
+      urls: Set<string>;
+    }>();
+
+    logs.filter(l => l.status !== 'resolved').forEach(log => {
+      const key = (log.error_message || 'Unknown error').trim();
+      if (!map.has(key)) {
+        map.set(key, {
+          message: key,
+          errorName: log.error_name || 'Error',
+          logs: [],
+          users: new Set(),
+          firstReported: log.created_at,
+          lastReported: log.created_at,
+          urls: new Set(),
+        });
+      }
+      const entry = map.get(key)!;
+      entry.logs.push(log);
+      if (log.user_email || log.user_name || log.user_id) {
+        entry.users.add(log.user_email || log.user_name || log.user_id);
+      }
+      if (log.url) entry.urls.add(log.url);
+      if (new Date(log.created_at) < new Date(entry.firstReported)) entry.firstReported = log.created_at;
+      if (new Date(log.created_at) > new Date(entry.lastReported)) entry.lastReported = log.created_at;
+    });
+
+    return Array.from(map.values())
+      .filter(g => g.logs.length >= 2 || g.users.size >= 2)
+      .sort((a, b) => b.logs.length - a.logs.length);
+  }, [logs]);
+
+  const handleBatchResolve = async (ticketIds: string[]) => {
+    try {
+      await Promise.all(
+        ticketIds.map(id =>
+          axios.patch(`${ADMIN_API}/admin/error-logs/${id}/resolve`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(() => null)
+        )
+      );
+      toast.success(`Resolved ${ticketIds.length} related error tickets`);
+      fetchLogs();
+    } catch {
+      toast.error('Failed to resolve tickets in batch');
+    }
+  };
+
   const filteredLogs = logs.filter(log => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -115,6 +171,71 @@ export default function AdminErrorLogsPage() {
             </button>
           </div>
         </div>
+
+
+        {/* Top Critical Multi-User Incident Triage (Deduplicated with Red Action Button) */}
+        {recurringIncidents.length > 0 && (
+          <div className="space-y-3">
+            {recurringIncidents.map((incident, idx) => (
+              <div
+                key={idx}
+                className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-2 border-rose-300 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+              >
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="p-2.5 rounded-xl bg-rose-600 text-white shrink-0 shadow-sm animate-pulse">
+                    <Flame size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-xs">
+                        Critical Incident
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                        {incident.logs.length} Total Occurrences
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                        <Users size={11} />
+                        {incident.users.size} Affected {incident.users.size === 1 ? 'User' : 'Users'}
+                      </span>
+                    </div>
+
+                    <p className="font-mono text-xs font-black text-rose-950 mt-1 break-all">
+                      {incident.message}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600 pt-1">
+                      <span className="flex items-center gap-1 font-mono">
+                        <Globe size={12} className="text-slate-400" />
+                        {Array.from(incident.urls)[0] || 'Multiple endpoints'}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={12} className="text-slate-400" />
+                        Last reported: {new Date(incident.lastReported).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                  <button
+                    onClick={() => setSearchQuery(incident.message.slice(0, 30))}
+                    className="px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    Inspect ({incident.logs.length})
+                  </button>
+                  <button
+                    onClick={() => handleBatchResolve(incident.logs.map(l => l.id))}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black tracking-wide shadow-md shadow-rose-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check size={14} strokeWidth={2.5} />
+                    Resolve All ({incident.logs.length})
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Filters & Search */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
