@@ -5,54 +5,45 @@ import toast from 'react-hot-toast';
 import {
   Plus,
   Search,
-  Edit2,
-  Trash2,
-  X,
+  Download,
   Upload,
   Package,
+  Globe,
+  Store,
   AlertTriangle,
-  ChevronDown,
-  Download,
-  Sparkles,
-  Check,
-  ArrowRight,
-  ShieldCheck,
-  Layers,
-  Tag,
-  Gift,
-  Truck,
-  LayoutGrid,
-  List,
-  Copy,
-  TrendingUp,
-  DollarSign,
   AlertCircle,
-  Eye,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  Copy,
+  X,
+  Layers,
   CheckCircle2,
+  Sparkles,
+  ShieldCheck,
+  ArrowRight,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import UpgradePrompt from '../components/ui/UpgradePrompt';
-import ActionableEmptyState from '../components/ui/ActionableEmptyState';
 import ImportInventoryModal from '../components/products/ImportInventoryModal';
 import AddProductModal, { type ProductItem } from '../components/products/AddProductModal';
 import { getPlanLimits, hasReachedProductLimit } from '../config/plans';
 import { resolveMediaUrl } from '../utils/media';
-import posthog from '../lib/posthog';
 
-const CATEGORIES = [
-  'Grocery',
-  'Fashion & Apparel',
-  'Electronics & Gadgets',
-  'Food & Beverages',
-  'Health & Medical',
-  'Home & Kitchen',
-  'Beauty & Personal Care',
-  'Sports & Fitness',
-  'Books & Stationery',
-  'Handmade & Artisan',
-  'Other',
+const DEFAULT_CATEGORIES = [
+  'Groceries & Staples',
+  'Dairy & Oils',
+  'Snacks & Packaged Foods',
+  'Household & Personal Care',
+  'Beverages',
+  'Bakery & Fresh',
 ];
 
 export default function ProductsPage() {
@@ -62,26 +53,153 @@ export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const planLimits = getPlanLimits(user?.plan);
-  const productLimit = planLimits.products; // Infinity for pro
+  const productLimit = planLimits.products;
 
+  // Filter & Search states
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [category, setCategory] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [stockFilter, setStockFilter] = useState<'all' | 'in' | 'low' | 'out'>('all');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+
+  // Menu Dropdown states
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showStockMenu, setShowStockMenu] = useState(false);
+  const [openRowMenuId, setOpenRowMenuId] = useState<string | null>(null);
+
+  // Selection & Bulk Actions
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
-  // Bulk actions handlers
+  // Modals
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editProduct, setEditProduct] = useState<ProductItem | null>(null);
+  const [showImportModal, setShowImportModal] = useState(searchParams.get('import') === 'true');
+  const [showGrowthModal, setShowGrowthModal] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setShowStatusMenu(false);
+      setShowStockMenu(false);
+      setOpenRowMenuId(null);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearch(q);
+    }
+    if (searchParams.get('import') === 'true') {
+      setShowImportModal(true);
+    }
+  }, [searchParams]);
+
+  // Fetch products
+  const { data: products = [], isLoading } = useQuery<ProductItem[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const res = await api.get('/products');
+      return res.data.products || res.data || [];
+    },
+  });
+
+  // Calculate live statistics for the 4-stat ribbon
+  const stats = useMemo(() => {
+    const total = products.length;
+    const active = products.filter(
+      (p) => p.status === 'active' || (p.is_active !== false && !p.status)
+    ).length;
+    const draft = products.filter((p) => p.status === 'draft').length;
+    const archived = products.filter(
+      (p) => p.status === 'archived' || p.is_active === false
+    ).length;
+    const lowStock = products.filter(
+      (p) => (p.stock_quantity ?? 0) <= 5 && (p.stock_quantity ?? 0) > 0
+    ).length;
+    const outOfStock = products.filter((p) => (p.stock_quantity ?? 0) <= 0).length;
+
+    const visiblePct = total > 0 ? ((active / total) * 100).toFixed(1) : '0';
+
+    return { total, active, draft, archived, lowStock, outOfStock, visiblePct };
+  }, [products]);
+
+  // Category pills with counts
+  const categoryPills = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach((p) => {
+      const c = (p.category || 'General').trim();
+      counts[c] = (counts[c] || 0) + 1;
+    });
+
+    // Merge in defaults if none exist
+    DEFAULT_CATEGORIES.forEach((c) => {
+      if (!counts[c]) {
+        counts[c] = 0;
+      }
+    });
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [products]);
+
+  // Filtered Products
+  const filtered = useMemo(() => {
+    return products.filter((p) => {
+      const q = search.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
+        (p.barcode && p.barcode.toLowerCase().includes(q));
+
+      const matchCategory =
+        !category || (p.category || 'General').toLowerCase() === category.toLowerCase();
+
+      const isActive = p.status === 'active' || (p.is_active !== false && !p.status);
+      const isDraft = p.status === 'draft';
+      const isArchived = p.status === 'archived' || p.is_active === false;
+
+      let matchStatus = true;
+      if (statusFilter === 'active') matchStatus = isActive;
+      else if (statusFilter === 'draft') matchStatus = isDraft;
+      else if (statusFilter === 'archived') matchStatus = isArchived;
+
+      const stock = p.stock_quantity ?? 0;
+      let matchStock = true;
+      if (stockFilter === 'in') matchStock = stock > 5;
+      else if (stockFilter === 'low') matchStock = stock > 0 && stock <= 5;
+      else if (stockFilter === 'out') matchStock = stock <= 0;
+
+      return matchSearch && matchCategory && matchStatus && matchStock;
+    });
+  }, [products, search, category, statusFilter, stockFilter]);
+
+  // Paginated Slice
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedProducts = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  // Bulk Selection Handlers
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProductIds(filtered.map(p => p.id));
+      setSelectedProductIds(filtered.map((p) => p.id));
     } else {
       setSelectedProductIds([]);
     }
   };
 
   const handleToggleSelectProduct = (id: string) => {
-    setSelectedProductIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
@@ -89,9 +207,13 @@ export default function ProductsPage() {
     if (selectedProductIds.length === 0) return;
     try {
       await Promise.all(
-        selectedProductIds.map(id => {
-          const prod = products.find(p => p.id === id);
-          return api.put(`/products/${id}`, { is_active: prod ? (prod.is_active ? 0 : 1) : 1 });
+        selectedProductIds.map((id) => {
+          const prod = products.find((p) => p.id === id);
+          const nextActive = prod ? !(prod.is_active !== false && prod.status !== 'draft') : true;
+          return api.put(`/products/${id}`, {
+            is_active: nextActive ? 1 : 0,
+            status: nextActive ? 'active' : 'draft',
+          });
         })
       );
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -104,9 +226,10 @@ export default function ProductsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedProductIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedProductIds.length} products?`)) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedProductIds.length} products?`))
+      return;
     try {
-      await Promise.all(selectedProductIds.map(id => api.delete(`/products/${id}`)));
+      await Promise.all(selectedProductIds.map((id) => api.delete(`/products/${id}`)));
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success(`Deleted ${selectedProductIds.length} products`);
       setSelectedProductIds([]);
@@ -115,51 +238,38 @@ export default function ProductsPage() {
     }
   };
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editProduct, setEditProduct] = useState<ProductItem | null>(null);
-  const [showImportModal, setShowImportModal] = useState(searchParams.get('import') === 'true');
-  const [showGrowthModal, setShowGrowthModal] = useState(false);
-  const [exportingCsv, setExportingCsv] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const q = searchParams.get('search');
-    if (q !== null) {
-      setSearch(q);
-    }
-    if (searchParams.get('import') === 'true') {
-      setShowImportModal(true);
-    }
-  }, [searchParams]);
-
-  const { data: products = [], isLoading, refetch } = useQuery<ProductItem[]>({
-    queryKey: ['products', statusFilter],
-    queryFn: async () => {
-      const res = await api.get('/products', {
-        params: statusFilter !== 'all' ? { status: statusFilter } : undefined,
+  // Toggle Storefront visibility switch
+  const toggleVisibilityMutation = useMutation({
+    mutationFn: async ({ id, newActive }: { id: string; newActive: boolean }) => {
+      return api.put(`/products/${id}`, {
+        is_active: newActive ? 1 : 0,
+        status: newActive ? 'active' : 'draft',
       });
-      return res.data.products || res.data || [];
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Storefront visibility updated');
+    },
+    onError: () => toast.error('Failed to update product visibility'),
   });
 
-  // Calculate live statistics
-  const stats = useMemo(() => {
-    const total = products.length;
-    const active = products.filter((p) => p.status === 'active' || (p.is_active && !p.status)).length;
-    const draft = products.filter((p) => p.status === 'draft').length;
-    const archived = products.filter((p) => p.status === 'archived' || p.is_active === false).length;
-    const lowStock = products.filter((p) => (p.stock_quantity ?? 0) <= 5 && (p.stock_quantity ?? 0) > 0).length;
-    const outOfStock = products.filter((p) => (p.stock_quantity ?? 0) <= 0).length;
+  const handleToggleProductStatus = (p: ProductItem) => {
+    const isCurrentlyActive = p.status === 'active' || (p.is_active !== false && !p.status);
+    toggleVisibilityMutation.mutate({ id: p.id, newActive: !isCurrentlyActive });
+  };
 
-    const totalValue = products.reduce((acc, p) => {
-      const price = p.price || 0;
-      const stock = p.stock_quantity || 0;
-      return acc + price * stock;
-    }, 0);
+  // Delete product mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/products/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Product removed from SKU Register');
+      setDeleteId(null);
+    },
+    onError: () => toast.error('Failed to delete product'),
+  });
 
-    return { total, active, draft, archived, lowStock, outOfStock, totalValue };
-  }, [products]);
-
+  // Export CSV
   const handleExportCsv = () => {
     if (products.length === 0) {
       toast.error('No products in catalog to export.');
@@ -173,29 +283,21 @@ export default function ProductsPage() {
         'Category',
         'Price',
         'Sale Price',
-        'Cost Price',
         'Stock Quantity',
         'Status',
         'SKU',
         'Barcode',
-        'Variants Count',
-        'Image URL',
-        'Created At',
       ];
       const rows = products.map((p) => [
         `"${p.id}"`,
         `"${(p.name || '').replace(/"/g, '""')}"`,
-        `"${(p.category || '').replace(/"/g, '""')}"`,
+        `"${(p.category || 'General').replace(/"/g, '""')}"`,
         p.price ?? '',
         p.sale_price ?? '',
-        p.cost_price ?? '',
         p.stock_quantity ?? 0,
         p.status || (p.is_active ? 'active' : 'archived'),
         `"${(p.sku || '').replace(/"/g, '""')}"`,
         `"${(p.barcode || '').replace(/"/g, '""')}"`,
-        p.variants?.length ?? (p.has_variants ? 'Yes' : '0'),
-        `"${(p.image_url || '').replace(/"/g, '""')}"`,
-        `"${p.created_at || ''}"`,
       ]);
       const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -204,54 +306,26 @@ export default function ProductsPage() {
       link.setAttribute('href', url);
       link.setAttribute(
         'download',
-        `FeraSetu_Products_Catalog_${new Date().toISOString().slice(0, 10)}.csv`
+        `FeraSetu_SKU_Register_${new Date().toISOString().slice(0, 10)}.csv`
       );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Catalog exported! You have 100% data sovereignty over your products.');
+      toast.success('CSV exported successfully');
     } catch {
-      toast.error('Failed to export catalog.');
+      toast.error('Failed to export catalog');
     } finally {
       setExportingCsv(false);
     }
   };
 
-  // Mark setup-checklist flag when the user adds at least one product
-  useEffect(() => {
-    if (products.length > 0) {
-      try {
-        const flags = JSON.parse(localStorage.getItem('fera_setup_flags') || '{}');
-        if (!flags.first_product) {
-          flags.first_product = true;
-          localStorage.setItem('fera_setup_flags', JSON.stringify(flags));
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }, [products.length]);
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/products/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Product deleted from catalog');
-      setDeleteId(null);
-    },
-    onError: () => toast.error('Failed to delete product'),
-  });
-
-  const filtered = useMemo(() => {
-    return products.filter((p) => {
-      const matchSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
-        (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()));
-      const matchCat = !category || p.category === category;
-      return matchSearch && matchCat;
-    });
-  }, [products, search, category]);
+  const handleResetFilters = () => {
+    setSearch('');
+    setCategory('');
+    setStatusFilter('all');
+    setStockFilter('all');
+    setPage(1);
+  };
 
   const atLimit = hasReachedProductLimit(user?.plan, products.length);
   const nearLimit =
@@ -277,271 +351,159 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-fade-in">
-      {/* 🌟 VIBRANT ALIVE HEADER */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 p-6 sm:p-8 text-white shadow-xl border border-orange-500/20">
-        {/* Ambient warm orange background aura */}
-        <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-orange-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                <span className="w-2 h-2 rounded-full bg-orange-400 alive-dot-orange" />
-                Live Catalog
-              </span>
-              <span className="text-xs text-slate-400 font-medium">
-                0% Marketplace Commission
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white m-0">
+    <div className="flex flex-col w-full gap-6 pb-12 font-sans bg-[#f9f9ff] text-[#121c2b] min-h-full">
+      {/* 1. Header Bar */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-[28px] font-bold text-[#121c2b] tracking-tight m-0">
               {translate('products')}
             </h1>
-
-            <p className="text-sm text-slate-300 max-w-xl font-normal leading-relaxed m-0">
-              Manage your products, live pricing, stock alerts, and multi-option variants with zero tech friction.
-              {productLimit !== Infinity && (
-                <span className="font-semibold text-orange-200">
-                  {' '}
-                  ({Math.max(0, productLimit - products.length)} of {productLimit} slots remaining on your plan)
-                </span>
-              )}
-            </p>
+            <span className="px-2.5 py-0.5 rounded-lg bg-[#dee8fe] text-[#434656] text-xs font-semibold">
+              SKU Register
+            </span>
           </div>
-
-          {/* Header Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={exportingCsv || products.length === 0}
-              className="h-12 min-h-[48px] px-4 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-white font-bold text-xs border border-white/15 flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs disabled:opacity-50"
-              title="Download full catalog CSV (Data Sovereignty Guarantee)"
-            >
-              <Download size={16} />
-              <span>{exportingCsv ? 'Exporting...' : 'Export CSV'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowImportModal(true)}
-              className="h-12 min-h-[48px] px-4 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-white font-bold text-xs border border-white/15 flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
-              title="Import inventory CSV from Shopify, WooCommerce, Excel, or standard CSV"
-            >
-              <Upload size={16} />
-              <span>Import CSV</span>
-            </button>
-
-            <Link
-              to="/transfers/new"
-              className="h-12 min-h-[48px] px-4 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 font-bold text-xs border border-indigo-500/30 flex items-center justify-center gap-1.5 transition-all shadow-xs"
-              title="Create an Inventory Transfer"
-            >
-              <Truck size={16} className="text-indigo-300" />
-              <span>Transfers</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-indigo-500 text-white text-[9px] font-black uppercase">
-                BETA
+          <p className="text-sm text-[#585e6f] mt-1 font-normal m-0">
+            Manage your inventory, pricing, variants, and storefront visibility
+            {productLimit !== Infinity && (
+              <span className="text-[#737688]">
+                {' '}
+                • {products.length} of {productLimit} slots used
               </span>
-            </Link>
-
-            <Link
-              to="/gift-cards/new"
-              className="h-12 min-h-[48px] px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-xs border border-amber-500/30 flex items-center justify-center gap-1.5 transition-all shadow-xs"
-              title="Create a Digital Gift Card product"
-            >
-              <Gift size={16} className="text-amber-300" />
-              <span>Gift Card</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-900 text-[9px] font-black uppercase">
-                BETA
-              </span>
-            </Link>
-
-            {/* PRIMARY CTA: VIBRANT WARM ORANGE BUTTON */}
-            <button
-              type="button"
-              onClick={openAdd}
-              className="h-12 min-h-[48px] px-6 rounded-xl btn-orange-alive font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              <Plus size={18} strokeWidth={2.5} />
-              <span>{translate('addProduct')}</span>
-            </button>
-          </div>
+            )}
+          </p>
         </div>
 
-        {/* 📊 LIVE METRICS / STATS RIBBON */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur border border-white/10">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-              Total Products
-            </span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-white">{stats.total}</span>
-              {productLimit !== Infinity && (
-                <span className="text-xs font-semibold text-slate-400">
-                  / {productLimit}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur border border-white/10">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 alive-dot-emerald" />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                Active in Store
-              </span>
-            </div>
-            <div className="mt-1">
-              <span className="text-2xl font-black text-emerald-300">{stats.active}</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur border border-white/10">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400">
-                Drafts
-              </span>
-            </div>
-            <div className="mt-1">
-              <span className="text-2xl font-black text-amber-300">{stats.draft}</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur border border-white/10">
-            <div className="flex items-center gap-1.5">
-              <AlertCircle size={12} className={stats.lowStock > 0 ? 'text-rose-400' : 'text-slate-400'} />
-              <span
-                className={`text-[10px] font-extrabold uppercase tracking-wider ${
-                  stats.lowStock > 0 ? 'text-rose-400' : 'text-slate-400'
-                }`}
-              >
-                Low Stock Alert
-              </span>
-            </div>
-            <div className="mt-1">
-              <span
-                className={`text-2xl font-black ${
-                  stats.lowStock > 0 ? 'text-rose-300 font-black' : 'text-slate-400'
-                }`}
-              >
-                {stats.lowStock}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur border border-white/10 col-span-2 sm:col-span-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-              Catalog Value
-            </span>
-            <div className="mt-1">
-              <span className="text-2xl font-black text-orange-300">
-                ₹{stats.totalValue.toLocaleString('en-IN')}
-              </span>
-            </div>
-          </div>
-        </div>
-        {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-3 border-t border-slate-100">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             type="button"
-            onClick={() => setCategory('')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              !category ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 h-11 px-4 rounded-xl bg-white hover:bg-[#e7eeff] text-[#121c2b] font-medium text-sm transition-colors shadow-xs border border-[#c3c5d9]/30 cursor-pointer"
           >
-            <span>All Products</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${!category ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
-              {products.length}
-            </span>
+            <Download size={18} className="text-[#585e6f]" />
+            <span>Import CSV</span>
           </button>
-          {CATEGORIES.slice(0, 6).map((catName) => {
-            const count = products.filter(p => (p.category || '').toLowerCase() === catName.toLowerCase()).length;
-            const isCatSelected = category.toLowerCase() === catName.toLowerCase();
-            return (
-              <button
-                key={catName}
-                type="button"
-                onClick={() => setCategory(isCatSelected ? '' : catName)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  isCatSelected ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <span>{catName}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isCatSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exportingCsv || products.length === 0}
+            className="flex items-center gap-2 h-11 px-4 rounded-xl bg-white hover:bg-[#e7eeff] text-[#121c2b] font-medium text-sm transition-colors shadow-xs border border-[#c3c5d9]/30 cursor-pointer disabled:opacity-50"
+          >
+            <Upload size={18} className="text-[#585e6f]" />
+            <span>{exportingCsv ? 'Exporting...' : 'Export'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openAdd}
+            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#0052ff] hover:bg-[#003ec7] text-white font-medium text-sm transition-colors shadow-sm cursor-pointer"
+          >
+            <Plus size={20} strokeWidth={2.5} />
+            <span>Add Product</span>
+          </button>
         </div>
       </div>
 
-      {/* Contextual Bulk Action Bar */}
-      {selectedProductIds.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-lg animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 size={18} className="text-blue-400" />
-            <span className="text-xs font-bold font-mono">
-              {selectedProductIds.length} product{selectedProductIds.length > 1 ? 's' : ''} selected
+      {/* 2. Catalogue Stats & Quick Insights */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Card 1: Total Register */}
+        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#737688]">
+              Total Register
             </span>
+            <Package size={18} className="text-[#737688]" />
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleBulkToggleVisibility}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors cursor-pointer"
-            >
-              Toggle Visibility
-            </button>
-            <button
-              type="button"
-              onClick={handleBulkDelete}
-              className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <Trash2 size={13} />
-              Delete Selected
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedProductIds([])}
-              className="px-2.5 py-1 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
-            >
-              Deselect
-            </button>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-[28px] font-bold text-[#121c2b] leading-tight">
+              {stats.total}
+            </span>
+            <span className="text-xs text-[#737688]">SKUs recorded</span>
           </div>
         </div>
-      )}
 
-      {/* Celebratory Milestone Banner on reaching product limit (Gain-Framed) */}
+        {/* Card 2: Active Online */}
+        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#737688]">
+              Active Online
+            </span>
+            <Store size={18} className="text-[#003ec7]" />
+          </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-[28px] font-bold text-[#121c2b] leading-tight">
+              {stats.active}
+            </span>
+            <span className="text-xs text-[#003ec7] font-semibold">
+              {stats.visiblePct}% visible
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Low Stock */}
+        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#952200]">
+              Low Stock
+            </span>
+            <AlertTriangle size={18} className="text-[#952200]" />
+          </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-[28px] font-bold text-[#952200] leading-tight">
+              {stats.lowStock}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#ffdbd2] text-[#891e00]">
+              Reorder suggested
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Out of Stock */}
+        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#ba1a1a]">
+              Out of Stock
+            </span>
+            <AlertCircle size={18} className="text-[#ba1a1a]" />
+          </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-[28px] font-bold text-[#ba1a1a] leading-tight">
+              {stats.outOfStock}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#ffdad6] text-[#93000a]">
+              Zero balance
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Near Limit or At Limit Alerts */}
       {atLimit && (
-        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-orange-50 border-2 border-emerald-500/40 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+        <div className="bg-white border-2 border-emerald-500/40 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold text-xl shrink-0">
               🎉
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 m-0">
+                <h3 className="font-bold text-sm sm:text-base text-[#121c2b] m-0">
                   Congratulations on listing {productLimit} products!
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
                   Milestone
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 font-medium m-0 mt-1">
-                Your shop is expanding rapidly. Your existing {productLimit} products remain{' '}
-                <strong>completely free forever</strong>. Upgrade to Business whenever you are ready
-                to list up to 500 products and connect your custom domain.
+              <p className="text-xs sm:text-sm text-[#585e6f] font-normal m-0 mt-1">
+                Your shop is expanding. Your existing products remain 100% active and free forever.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setShowGrowthModal(true)}
-            className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition-all cursor-pointer"
+            className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
           >
             View Growth Options
           </button>
@@ -549,154 +511,203 @@ export default function ProductsPage() {
       )}
 
       {nearLimit && !atLimit && (
-        <div>
-          <UpgradePrompt
-            variant="inline"
-            reason={`Getting close — ${Math.max(0, productLimit - products.length)} product slots left.`}
-            benefit="Upgrade to Growth for up to 500 products, advanced analytics, and more."
-            currentPlan={user?.plan}
-          />
-        </div>
+        <UpgradePrompt
+          variant="inline"
+          reason={`Getting close — ${Math.max(0, productLimit - products.length)} product slots left.`}
+          benefit="Upgrade to Growth for up to 500 products, advanced analytics, and custom domain."
+          currentPlan={user?.plan}
+        />
       )}
 
-      {/* 🔍 FILTER & TOOLBAR BAR */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-          {(['all', 'active', 'draft', 'archived'] as const).map((tab) => {
-            const count =
-              tab === 'all'
-                ? stats.total
-                : tab === 'active'
-                ? stats.active
-                : tab === 'draft'
-                ? stats.draft
-                : stats.archived;
-
-            const isSelected = statusFilter === tab;
-
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setStatusFilter(tab)}
-                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  isSelected
-                    ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/60'
-                }`}
-              >
-                <span>{tab}</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    isSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search & Category Filter */}
-        <div className="flex flex-col sm:flex-row items-center gap-2.5 flex-1 max-w-2xl">
-          <div className="relative flex-1 w-full">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* 3. Search, Filters, & Category Pills */}
+      <div className="bg-white rounded-xl p-4 flex flex-col gap-4 shadow-xs border border-[#e7eeff]">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Search Field */}
+          <div className="relative flex-1">
+            <Search
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#737688]"
+            />
             <input
               type="text"
-              className="w-full h-11 min-h-[44px] pl-10 pr-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs font-medium placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-3 focus:ring-orange-500/15 transition-all"
-              placeholder="Search products by name, SKU, or barcode..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search products by title, SKU, barcode (EAN)..."
+              className="w-full h-11 pl-10 pr-9 rounded-xl bg-[#f0f3ff] text-[#121c2b] placeholder:text-[#737688] text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0052ff]/20 transition-all border-none"
             />
             {search && (
               <button
                 type="button"
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737688] hover:text-[#121c2b] cursor-pointer"
               >
-                <X size={14} />
+                <X size={16} />
               </button>
             )}
           </div>
 
-          <div className="relative w-full sm:w-48 shrink-0">
-            <select
-              className="w-full h-11 min-h-[44px] pl-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs font-medium focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-3 focus:ring-orange-500/15 transition-all cursor-pointer appearance-none"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={14}
-              className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-            />
-          </div>
+          {/* Quick Filter Dropdowns */}
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {/* Status Dropdown */}
+            <div className="relative inline-block">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowStatusMenu(!showStatusMenu);
+                  setShowStockMenu(false);
+                }}
+                className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#121c2b] text-sm transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <span className="text-xs text-[#737688]">Status:</span>
+                <span className="font-semibold capitalize">
+                  {statusFilter === 'all' ? 'All' : statusFilter}
+                </span>
+                <ChevronDown size={18} className="text-[#737688]" />
+              </button>
 
-          {/* View Mode Switcher: Grid vs Table */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0 self-end sm:self-auto">
+              {showStatusMenu && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-[#c3c5d9]/40"
+                >
+                  {(['all', 'active', 'draft', 'archived'] as const).map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(val);
+                        setShowStatusMenu(false);
+                        setPage(1);
+                      }}
+                      className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#121c2b] hover:bg-[#f0f3ff] flex justify-between items-center capitalize cursor-pointer"
+                    >
+                      <span>{val === 'all' ? 'All Statuses' : val}</span>
+                      {statusFilter === val && <Check size={16} className="text-[#0052ff]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Stock Dropdown */}
+            <div className="relative inline-block">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowStockMenu(!showStockMenu);
+                  setShowStatusMenu(false);
+                }}
+                className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#121c2b] text-sm transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <span className="text-xs text-[#737688]">Stock:</span>
+                <span className="font-semibold">
+                  {stockFilter === 'all'
+                    ? 'All'
+                    : stockFilter === 'in'
+                    ? 'In Stock (>5)'
+                    : stockFilter === 'low'
+                    ? 'Low Stock (≤5)'
+                    : 'Out of Stock (0)'}
+                </span>
+                <ChevronDown size={18} className="text-[#737688]" />
+              </button>
+
+              {showStockMenu && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-[#c3c5d9]/40"
+                >
+                  {[
+                    { id: 'all', label: 'All Inventory' },
+                    { id: 'in', label: 'In Stock (>5)' },
+                    { id: 'low', label: 'Low Stock (≤5)' },
+                    { id: 'out', label: 'Out of Stock (0)' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setStockFilter(opt.id as any);
+                        setShowStockMenu(false);
+                        setPage(1);
+                      }}
+                      className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#121c2b] hover:bg-[#f0f3ff] flex justify-between items-center cursor-pointer"
+                    >
+                      <span>{opt.label}</span>
+                      {stockFilter === opt.id && <Check size={16} className="text-[#0052ff]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Reset Filters */}
             <button
               type="button"
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-white text-orange-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Card Grid View"
+              onClick={handleResetFilters}
+              title="Reset Filters"
+              className="h-11 w-11 flex items-center justify-center rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#737688] hover:text-[#121c2b] transition-colors cursor-pointer shrink-0"
             >
-              <LayoutGrid size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`p-2 rounded-lg transition-all cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-white text-orange-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Inventory Table View"
-            >
-              <List size={16} />
+              <RotateCcw size={18} />
             </button>
           </div>
         </div>
+
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-3 border-t border-slate-100">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             type="button"
-            onClick={() => setCategory('')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              !category ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            onClick={() => {
+              setCategory('');
+              setPage(1);
+            }}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+              !category
+                ? 'bg-[#0052ff] text-white shadow-xs'
+                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#434656] hover:text-[#121c2b]'
             }`}
           >
             <span>All Products</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${!category ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
+                !category ? 'bg-white/20 text-white' : 'bg-[#d9e3f8] text-[#434656]'
+              }`}
+            >
               {products.length}
             </span>
           </button>
-          {CATEGORIES.slice(0, 6).map((catName) => {
-            const count = products.filter(p => (p.category || '').toLowerCase() === catName.toLowerCase()).length;
-            const isCatSelected = category.toLowerCase() === catName.toLowerCase();
+
+          {categoryPills.map((cat) => {
+            const isSelected = category.toLowerCase() === cat.name.toLowerCase();
             return (
               <button
-                key={catName}
+                key={cat.name}
                 type="button"
-                onClick={() => setCategory(isCatSelected ? '' : catName)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  isCatSelected ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                onClick={() => {
+                  setCategory(isSelected ? '' : cat.name);
+                  setPage(1);
+                }}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#0052ff] text-white shadow-xs'
+                    : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#434656] hover:text-[#121c2b]'
                 }`}
               >
-                <span>{catName}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isCatSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                  {count}
+                <span>{cat.name}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-[#d9e3f8] text-[#434656]'
+                  }`}
+                >
+                  {cat.count}
                 </span>
               </button>
             );
@@ -704,35 +715,35 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Contextual Bulk Action Bar */}
+      {/* 4. Bulk Action Bar (Contextual) */}
       {selectedProductIds.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-lg animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 size={18} className="text-blue-400" />
-            <span className="text-xs font-bold font-mono">
-              {selectedProductIds.length} product{selectedProductIds.length > 1 ? 's' : ''} selected
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[#dee8fe] text-[#121c2b] shadow-xs transition-all animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 size={20} className="text-[#0052ff]" />
+            <span className="font-semibold text-sm">
+              <span>{selectedProductIds.length}</span> products selected
             </span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={handleBulkToggleVisibility}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-white hover:bg-[#e7eeff] text-xs font-semibold text-[#121c2b] transition-colors cursor-pointer shadow-2xs"
             >
-              Toggle Visibility
+              Change Visibility
             </button>
             <button
               type="button"
               onClick={handleBulkDelete}
-              className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-[#ffdad6] hover:bg-[#ffdad6]/80 text-[#ba1a1a] text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
             >
-              <Trash2 size={13} />
-              Delete Selected
+              <Trash2 size={15} />
+              <span>Delete</span>
             </button>
             <button
               type="button"
               onClick={() => setSelectedProductIds([])}
-              className="px-2.5 py-1 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+              className="px-2 py-1 text-xs text-[#585e6f] hover:text-[#121c2b] cursor-pointer"
             >
               Deselect
             </button>
@@ -740,381 +751,343 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* 📦 PRODUCTS LIST / GRID CONTENT */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-slate-200 p-4 space-y-3 bg-white"
-            >
-              <div className="w-full h-44 rounded-xl alive-orange-shimmer" />
-              <div className="h-4 w-3/4 rounded-md alive-orange-shimmer" />
-              <div className="h-3 w-1/2 rounded-md alive-orange-shimmer" />
-              <div className="h-6 w-1/3 rounded-md alive-orange-shimmer" />
+      {/* 5. Products Ledger Table Container */}
+      <div className="bg-white rounded-xl shadow-xs overflow-hidden flex flex-col border border-[#e7eeff]">
+        {isLoading ? (
+          <div className="p-12 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-8 h-8 border-3 border-[#0052ff] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-[#737688]">Loading catalog items...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          /* Empty State */
+          <div className="p-12 flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-full bg-[#dee8fe] flex items-center justify-center text-[#434656] mb-3">
+              <Package size={24} className="text-[#0052ff]" />
             </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="py-12 bg-white rounded-3xl border border-slate-200/80 shadow-xs">
-          {products.length === 0 ? (
-            <ActionableEmptyState
-              icon={<Package size={32} className="text-orange-600" />}
-              title="Your store catalog is waiting for products"
-              description="Add your first item manually in seconds or import your full catalog from Shopify, WooCommerce, or CSV with 0% marketplace cuts."
-              actionLabel="Add Your First Product"
-              onAction={openAdd}
-              secondaryActionLabel="Import Catalog CSV"
-              onSecondaryAction={() => setShowImportModal(true)}
-              expectedOutcome="Your products appear immediately in your live storefront catalog."
-            />
-          ) : (
-            <ActionableEmptyState
-              icon={<Search size={32} className="text-orange-600" />}
-              title="No products match your filters"
-              description={
-                search
-                  ? `No products found matching "${search}". Try adjusting your keywords or clearing the category filter.`
-                  : 'No products in this specific category.'
-              }
-              actionLabel="Clear All Filters"
-              onAction={() => {
-                setSearch('');
-                setCategory('');
-                setStatusFilter('all');
-              }}
-              expectedOutcome="Reset search and filters to view your entire catalog."
-            />
-          )}
-        </div>
-      ) : viewMode === 'grid' ? (
-        /* GRID VIEW */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filtered.map((product) => {
-            const hasDiscount = product.sale_price && product.sale_price < product.price;
-            const discountPct = hasDiscount
-              ? Math.round((1 - (product.sale_price || 0) / product.price) * 100)
-              : null;
-            const isOutOfStock = product.stock_quantity <= 0;
-            const isLowStock = !isOutOfStock && product.stock_quantity <= 5;
-
-            return (
-              <div
-                key={product.id}
-                className="group relative rounded-2xl bg-white border border-slate-200/80 shadow-xs alive-card-hover overflow-hidden flex flex-col"
-              >
-                {/* Image Section */}
-                <div className="relative h-48 bg-slate-100 overflow-hidden flex items-center justify-center">
-                  {product.media_key || product.image_url ? (
-                    <img
-                      src={resolveMediaUrl(product.media_key || product.image_url)}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-300">
-                      <Package size={48} strokeWidth={1.5} />
-                      <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                        No Photo
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Status Badge */}
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    {product.status === 'draft' ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500 text-white shadow-xs">
-                        Draft
-                      </span>
-                    ) : product.status === 'archived' || !product.is_active ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-600 text-white shadow-xs">
-                        Archived
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-600 text-white shadow-xs flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                        Active
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Discount Tag */}
-                  {discountPct && (
-                    <div className="absolute top-3 left-3 bg-rose-600 text-white px-2 py-0.5 rounded-lg text-[11px] font-black shadow-xs">
-                      {discountPct}% OFF
-                    </div>
-                  )}
-
-                  {/* Stock Pill at bottom of image */}
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-md shadow-xs ${
-                        isOutOfStock
-                          ? 'bg-rose-500/90 text-white'
-                          : isLowStock
-                          ? 'bg-amber-500/90 text-white'
-                          : 'bg-slate-900/75 text-white'
-                      }`}
-                    >
-                      {isOutOfStock
-                        ? 'Out of Stock'
-                        : isLowStock
-                        ? `Only ${product.stock_quantity} left`
-                        : `${product.stock_quantity} in stock`}
-                    </span>
-
-                    {((product.variants && product.variants.length > 0) || product.has_variants) && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-900/80 text-white backdrop-blur-md">
-                        <Layers size={10} />
-                        {product.variants?.length ? `${product.variants.length} Variants` : 'Variants'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card Content Details */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600">
-                      {product.category || 'General'}
-                    </span>
-
-                    <h3
-                      className="text-base font-bold text-slate-900 line-clamp-1 mt-0.5 m-0"
-                      title={product.name}
-                    >
-                      {product.name}
-                    </h3>
-
-                    {(product.is_returnable === false || (product as any).non_returnable === true || (product.description || '').includes('Non-returnable')) && (
-                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100/90 text-amber-900 border border-amber-300">
-                        🚫 Non-returnable
-                      </span>
-                    )}
-
-                    {product.sku && (
-                      <div className="flex items-center gap-1 mt-1 text-[11px] font-mono text-slate-400">
-                        <Tag size={11} />
-                        <span>{product.sku}</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(product.sku!, 'SKU')}
-                          className="hover:text-slate-600 cursor-pointer ml-0.5"
-                          title="Copy SKU"
-                        >
-                          <Copy size={10} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Price & Margins */}
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-black text-slate-900">
-                        ₹{(product.sale_price || product.price).toLocaleString('en-IN')}
-                      </span>
-                      {product.sale_price && product.sale_price < product.price && (
-                        <span className="text-xs font-semibold text-slate-400 line-through">
-                          ₹{product.price.toLocaleString('en-IN')}
-                        </span>
-                      )}
-                    </div>
-
-                    {product.cost_price && product.cost_price > 0 && (
-                      <div className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-                        +{(((product.price - product.cost_price) / product.cost_price) * 100).toFixed(0)}% profit margin
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom Actions Toolbar */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(product)}
-                      className="flex-1 h-9 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-800 font-bold text-xs inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-orange-200/60"
-                    >
-                      <Edit2 size={13} />
-                      <span>Edit Item</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDeleteId(product.id)}
-                      className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer transition-colors"
-                      title="Delete product"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* TABLE VIEW */
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <h3 className="text-base font-bold text-[#121c2b] m-0">
+              No products match your criteria
+            </h3>
+            <p className="text-xs text-[#737688] mt-1 max-w-sm m-0">
+              Try resetting filters or searching with another keyword or SKU number.
+            </p>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="mt-4 px-4 py-2 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#0052ff] font-semibold text-xs transition-colors cursor-pointer"
+            >
+              Clear all filters
+            </button>
+          </div>
+        ) : (
+          /* Table Ledger */
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-extrabold tracking-wider">
-                <tr>
-                  <th className="py-3.5 px-4">Product</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">SKU / Barcode</th>
-                  <th className="py-3.5 px-4">Price</th>
-                  <th className="py-3.5 px-4">Stock Level</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#f0f3ff] text-[#737688] text-xs font-semibold uppercase tracking-wider select-none border-b border-[#e7eeff]">
+                  <th className="py-3 pl-4 pr-2 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filtered.length > 0 && selectedProductIds.length === filtered.length
+                      }
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded w-4 h-4 text-[#0052ff] focus:ring-0 cursor-pointer accent-[#0052ff]"
+                    />
+                  </th>
+                  <th className="py-3 px-3 min-w-[280px]">Product &amp; SKU</th>
+                  <th className="py-3 px-3 min-w-[140px]">Category</th>
+                  <th className="py-3 px-3 text-right min-w-[100px]">Price</th>
+                  <th className="py-3 px-3 text-left min-w-[140px]">Inventory</th>
+                  <th className="py-3 px-3 min-w-[130px]">Channels</th>
+                  <th className="py-3 px-3 text-center min-w-[100px]">Storefront</th>
+                  <th className="py-3 pr-4 pl-2 text-right w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map((product) => (
-                  <tr key={product.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* Product & Photo */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                          {product.media_key || product.image_url ? (
-                            <img
-                              src={resolveMediaUrl(product.media_key || product.image_url)}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package size={20} className="text-slate-400" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-slate-900 m-0">{product.name}</p>
-                            {(product.is_returnable === false || (product as any).non_returnable === true || (product.description || '').includes('Non-returnable')) && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100/90 text-amber-900 border border-amber-300">
-                                Non-returnable
-                              </span>
+              <tbody className="divide-y divide-[#e7eeff] text-sm text-[#121c2b]">
+                {paginatedProducts.map((p) => {
+                  const isSelected = selectedProductIds.includes(p.id);
+                  const isActive =
+                    p.status === 'active' || (p.is_active !== false && !p.status);
+                  const isLow = (p.stock_quantity ?? 0) > 0 && (p.stock_quantity ?? 0) <= 5;
+                  const isOut = (p.stock_quantity ?? 0) <= 0;
+
+                  // Price decimal formatting
+                  const priceVal = p.sale_price || p.price || 0;
+                  const [intPart, decPart] = priceVal.toFixed(2).split('.');
+
+                  return (
+                    <tr
+                      key={p.id}
+                      className="hover:bg-[#f0f3ff]/60 transition-colors group"
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3.5 pl-4 pr-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectProduct(p.id)}
+                          className="rounded w-4 h-4 text-[#0052ff] focus:ring-0 cursor-pointer accent-[#0052ff]"
+                        />
+                      </td>
+
+                      {/* Product & SKU */}
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            onClick={() => openEdit(p)}
+                            className="w-11 h-11 rounded-lg overflow-hidden bg-[#e7eeff] shrink-0 relative shadow-2xs flex items-center justify-center cursor-pointer"
+                          >
+                            {p.media_key || p.image_url ? (
+                              <img
+                                src={resolveMediaUrl(p.media_key || p.image_url)}
+                                alt={p.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package size={20} className="text-[#737688]" />
                             )}
                           </div>
-                          {product.variants && product.variants.length > 0 && (
-                            <span className="text-[11px] font-semibold text-indigo-600">
-                              {product.variants.length} Variants
+                          <div className="flex flex-col min-w-0">
+                            <span
+                              onClick={() => openEdit(p)}
+                              className="font-semibold text-sm text-[#121c2b] group-hover:text-[#0052ff] transition-colors truncate cursor-pointer"
+                              title={p.name}
+                            >
+                              {p.name}
                             </span>
-                          )}
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs font-mono text-[#737688]">
+                                {p.sku || 'NO-SKU'}
+                              </span>
+                              <span className="w-1 h-1 rounded-full bg-[#c3c5d9]" />
+                              <span className="text-xs text-[#585e6f]">
+                                {p.barcode ? `EAN: ${p.barcode}` : 'No barcode'}
+                              </span>
+                              {p.variants && p.variants.length > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#0052ff] ml-1">
+                                  <Layers size={11} />
+                                  <span>{p.variants.length} var</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Category */}
-                    <td className="py-3 px-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-orange-50 text-orange-700 text-xs font-bold border border-orange-200/60">
-                        {product.category || 'General'}
-                      </span>
-                    </td>
-
-                    {/* SKU / Barcode */}
-                    <td className="py-3 px-4">
-                      <div className="font-mono text-xs text-slate-700">
-                        {product.sku || '—'}
-                      </div>
-                      {product.barcode && (
-                        <div className="font-mono text-[10px] text-slate-400">
-                          {product.barcode}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Price */}
-                    <td className="py-3 px-4">
-                      <div className="font-black text-slate-900 text-base">
-                        ₹{(product.sale_price || product.price).toLocaleString('en-IN')}
-                      </div>
-                      {product.sale_price && product.sale_price < product.price && (
-                        <div className="text-xs text-slate-400 line-through">
-                          ₹{product.price.toLocaleString('en-IN')}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Stock Level */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-xs font-bold ${
-                            product.stock_quantity <= 0
-                              ? 'text-rose-600'
-                              : product.stock_quantity <= 5
-                              ? 'text-amber-600'
-                              : 'text-emerald-700'
-                          }`}
-                        >
-                          {product.stock_quantity <= 0
-                            ? 'Out of Stock'
-                            : `${product.stock_quantity} units`}
+                      {/* Category */}
+                      <td className="py-3.5 px-3">
+                        <span className="px-2 py-1 rounded-md bg-[#e7eeff] text-[#434656] text-xs font-medium inline-block truncate max-w-[130px]">
+                          {p.category || 'General'}
                         </span>
-                      </div>
-                      {/* Mini visual stock bar */}
-                      <div className="w-24 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
-                        <div
-                          className={`h-full rounded-full ${
-                            product.stock_quantity <= 0
-                              ? 'bg-rose-500'
-                              : product.stock_quantity <= 5
-                              ? 'bg-amber-500'
-                              : 'bg-emerald-500'
+                      </td>
+
+                      {/* Price */}
+                      <td className="py-3.5 px-3 text-right">
+                        <span className="font-semibold text-base tabular-nums text-[#121c2b]">
+                          ₹{intPart}
+                          <span className="text-[#737688] text-xs">.{decPart}</span>
+                        </span>
+                      </td>
+
+                      {/* Inventory */}
+                      <td className="py-3.5 px-3">
+                        {isOut ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ffdad6] text-[#93000a]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ba1a1a]" />
+                              0 left
+                            </span>
+                          </div>
+                        ) : isLow ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ffdbd2] text-[#891e00]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#952200]" />
+                              {p.stock_quantity} left
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs text-[#121c2b]">
+                            <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                            <span>{p.stock_quantity ?? 0} in stock</span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Channels */}
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-1.5 text-xs text-[#585e6f]">
+                          <Globe size={16} className="text-[#003ec7]" title="Online Storefront" />
+                          <Store size={16} className="text-[#585e6f]" title="POS Counter" />
+                          <span className="text-[#737688] hidden sm:inline">Online &amp; Counter</span>
+                        </div>
+                      </td>
+
+                      {/* Storefront Toggle Switch */}
+                      <td className="py-3.5 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleProductStatus(p)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            isActive ? 'bg-[#0052ff]' : 'bg-[#d9e3f8]'
                           }`}
-                          style={{
-                            width: `${Math.min(100, Math.max(5, product.stock_quantity * 4))}%`,
+                          role="switch"
+                          aria-checked={isActive}
+                          title={isActive ? 'Storefront Live (Click to set Draft)' : 'Storefront Hidden (Click to publish)'}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                              isActive ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </td>
+
+                      {/* Row Actions Menu */}
+                      <td className="py-3.5 pr-4 pl-2 text-right relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenRowMenuId(openRowMenuId === p.id ? null : p.id);
                           }}
-                        />
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3 px-4">
-                      {product.status === 'draft' ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200">
-                          Draft
-                        </span>
-                      ) : product.status === 'archived' || !product.is_active ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200">
-                          Archived
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 w-fit">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          Active
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(product)}
-                          className="p-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 cursor-pointer transition-colors"
-                          title="Edit product"
+                          className="p-1 rounded-lg text-[#737688] hover:text-[#121c2b] hover:bg-[#e7eeff] transition-colors cursor-pointer"
                         >
-                          <Edit2 size={14} />
+                          <MoreVertical size={18} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteId(product.id)}
-                          className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                          title="Delete product"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+
+                        {openRowMenuId === p.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-4 top-10 w-36 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-[#c3c5d9]/40 text-left"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenRowMenuId(null);
+                                openEdit(p);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-[#121c2b] hover:bg-[#f0f3ff] flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit2 size={14} className="text-[#585e6f]" />
+                              <span>Edit Product</span>
+                            </button>
+                            {p.sku && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenRowMenuId(null);
+                                  copyToClipboard(p.sku!, 'SKU');
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-[#121c2b] hover:bg-[#f0f3ff] flex items-center gap-2 cursor-pointer"
+                              >
+                                <Copy size={14} className="text-[#585e6f]" />
+                                <span>Copy SKU</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenRowMenuId(null);
+                                setDeleteId(p.id);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-[#ba1a1a] hover:bg-[#ffdad6]/60 flex items-center gap-2 cursor-pointer"
+                            >
+                              <Trash2 size={14} className="text-[#ba1a1a]" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* 6. Pagination & Summary Footer */}
+        {filtered.length > 0 && (
+          <div className="px-4 py-3.5 bg-[#f0f3ff]/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-[#585e6f] border-t border-[#e7eeff]">
+            <div className="flex items-center gap-2 text-xs">
+              <span>
+                Showing{' '}
+                <strong className="font-semibold text-[#121c2b]">
+                  {Math.min(filtered.length, (page - 1) * pageSize + 1)}–
+                  {Math.min(filtered.length, page * pageSize)}
+                </strong>{' '}
+                of <strong className="font-semibold text-[#121c2b]">{filtered.length}</strong>{' '}
+                items
+              </span>
+              <span className="text-[#737688]">•</span>
+              <span className="text-[#737688]">
+                Page {page} of {totalPages}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="h-9 px-3 rounded-lg bg-[#f0f3ff] text-[#121c2b] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium flex items-center gap-1 hover:bg-[#e7eeff] transition-colors cursor-pointer"
+              >
+                <ChevronLeft size={16} />
+                <span>Previous</span>
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, idx) => {
+                  const pNum = idx + 1;
+                  // Show current, first, last, and neighbors
+                  if (
+                    pNum === 1 ||
+                    pNum === totalPages ||
+                    Math.abs(pNum - page) <= 1
+                  ) {
+                    const isCurrent = pNum === page;
+                    return (
+                      <button
+                        key={pNum}
+                        type="button"
+                        onClick={() => setPage(pNum)}
+                        className={`h-9 w-9 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer ${
+                          isCurrent
+                            ? 'bg-[#0052ff] text-white shadow-2xs'
+                            : 'hover:bg-[#e7eeff] text-[#121c2b]'
+                        }`}
+                      >
+                        {pNum}
+                      </button>
+                    );
+                  }
+                  if (
+                    (pNum === 2 && page > 3) ||
+                    (pNum === totalPages - 1 && page < totalPages - 2)
+                  ) {
+                    return (
+                      <span key={pNum} className="px-1 text-[#737688] text-xs">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="h-9 px-3 rounded-lg bg-[#f0f3ff] text-[#121c2b] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium flex items-center gap-1 hover:bg-[#e7eeff] transition-colors cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 🚀 MODAL: ADD / EDIT PRODUCT */}
       <AddProductModal
@@ -1133,17 +1106,17 @@ export default function ProductsPage() {
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
         >
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-100 animate-scale-in text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
-              <Trash2 size={26} strokeWidth={2} />
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-[#e7eeff] text-center space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center mx-auto">
+              <Trash2 size={24} strokeWidth={2} />
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-slate-900 m-0">
+              <h3 className="text-base font-bold text-[#121c2b] m-0">
                 Delete this product?
               </h3>
-              <p className="text-xs text-slate-500 mt-1.5 m-0 leading-relaxed">
-                This item will be permanently removed from your catalog. It will no longer appear on your storefront or customer orders.
+              <p className="text-xs text-[#585e6f] mt-1 m-0 leading-relaxed">
+                This item will be permanently removed from your SKU register. It will no longer appear on your storefront or in orders.
               </p>
             </div>
 
@@ -1151,7 +1124,7 @@ export default function ProductsPage() {
               <button
                 type="button"
                 onClick={() => setDeleteId(null)}
-                className="flex-1 h-11 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                className="flex-1 h-11 rounded-xl border border-[#c3c5d9]/40 bg-white hover:bg-[#f0f3ff] text-[#121c2b] font-semibold text-xs cursor-pointer transition-colors"
               >
                 Keep Product
               </button>
@@ -1160,7 +1133,7 @@ export default function ProductsPage() {
                 type="button"
                 onClick={() => deleteMutation.mutate(deleteId)}
                 disabled={deleteMutation.isPending}
-                className="flex-1 h-11 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 cursor-pointer transition-all disabled:opacity-50"
+                className="flex-1 h-11 rounded-xl bg-[#ba1a1a] hover:bg-[#93000a] text-white font-semibold text-xs cursor-pointer transition-all disabled:opacity-50"
               >
                 {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
               </button>
@@ -1171,73 +1144,46 @@ export default function ProductsPage() {
 
       {/* 🎉 CELEBRATORY GROWTH LIMIT MODAL */}
       {showGrowthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border border-[#e7eeff]">
             <div className="text-center mb-5">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-500/20 mb-3">
                 🎉
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black uppercase tracking-wider mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold uppercase tracking-wider mb-2">
                 <Sparkles size={12} /> Milestone Achieved
               </span>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-bold text-[#121c2b] tracking-tight m-0">
                 Congratulations on listing {productLimit} products!
               </h3>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5 max-w-md mx-auto">
-                Your store catalog is expanding fast. You have reached the maximum listing limit for the Free tier.
+              <p className="text-xs sm:text-sm text-[#585e6f] font-normal mt-1.5 max-w-md mx-auto m-0">
+                Your store catalog is expanding fast. You have reached the listing limit for the Free tier.
               </p>
             </div>
 
-            {/* Reassurance Card (Loss Aversion Elimination) */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-5 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+            {/* Reassurance Card */}
+            <div className="bg-[#f0f3ff] border border-[#e7eeff] rounded-xl p-4 mb-5 space-y-1 text-left">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#121c2b]">
                 <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
                 <span>Zero Extortion Guarantee</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed m-0">
+              <p className="text-xs text-[#585e6f] leading-relaxed m-0">
                 Your existing {productLimit} products will{' '}
-                <strong>remain active, searchable, and 100% free forever</strong>. We will never hide
-                your products, freeze customer orders, or hold your catalog hostage.
+                <strong>remain active, searchable, and 100% free forever</strong>.
               </p>
             </div>
 
-            {/* Growth Benefits */}
-            <div className="space-y-2.5 mb-6">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0">
-                What you unlock on the Business Plan:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <Check size={14} className="text-emerald-600 shrink-0" />
-                  <span>Up to 500 products</span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <Check size={14} className="text-emerald-600 shrink-0" />
-                  <span>Custom domain connection</span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <Check size={14} className="text-emerald-600 shrink-0" />
-                  <span>FeraSetu AI Studio Cleaner</span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <Check size={14} className="text-emerald-600 shrink-0" />
-                  <span>0% commission cuts</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowGrowthModal(false)}
-                className="h-12 min-h-[48px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex-1 cursor-pointer transition-colors"
+                className="h-11 rounded-xl border border-[#c3c5d9]/40 bg-white hover:bg-[#f0f3ff] text-[#121c2b] font-semibold text-xs flex-1 cursor-pointer transition-colors"
               >
-                Keep My {productLimit} Free Products
+                Keep Free Products
               </button>
               <Link
                 to="/upgrade"
-                className="h-12 min-h-[48px] rounded-xl btn-orange-alive font-extrabold text-xs flex-1 inline-flex items-center justify-center gap-1.5 shadow-md"
+                className="h-11 rounded-xl bg-[#0052ff] hover:bg-[#003ec7] text-white font-semibold text-xs flex-1 inline-flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <span>Upgrade to Business</span>
                 <ArrowRight size={14} />
