@@ -78,7 +78,8 @@ import {
   updateAssetVisibility,
 } from "./services/builderService.js";
 import { handleAnalyticsEvents } from "./analytics/ingestion.js";
-import { runDailyAggregation, pruneRawEvents } from "./analytics/aggregation.js";
+import { runDailyAggregation, pruneRawEvents, getPlatformAnalytics } from "./analytics/aggregation.js";
+import { handlePlatformSiteRequest } from "./services/platformSiteRenderer.js";
 import { resolveSellablePrice } from "./catalog/priceResolver.js";
 import {
   registerShopSku,
@@ -3712,7 +3713,9 @@ async function ensureTables(db) {
           const draftExists = await db.prepare("SELECT 1 FROM website_drafts LIMIT 1").first();
           const connExists = await db.prepare("SELECT 1 FROM website_connections LIMIT 1").first();
           const verExists = await db.prepare("SELECT 1 FROM website_versions LIMIT 1").first();
-          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined) {
+          const adminEntExists = await db.prepare("SELECT 1 FROM platform_admin_entitlements LIMIT 1").first();
+          const analyticsIpExists = await db.prepare("SELECT ip_address FROM analytics_events LIMIT 1").first();
+          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined && adminEntExists !== undefined && analyticsIpExists !== undefined) {
             tablesInitialized = true;
             return;
           }
@@ -4689,6 +4692,10 @@ async function ensureTables(db) {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
+    await safeAddColumn('analytics_events', 'organization_id TEXT');
+    await safeAddColumn('analytics_events', 'user_id TEXT');
+    await safeAddColumn('analytics_events', 'event_type TEXT');
+    await safeAddColumn('analytics_events', 'event_data TEXT');
     await safeAddColumn('analytics_events', "tenant_id TEXT NOT NULL DEFAULT 'platform'");
     await safeAddColumn('analytics_events', 'visitor_id TEXT');
     await safeAddColumn('analytics_events', 'session_id TEXT');
@@ -10634,6 +10641,33 @@ async function getPublicShop(shopName, request, env) {
   }
 
   if (!targetOrgId && !user) {
+    if (env?.DB) {
+      try {
+        const pSite = await env.DB.prepare(
+          "SELECT * FROM platform_sites WHERE LOWER(project_identifier) = ? OR LOWER(primary_hostname) = ? OR LOWER(primary_hostname) = ?"
+        ).bind(slugWithoutDomain, fullHostname, cleanShopName).first();
+        if (pSite) {
+          return json({
+            shop: {
+              id: pSite.id,
+              name: pSite.name,
+              subdomain: pSite.project_identifier,
+              hostname: pSite.primary_hostname,
+              is_platform_site: true
+            },
+            website: {
+              id: `site-${pSite.id}`,
+              title: pSite.name,
+              is_published: 1,
+              content: pSite.description || ""
+            },
+            products: []
+          }, 200, {}, request);
+        }
+      } catch (pSiteErr) {
+        console.warn("Platform site fallback in getPublicShop notice:", pSiteErr?.message);
+      }
+    }
     return errorResponse("Shop not found", 404, undefined, request);
   }
 
@@ -11354,6 +11388,16 @@ async function route(request, env) {
   }
 
   // Analytics
+  if ((path === "/api/analytics" || path === "/analytics") && method === "GET") {
+    const days = Math.max(1, Math.min(90, parseInt(url.searchParams.get("days") || "30", 10)));
+    try {
+      const analyticsData = await getPlatformAnalytics(env, days);
+      return json({ success: true, analytics: analyticsData }, 200, {}, request);
+    } catch (err) {
+      console.warn("Analytics retrieval notice:", err?.message || err);
+      return json({ success: true, analytics: { windowDays: days, summary: {}, funnel: {}, devices: {}, geo: {}, topIps: [], recentVisitors: [], dailyTrend: [], recentErrors: [] } }, 200, {}, request);
+    }
+  }
   if (path === "/api/analytics/dashboard" && method === "GET") {
     return getAnalyticsDashboard(request, env);
   }
@@ -11445,7 +11489,7 @@ async function route(request, env) {
   }
 
   // Analytics Events Ingestion (Privacy-First, Tenant-Isolated, Rate-Limited)
-  if (path === "/api/analytics/events" && method === "POST") {
+  if ((path === "/api/analytics/events" || path === "/analytics/events") && method === "POST") {
     return handleAnalyticsEvents(request, env, {
       getAuthenticatedUser,
       resolveStorefrontTenant,
@@ -11616,6 +11660,30 @@ export default {
           return await route(request, env);
         }
         return await proxyPagesAsset(request, env, ctx);
+      }
+
+      // 1.5 Autonomous Platform Sites & AI Web Properties (e.g. nothing.ferasetu.com, help.ferasetu.com)
+      if (env?.DB) {
+        let platformSite = null;
+        try {
+          platformSite = await env.DB.prepare(`
+            SELECT s.*, d.hostname_id, d.routing_target, d.provisioning_status
+            FROM platform_sites s
+            LEFT JOIN platform_domains d ON d.site_id = s.id
+            WHERE (LOWER(s.primary_hostname) = ? OR LOWER(d.normalized_hostname) = ? OR LOWER(s.project_identifier) = ?)
+              AND s.status NOT IN ('archived', 'failed')
+            LIMIT 1
+          `).bind(url.hostname.toLowerCase(), url.hostname.toLowerCase(), hostClassification.slug || '').first();
+        } catch (psErr) {
+          console.warn("Platform site discovery notice:", psErr?.message || psErr);
+        }
+
+        if (platformSite) {
+          if (url.pathname.startsWith("/api/")) {
+            return await route(request, env);
+          }
+          return await handlePlatformSiteRequest(request, env, ctx, platformSite);
+        }
       }
 
       // 2. Reserved platform subdomains (api, www, app, admin, docs, status, mail, support, etc.)

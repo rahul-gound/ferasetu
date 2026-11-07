@@ -110,7 +110,7 @@ await test('2a. frontend/public/_headers defines comprehensive Content-Security-
   assert.ok(content.includes('https://api.workos.com'), 'CSP must allow WorkOS AuthKit');
   assert.ok(content.includes('https://challenges.cloudflare.com'), 'CSP must allow Cloudflare Turnstile');
   assert.ok(content.includes('https://*.statsigapi.net'), 'CSP must allow Statsig feature flags');
-  assert.ok(content.includes('https://api.sarvam.ai'), 'CSP must allow Sarvam AI');
+  assert.ok(content.includes('https://*.workers.dev'), 'CSP must allow Worker APIs');
 });
 
 await test('2b. Worker storefront proxy and SPA HTML shell set Content-Security-Policy', async () => {

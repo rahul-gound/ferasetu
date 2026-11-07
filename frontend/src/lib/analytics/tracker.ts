@@ -22,7 +22,8 @@ const defaultApiUrl = typeof window !== 'undefined' && window.location.hostname 
   ? 'https://ferasetu.singhantima203.workers.dev/api'
   : '/api';
 const rawApiUrl = (import.meta.env?.VITE_API_URL || defaultApiUrl).replace(/\/+$/, '');
-const INGESTION_ENDPOINT = `${rawApiUrl}/analytics/events`;
+const normalizedApiUrl = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+const INGESTION_ENDPOINT = `${normalizedApiUrl}/analytics/events`;
 const BATCH_FLUSH_INTERVAL_MS = 3000;
 const MAX_QUEUE_SIZE = 15;
 

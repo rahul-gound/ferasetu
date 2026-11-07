@@ -292,9 +292,25 @@ export async function handleAdminRoutes(request, env) {
     }
 
     // PLATFORM PRODUCT ANALYTICS
-    if (path === "/api/admin/analytics" && method === "GET") {
+    if ((path === "/api/admin/analytics" || path === "/admin/analytics" || rawPath === "/admin/analytics") && method === "GET") {
       const days = Math.max(1, Math.min(90, parseInt(url.searchParams.get("days") || "30", 10)));
-      const analyticsData = await getPlatformAnalytics(env, days);
+      let analyticsData = null;
+      try {
+        analyticsData = await getPlatformAnalytics(env, days);
+      } catch (err) {
+        console.warn("[Admin Analytics Route Notice]", err?.message || err);
+        analyticsData = {
+          windowDays: days,
+          summary: { totalVisitors: 0, totalIps: 0, totalSessions: 0, totalPageViews: 0, totalCtas: 0, totalSignups: 0, totalTrials: 0 },
+          funnel: {},
+          devices: {},
+          geo: [],
+          topIps: [],
+          recentVisitors: [],
+          dailyTrend: [],
+          recentErrors: []
+        };
+      }
       return json({ success: true, analytics: analyticsData });
     }
 

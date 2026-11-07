@@ -136,29 +136,55 @@ export async function getPlatformAnalytics(env, days = 30) {
   const windowDays = Math.max(1, Math.min(90, parseInt(days, 10) || 30));
 
   // 1. Overall unique visitors and counts across all platform events
-  const overallRow = await env.DB.prepare(`
-    SELECT 
-      COUNT(DISTINCT visitor_id) as total_unique_visitors,
-      COUNT(DISTINCT session_id) as total_unique_sessions,
-      COUNT(DISTINCT CASE WHEN ip_address IS NOT NULL AND ip_address != '' THEN ip_address END) as total_unique_ips,
-      COUNT(CASE WHEN event_name = 'page_view' OR event_type = 'page_view' THEN 1 END) as total_page_views,
-      COUNT(*) as total_events
-    FROM analytics_events
-    WHERE tenant_id = 'platform'
-      AND created_at >= datetime('now', '-' || ? || ' days')
-  `).bind(windowDays).first();
+  let overallRow = null;
+  try {
+    overallRow = await env.DB.prepare(`
+      SELECT 
+        COUNT(DISTINCT visitor_id) as total_unique_visitors,
+        COUNT(DISTINCT session_id) as total_unique_sessions,
+        COUNT(DISTINCT CASE WHEN ip_address IS NOT NULL AND ip_address != '' THEN ip_address END) as total_unique_ips,
+        COUNT(CASE WHEN event_name = 'page_view' OR event_type = 'page_view' THEN 1 END) as total_page_views,
+        COUNT(*) as total_events
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+        AND created_at >= datetime('now', '-' || ? || ' days')
+    `).bind(windowDays).first();
+  } catch (err) {
+    console.warn("Could not query overallRow with ip_address/event_type, attempting minimal query:", err?.message || err);
+    try {
+      overallRow = await env.DB.prepare(`
+        SELECT 
+          COUNT(DISTINCT visitor_id) as total_unique_visitors,
+          COUNT(DISTINCT session_id) as total_unique_sessions,
+          0 as total_unique_ips,
+          COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as total_page_views,
+          COUNT(*) as total_events
+        FROM analytics_events
+        WHERE tenant_id = 'platform'
+          AND created_at >= datetime('now', '-' || ? || ' days')
+      `).bind(windowDays).first();
+    } catch (fallbackErr) {
+      console.warn("Could not query overallRow minimal:", fallbackErr?.message || fallbackErr);
+      overallRow = null;
+    }
+  }
 
-  const statsRows = await env.DB.prepare(`
-    SELECT 
-      event_name,
-      COUNT(*) as count,
-      COUNT(DISTINCT visitor_id) as visitors,
-      COUNT(DISTINCT session_id) as sessions
-    FROM analytics_events
-    WHERE tenant_id = 'platform'
-      AND created_at >= datetime('now', '-' || ? || ' days')
-    GROUP BY event_name
-  `).bind(windowDays).all();
+  let statsRows = { results: [] };
+  try {
+    statsRows = await env.DB.prepare(`
+      SELECT 
+        event_name,
+        COUNT(*) as count,
+        COUNT(DISTINCT visitor_id) as visitors,
+        COUNT(DISTINCT session_id) as sessions
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+        AND created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY event_name
+    `).bind(windowDays).all();
+  } catch (err) {
+    console.warn("Could not query statsRows:", err?.message || err);
+  }
 
   const eventMap = {};
   for (const r of (statsRows.results || [])) {
@@ -202,49 +228,63 @@ export async function getPlatformAnalytics(env, days = 30) {
   };
 
   // 3. Device category distribution
-  const deviceRows = await env.DB.prepare(`
-    SELECT device_category, COUNT(*) as count
-    FROM analytics_events
-    WHERE tenant_id = 'platform'
-      AND created_at >= datetime('now', '-' || ? || ' days')
-    GROUP BY device_category
-  `).bind(windowDays).all();
-
   const devices = {};
-  for (const r of (deviceRows.results || [])) {
-    devices[r.device_category || 'desktop'] = r.count;
+  try {
+    const deviceRows = await env.DB.prepare(`
+      SELECT device_category, COUNT(*) as count
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+        AND created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY device_category
+    `).bind(windowDays).all();
+
+    for (const r of (deviceRows.results || [])) {
+      devices[r.device_category || 'desktop'] = r.count;
+    }
+  } catch (err) {
+    console.warn("Could not query deviceRows:", err?.message || err);
   }
 
   // 4. Coarse Geographic distribution (Country only)
-  const geoRows = await env.DB.prepare(`
-    SELECT country, COUNT(*) as count
-    FROM analytics_events
-    WHERE tenant_id = 'platform'
-      AND created_at >= datetime('now', '-' || ? || ' days')
-    GROUP BY country
-    ORDER BY count DESC
-    LIMIT 10
-  `).bind(windowDays).all();
+  let geo = [];
+  try {
+    const geoRows = await env.DB.prepare(`
+      SELECT country, COUNT(*) as count
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+        AND created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY country
+      ORDER BY count DESC
+      LIMIT 10
+    `).bind(windowDays).all();
 
-  const geo = (geoRows.results || []).map(r => ({
-    country: r.country || 'Unknown',
-    count: r.count
-  }));
+    geo = (geoRows.results || []).map(r => ({
+      country: r.country || 'Unknown',
+      count: r.count
+    }));
+  } catch (err) {
+    console.warn("Could not query geoRows:", err?.message || err);
+  }
 
   // 5. Daily trend chart
-  const dailyRows = await env.DB.prepare(`
-    SELECT 
-      DATE(created_at) as date,
-      COUNT(DISTINCT visitor_id) as visitors,
-      COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as views,
-      COUNT(CASE WHEN event_name = 'cta_click' THEN 1 END) as ctas,
-      COUNT(CASE WHEN event_name = 'signup_start' THEN 1 END) as signups
-    FROM analytics_events
-    WHERE tenant_id = 'platform'
-      AND created_at >= datetime('now', '-' || ? || ' days')
-    GROUP BY DATE(created_at)
-    ORDER BY DATE(created_at) ASC
-  `).bind(windowDays).all();
+  let dailyRows = { results: [] };
+  try {
+    dailyRows = await env.DB.prepare(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(DISTINCT visitor_id) as visitors,
+        COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as views,
+        COUNT(CASE WHEN event_name = 'cta_click' THEN 1 END) as ctas,
+        COUNT(CASE WHEN event_name = 'signup_start' THEN 1 END) as signups
+      FROM analytics_events
+      WHERE tenant_id = 'platform'
+        AND created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY DATE(created_at)
+      ORDER BY DATE(created_at) ASC
+    `).bind(windowDays).all();
+  } catch (err) {
+    console.warn("Could not query dailyRows:", err?.message || err);
+  }
 
   // 6. Top Visitor IP Addresses Telemetry
   let topIps = [];
@@ -313,25 +353,30 @@ export async function getPlatformAnalytics(env, days = 30) {
   }
 
   // 8. Recent safe friction / error events
-  const errorRows = await env.DB.prepare(`
-    SELECT event_name, properties, created_at
-    FROM analytics_events
-    WHERE tenant_id = 'platform' AND event_name = 'error'
-    ORDER BY created_at DESC
-    LIMIT 15
-  `).all();
+  let recentErrors = [];
+  try {
+    const errorRows = await env.DB.prepare(`
+      SELECT event_name, properties, created_at
+      FROM analytics_events
+      WHERE tenant_id = 'platform' AND event_name = 'error'
+      ORDER BY created_at DESC
+      LIMIT 15
+    `).all();
 
-  const recentErrors = (errorRows.results || []).map(r => {
-    let props = {};
-    try { props = JSON.parse(r.properties || '{}'); } catch {}
-    return {
-      error_name: props.error_name || 'GenericError',
-      error_type: props.error_type || 'client_runtime',
-      status_code: props.status_code || null,
-      path: props.path || '/',
-      created_at: r.created_at
-    };
-  });
+    recentErrors = (errorRows.results || []).map(r => {
+      let props = {};
+      try { props = JSON.parse(r.properties || '{}'); } catch {}
+      return {
+        error_name: props.error_name || 'GenericError',
+        error_type: props.error_type || 'client_runtime',
+        status_code: props.status_code || null,
+        path: props.path || '/',
+        created_at: r.created_at
+      };
+    });
+  } catch (err) {
+    console.warn("Could not query recentErrors:", err?.message || err);
+  }
 
   return {
     windowDays,

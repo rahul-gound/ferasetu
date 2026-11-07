@@ -13,7 +13,8 @@ import AdminLayout from '../components/admin/AdminLayout';
 
 const AdminRevenueChart = lazy(() => import('../components/admin/AdminDashboardCharts'));
 
-const API = import.meta.env.VITE_API_URL || '/api';
+const rawApi = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+const API = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
