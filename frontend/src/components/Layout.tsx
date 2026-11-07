@@ -879,7 +879,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           className={
             isWebsiteBuilder
               ? 'flex-1 min-h-0 overflow-hidden bg-white p-0'
-              : 'flex-1 overflow-y-auto bg-[#F6F8FC] p-5 sm:p-6 lg:p-8'
+              : 'flex-1 overflow-y-auto bg-[#F6F8FC] p-3.5 sm:p-6 lg:p-8'
           }
         >
           {children ?? <Outlet context={{ setSidebarOpen, isCollapsed, setIsCollapsed }} />}

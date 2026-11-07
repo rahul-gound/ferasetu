@@ -746,7 +746,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="pb-12 max-w-[1400px] mx-auto space-y-6 text-slate-900 font-sans">
+    <div className="pb-12 max-w-[1400px] mx-auto space-y-5 sm:space-y-6 lg:space-y-8 text-slate-900 font-sans">
       {/* ── Trial & Lifecycle Alerts ── */}
       {market !== 'IN' && subscription.isTrialing && !subscription.isEndingSoon && (
         <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 p-4 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -769,9 +769,9 @@ export default function DashboardPage() {
       )}
 
             {/* ── Top Welcome Bar & Storefront Status ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               {greeting}, {firstName}.
             </h1>
@@ -801,45 +801,49 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+        {/* Responsive Action Buttons: Never squished or overlapping */}
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           <a
             href={storeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-xs font-bold transition-all shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-xs font-bold transition-all shadow-xs"
           >
-            <ExternalLink size={14} className="text-slate-500" />
-            <span>View Live Store</span>
+            <ExternalLink size={14} className="text-slate-500 shrink-0" />
+            <span className="hidden sm:inline">View Live Store</span>
+            <span className="sm:hidden">Store</span>
           </a>
           <button
             type="button"
             onClick={handleDownloadReport}
             disabled={downloading}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-xs font-bold transition-all shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-xs font-bold transition-all shadow-xs cursor-pointer"
           >
-            <Download size={14} className="text-slate-500" />
-            <span>{downloading ? 'Exporting…' : 'Export CSV'}</span>
+            <Download size={14} className="text-slate-500 shrink-0" />
+            <span className="hidden sm:inline">{downloading ? 'Exporting…' : 'Export CSV'}</span>
+            <span className="sm:hidden">Export</span>
           </button>
           <Link
             to="/products?import=true"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-xs font-bold transition-all shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-xs font-bold transition-all shadow-xs"
             title="Import inventory from Standard Retail or Shopify CSV"
           >
-            <Upload size={14} className="text-slate-500" />
-            <span>Import CSV</span>
+            <Upload size={14} className="text-slate-500 shrink-0" />
+            <span className="hidden sm:inline">Import CSV</span>
+            <span className="sm:hidden">Import</span>
           </Link>
           <Link
             to="/products"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/60 text-blue-700 text-xs font-bold transition-all shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all shadow-xs"
           >
-            <Plus size={14} className="text-blue-600" />
+            <Plus size={14} className="text-blue-600 shrink-0" />
             <span>Add Product</span>
           </Link>
           <Link
             to="/orders"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-sm shadow-blue-600/25"
+            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-sm shadow-blue-600/25"
           >
-            <ShoppingCart size={15} />
+            <ShoppingCart size={15} className="shrink-0" />
             <span>New Order</span>
           </Link>
         </div>
@@ -857,115 +861,113 @@ export default function DashboardPage() {
         storeUrl={user?.organization?.store_url || (user?.subdomain ? `https://${user.subdomain}.ferasetu.com` : undefined)}
       />
 
-            {/* ── Business Performance Summary (Unified container with tabular alignment) ── */}
-      <div className="w-full bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          
-          {/* Metric 1: Today's Sales */}
-          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/50 transition-colors">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Today's Sales</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-                {config.symbol}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-baseline gap-1">
-                <span className="text-base font-bold text-slate-400">{config.symbol}</span>
-                <span className="text-3xl font-black text-slate-900 tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {todaySales.toLocaleString(config.market === 'IN' ? 'en-IN' : 'en-US')}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate font-medium">
-                <span className="text-emerald-700 font-bold inline-flex items-center gap-0.5">
-                  <TrendingUp size={13} />
-                  +{revenueChange > 0 ? revenueChange : 14}%
-                </span>
-                <span>• {config.symbol}{todayInBank.toLocaleString()} in bank</span>
-              </div>
+            {/* ── Business Performance Summary: Responsive Individual Cards with Generous Whitespace ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 sm:gap-4">
+        
+        {/* Metric 1: Today's Sales */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all min-h-[140px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Today's Sales</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+              {config.symbol}
             </div>
           </div>
-
-          {/* Metric 2: Today's Orders */}
-          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/50 transition-colors bg-slate-50/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Today's Orders</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <ShoppingBag size={14} />
-              </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-1">
+              <span className="text-base font-bold text-slate-400">{config.symbol}</span>
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {todaySales.toLocaleString(config.market === 'IN' ? 'en-IN' : 'en-US')}
+              </span>
             </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-3xl font-black text-slate-900 tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {todayOrders.length}
-              </div>
-              <div className="text-xs text-slate-500 truncate font-medium">
-                {todayCounterOrders} counter • {todayUpiOrders} UPI
-              </div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate font-medium">
+              <span className="text-emerald-700 font-bold inline-flex items-center gap-0.5 shrink-0">
+                <TrendingUp size={13} />
+                +{revenueChange > 0 ? revenueChange : 14}%
+              </span>
+              <span className="truncate">• {config.symbol}{todayInBank.toLocaleString()} in bank</span>
             </div>
           </div>
-
-          {/* Metric 3: Peak Rush */}
-          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/50 transition-colors">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Peak Rush</span>
-              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Zap size={14} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-lg font-bold text-slate-900 tracking-tight">
-                {peakRush.window}
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate font-medium">
-                <span className="font-bold text-blue-600 font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {peakRush.orders} {peakRush.orders === 1 ? 'order' : 'orders'}
-                </span>
-                <span>• {config.symbol}{peakRush.revenue.toLocaleString()} gross</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Metric 4: Store Footfall */}
-          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/50 transition-colors">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Store Footfall</span>
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Globe size={14} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-black text-slate-900 tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {dashboardData?.visitors?.total_visitors || (todayOrders.length > 0 ? todayOrders.length * 8 : 0)}
-                </span>
-                <span className="text-xs font-semibold text-slate-400">visits</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
-                <span>{conversionRate}% conversion</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Metric 5: Requires Attention */}
-          <div className="p-5 flex flex-col justify-between bg-[#FFF9F5] border-l-2 border-l-[#E8590C] hover:bg-[#FFF4ED]/40 transition-colors">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#C2410C]">Requires Attention</span>
-              <div className="w-7 h-7 rounded-lg bg-[#FFF4ED] border border-[#FED7AA] flex items-center justify-center text-[#E8590C]">
-                <AlertCircle size={15} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-3xl font-black text-[#E8590C] tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {pendingCount + lowStockProducts.length}
-              </div>
-              <div className="text-xs text-slate-600 truncate font-medium">
-                {pendingCount} dispatch • {lowStockProducts.length} low stock
-              </div>
-            </div>
-          </div>
-
         </div>
+
+        {/* Metric 2: Today's Orders */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all min-h-[140px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Today's Orders</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <ShoppingBag size={14} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {todayOrders.length}
+            </div>
+            <div className="text-xs text-slate-500 truncate font-medium">
+              {todayCounterOrders} counter • {todayUpiOrders} UPI
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 3: Peak Rush */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all min-h-[140px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Peak Rush</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Zap size={14} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">
+              {peakRush.window}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate font-medium">
+              <span className="font-bold text-blue-600 font-mono shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {peakRush.orders} {peakRush.orders === 1 ? 'order' : 'orders'}
+              </span>
+              <span className="truncate">• {config.symbol}{peakRush.revenue.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 4: Store Footfall */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all min-h-[140px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Store Footfall</span>
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Globe size={14} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {dashboardData?.visitors?.total_visitors || (todayOrders.length > 0 ? todayOrders.length * 8 : 0)}
+              </span>
+              <span className="text-xs font-semibold text-slate-400">visits</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block shrink-0" />
+              <span>{conversionRate}% conversion</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 5: Requires Attention */}
+        <div className="bg-[#FFFDFB] rounded-2xl border-2 border-amber-200/90 p-5 shadow-xs flex flex-col justify-between hover:border-amber-300 transition-all min-h-[140px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#C2410C]">Requires Attention</span>
+            <div className="w-7 h-7 rounded-lg bg-[#FFF4ED] border border-[#FED7AA] flex items-center justify-center text-[#E8590C] shrink-0">
+              <AlertCircle size={15} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="text-2xl sm:text-3xl font-black text-[#E8590C] tracking-tight font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {pendingCount + lowStockProducts.length}
+            </div>
+            <div className="text-xs text-slate-600 truncate font-medium">
+              {pendingCount} dispatch • {lowStockProducts.length} low stock
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* ── Visual Performance Trajectory Chart Card ── */}
@@ -1116,13 +1118,15 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <Link
-                      to="/orders"
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold transition-all shadow-sm shrink-0 self-end sm:self-center"
-                    >
-                      <span>Accept & Pack</span>
-                      <ArrowRight size={14} />
-                    </Link>
+                    <div className="w-full sm:w-auto flex sm:justify-end mt-1 sm:mt-0 shrink-0">
+                      <Link
+                        to="/orders"
+                        className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold transition-all shadow-sm"
+                      >
+                        <span>Accept & Pack</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    </div>
                   </div>
                 );
               })()
@@ -1158,13 +1162,15 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <Link
-                      to="/products"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-xs shrink-0 self-end sm:self-center"
-                    >
-                      <Plus size={14} className="text-slate-500" />
-                      <span>Update Stock</span>
-                    </Link>
+                    <div className="w-full sm:w-auto flex sm:justify-end mt-1 sm:mt-0 shrink-0">
+                      <Link
+                        to="/products"
+                        className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 px-4 py-2 sm:py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-xs"
+                      >
+                        <Plus size={14} className="text-slate-500" />
+                        <span>Update Stock</span>
+                      </Link>
+                    </div>
                   </div>
                 );
               })()
@@ -1314,10 +1320,10 @@ export default function DashboardPage() {
       </div>
 
 {/* ── Live Shopper Intelligence & Clickstream ("What Customers Are Doing") ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
         
-        {/* Footfall & Geography (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
+        {/* Footfall & Geography */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
           <div>
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
@@ -1365,8 +1371,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Customer Product Clicks Feed (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
+        {/* Customer Product Clicks Feed */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
           <div>
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
@@ -1479,8 +1485,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Most Purchased (What They Bought) (4/12) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
+        {/* Most Purchased (What They Bought) */}
+        <div className="md:col-span-2 xl:col-span-1 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[320px]">
           <div>
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
@@ -1524,11 +1530,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── SaaS Table: Recent Orders Pipeline + FeraSetu AI Copilot Hub ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* ── SaaS Table: Recent Orders Pipeline (7/12) + FeraSetu AI Copilot Hub (5/12) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
         
-              {/* ── Recent Orders Table Section ── */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col">
+        {/* ── Recent Orders Table Section (Properly spans 7 of 12 columns on desktop) ── */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col">
         {/* Table Header with Search */}
         <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -1537,30 +1543,30 @@ export default function DashboardPage() {
               {filteredRecentOrders.length} records
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
               <Search size={15} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Filter orders..."
                 value={orderSearchQuery}
                 onChange={(e) => setOrderSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 text-slate-900 placeholder:text-slate-400 text-xs font-medium border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-48 transition-all"
+                className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 text-slate-900 placeholder:text-slate-400 text-xs font-medium border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-full sm:w-52 transition-all"
               />
             </div>
             <Link
               to="/orders"
-              className="font-bold text-xs text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+              className="font-bold text-xs text-blue-600 hover:text-blue-800 inline-flex items-center gap-1 shrink-0"
             >
-              <span>View All Orders</span>
+              <span>View All</span>
               <ArrowRight size={14} />
             </Link>
           </div>
         </div>
 
-        {/* Data Table */}
+        {/* Data Table with smooth horizontal scroll on mobile */}
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse min-w-[640px]">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
                 <th className="py-3 px-5">Order ID</th>
