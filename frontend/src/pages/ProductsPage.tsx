@@ -568,7 +568,7 @@ export default function ProductsPage() {
               tab === 'all'
                 ? stats.total
                 : tab === 'active'
-                : stats.active
+                ? stats.active
                 : tab === 'draft'
                 ? stats.draft
                 : stats.archived;
