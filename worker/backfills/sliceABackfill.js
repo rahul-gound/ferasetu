@@ -194,8 +194,8 @@ export async function backfillHistoricalOrderItems(db) {
 
     // Insert normalized order items transactionally for this order
     try {
-      for (const row of lineItemInserts) {
-        await db.prepare(`
+      const oiStmts = lineItemInserts.map(row =>
+        db.prepare(`
           INSERT INTO order_items (
             id, shop_id, organization_id, order_id, product_id, variant_id,
             title_snapshot, variant_title_snapshot, sku_snapshot, option_values_snapshot,
@@ -205,7 +205,17 @@ export async function backfillHistoricalOrderItems(db) {
           row.id, row.shop_id, row.organization_id, row.order_id, row.product_id, row.variant_id,
           row.title_snapshot, row.variant_title_snapshot, row.sku_snapshot, row.option_values_snapshot,
           row.quantity, row.unit_price_minor, row.total_minor, row.currency, row.created_at
-        ).run();
+        )
+      );
+
+      if (typeof db.batch === 'function') {
+        for (let i = 0; i < oiStmts.length; i += 50) {
+          await db.batch(oiStmts.slice(i, i + 50));
+        }
+      } else {
+        for (const stmt of oiStmts) {
+          await stmt.run();
+        }
       }
 
       // Also ensure order.subtotal_minor and total_minor are populated
