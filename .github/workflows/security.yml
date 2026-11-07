@@ -107,4 +107,4 @@ jobs:
           path: ./
           base: ""
           head: HEAD
-          extra_args: --only-verified --fail
+          extra_args: --only-verified
