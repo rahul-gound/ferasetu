@@ -23,10 +23,10 @@ import {
   AiRiskModal,
   TopBuyersModal,
   computeOrderIntelligence,
-  SmartFilterType,
-  OrderIntelligence,
-  CustomerIntelligence,
-  IntelligenceData
+  type SmartFilterType,
+  type OrderIntelligence,
+  type CustomerIntelligence,
+  type IntelligenceData
 } from '../components/orders/OrderIntelligenceRadar';
 import posthog from '../lib/posthog';
 

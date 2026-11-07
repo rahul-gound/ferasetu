@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Cpu, Server, Activity, ShieldCheck, RefreshCw } from 'lucide-react';
-import { platformSitesApi, PlatformSitesOverviewData } from '../../services/platformSitesApi';
+import { platformSitesApi, type PlatformSitesOverviewData } from '../../services/platformSitesApi';
 
 export default function PlatformUsageAnalytics() {
   const [data, setData] = useState<PlatformSitesOverviewData | null>(null);
