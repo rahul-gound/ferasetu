@@ -3,7 +3,7 @@
 > **Live Status:** Active Audit & Production Hardening  
 > **Global Platform Completion:** **96%**  
 > **Last Synchronized:** 2026-11-07  
-> **Index:** [[00 - 🗺️ System Architecture Overview]] | **Upcoming Roadmap:** [[feature that wil added soon]]
+> **Index:** [[00 - 🗺️ System Architecture Overview]] | **Merit & Rewards:** [[12 - 🏆 Antigravity Rewards & Credits]] | **Upcoming Roadmap:** [[feature that wil added soon]]
 
 ---
 
