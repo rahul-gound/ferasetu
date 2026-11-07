@@ -323,9 +323,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
             {/* Bottom Progress Footnote */}
             <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs font-mono text-slate-500">
               <span className="tabular-nums">
-                {isPinnedMode
-                  ? `Scroll down to advance (${activeStepIndex + 1}/4) --->`
-                  : `Stage ${activeStepIndex + 1} of 04`}
+                Stage {activeStepIndex + 1} of 04
               </span>
               <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-[11px]">
                 Live Interface Proof

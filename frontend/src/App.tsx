@@ -203,7 +203,7 @@ function AppRoutes() {
         <Route path="/shop/:shopName" element={<ShopPage />} />
 
         {/* Core Protected App Routes with Persistent Layout Shell */}
-        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route element={<ProtectedRoute><ErrorBoundary><Layout /></ErrorBoundary></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/gift-cards" element={<GiftCardsPage />} />
@@ -252,7 +252,7 @@ function AppRoutes() {
         <Route path="/onboarding" element={<ProtectedRoute><OnboardingWizardPage /></ProtectedRoute>} />
 
         {/* Public Root Routes */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<ErrorBoundary><LandingPage /></ErrorBoundary>} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
         <Route path="/ref/:code" element={<ReferralRedirect />} />
@@ -298,7 +298,7 @@ function AppRoutes() {
 
         {/* Localized Public Routes (/hi, /gu/pricing, etc.) */}
         <Route path="/:lang" element={<LanguageRouteGuard />}>
-          <Route index element={<LandingPage />} />
+          <Route index element={<ErrorBoundary><LandingPage /></ErrorBoundary>} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="pricing" element={<PricingPage />} />
@@ -312,8 +312,9 @@ function AppRoutes() {
         </Route>
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin" element={<ErrorBoundary><AdminLogin /></ErrorBoundary>} />
         <Route path="/admin/*" element={
+          <ErrorBoundary>
           <AdminProtectedRoute>
             <Routes>
               <Route path="dashboard" element={<AdminDashboardPage />} />
@@ -336,6 +337,7 @@ function AppRoutes() {
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
           </AdminProtectedRoute>
+          </ErrorBoundary>
         } />
 
         {/* Platform Sites — Internal Infrastructure & AI Website Management */}

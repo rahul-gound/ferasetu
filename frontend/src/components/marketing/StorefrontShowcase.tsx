@@ -593,7 +593,7 @@ export default function StorefrontShowcase() {
           {/* Dynamic Scroll Progress Bar */}
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <span className="text-[11px] font-mono font-medium text-slate-500 whitespace-nowrap">
-              {isPinnedMode ? 'Scroll down to browse shops' : 'Swipe to explore'}
+              Scroll or swipe to explore
             </span>
             <div className="w-32 h-1.5 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
               <div
