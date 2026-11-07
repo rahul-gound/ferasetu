@@ -289,7 +289,7 @@ export default function AnalyticsPage() {
             { id: 'sales', label: 'Sales & Settlements' },
             { id: 'traffic', label: 'Traffic & Footfall' },
             { id: 'sku', label: 'SKU Performance' },
-            { id: 'retention', label: 'Customer Retention (Khata)' },
+            { id: 'retention', label: 'Customer Retention' },
           ].map(t => (
             <button
               key={t.id}

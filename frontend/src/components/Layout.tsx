@@ -172,7 +172,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     {
       path: '/customers',
       icon: <Users size={17} />,
-      label: 'Customers & Khata',
+      label: 'Customers',
       badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
       badgeColor: 'blue',
     },
