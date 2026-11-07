@@ -6,7 +6,7 @@ import { fadeUp, staggerContainer, OutlineButton, StockPill, scrollToId } from '
 
 export default function MonoFeatured() {
   const { openQuickView, addToCart, formatPrice, products } = useMonoShop();
-  const product = products.find((p) => p.id === 'wh-1000xm5') || getElectronicProduct('wh-1000xm5') || products[0];
+  const product = products[0] || getElectronicProduct('wh-1000xm5');
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
   const y = useTransform(scrollYProgress, [0, 1], [40, -40]);

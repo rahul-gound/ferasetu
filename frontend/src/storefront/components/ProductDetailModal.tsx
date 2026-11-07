@@ -64,7 +64,9 @@ export default function ProductDetailModal() {
       .filter(
         (p) =>
           p.id !== selectedProduct.id &&
-          p.is_active === 1 &&
+          p.is_active !== false &&
+          p.is_active !== 0 &&
+          (p as any).status !== 'archived' &&
           p.category &&
           selectedProduct.category &&
           p.category.toLowerCase() === selectedProduct.category.toLowerCase()

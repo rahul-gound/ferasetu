@@ -124,7 +124,19 @@ function ProductCard({ product }: { product: ElectronicProduct }) {
 export default function MonoProductGrid() {
   const { products, filter, setFilter } = useMonoShop();
   const filtered = filter === 'all' ? products : products.filter((p) => p.category === filter);
-  const chips = [{ key: 'all', label: 'All' }, ...CATEGORIES.map((c) => ({ key: c.key, label: c.label }))];
+  const chips = React.useMemo(() => {
+    const rawCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    if (rawCategories.length > 0 && products.length > 0) {
+      return [
+        { key: 'all', label: 'All' },
+        ...rawCategories.map((c) => ({
+          key: c,
+          label: c.charAt(0).toUpperCase() + c.slice(1).replace(/-/g, ' '),
+        })),
+      ];
+    }
+    return [{ key: 'all', label: 'All' }, ...CATEGORIES.map((c) => ({ key: c.key, label: c.label }))];
+  }, [products]);
 
   return (
     <motion.section

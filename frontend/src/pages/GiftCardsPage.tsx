@@ -242,17 +242,13 @@ export default function GiftCardsPage() {
           <div className="mt-6">
             {products.length === 0 ? (
               <ActionableEmptyState
-                icon={Gift}
+                icon={<Gift size={28} />}
                 title="No gift card products yet"
                 description="Create a digital gift card product so customers can purchase shopping value for their friends and redeem it at your checkout."
-                primaryAction={{
-                  label: 'Create gift card product',
-                  onClick: () => navigate('/gift-cards/new'),
-                }}
-                secondaryAction={{
-                  label: 'Read how it works',
-                  onClick: () => setActiveTab('guide'),
-                }}
+                actionLabel="Create gift card product"
+                onAction={() => navigate('/gift-cards/new')}
+                secondaryActionLabel="Read how it works"
+                onSecondaryAction={() => setActiveTab('guide')}
               />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

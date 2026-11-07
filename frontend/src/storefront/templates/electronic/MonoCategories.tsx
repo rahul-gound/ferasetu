@@ -7,6 +7,21 @@ import { fadeUp, staggerContainer } from './MonoUI';
 export default function MonoCategories() {
   const { selectCategory, products } = useMonoShop();
 
+  const categoriesList = React.useMemo(() => {
+    const rawCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    if (rawCategories.length > 0 && products.length > 0) {
+      return rawCategories.map((catKey) => {
+        const prod = products.find((p) => p.category === catKey);
+        return {
+          key: catKey,
+          label: catKey.charAt(0).toUpperCase() + catKey.slice(1).replace(/-/g, ' '),
+          img: prod?.img || '/products/macbook-pro-14.png',
+        };
+      });
+    }
+    return CATEGORIES;
+  }, [products]);
+
   return (
     <motion.section
       initial="hidden"
@@ -18,7 +33,7 @@ export default function MonoCategories() {
       <h2 className="mb-6 text-2xl font-bold tracking-tight text-ink">Categories</h2>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-        {CATEGORIES.map((cat) => {
+        {categoriesList.map((cat) => {
           const count = products.filter((p) => p.category === cat.key).length;
           return (
             <motion.button

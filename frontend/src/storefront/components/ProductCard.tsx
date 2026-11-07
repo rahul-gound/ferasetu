@@ -29,7 +29,7 @@ export default function ProductCard({
   const [isHovered, setIsHovered] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const cartItem = cart?.find((item) => item.product.id === product.id);
+  const cartItem = cart?.find((item) => (item as any)?.product?.id === product.id || item.id === product.id);
   const quantityInCart = cartItem?.quantity || 0;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {

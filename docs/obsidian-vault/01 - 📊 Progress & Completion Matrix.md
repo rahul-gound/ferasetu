@@ -36,7 +36,8 @@
 - [x] D1 multi-tenant sharding & SQL migrations (`worker/sharding/`) — **95%**
 - [x] Cloudflare Custom Hostname SSL integration — **90%**
 - [x] AST Builder sandboxed runtime (`worker/templates/`) — **90%**
-- [x] Discounts & Promotional Pricing Engine (`worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js`, migration `0022_discounts_engine.sql`): Server-side percentage, fixed amount, BOGO with fraud guard, free shipping, automatic discounts, collision-safe bulk code generator, profit margin checks, and atomic checkout order redemptions — **100%**
+- [x] Discounts & Promotional Pricing Engine (`worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js`, migration `0022_discounts_engine.sql`): Server-side percentage, fixed amount, BOGO with fraud guard, free shipping, automatic discounts, collision-safe bulk code generator, profit margin checks, D1 automated table self-healing (`ensureDiscountsTables`), and atomic checkout order redemptions — **100%**
+- [x] Resilient Storefront Active Product Grounding & Polymorphic Empty State (`StorefrontProvider.tsx`, `ActionableEmptyState.tsx`): Grounded all 9 storefront templates to real merchant inventory with boolean/integer tolerance and eradicated Minified React Error #31 — **100%**
 - [x] Website Settings & SEO Routing (`worker/index.js`): Implemented `GET/PUT/POST /api/website/settings` reading/updating D1 `websites.config` and `users` branding data, plus `/api/website/settings/ping-crawl` — **100%**
 - [x] Platform Sites Edge Resolver & Renderer (`worker/services/platformSiteRenderer.js`): Platform sites (`*.ferasetu.com`) resolve with live HTML, dynamic status badges, and AI Studio customization hooks — **100%**
 - [x] Analytics Ingestion Fail-Soft Buffer (`worker/analytics/ingestion.js`): Protected telemetry endpoints with double outer try/catch returning HTTP 202 fail-soft, preventing 500 error cascades — **100%**

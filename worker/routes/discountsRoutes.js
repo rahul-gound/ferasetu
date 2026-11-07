@@ -26,6 +26,7 @@ import {
   HttpError,
   getCorsHeaders,
   resolveStorefrontTenant,
+  ensureDiscountsTables,
 } from '../index.js';
 import {
   evaluateDiscountsForCart,
@@ -61,72 +62,98 @@ function json(data, status = 200, headers = {}, request = null) {
  * Main router for discounts endpoints.
  */
 export async function handleDiscountsRoutes(path, method, request, env) {
-  // ---------------------------------------------------------------------------
-  // PUBLIC STOREFRONT ENDPOINTS
-  // ---------------------------------------------------------------------------
+  const reqPath = path.startsWith('/api') ? path : `/api${path}`;
+  await ensureDiscountsTables(env.DB);
 
-  // 1. Validate discount code on current cart
-  if (path === '/api/storefront/discounts/validate' && method === 'POST') {
-    const body = await readJson(request);
-    const { shopId, code, items = [], shippingFeeMinor = 3000, customer = null } = body;
-    if (!shopId) throw new HttpError("shopId is required", 400);
-    if (!code) throw new HttpError("Discount code is required", 400);
+  try {
+    // ---------------------------------------------------------------------------
+    // PUBLIC STOREFRONT ENDPOINTS
+    // ---------------------------------------------------------------------------
 
-    const tenant = await resolveStorefrontTenant(request, env, shopId);
-    if (!tenant.organizationId) throw new HttpError("Storefront not found", 404);
+    // 1. Validate discount code on current cart
+    if (reqPath === '/api/storefront/discounts/validate' && method === 'POST') {
+      const body = await readJson(request);
+      const { shopId, code, items = [], shippingFeeMinor = 3000, customer = null } = body;
+      if (!shopId) throw new HttpError("shopId is required", 400);
+      if (!code) throw new HttpError("Discount code is required", 400);
 
-    const result = await evaluateDiscountsForCart(env.DB, {
-      organizationId: tenant.organizationId,
-      shopId: tenant.shopId || tenant.organizationId,
-      cartItems: items,
-      code,
-      customer,
-      shippingFeeMinor,
-    });
+      const tenant = await resolveStorefrontTenant(request, env, shopId);
+      if (!tenant.organizationId) {
+        return json({
+          success: false,
+          error: "Discount code is invalid or not applicable to your order.",
+          code: "STORE_NOT_FOUND",
+        }, 422, {}, request);
+      }
 
-    if (result.rejectedDiscounts && result.rejectedDiscounts.length > 0 && !result.codeApplied) {
-      const err = result.rejectedDiscounts[0];
+      const result = await evaluateDiscountsForCart(env.DB, {
+        organizationId: tenant.organizationId,
+        shopId: tenant.shopId || tenant.organizationId,
+        cartItems: items,
+        code,
+        customer,
+        shippingFeeMinor,
+      });
+
+      if (result.rejectedDiscounts && result.rejectedDiscounts.length > 0 && !result.codeApplied) {
+        const err = result.rejectedDiscounts[0];
+        return json({
+          success: false,
+          error: err.message,
+          code: err.reason,
+          details: err,
+        }, 422, {}, request);
+      }
+
       return json({
-        success: false,
-        error: err.message,
-        code: err.reason,
-        details: err,
-      }, 422, {}, request);
+        success: true,
+        calculation: result,
+      }, 200, {}, request);
     }
 
-    return json({
-      success: true,
-      calculation: result,
-    }, 200, {}, request);
-  }
+    // 2. Evaluate all eligible automatic + code discounts on cart
+    if (reqPath === '/api/storefront/discounts/evaluate' && method === 'POST') {
+      const body = await readJson(request);
+      const { shopId, code = null, items = [], shippingFeeMinor = 3000, customer = null } = body;
+      if (!shopId) throw new HttpError("shopId is required", 400);
 
-  // 2. Evaluate all eligible automatic + code discounts on cart
-  if (path === '/api/storefront/discounts/evaluate' && method === 'POST') {
-    const body = await readJson(request);
-    const { shopId, code = null, items = [], shippingFeeMinor = 3000, customer = null } = body;
-    if (!shopId) throw new HttpError("shopId is required", 400);
+      const tenant = await resolveStorefrontTenant(request, env, shopId);
+      if (!tenant.organizationId) {
+        return json({
+          success: true,
+          calculation: {
+            valid: true,
+            totalDiscountMinor: 0,
+            productDiscountMinor: 0,
+            orderDiscountMinor: 0,
+            shippingDiscountMinor: 0,
+            effectiveShippingMinor: shippingFeeMinor || 3000,
+            finalPayableMinor: (items || []).reduce((sum, i) => sum + (i.unitPriceMinor || 0) * (i.quantity || 1), 0) + (shippingFeeMinor || 3000),
+            discountsApplied: [],
+            itemDiscounts: {},
+            codeApplied: null,
+          }
+        }, 200, {}, request);
+      }
 
-    const tenant = await resolveStorefrontTenant(request, env, shopId);
-    if (!tenant.organizationId) throw new HttpError("Storefront not found", 404);
+      const result = await evaluateDiscountsForCart(env.DB, {
+        organizationId: tenant.organizationId,
+        shopId: tenant.shopId || tenant.organizationId,
+        cartItems: items,
+        code,
+        customer,
+        shippingFeeMinor,
+      });
 
-    const result = await evaluateDiscountsForCart(env.DB, {
-      organizationId: tenant.organizationId,
-      shopId: tenant.shopId || tenant.organizationId,
-      cartItems: items,
-      code,
-      customer,
-      shippingFeeMinor,
-    });
-
-    return json({
-      success: true,
-      calculation: result,
-    }, 200, {}, request);
-  }
+      return json({
+        success: true,
+        calculation: result,
+      }, 200, {}, request);
+    }
 
   // 3. Shareable discount link resolution (e.g. /discount/WELCOME10)
-  if (path.startsWith('/api/storefront/discounts/shareable/') && method === 'GET') {
-    const rawCode = path.slice('/api/storefront/discounts/shareable/'.length);
+  if (reqPath.startsWith('/api/storefront/discounts/shareable/') && method === 'GET') {
+    const rawCode = reqPath.slice('/api/storefront/discounts/shareable/'.length);
     const normalized = normalizeDiscountCode(rawCode);
     const url = new URL(request.url);
     const shopId = url.searchParams.get('shopId') || url.searchParams.get('shop');
@@ -195,7 +222,7 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   // ---------------------------------------------------------------------------
 
   // A. Discount Analytics Overview
-  if (path === '/api/discounts/analytics' && method === 'GET') {
+  if (reqPath === '/api/discounts/analytics' && method === 'GET') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
     const now = new Date().toISOString();
@@ -294,7 +321,7 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // B. List Discounts
-  if (path === '/api/discounts' && method === 'GET') {
+  if (reqPath === '/api/discounts' && method === 'GET') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
     const url = new URL(request.url);
@@ -354,7 +381,7 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // C. Create Discount
-  if (path === '/api/discounts' && method === 'POST') {
+  if (reqPath === '/api/discounts' && method === 'POST') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
     const shopId = orgContext.shopId || orgId;
@@ -496,10 +523,10 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // D. Bulk Unique Code Generation
-  if (path.includes('/generate-codes') && method === 'POST') {
+  if (reqPath.includes('/generate-codes') && method === 'POST') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
-    const discountId = path.split('/')[3];
+    const discountId = reqPath.split('/')[3];
     const body = await readJson(request);
     const { prefix = 'VIP', count = 10, maxUsesPerCode = 1 } = body;
 
@@ -540,10 +567,10 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // E. List Codes for Discount
-  if (path.endsWith('/codes') && method === 'GET') {
+  if (reqPath.endsWith('/codes') && method === 'GET') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
-    const discountId = path.split('/')[3];
+    const discountId = reqPath.split('/')[3];
 
     const codes = await env.DB.prepare(`
       SELECT id, code, times_used, max_uses, is_primary, created_at
@@ -559,10 +586,10 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // F. Toggle Discount Status (Pause / Resume / Expire)
-  if (path.endsWith('/status') && method === 'PATCH') {
+  if (reqPath.endsWith('/status') && method === 'PATCH') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
-    const discountId = path.split('/')[3];
+    const discountId = reqPath.split('/')[3];
     const body = await readJson(request);
     const { status } = body;
 
@@ -581,10 +608,10 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // G. Get Single Discount Details
-  if (path.startsWith('/api/discounts/') && method === 'GET') {
+  if (reqPath.startsWith('/api/discounts/') && method === 'GET') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
-    const discountId = path.slice('/api/discounts/'.length);
+    const discountId = reqPath.slice('/api/discounts/'.length);
 
     const discount = await env.DB.prepare(`
       SELECT d.*,
@@ -628,10 +655,10 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // H. Update Single Discount
-  if (path.startsWith('/api/discounts/') && method === 'PUT') {
+  if (reqPath.startsWith('/api/discounts/') && method === 'PUT') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
-    const discountId = path.slice('/api/discounts/'.length);
+    const discountId = reqPath.slice('/api/discounts/'.length);
     const body = await readJson(request);
 
     const existing = await env.DB.prepare(
@@ -717,10 +744,10 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   // I. Delete Single Discount (Soft delete)
-  if (path.startsWith('/api/discounts/') && method === 'DELETE') {
+  if (reqPath.startsWith('/api/discounts/') && method === 'DELETE') {
     const orgContext = await requireOrgContext(request, env, 'staff');
     const orgId = orgContext.organizationId;
-    const discountId = path.slice('/api/discounts/'.length);
+    const discountId = reqPath.slice('/api/discounts/'.length);
 
     const now = new Date().toISOString();
     await env.DB.prepare(`
@@ -733,4 +760,18 @@ export async function handleDiscountsRoutes(path, method, request, env) {
   }
 
   return null;
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return json({
+        success: false,
+        error: err.message,
+        code: err.data?.code,
+      }, err.statusCode || 400, {}, request);
+    }
+    console.error("[Discounts Route Handler Catch]", err?.message || err);
+    return json({
+      success: false,
+      error: err?.message || "Failed to process discount request"
+    }, 500, {}, request);
+  }
 }

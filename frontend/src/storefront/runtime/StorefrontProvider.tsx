@@ -275,10 +275,18 @@ export function StorefrontProvider({
     }
   }, [getCustomerHeaders]);
 
+  // Helper to determine if product is actively listed
+  const isProductActive = useCallback((p: ShopProduct) => {
+    if (p.is_active === false || p.is_active === 0 || (p as any).status === 'archived') {
+      return false;
+    }
+    return true;
+  }, []);
+
   // Check URL query parameter for product deep-linking
   useEffect(() => {
     if (initialProductId) {
-      const match = products.find((p) => p.id === initialProductId && p.is_active === 1);
+      const match = products.find((p) => p.id === initialProductId && isProductActive(p));
       if (match) {
         setSelectedProduct(match);
         trackStoreEvent('product_click', {
@@ -381,7 +389,7 @@ export function StorefrontProvider({
 
   // Derived filtered products
   const filteredProducts = useMemo(() => {
-    const active = products.filter((p) => p.is_active === 1);
+    const active = products.filter(isProductActive);
     let result = active;
 
     if (selectedCategory && selectedCategory !== 'all') {

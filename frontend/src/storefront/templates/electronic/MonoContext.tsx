@@ -129,26 +129,26 @@ export function MonoShopProvider({ children }: MonoShopProviderProps) {
 
   // Merge real store products if merchant has inventory with the rich electronic catalog
   const products: ElectronicProduct[] = useMemo(() => {
-    if (parentStorefront?.products && parentStorefront.products.length >= 4) {
+    if (parentStorefront?.products && parentStorefront.products.length > 0) {
       // Convert merchant products to ElectronicProduct format
       const converted: ElectronicProduct[] = parentStorefront.products.map((p: ShopProduct) => ({
         id: p.id,
-        brand: shopName,
+        brand: p.category || shopName,
         name: p.name,
-        sub: p.category || 'High-Precision Hardware',
-        category: (p.category || 'accessories').toLowerCase().replace(/\s+/g, '-'),
+        sub: p.category || 'Direct Quality Product',
+        category: (p.category || 'general').toLowerCase().replace(/\s+/g, '-'),
         rating: 5,
         reviews: 120,
-        price: Number(p.price) || 99,
+        price: Number(p.sale_price != null && p.sale_price > 0 ? p.sale_price : p.price) || 99,
         stock: (p.stock_quantity ?? 1) > 0 ? 'in' : 'out',
         img: p.image_url || '/products/macbook-pro-14.png',
         fit: 'contain',
-        desc: p.description || 'Precision engineered hardware with maximum reliability.',
+        desc: p.description || 'Precision crafted and directly fulfilled with zero commission.',
         specs: [
           'Direct Merchant Fulfillment',
-          'Zero Commission Storefront',
+          '0% Platform Markup',
           'Official Quality Guarantee',
-          'Fast Secure Shipping',
+          'Doorstep Local Delivery',
         ],
       }));
       return converted;

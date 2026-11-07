@@ -1,9 +1,27 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { COMPARE_COLUMNS, COMPARE_ROWS } from './electronicData';
+import { useMonoShop } from './MonoContext';
 import { fadeUp } from './MonoUI';
 
 export default function MonoCompareTable() {
+  const { products, formatPrice } = useMonoShop();
+
+  const { columns, rows } = React.useMemo(() => {
+    if (products.length > 0) {
+      const topProducts = products.slice(0, 3);
+      const cols = topProducts.map((p) => p.name);
+      const tableRows = [
+        { label: 'Category', values: topProducts.map((p) => p.sub || p.category) },
+        { label: 'Starting Price', values: topProducts.map((p) => formatPrice(p.price)), isPrice: true },
+        { label: 'Availability', values: topProducts.map((p) => (p.stock === 'in' ? 'In Stock · Ready to Dispatch' : 'Out of Stock')) },
+        { label: 'Direct Guarantee', values: topProducts.map(() => 'Direct Storefront · 0% Markup') },
+      ];
+      return { columns: cols, rows: tableRows };
+    }
+    return { columns: COMPARE_COLUMNS, rows: COMPARE_ROWS };
+  }, [products, formatPrice]);
+
   return (
     <motion.section
       id="compare"
@@ -20,7 +38,7 @@ export default function MonoCompareTable() {
           <thead>
             <tr>
               <th className="w-[130px] px-4 py-4" aria-label="Specification" />
-              {COMPARE_COLUMNS.map((col) => (
+              {columns.map((col) => (
                 <th key={col} className="whitespace-nowrap px-4 py-4 text-left font-semibold text-ink">
                   {col}
                 </th>
@@ -28,7 +46,7 @@ export default function MonoCompareTable() {
             </tr>
           </thead>
           <tbody>
-            {COMPARE_ROWS.map((row) => (
+            {rows.map((row) => (
               <tr key={row.label} className="odd:bg-white even:bg-[#FAFAF8]">
                 <th
                   scope="row"

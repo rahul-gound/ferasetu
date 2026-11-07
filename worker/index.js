@@ -3699,6 +3699,99 @@ function safeParseObject(value, fallback = {}) {
 let tablesInitialized = false;
 let tablesInitPromise = null;
 
+export async function ensureDiscountsTables(db) {
+  if (!db || (typeof db.exec !== 'function' && typeof db.prepare !== 'function')) return;
+  const safeExec = async (sql) => {
+    const cleanSql = typeof sql === 'string' ? sql.trim().replace(/;\s*$/, "") : '';
+    if (!cleanSql) return;
+    try {
+      if (typeof db.prepare === 'function') {
+        await db.prepare(cleanSql).run();
+      } else if (typeof db.exec === 'function') {
+        await db.exec(cleanSql);
+      }
+    } catch {}
+  };
+
+  await safeExec(`
+    CREATE TABLE IF NOT EXISTS discounts (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      shop_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      discount_type TEXT NOT NULL,
+      value_minor INTEGER NOT NULL DEFAULT 0,
+      target_type TEXT NOT NULL DEFAULT 'all',
+      applies_to_resource_ids TEXT NOT NULL DEFAULT '[]',
+      excluded_resource_ids TEXT NOT NULL DEFAULT '[]',
+      application_method TEXT NOT NULL DEFAULT 'code',
+      status TEXT NOT NULL DEFAULT 'active',
+      starts_at TEXT NOT NULL,
+      expires_at TEXT,
+      minimum_subtotal_minor INTEGER NOT NULL DEFAULT 0,
+      minimum_quantity INTEGER NOT NULL DEFAULT 0,
+      usage_limit_total INTEGER,
+      usage_limit_per_customer INTEGER,
+      times_used INTEGER NOT NULL DEFAULT 0,
+      combines_with_product_discounts INTEGER NOT NULL DEFAULT 0,
+      combines_with_order_discounts INTEGER NOT NULL DEFAULT 0,
+      combines_with_shipping_discounts INTEGER NOT NULL DEFAULT 0,
+      customer_eligibility TEXT NOT NULL DEFAULT 'all',
+      eligible_customer_ids TEXT NOT NULL DEFAULT '[]',
+      bogo_config TEXT,
+      campaign_id TEXT,
+      max_discount_minor INTEGER,
+      is_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discounts_org_status ON discounts(organization_id, status);`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discounts_shop_method ON discounts(shop_id, application_method, status);`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discounts_dates ON discounts(starts_at, expires_at);`);
+
+  await safeExec(`
+    CREATE TABLE IF NOT EXISTS discount_codes (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      discount_id TEXT NOT NULL,
+      code TEXT NOT NULL,
+      code_normalized TEXT NOT NULL,
+      times_used INTEGER NOT NULL DEFAULT 0,
+      max_uses INTEGER,
+      is_primary INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      UNIQUE(organization_id, code_normalized)
+    )
+  `);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discount_codes_lookup ON discount_codes(organization_id, code_normalized);`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discount_codes_disc ON discount_codes(discount_id);`);
+
+  await safeExec(`
+    CREATE TABLE IF NOT EXISTS discount_redemptions (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      shop_id TEXT NOT NULL,
+      discount_id TEXT NOT NULL,
+      discount_code_id TEXT,
+      code TEXT,
+      order_id TEXT NOT NULL,
+      customer_id TEXT,
+      customer_phone TEXT,
+      customer_email TEXT,
+      discount_amount_minor INTEGER NOT NULL DEFAULT 0,
+      order_subtotal_minor INTEGER NOT NULL DEFAULT 0,
+      order_total_minor INTEGER NOT NULL DEFAULT 0,
+      campaign_id TEXT,
+      attribution_source TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discount_redemptions_org ON discount_redemptions(organization_id);`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_discount_redemptions_order ON discount_redemptions(order_id);`);
+}
+
 async function ensureTables(db) {
   if (tablesInitialized || !db || (typeof db.exec !== 'function' && typeof db.prepare !== 'function')) return;
   if (tablesInitPromise) return tablesInitPromise;
@@ -3715,7 +3808,8 @@ async function ensureTables(db) {
           const verExists = await db.prepare("SELECT 1 FROM website_versions LIMIT 1").first();
           const adminEntExists = await db.prepare("SELECT 1 FROM platform_admin_entitlements LIMIT 1").first();
           const analyticsIpExists = await db.prepare("SELECT ip_address FROM analytics_events LIMIT 1").first();
-          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined && adminEntExists !== undefined && analyticsIpExists !== undefined) {
+          const discountsExists = await db.prepare("SELECT 1 FROM discounts LIMIT 1").first();
+          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined && adminEntExists !== undefined && analyticsIpExists !== undefined && discountsExists !== undefined) {
             tablesInitialized = true;
             return;
           }
@@ -4762,6 +4856,9 @@ async function ensureTables(db) {
     await safeAddColumn('error_logs', 'is_paid INTEGER DEFAULT 0');
     await safeAddColumn('error_logs', 'store_slug TEXT');
     await safeAddColumn('error_logs', 'metadata TEXT');
+
+    // Ensure discounts engine tables
+    await ensureDiscountsTables(db);
 
     // Verify that organizations table actually exists in D1
     try {
@@ -11534,7 +11631,7 @@ async function route(request, env) {
   }
 
   // FeraSetu Promotional Pricing & Discounts Engine Endpoints
-  if (path.startsWith("/api/discounts") || path.startsWith("/api/storefront/discounts")) {
+  if (path.startsWith("/api/discounts") || path.startsWith("/discounts") || path.startsWith("/api/storefront/discounts") || path.startsWith("/storefront/discounts")) {
     const discRes = await handleDiscountsRoutes(path, method, request, env);
     if (discRes) return withCors(discRes, request, env);
   }
