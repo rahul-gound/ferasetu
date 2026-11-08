@@ -542,20 +542,48 @@ export async function handleDiscountsRoutes(path, method, request, env) {
     const generated = generateUniqueCodes({ prefix, count: Number(count) || 10 });
     const now = new Date().toISOString();
     const insertedCodes = [];
+    const codeStmts = [];
 
     for (const code of generated) {
       const codeId = `dc_${crypto.randomUUID()}`;
       const codeNormalized = normalizeDiscountCode(code);
-      try {
-        await env.DB.prepare(`
-          INSERT INTO discount_codes (
-            id, organization_id, discount_id, code, code_normalized,
-            times_used, max_uses, is_primary, created_at
-          ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
-        `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now).run();
-        insertedCodes.push({ id: codeId, code, maxUses: maxUsesPerCode });
-      } catch (err) {
-        console.warn("Bulk code collision skipped:", code);
+      const stmt = env.DB.prepare(`
+        INSERT INTO discount_codes (
+          id, organization_id, discount_id, code, code_normalized,
+          times_used, max_uses, is_primary, created_at
+        ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+      `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now);
+      codeStmts.push({ stmt, meta: { id: codeId, code, maxUses: maxUsesPerCode } });
+    }
+
+    if (codeStmts.length > 0) {
+      if (typeof env.DB.batch === 'function') {
+        for (let i = 0; i < codeStmts.length; i += 50) {
+          const chunk = codeStmts.slice(i, i + 50);
+          try {
+            await env.DB.batch(chunk.map(c => c.stmt));
+            for (const c of chunk) insertedCodes.push(c.meta);
+          } catch (batchErr) {
+            // Fallback for batch failing (e.g. unique constraint collision)
+            for (const c of chunk) {
+              try {
+                await c.stmt.run();
+                insertedCodes.push(c.meta);
+              } catch (singleErr) {
+                console.warn("Bulk code collision skipped (fallback):", c.meta.code);
+              }
+            }
+          }
+        }
+      } else {
+        for (const c of codeStmts) {
+          try {
+            await c.stmt.run();
+            insertedCodes.push(c.meta);
+          } catch (err) {
+            console.warn("Bulk code collision skipped:", c.meta.code);
+          }
+        }
       }
     }
 
