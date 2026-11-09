@@ -37,6 +37,7 @@
     "zustand": "4.5.5"
   },
   "overrides": {
-    "zustand": "4.5.5"
+    "zustand": "4.5.5",
+    "proxy-addr": "^2.0.8"
   }
 }
