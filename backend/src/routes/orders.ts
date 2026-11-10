@@ -303,7 +303,44 @@ router.post('/create',
 // 2. PUBLIC: Track orders by phone (returns secure possession tokens)
 // ---------------------------------------------------------------------------
 router.get('/public/track', async (req: Request, res: Response): Promise<void> => {
-  const { phone, shopId } = req.query;
+  const { phone, shopId, order, orderId, id } = req.query as any;
+  const targetOrderId = (order || orderId || id || '').trim();
+
+  if (targetOrderId) {
+    try {
+      const db = getDatabase();
+      const row = db.prepare(`
+        SELECT o.*, i.invoice_number
+        FROM orders o
+        LEFT JOIN invoices i ON i.order_id = o.id
+        WHERE o.id = ?
+      `).get(targetOrderId) as any;
+
+      if (!row) {
+        res.status(404).json({ error: 'Order not found', orders: [] });
+        return;
+      }
+
+      let parsedItems = [];
+      try {
+        parsedItems = typeof row.items === 'string' ? JSON.parse(row.items) : (row.items || []);
+      } catch {}
+
+      const trackingToken = generateOrderTrackingToken(row.id, row.customer_phone || '');
+      const enriched = {
+        ...row,
+        items: parsedItems,
+        total: Number(row.total) || 0,
+        tracking_token: trackingToken,
+      };
+      res.json({ order: enriched, orders: [enriched] });
+      return;
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve order', message: err.message });
+      return;
+    }
+  }
+
   if (!phone || !shopId) {
     res.status(400).json({ error: 'Phone and shopId are required' });
     return;
@@ -350,6 +387,40 @@ router.get('/public/track', async (req: Request, res: Response): Promise<void> =
 });
 
 // ---------------------------------------------------------------------------
+router.get('/public/:id', async (req: Request, res: Response): Promise<void> => {
+  const orderId = req.params.id;
+  try {
+    const db = getDatabase();
+    const row = db.prepare(`
+      SELECT o.*, i.invoice_number
+      FROM orders o
+      LEFT JOIN invoices i ON i.order_id = o.id
+      WHERE o.id = ?
+    `).get(orderId) as any;
+
+    if (!row) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+
+    let parsedItems = [];
+    try {
+      parsedItems = typeof row.items === 'string' ? JSON.parse(row.items) : (row.items || []);
+    } catch {}
+
+    const trackingToken = generateOrderTrackingToken(row.id, row.customer_phone || '');
+    const enriched = {
+      ...row,
+      items: parsedItems,
+      total: Number(row.total) || 0,
+      tracking_token: trackingToken,
+    };
+    res.json({ order: enriched, orders: [enriched] });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve order', message: err.message });
+  }
+});
+
 // 3a. PUBLIC SECURE: View Invoice Details (requires cryptographic tracking token)
 // ---------------------------------------------------------------------------
 router.get('/public/:id/invoice', async (req: Request, res: Response): Promise<void> => {

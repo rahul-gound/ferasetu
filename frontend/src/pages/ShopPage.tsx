@@ -13,6 +13,7 @@ export default function ShopPage() {
   const params = useParams<{ shopName: string }>();
   const [searchParams] = useSearchParams();
   const initialProductId = searchParams.get('product');
+  const initialOrderId = searchParams.get('order') || searchParams.get('order_id') || searchParams.get('tracking');
   
   // Logic to determine shop name:
   // 1. From URL params (e.g., /shop/my-kirana)
@@ -256,6 +257,7 @@ export default function ShopPage() {
             theme={(data!.website as any).theme || data!.website.template}
             overrides={(data!.website as any).config?.overrides || (data!.website as any).theme?.overrides}
             initialProductId={initialProductId}
+            initialOrderId={initialOrderId}
           />
         );
       })()}

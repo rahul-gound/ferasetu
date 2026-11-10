@@ -60,6 +60,7 @@ export interface TemplateRendererProps {
     logo_url?: string;
   };
   initialProductId?: string | null;
+  initialOrderId?: string | null;
   onSelectSection?: (sectionId: string) => void;
   selectedSectionId?: string | null;
   onRemoveSection?: (sectionId: string) => void;
@@ -87,6 +88,7 @@ export default function TemplateRenderer({
   showPreviewBanner = false,
   shop,
   initialProductId,
+  initialOrderId,
   onSelectSection,
   selectedSectionId,
   onRemoveSection,
@@ -261,6 +263,7 @@ export default function TemplateRenderer({
       currencySymbol={currencySymbol}
       products={products}
       initialProductId={initialProductId}
+      initialOrderId={initialOrderId}
     >
       <div
         className="fera-storefront-root min-h-screen text-[var(--theme-color-text)] bg-[var(--theme-color-bg)] transition-colors duration-200"

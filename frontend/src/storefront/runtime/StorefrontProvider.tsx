@@ -11,6 +11,7 @@ import type {
   AppliedDiscountInfo,
 } from './storefrontState';
 import { formatWhatsAppPhone } from '../utilities/formatting';
+import OrderPublicReceiptModal from '../components/OrderPublicReceiptModal';
 
 const rawApi = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
 const API = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
@@ -35,6 +36,7 @@ interface StorefrontProviderProps {
   currencySymbol?: string;
   products: ShopProduct[];
   initialProductId?: string | null;
+  initialOrderId?: string | null;
 }
 
 export function StorefrontProvider({
@@ -47,6 +49,7 @@ export function StorefrontProvider({
   currencySymbol,
   products,
   initialProductId,
+  initialOrderId,
 }: StorefrontProviderProps) {
   const activeCurrency = currency || 'INR';
   const activeSymbol = currencySymbol || (activeCurrency === 'USD' ? '$' : activeCurrency === 'EUR' ? '€' : '₹');
@@ -63,6 +66,49 @@ export function StorefrontProvider({
 
   // Product modal state
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
+  const [publicReceiptOrder, setPublicReceiptOrder] = useState<any | null>(null);
+
+  // Check URL query parameter for public order receipt (?order=...)
+  useEffect(() => {
+    let orderIdToFetch = initialOrderId;
+    if (!orderIdToFetch && typeof window !== 'undefined') {
+      const search = window.location.search;
+      if (search) {
+        const params = new URLSearchParams(search);
+        orderIdToFetch = params.get('order') || params.get('order_id') || params.get('tracking');
+      }
+    }
+
+    if (!orderIdToFetch) return;
+
+    let active = true;
+    const fetchOrder = async () => {
+      try {
+        const res = await axios.get(`${API}/orders/public/track`, {
+          params: { order: orderIdToFetch, shopId },
+        });
+        const orderData = res.data?.order || (res.data?.orders && res.data.orders[0]);
+        if (active && orderData) {
+          setPublicReceiptOrder(orderData);
+          return;
+        }
+      } catch {
+        try {
+          const res = await axios.get(`${API}/orders/public/${orderIdToFetch}`);
+          const orderData = res.data?.order || (res.data?.orders && res.data.orders[0]);
+          if (active && orderData) {
+            setPublicReceiptOrder(orderData);
+            return;
+          }
+        } catch (err) {
+          console.warn('Could not load public order details for URL param:', err);
+        }
+      }
+    };
+
+    fetchOrder();
+    return () => { active = false; };
+  }, [initialOrderId, shopId]);
 
   // Filter & Search state
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -847,6 +893,15 @@ export function StorefrontProvider({
   return (
     <StorefrontContext.Provider value={contextValue}>
       {children}
+      {publicReceiptOrder && (
+        <OrderPublicReceiptModal
+          order={publicReceiptOrder}
+          shopName={shopName}
+          shopPhone={shopPhone}
+          shopLogo={shopLogo}
+          onClose={() => setPublicReceiptOrder(null)}
+        />
+      )}
     </StorefrontContext.Provider>
   );
 }

@@ -8428,8 +8428,33 @@ async function handlePublicCreateOrder(request, env) {
 
 async function handlePublicTrackOrders(request, env) {
   const url = new URL(request.url);
+  const orderId = url.searchParams.get("order") || url.searchParams.get("orderId") || url.searchParams.get("id");
   const phone = url.searchParams.get("phone");
   const shopId = url.searchParams.get("shopId");
+
+  if (orderId) {
+    const cleanOrderId = orderId.trim();
+    const row = await env.DB.prepare(
+      `SELECT * FROM orders WHERE id = ?`
+    ).bind(cleanOrderId).first();
+
+    if (!row) {
+      return json({ orders: [], error: "Order not found" }, 404, {}, request);
+    }
+
+    let parsedItems = [];
+    try {
+      parsedItems = typeof row.items === "string" ? JSON.parse(row.items) : (row.items || []);
+    } catch {}
+
+    const formatted = {
+      ...row,
+      items: parsedItems,
+      total: Number(row.total) || 0,
+    };
+    return json({ order: formatted, orders: [formatted] }, 200, {}, request);
+  }
+
   if (!phone || !shopId) throw new HttpError("phone and shopId are required", 400);
 
   const cleanPhone = phone.trim();
@@ -8459,6 +8484,31 @@ async function handlePublicTrackOrders(request, env) {
   ).all();
 
   return json({ orders: results || [] }, 200, {}, request);
+}
+
+async function handlePublicGetOrder(orderId, request, env) {
+  const cleanId = (orderId || "").trim();
+  if (!cleanId) throw new HttpError("orderId is required", 400);
+
+  const row = await env.DB.prepare(
+    `SELECT * FROM orders WHERE id = ?`
+  ).bind(cleanId).first();
+
+  if (!row) {
+    return json({ error: "Order not found" }, 404, {}, request);
+  }
+
+  let parsedItems = [];
+  try {
+    parsedItems = typeof row.items === "string" ? JSON.parse(row.items) : (row.items || []);
+  } catch {}
+
+  const formatted = {
+    ...row,
+    items: parsedItems,
+    total: Number(row.total) || 0,
+  };
+  return json({ order: formatted, orders: [formatted] }, 200, {}, request);
 }
 
 // ---------------------------------------------------------------------------
@@ -11341,6 +11391,10 @@ async function route(request, env) {
   }
   if (path === "/api/orders/public/track" && method === "GET") {
     return handlePublicTrackOrders(request, env);
+  }
+  if (path.startsWith("/api/orders/public/") && !path.endsWith("/cancel") && method === "GET") {
+    const id = path.slice("/api/orders/public/".length);
+    return handlePublicGetOrder(id, request, env);
   }
   if (path.startsWith("/api/orders/public/") && path.endsWith("/cancel")) {
     const id = path.slice("/api/orders/public/".length, -"/cancel".length);
