@@ -183,6 +183,7 @@ export default function OperationsDashboard({
   const [searchQuery, setSearchQuery] = useState('');
   const [timeRange, setTimeRange] = useState<'today' | '7d' | '30d'>('today');
   const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
+  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isAllCaughtUpManualPreview, setIsAllCaughtUpManualPreview] = useState<boolean>(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
@@ -214,9 +215,10 @@ export default function OperationsDashboard({
     setLocalOrders(orders);
   }, [orders]);
 
-  // Reset selected bar when time range switches
+  // Reset selected bar & hovered bar when time range switches
   useEffect(() => {
     setSelectedBarIndex(null);
+    setHoveredBarIndex(null);
   }, [timeRange]);
 
   // Optimistic Undo Toast State
@@ -315,13 +317,13 @@ export default function OperationsDashboard({
 
     if (timeRange === 'today') {
       const slots = [
-        { label: '08:00', startH: 6, endH: 9, fullLabel: 'Morning (06:00 - 09:00)' },
-        { label: '10:00', startH: 9, endH: 11, fullLabel: 'Late Morning (09:00 - 11:00)' },
-        { label: '12:00', startH: 11, endH: 13, fullLabel: 'Midday Rush (11:00 - 13:00)' },
-        { label: '14:00', startH: 13, endH: 15, fullLabel: 'Afternoon (13:00 - 15:00)' },
-        { label: '16:00', startH: 15, endH: 17, fullLabel: 'Evening Tea (15:00 - 17:00)' },
-        { label: '18:00', startH: 17, endH: 19, fullLabel: 'Peak Rush (17:00 - 19:00)' },
-        { label: '20:00', startH: 19, endH: 24, fullLabel: 'Night Counter (19:00 - 23:59)' },
+        { label: '06:00', startH: 0, endH: 8, fullLabel: 'Early Morning (00:00 - 08:00)' },
+        { label: '09:00', startH: 8, endH: 11, fullLabel: 'Morning Rush (08:00 - 11:00)' },
+        { label: '12:00', startH: 11, endH: 14, fullLabel: 'Midday Peak (11:00 - 14:00)' },
+        { label: '15:00', startH: 14, endH: 17, fullLabel: 'Afternoon Counter (14:00 - 17:00)' },
+        { label: '18:00', startH: 17, endH: 20, fullLabel: 'Evening Rush (17:00 - 20:00)' },
+        { label: '21:00', startH: 20, endH: 22, fullLabel: 'Night Counter (20:00 - 22:00)' },
+        { label: '23:00', startH: 22, endH: 24, fullLabel: 'Late Night (22:00 - 23:59)' },
       ];
 
       const pOrders = localOrders.filter((o) => isToday(o.created_at));
@@ -419,25 +421,27 @@ export default function OperationsDashboard({
       };
     }
 
-    // timeRange === '30d'
+    // timeRange === '30d' (Contiguous calendar intervals anchored at today's midnight)
+    const todayMidnight = new Date(now);
+    todayMidnight.setHours(0, 0, 0, 0);
+    const dayMs = 24 * 60 * 60 * 1000;
+
     const intervalSlots = [
-      { label: 'Wk -4', daysAgoStart: 30, daysAgoEnd: 24, fullLabel: '24 to 30 days ago' },
-      { label: 'Wk -3', daysAgoStart: 24, daysAgoEnd: 18, fullLabel: '18 to 24 days ago' },
-      { label: 'Wk -2', daysAgoStart: 18, daysAgoEnd: 12, fullLabel: '12 to 18 days ago' },
-      { label: 'Wk -1', daysAgoStart: 12, daysAgoEnd: 6, fullLabel: '6 to 12 days ago' },
-      { label: 'Past 6D', daysAgoStart: 6, daysAgoEnd: 1, fullLabel: '1 to 6 days ago' },
-      { label: 'Today', daysAgoStart: 1, daysAgoEnd: 0, fullLabel: 'Today' },
+      { label: '25-30d', startMs: todayMidnight.getTime() - 30 * dayMs, endMs: todayMidnight.getTime() - 24 * dayMs, fullLabel: '24 to 30 days ago' },
+      { label: '19-24d', startMs: todayMidnight.getTime() - 24 * dayMs, endMs: todayMidnight.getTime() - 18 * dayMs, fullLabel: '18 to 24 days ago' },
+      { label: '13-18d', startMs: todayMidnight.getTime() - 18 * dayMs, endMs: todayMidnight.getTime() - 12 * dayMs, fullLabel: '12 to 18 days ago' },
+      { label: '7-12d', startMs: todayMidnight.getTime() - 12 * dayMs, endMs: todayMidnight.getTime() - 6 * dayMs, fullLabel: '6 to 12 days ago' },
+      { label: '1-6d', startMs: todayMidnight.getTime() - 6 * dayMs, endMs: todayMidnight.getTime(), fullLabel: '1 to 6 days ago' },
+      { label: 'Today', startMs: todayMidnight.getTime(), endMs: now.getTime() + 60000, fullLabel: 'Today' },
     ];
 
-    const cutoff30d = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+    const cutoff30d = todayMidnight.getTime() - 30 * dayMs;
     const pOrders = localOrders.filter((o) => {
       const t = new Date(o.created_at).getTime();
       return t >= cutoff30d;
     });
 
     const result = intervalSlots.map((slot) => {
-      const startMs = now.getTime() - slot.daysAgoStart * 24 * 60 * 60 * 1000;
-      const endMs = now.getTime() - slot.daysAgoEnd * 24 * 60 * 60 * 1000;
       let settled = 0;
       let pending = 0;
       const matchingOrderIds: string[] = [];
@@ -445,15 +449,7 @@ export default function OperationsDashboard({
       pOrders.forEach((o) => {
         if (o.status === 'cancelled') return;
         const orderTime = new Date(o.created_at).getTime();
-        if (slot.daysAgoEnd === 0) {
-          if (isToday(o.created_at)) {
-            matchingOrderIds.push(o.id);
-            const amt = Number(o.total) || 0;
-            const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
-                           (o.status || '').toLowerCase() === 'delivered';
-            if (isPaid) settled += amt; else pending += amt;
-          }
-        } else if (orderTime >= startMs && orderTime < endMs) {
+        if (orderTime >= slot.startMs && orderTime < slot.endMs) {
           matchingOrderIds.push(o.id);
           const amt = Number(o.total) || 0;
           const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
@@ -634,7 +630,7 @@ export default function OperationsDashboard({
       list = settledOrders;
     }
 
-    if (selectedSlot && selectedSlot.orderIds.length > 0) {
+    if (selectedSlot) {
       const allowedIds = new Set(selectedSlot.orderIds);
       list = list.filter((o) => allowedIds.has(o.id));
     }
@@ -1450,15 +1446,29 @@ export default function OperationsDashboard({
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
                 <span>
                   {timeRange === 'today'
-                    ? 'Hourly sales & settlements (06:00 - 24:00)'
+                    ? 'Hourly sales & settlements (00:00 - 24:00)'
                     : timeRange === '7d'
                     ? 'Daily sales distribution (last 7 calendar days)'
                     : 'Interval breakdown (last 30 days)'}
                 </span>
                 <span className="font-mono-tabular">
-                  {selectedSlot ? (
+                  {hoveredBarIndex !== null && chartSlots[hoveredBarIndex] ? (
                     <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                      Selected: {selectedSlot.fullLabel || selectedSlot.slot} ({selectedSlot.orderCount} orders)
+                      Inspecting: {chartSlots[hoveredBarIndex].fullLabel || chartSlots[hoveredBarIndex].slot} • {formatInr(chartSlots[hoveredBarIndex].settledAmount + chartSlots[hoveredBarIndex].pendingAmount)} ({chartSlots[hoveredBarIndex].orderCount} orders)
+                    </span>
+                  ) : selectedSlot ? (
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold inline-flex items-center gap-1.5">
+                      <span>Filtered: {selectedSlot.fullLabel || selectedSlot.slot} ({selectedSlot.orderCount} orders)</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedBarIndex(null);
+                        }}
+                        className="text-[10px] underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer ml-1"
+                      >
+                        Clear filter
+                      </button>
                     </span>
                   ) : (
                     'Click bar to filter table • Hover to inspect'
@@ -1466,85 +1476,133 @@ export default function OperationsDashboard({
                 </span>
               </div>
 
-              {/* Chart Grid with Hairline Dividers */}
-              <div className="h-44 flex items-end gap-2 sm:gap-3 pt-6 pb-2 border-b border-slate-100 dark:border-white/[0.06] relative">
-                {chartSlots.map((pulse, idx) => {
-                  const isHovered = selectedBarIndex === idx;
-                  const total = pulse.settledAmount + pulse.pendingAmount;
-                  const heightPercent = total > 0 ? Math.max(12, Math.round((total / maxChartVal) * 100)) : 4;
-                  const settledPercent = total > 0 ? Math.round((pulse.settledAmount / total) * 100) : 100;
+              {/* Chart Grid with Y-Axis Reference Gridlines */}
+              <div className="h-48 pt-6 pb-2 border-b border-slate-100 dark:border-white/[0.06] relative">
+                {/* Horizontal reference lines & Y-axis labels */}
+                <div className="absolute inset-x-0 top-6 bottom-7 flex flex-col justify-between pointer-events-none z-0">
+                  {/* 100% max reference line */}
+                  <div className="w-full border-b border-dashed border-slate-200/80 dark:border-white/[0.07] flex justify-between items-center pr-1">
+                    <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
+                      {formatInr(maxChartVal)}
+                    </span>
+                    <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">Peak</span>
+                  </div>
+                  {/* 50% reference line */}
+                  <div className="w-full border-b border-dashed border-slate-200/60 dark:border-white/[0.04] flex justify-between items-center pr-1">
+                    <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
+                      {formatInr(Math.round(maxChartVal / 2))}
+                    </span>
+                    <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">50%</span>
+                  </div>
+                  {/* Baseline ₹0 reference line */}
+                  <div className="w-full border-b border-slate-200 dark:border-white/[0.08] flex justify-between items-center pr-1">
+                    <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
+                      ₹0
+                    </span>
+                    <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">Base</span>
+                  </div>
+                </div>
 
-                  return (
-                    <div
-                      key={pulse.slot + idx}
-                      onClick={() => {
-                        setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
-                      }}
-                      className="flex-1 h-full flex flex-col justify-end items-center group cursor-pointer relative"
-                    >
-                      {/* Tooltip on hover/active */}
-                      {isHovered && (
+                {/* Bars Container */}
+                <div className="h-full flex items-end gap-2 sm:gap-3 relative z-10">
+                  {chartSlots.map((pulse, idx) => {
+                    const isHovered = hoveredBarIndex === idx;
+                    const isSelected = selectedBarIndex === idx;
+                    const isActive = isHovered || (hoveredBarIndex === null && isSelected);
+                    const total = pulse.settledAmount + pulse.pendingAmount;
+                    const heightPercent = total > 0 ? Math.max(12, Math.round((total / maxChartVal) * 100)) : 4;
+                    const settledPercent = total > 0 ? Math.round((pulse.settledAmount / total) * 100) : 100;
+
+                    return (
+                      <div
+                        key={pulse.slot + idx}
+                        onClick={() => {
+                          setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
+                        }}
+                        onMouseEnter={() => setHoveredBarIndex(idx)}
+                        onMouseLeave={() => setHoveredBarIndex(null)}
+                        onFocus={() => setHoveredBarIndex(idx)}
+                        onBlur={() => setHoveredBarIndex(null)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${pulse.fullLabel || pulse.slot}: ${formatInr(pulse.settledAmount)} settled, ${pulse.orderCount} orders`}
+                        className="flex-1 h-full flex flex-col justify-end items-center group cursor-pointer relative outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-t"
+                      >
+                        {/* Tooltip on hover/active - centered with downward pointer */}
+                        {isActive && (
+                          <div
+                            className={`absolute -top-16 left-1/2 -translate-x-1/2 z-30 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono-tabular shadow-xl whitespace-nowrap pointer-events-none transition-all ${
+                              isDarkMode
+                                ? 'bg-[#1A253A] border-white/10 text-white'
+                                : 'bg-slate-900 text-white border-slate-800'
+                            }`}
+                          >
+                            <div className="font-semibold text-emerald-400">
+                              Settled: {formatInr(pulse.settledAmount)}
+                            </div>
+                            {pulse.pendingAmount > 0 && (
+                              <div className="text-amber-400">
+                                Khata / Due: {formatInr(pulse.pendingAmount)}
+                              </div>
+                            )}
+                            <div className="text-slate-300 text-[10px]">
+                              {pulse.orderCount} {pulse.orderCount === 1 ? 'order' : 'orders'} • {pulse.fullLabel || pulse.slot}
+                            </div>
+                            <div
+                              className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 ${
+                                isDarkMode ? 'border-t-[#1A253A]' : 'border-t-slate-900'
+                              }`}
+                            />
+                          </div>
+                        )}
+
+                        {/* Stacked Bar with tactile transition */}
                         <div
-                          className={`absolute -top-16 z-20 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono-tabular shadow-lg whitespace-nowrap pointer-events-none transition-all ${
-                            isDarkMode
-                              ? 'bg-[#1A253A] border-white/10 text-white'
-                              : 'bg-slate-900 text-white border-slate-800'
+                          className={`w-full max-w-[42px] rounded-t transition-all duration-150 overflow-hidden flex flex-col justify-end shadow-sm ${
+                            isActive
+                              ? 'ring-2 ring-blue-500 scale-[1.05] shadow-blue-500/20'
+                              : 'opacity-85 hover:opacity-100 hover:scale-[1.02]'
+                          }`}
+                          style={{ height: `${heightPercent}%` }}
+                        >
+                          {pulse.pendingAmount > 0 && (
+                            <div
+                              style={{ height: `${100 - settledPercent}%` }}
+                              className="w-full bg-amber-500/80 transition-colors"
+                              title={`Pending: ${formatInr(pulse.pendingAmount)}`}
+                            />
+                          )}
+                          <div
+                            style={{ height: `${settledPercent}%` }}
+                            className={`w-full transition-colors ${
+                              total === 0
+                                ? isDarkMode ? 'bg-slate-800' : 'bg-slate-200'
+                                : isActive
+                                ? 'bg-[#0052FF]'
+                                : 'bg-[#0052FF]/85 dark:bg-[#0052FF]/70'
+                            }`}
+                          />
+                        </div>
+
+                        <span
+                          className={`text-[11px] font-mono-tabular mt-2 transition-colors ${
+                            isActive
+                              ? 'font-bold text-blue-600 dark:text-blue-400'
+                              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
                           }`}
                         >
-                          <div className="font-semibold text-emerald-400">
-                            Settled: {formatInr(pulse.settledAmount)}
-                          </div>
-                          {pulse.pendingAmount > 0 && (
-                            <div className="text-amber-400">
-                              Khata / Due: {formatInr(pulse.pendingAmount)}
-                            </div>
-                          )}
-                          <div className="text-slate-300 text-[10px]">
-                            {pulse.orderCount} orders • {pulse.fullLabel || pulse.slot}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Stacked Bar with tactile transition */}
-                      <div
-                        className={`w-full max-w-[42px] rounded-t transition-all duration-150 overflow-hidden flex flex-col justify-end ${
-                          isHovered
-                            ? 'ring-2 ring-blue-500 scale-[1.04]'
-                            : 'opacity-85 hover:opacity-100'
-                        }`}
-                        style={{ height: `${heightPercent}%` }}
-                      >
-                        {pulse.pendingAmount > 0 && (
-                          <div
-                            style={{ height: `${100 - settledPercent}%` }}
-                            className="w-full bg-amber-500/80"
-                            title={`Pending: ${formatInr(pulse.pendingAmount)}`}
-                          />
-                        )}
-                        <div
-                          style={{ height: `${settledPercent}%` }}
-                          className={`w-full ${
-                            total === 0
-                              ? 'bg-slate-200 dark:bg-slate-800'
-                              : isHovered
-                              ? 'bg-[#0052FF]'
-                              : 'bg-[#0052FF]/85 dark:bg-[#0052FF]/70'
-                          }`}
-                        />
+                          {pulse.slot}
+                        </span>
                       </div>
-
-                      <span
-                        className={`text-[11px] font-mono-tabular mt-2 transition-colors ${
-                          isHovered
-                            ? 'font-bold text-blue-600 dark:text-blue-400'
-                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
-                        }`}
-                      >
-                        {pulse.slot}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
