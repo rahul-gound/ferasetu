@@ -1,6 +1,6 @@
 /**
- * PublicFooter — Improved with positioning tagline, FeraSetu AI link,
- * support info, and dynamic copyright year.
+ * PublicFooter — With positioning tagline, FeraSetu AI link,
+ * Competitor Comparison links, support info, and dynamic copyright year.
  */
 import { Link } from 'react-router-dom';
 import { ShieldCheck, Lock } from 'lucide-react';
@@ -10,7 +10,7 @@ import { useConsent } from '../../contexts/ConsentContext';
 import MarketSelector from '../marketing/MarketSelector';
 
 export default function PublicFooter() {
-  const { getLocalizedLink, translate: t } = useLanguage();
+  const { getLocalizedLink } = useLanguage();
   const { register, login } = useAuth();
   const { openPreferencesModal } = useConsent();
   const year = new Date().getFullYear();
@@ -18,7 +18,7 @@ export default function PublicFooter() {
   return (
     <footer className="bg-slate-50 border-t border-slate-200 py-16">
       <div className="max-w-[1280px] mx-auto px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
@@ -40,13 +40,13 @@ export default function PublicFooter() {
               “Your business is yours. The internet should be too.”
             </p>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Digital infrastructure connecting your real-world store to online ordering, payments, and fulfillment with 0% FeraSetu platform commission.
+              Sovereign B2B digital commerce infrastructure connecting real-world retail to online ordering with 0% FeraSetu platform commission.
             </p>
           </div>
 
           {/* Product links */}
           <div>
-            <h4 className="font-bold text-slate-900 text-sm mb-4">Philosophy & Product</h4>
+            <h4 className="font-bold text-slate-900 text-sm mb-4">Philosophy &amp; Product</h4>
             <ul className="space-y-3">
               <li>
                 <a
@@ -85,7 +85,62 @@ export default function PublicFooter() {
                   to={getLocalizedLink('/pricing')}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
-                  Pricing
+                  Pricing Plans
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Compare & Alternatives column */}
+          <div>
+            <h4 className="font-bold text-slate-900 text-sm mb-4">Compare &amp; Alternatives</h4>
+            <ul className="space-y-3">
+              <li>
+                <Link
+                  to={getLocalizedLink('/compare/shopify-alternative')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Shopify Alternative
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/compare/woocommerce-alternative')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  WooCommerce Alternative
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/compare/bigcommerce-alternative')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  BigCommerce Alternative
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/compare/dukaan-alternative')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Dukaan Alternative
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/compare/wix-squarespace-alternative')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Wix &amp; Squarespace
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/compare')}
+                  className="text-xs text-blue-600 hover:text-blue-700 transition-colors font-bold inline-flex items-center gap-1 mt-1"
+                >
+                  <span>All 5 Comparisons →</span>
                 </Link>
               </li>
             </ul>
@@ -113,12 +168,20 @@ export default function PublicFooter() {
                   Sign In
                 </button>
               </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/free-online-store')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Free Online Store Guide
+                </Link>
+              </li>
             </ul>
           </div>
 
           {/* Legal + Support */}
           <div>
-            <h4 className="font-bold text-slate-900 text-sm mb-4">Help & Legal</h4>
+            <h4 className="font-bold text-slate-900 text-sm mb-4">Help &amp; Legal</h4>
             <ul className="space-y-3">
               <li>
                 <Link
@@ -134,7 +197,7 @@ export default function PublicFooter() {
                   onClick={openPreferencesModal}
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium text-left cursor-pointer"
                 >
-                  Privacy &amp; Cookie Preferences
+                  Cookie Preferences
                 </button>
               </li>
               <li>

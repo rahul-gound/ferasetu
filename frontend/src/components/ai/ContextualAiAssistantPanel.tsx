@@ -28,7 +28,7 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useAiAssistant, DockSide } from '../../contexts/AiAssistantContext';
+import { useAiAssistant, type DockSide } from '../../contexts/AiAssistantContext';
 
 interface ChatMessage {
   id: string;

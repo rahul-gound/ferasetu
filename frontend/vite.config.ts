@@ -16,6 +16,7 @@ export default defineConfig({
     include: ['react-is']
   },
   build: {
+    cssMinify: false,
     sourcemap: true,
     commonjsOptions: {
       include: [/node_modules/],

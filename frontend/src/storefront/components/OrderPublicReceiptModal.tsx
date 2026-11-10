@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useStorefront } from '../runtime/StorefrontProvider';
-import InvoiceDocumentModal, { InvoiceModalOrder } from '../../components/orders/InvoiceDocumentModal';
+import InvoiceDocumentModal, { type InvoiceModalOrder } from '../../components/orders/InvoiceDocumentModal';
 
 export interface PublicOrderData {
   id: string;

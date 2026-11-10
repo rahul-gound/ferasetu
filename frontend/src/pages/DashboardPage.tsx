@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import OperationsDashboard, { RealOrder } from '../components/dashboard/OperationsDashboard';
+import OperationsDashboard, { type RealOrder } from '../components/dashboard/OperationsDashboard';
 import PaymentSetupModal from '../components/dashboard/PaymentSetupModal';
 import CounterQrModal from '../components/dashboard/CounterQrModal';
 import AddOrderModal from '../components/orders/AddOrderModal';
-import InvoiceDocumentModal, { InvoiceModalOrder } from '../components/orders/InvoiceDocumentModal';
+import InvoiceDocumentModal, { type InvoiceModalOrder } from '../components/orders/InvoiceDocumentModal';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 export default function DashboardPage() {

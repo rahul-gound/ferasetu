@@ -29,6 +29,8 @@ const FreeOnlineStore = lazy(() => import('./pages/FreeOnlineStore'));
 const ShopifyAlternativeIndia = lazy(() => import('./pages/ShopifyAlternativeIndia'));
 const KiranaStoreOnline = lazy(() => import('./pages/KiranaStoreOnline'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const CompareIndexPage = lazy(() => import('./pages/compare/CompareIndexPage'));
+const CompetitorComparisonPage = lazy(() => import('./pages/compare/CompetitorComparisonPage'));
 
 // Core app pages — code-split
 const GetStartedPage = lazy(() => import('./pages/GetStartedPage'));
@@ -274,6 +276,8 @@ function AppRoutes() {
         <Route path="/kirana-store-online" element={<KiranaStoreOnline />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/compare" element={<CompareIndexPage />} />
+        <Route path="/compare/:slug" element={<CompetitorComparisonPage />} />
 
         {/* Legacy Regional & Default English Redirects to Canonical Clean URLs */}
         <Route path="/en" element={<Navigate to="/" replace />} />
@@ -316,6 +320,8 @@ function AppRoutes() {
           <Route path="kirana-store-online" element={<KiranaStoreOnline />} />
           <Route path="terms" element={<TermsPage />} />
           <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="compare" element={<CompareIndexPage />} />
+          <Route path="compare/:slug" element={<CompetitorComparisonPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 

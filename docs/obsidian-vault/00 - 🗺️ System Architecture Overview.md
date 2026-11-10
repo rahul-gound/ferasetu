@@ -3,7 +3,7 @@
 > **Version:** 1.0.0-PROD  
 > **Target Audience:** The Global Shopkeeper (48+ regions, Indic-first, 0% platform commission)  
 > **Last Synchronized:** 2026-11-07  
-> **Quick Links:** [[01 - 📊 Progress & Completion Matrix]] | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] | [[05 - 🤖 Fera AI & Sarvam Intelligence]] | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] | [[07 - 🧾 GST Invoicing & Accounting]] | [[08 - 🌐 Subdomains, Custom Domains & DNS]] | [[09 - 🧪 QA, Testing & Control Plane]] | [[10 - 🗄️ Database Schemas & Data Flow]] | [[11 - 💬 WhatsApp Assistant Architecture]] | [[12 - 🏆 Antigravity Rewards & Credits]] | [[feature that wil added soon]]
+> **Quick Links:** [[01 - 📊 Progress & Completion Matrix]] | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] | [[05 - 🤖 Fera AI & Sarvam Intelligence]] | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] | [[07 - 🧾 GST Invoicing & Accounting]] | [[08 - 🌐 Subdomains, Custom Domains & DNS]] | [[09 - 🧪 QA, Testing & Control Plane]] | [[10 - 🗄️ Database Schemas & Data Flow]] | [[11 - 💬 WhatsApp Assistant Architecture]] | [[12 - 🏆 Antigravity Rewards & Credits]] | [[13 - 🌪️ Hurricane Electric IPv6 Tunnel & SMTP Relay]] | [[feature that wil added soon]]
 
 ---
 
@@ -24,10 +24,13 @@ graph TD
 
     subgraph Core Tier
         Core --> AuthKit[AuthKit & Appwrite Auth]
-        Core --> Sarvam[Sarvam AI Indic LLM Engine]
+        Core --> Sarvam[Fera AI Gateway / LLM Engine]
         Core --> Cashfree[Cashfree & Razorpay Gateways]
         Core --> GSTEngine[GST Invoicing & PDF Service]
-        Core --> SMTP[Self-Hosted ferasetu-smtp / Brevo]
+        Core --> ModalSMTP[Modal Serverless SMTP ferasetu-smtp]
+        ModalSMTP --> OracleRelay[Oracle VM Relay 92.4.77.19]
+        OracleRelay --> HETunnel[Hurricane Electric IPv6 Tunnel 2001:470:35:813::2]
+        HETunnel --> GlobalMX[Destination Mail Servers Gmail/Outlook]
     end
 ```
 
@@ -41,12 +44,13 @@ graph TD
 | **Edge Gateway** | `/worker` | Cloudflare Workers, D1 | Subdomain routing, catalog caching, AST builder runtime | [[02 - ⚡ Edge Tier (Cloudflare Workers & D1)]] |
 | **Core API** | `/backend` | Node.js, Express, TS | Auth, orders lifecycle, payments, GST, admin endpoints | [[03 - 🖥️ Core API & Business Logic (Node.js & Express)]] |
 | **Frontend SPA** | `/frontend` | React 19, Vite 8, Tailwind | Shopkeeper dashboard, Fera Pro Studio, store builder | [[04 - 🎨 Frontend & Design System (React 19 & Tailwind)]] |
-| **Fera AI Engine** | `/worker/ai`, `/backend/src/routes/ai.ts` | Sarvam AI, Whisper | Multilingual voice copilot, catalog copy, store intelligence | [[05 - 🤖 Fera AI & Sarvam Intelligence]] |
+| **Fera AI Engine** | `/worker/ai`, `/backend/src/routes/ai.ts` | Fera AI Cluster (`ai.fera-search.tech`) | Multilingual voice copilot, catalog copy, store intelligence | [[05 - 🤖 Fera AI & Sarvam Intelligence]] |
 | **Billing & Plans** | `/config/plans.ts`, `/backend/src/config/pricing.ts` | Cashfree, Razorpay, Stripe | 3-tier SaaS pricing (Free, Business, Pro), multi-currency | [[06 - 💳 Payments, Billing & Multi-Region Pricing]] |
 | **GST Invoicing** | `/backend/src/services/` | PDFKit, Tax Engine | B2B/B2C GST compliance, HSN codes, CGST/SGST/IGST | [[07 - 🧾 GST Invoicing & Accounting]] |
 | **Domain Engine** | `/worker/routes/domainRoutes.js` | Cloudflare Custom Hostnames | Wildcard subdomains (`*.ferasetu.com`), custom domains | [[08 - 🌐 Subdomains, Custom Domains & DNS]] |
 | **QA Control Plane** | `/tests`, `/packages/qa-engine` | Node Test Runner | 38+ automated adversarial and integration test suites | [[09 - 🧪 QA, Testing & Control Plane]] |
 | **Database & State** | `/worker/migrations`, `/backend/src/models` | D1 SQLite, MySQL | Multi-tenant schema, catalog indices, order logs | [[10 - 🗄️ Database Schemas & Data Flow]] |
+| **SMTP & HE Tunnel** | `/ferasetu-smtp` | Modal, Postfix, HE 6in4 IPv6 | 0% commission email delivery, dedicated clean IPv6 rDNS | [[13 - 🌪️ Hurricane Electric IPv6 Tunnel & SMTP Relay]] |
 
 ---
 

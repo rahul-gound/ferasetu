@@ -20,10 +20,11 @@
     <meta property="og:site_name" content="FeraSetu" />
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@ferasetu" />
     <meta name="twitter:title" content="FeraSetu — Your business is yours. The internet should be too." />
     <meta name="twitter:description" content="Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. 0% FeraSetu platform commission." />
     <meta name="twitter:image" content="https://ferasetu.com/logo-official.png" />
-    <!-- Structured Data (Schema.org Organization & WebSite) -->
+    <!-- Structured Data (Schema.org Organization, WebSite & SoftwareApplication) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -32,6 +33,8 @@
           "@type": "Organization",
           "@id": "https://ferasetu.com/#organization",
           "name": "FeraSetu",
+          "legalName": "FeraSetu Technologies",
+          "alternateName": ["Fera Setu", "FeraSetu Commerce", "ferasetu.com", "erasetu"],
           "url": "https://ferasetu.com/",
           "logo": {
             "@type": "ImageObject",
@@ -39,16 +42,38 @@
             "width": 512,
             "height": 512
           },
-          "description": "Independent commerce software for local shopkeepers and global retailers. 0% platform commission.",
-          "email": "support@ferasetu.com"
+          "description": "Sovereign B2B digital commerce infrastructure for independent retailers, grocers, and brands with 0% platform commission.",
+          "email": "support@ferasetu.com",
+          "sameAs": [
+            "https://twitter.com/ferasetu",
+            "https://linkedin.com/company/ferasetu",
+            "https://github.com/ferasetu"
+          ]
         },
         {
           "@type": "WebSite",
           "@id": "https://ferasetu.com/#website",
           "url": "https://ferasetu.com/",
           "name": "FeraSetu",
+          "alternateName": ["Fera Setu", "FeraSetu Commerce", "erasetu"],
           "publisher": {
             "@id": "https://ferasetu.com/#organization"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://ferasetu.com/#software",
+          "name": "FeraSetu",
+          "alternateName": ["Fera Setu", "FeraSetu Commerce", "erasetu"],
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://ferasetu.com/",
+          "description": "Sovereign B2B commerce infrastructure platform enabling independent retailers to operate branded online stores with 0% platform commission, direct payment settlement, unmasked customer relationships, and Cloudflare edge serverless performance.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR",
+            "category": "Free Forever Tier"
           }
         }
       ]

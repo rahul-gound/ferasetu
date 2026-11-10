@@ -63,6 +63,7 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
   - Idempotency key: `first_order_congrats_${organizationId}_${orderId}`.
 - **Modal Postfix Gateway Hardening (`ferasetu-smtp/`)**:
   - Fixed `sqlite3.OperationalError: no such column: priority` by splitting table initialization: `PRAGMA table_info` adds `priority`, `scope`, and `tenant_id` columns via `ALTER TABLE` **before** compound indexes are applied.
+  - Multi-tier outbound relay connects Modal to Oracle Cloud Postfix (`92.4.77.19:587`), which routes via Hurricane Electric IPv6 Tunnelbroker (`2001:470:35:813::2`). Full architecture documented in [[13 - 🌪️ Hurricane Electric IPv6 Tunnel & SMTP Relay]].
 - **CORS & Resilience (`/api/email/test`)**:
   - Capped interactive retries to 1 with an 8-second subrequest timeout to prevent edge wall-clock timeout.
   - Returns safe structured JSON `{ success: false, error: ... }` with full CORS headers (`Access-Control-Allow-Origin: https://ferasetu.com`) on network or gateway issues.
