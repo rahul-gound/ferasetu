@@ -1,3 +1,10 @@
+// =============================================================================
+// FeraSetu Operations Dashboard — Production Operations Workbench
+// Zero-Slop, Deeply Human B2B SaaS Dashboard for the Global Shopkeeper.
+// 100% Grounded in Live Store API Data (Zero Fake Metrics).
+// Built to ex-Linear / Stripe / Apple Human Interface Design principles.
+// =============================================================================
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -22,6 +29,12 @@ import {
   Store,
   RotateCcw,
   ShoppingBag,
+  Download,
+  Filter,
+  Eye,
+  CreditCard,
+  Truck,
+  ArrowRight
 } from 'lucide-react';
 
 // ============================================================================
@@ -73,7 +86,7 @@ export interface OperationsDashboardProps {
   storeName?: string;
   isLoading?: boolean;
   onOpenNewOrderModal?: () => void;
-  onOpenInvoiceModal?: () => void;
+  onOpenInvoiceModal?: (order?: RealOrder) => void;
   onOpenQrModal?: () => void;
   onUpdateOrderStatus?: (orderId: string, newStatus: string) => Promise<void> | void;
   onUpdatePaymentStatus?: (orderId: string, newPaymentStatus: string) => Promise<void> | void;
@@ -162,6 +175,11 @@ export default function OperationsDashboard({
     setLocalOrders(orders);
   }, [orders]);
 
+  // Reset selected bar when time range switches
+  useEffect(() => {
+    setSelectedBarIndex(null);
+  }, [timeRange]);
+
   // Optimistic Undo Toast State
   const [toastNotification, setToastNotification] = useState<{
     id: string;
@@ -179,7 +197,7 @@ export default function OperationsDashboard({
     }, 4500);
   }, []);
 
-  // ── Keyboard Shortcuts (⌘K, C, I, Esc) ────────────────────────────────────
+  // ── Keyboard Shortcuts (⌘K, C, I, Q, Esc) ─────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -198,6 +216,9 @@ export default function OperationsDashboard({
         } else if (inspectedOrder) {
           e.preventDefault();
           setInspectedOrder(null);
+        } else if (selectedBarIndex !== null) {
+          e.preventDefault();
+          setSelectedBarIndex(null);
         }
         return;
       }
@@ -209,13 +230,16 @@ export default function OperationsDashboard({
         } else if (e.key.toLowerCase() === 'i') {
           e.preventDefault();
           onOpenInvoiceModal?.();
+        } else if (e.key.toLowerCase() === 'q') {
+          e.preventDefault();
+          onOpenQrModal?.();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [commandPaletteOpen, inspectedOrder, onOpenNewOrderModal, onOpenInvoiceModal]);
+  }, [commandPaletteOpen, inspectedOrder, selectedBarIndex, onOpenNewOrderModal, onOpenInvoiceModal, onOpenQrModal]);
 
   // ── REAL METRICS COMPUTATION (ZERO FAKE NUMBERS) ──────────────────────────
 
@@ -227,7 +251,7 @@ export default function OperationsDashboard({
     });
   }, [localOrders]);
 
-  // Real collected revenue
+  // Real collected revenue today
   const totalCollectedToday = useMemo(() => {
     return todayOrders.reduce((sum, o) => {
       const isPaid = (o.payment_status || '').toLowerCase() === 'paid';
@@ -277,58 +301,210 @@ export default function OperationsDashboard({
     return products.filter((p) => Number(p.stock_quantity) <= 5 && p.stock_quantity !== undefined);
   }, [products]);
 
-  // Real Dynamic Hourly Pulse from actual orders
-  const hourlyPulseData = useMemo(() => {
-    // Slices for today
-    const slots = [
-      { label: '08:00', startH: 6, endH: 9 },
-      { label: '10:00', startH: 9, endH: 11 },
-      { label: '12:00', startH: 11, endH: 13 },
-      { label: '14:00', startH: 13, endH: 15 },
-      { label: '16:00', startH: 15, endH: 17 },
-      { label: '18:00', startH: 17, endH: 19 },
-      { label: '20:00', startH: 19, endH: 22 },
-    ];
+  // ── MULTI-TIMEFRAME DYNAMIC GRAPH ENGINE (ZERO FAKE DATA) ─────────────────
+  const { chartSlots, rangeSettledTotal, rangePendingTotal, rangeOrdersCount } = useMemo(() => {
+    const now = new Date();
 
-    return slots.map((slot) => {
-      let settled = 0;
-      let pending = 0;
-      let count = 0;
+    if (timeRange === 'today') {
+      const slots = [
+        { label: '08:00', startH: 6, endH: 9, fullLabel: 'Morning (06:00 - 09:00)' },
+        { label: '10:00', startH: 9, endH: 11, fullLabel: 'Late Morning (09:00 - 11:00)' },
+        { label: '12:00', startH: 11, endH: 13, fullLabel: 'Midday Rush (11:00 - 13:00)' },
+        { label: '14:00', startH: 13, endH: 15, fullLabel: 'Afternoon (13:00 - 15:00)' },
+        { label: '16:00', startH: 15, endH: 17, fullLabel: 'Evening Tea (15:00 - 17:00)' },
+        { label: '18:00', startH: 17, endH: 19, fullLabel: 'Peak Rush (17:00 - 19:00)' },
+        { label: '20:00', startH: 19, endH: 24, fullLabel: 'Night Counter (19:00 - 23:59)' },
+      ];
 
-      todayOrders.forEach((o) => {
-        const d = new Date(o.created_at);
-        const h = d.getHours();
-        if (h >= slot.startH && h < slot.endH) {
-          count++;
-          const amt = Number(o.total) || 0;
-          const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
-                         (o.status || '').toLowerCase() === 'delivered';
-          if (isPaid) {
-            settled += amt;
-          } else {
-            pending += amt;
+      let rangeSettled = 0;
+      let rangePending = 0;
+      let rangeCount = 0;
+
+      const result = slots.map((slot) => {
+        let settled = 0;
+        let pending = 0;
+        const matchingOrderIds: string[] = [];
+
+        todayOrders.forEach((o) => {
+          const d = new Date(o.created_at);
+          const h = d.getHours();
+          if (h >= slot.startH && h < slot.endH) {
+            matchingOrderIds.push(o.id);
+            const amt = Number(o.total) || 0;
+            const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
+                           (o.status || '').toLowerCase() === 'delivered';
+            if (isPaid) {
+              settled += amt;
+            } else {
+              pending += amt;
+            }
           }
-        }
+        });
+
+        rangeSettled += settled;
+        rangePending += pending;
+        rangeCount += matchingOrderIds.length;
+
+        return {
+          slot: slot.label,
+          fullLabel: slot.fullLabel,
+          settledAmount: settled,
+          pendingAmount: pending,
+          orderCount: matchingOrderIds.length,
+          orderIds: matchingOrderIds,
+        };
       });
 
       return {
+        chartSlots: result,
+        rangeSettledTotal: rangeSettled,
+        rangePendingTotal: rangePending,
+        rangeOrdersCount: rangeCount,
+      };
+    }
+
+    if (timeRange === '7d') {
+      // 7 calendar days ending today
+      const daySlots: Array<{ label: string; fullLabel: string; dStart: number; dEnd: number }> = [];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const dStart = d.getTime();
+        const dEnd = dStart + 24 * 60 * 60 * 1000;
+        const isCurrentDay = i === 0;
+        const label = isCurrentDay ? 'Today' : i === 1 ? 'Y\'day' : dayNames[d.getDay()];
+        const fullLabel = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', weekday: 'short' });
+        daySlots.push({ label, fullLabel, dStart, dEnd });
+      }
+
+      let rangeSettled = 0;
+      let rangePending = 0;
+      let rangeCount = 0;
+
+      const result = daySlots.map((slot) => {
+        let settled = 0;
+        let pending = 0;
+        const matchingOrderIds: string[] = [];
+
+        localOrders.forEach((o) => {
+          if (o.status === 'cancelled') return;
+          const orderTime = new Date(o.created_at).getTime();
+          if (orderTime >= slot.dStart && orderTime < slot.dEnd) {
+            matchingOrderIds.push(o.id);
+            const amt = Number(o.total) || 0;
+            const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
+                           (o.status || '').toLowerCase() === 'delivered';
+            if (isPaid) {
+              settled += amt;
+            } else {
+              pending += amt;
+            }
+          }
+        });
+
+        rangeSettled += settled;
+        rangePending += pending;
+        rangeCount += matchingOrderIds.length;
+
+        return {
+          slot: slot.label,
+          fullLabel: slot.fullLabel,
+          settledAmount: settled,
+          pendingAmount: pending,
+          orderCount: matchingOrderIds.length,
+          orderIds: matchingOrderIds,
+        };
+      });
+
+      return {
+        chartSlots: result,
+        rangeSettledTotal: rangeSettled,
+        rangePendingTotal: rangePending,
+        rangeOrdersCount: rangeCount,
+      };
+    }
+
+    // timeRange === '30d' (5 interval buckets)
+    const intervalSlots = [
+      { label: 'Wk -4', daysAgoStart: 30, daysAgoEnd: 24, fullLabel: '24 to 30 days ago' },
+      { label: 'Wk -3', daysAgoStart: 24, daysAgoEnd: 18, fullLabel: '18 to 24 days ago' },
+      { label: 'Wk -2', daysAgoStart: 18, daysAgoEnd: 12, fullLabel: '12 to 18 days ago' },
+      { label: 'Wk -1', daysAgoStart: 12, daysAgoEnd: 6, fullLabel: '6 to 12 days ago' },
+      { label: 'Past 6D', daysAgoStart: 6, daysAgoEnd: 1, fullLabel: '1 to 6 days ago' },
+      { label: 'Today', daysAgoStart: 1, daysAgoEnd: 0, fullLabel: 'Today' },
+    ];
+
+    let rangeSettled = 0;
+    let rangePending = 0;
+    let rangeCount = 0;
+
+    const result = intervalSlots.map((slot) => {
+      const startMs = now.getTime() - slot.daysAgoStart * 24 * 60 * 60 * 1000;
+      const endMs = now.getTime() - slot.daysAgoEnd * 24 * 60 * 60 * 1000;
+      let settled = 0;
+      let pending = 0;
+      const matchingOrderIds: string[] = [];
+
+      localOrders.forEach((o) => {
+        if (o.status === 'cancelled') return;
+        const orderTime = new Date(o.created_at).getTime();
+        if (slot.daysAgoEnd === 0) {
+          if (isToday(o.created_at)) {
+            matchingOrderIds.push(o.id);
+            const amt = Number(o.total) || 0;
+            const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
+                           (o.status || '').toLowerCase() === 'delivered';
+            if (isPaid) settled += amt; else pending += amt;
+          }
+        } else if (orderTime >= startMs && orderTime < endMs) {
+          matchingOrderIds.push(o.id);
+          const amt = Number(o.total) || 0;
+          const isPaid = (o.payment_status || '').toLowerCase() === 'paid' ||
+                         (o.status || '').toLowerCase() === 'delivered';
+          if (isPaid) settled += amt; else pending += amt;
+        }
+      });
+
+      rangeSettled += settled;
+      rangePending += pending;
+      rangeCount += matchingOrderIds.length;
+
+      return {
         slot: slot.label,
+        fullLabel: slot.fullLabel,
         settledAmount: settled,
         pendingAmount: pending,
-        orderCount: count,
+        orderCount: matchingOrderIds.length,
+        orderIds: matchingOrderIds,
       };
     });
-  }, [todayOrders]);
+
+    return {
+      chartSlots: result,
+      rangeSettledTotal: rangeSettled,
+      rangePendingTotal: rangePending,
+      rangeOrdersCount: rangeCount,
+    };
+  }, [timeRange, todayOrders, localOrders]);
 
   const maxChartVal = useMemo(() => {
     const maxVal = Math.max(
-      ...hourlyPulseData.map((d) => d.settledAmount + d.pendingAmount),
-      1000
+      ...chartSlots.map((d) => d.settledAmount + d.pendingAmount),
+      500
     );
     return maxVal;
-  }, [hourlyPulseData]);
+  }, [chartSlots]);
 
-  // ── Tab Filtering ─────────────────────────────────────────────────────────
+  // Selected bar slot helper
+  const selectedSlot = useMemo(() => {
+    if (selectedBarIndex === null || !chartSlots[selectedBarIndex]) return null;
+    return chartSlots[selectedBarIndex];
+  }, [selectedBarIndex, chartSlots]);
+
+  // ── Tab & Bar Slot Filtering ──────────────────────────────────────────────
   const filteredOrders = useMemo(() => {
     if (isAllCaughtUpManualPreview) return [];
 
@@ -339,6 +515,12 @@ export default function OperationsDashboard({
       list = payLaterOrders;
     } else if (activeTab === 'settled') {
       list = settledOrders;
+    }
+
+    // If a bar in the chart is selected, filter to that slot's orders!
+    if (selectedSlot && selectedSlot.orderIds.length > 0) {
+      const allowedIds = new Set(selectedSlot.orderIds);
+      list = list.filter((o) => allowedIds.has(o.id));
     }
 
     if (searchQuery.trim()) {
@@ -355,20 +537,24 @@ export default function OperationsDashboard({
     }
 
     return list;
-  }, [localOrders, activeTab, searchQuery, isAllCaughtUpManualPreview, needsPackingOrders, payLaterOrders, settledOrders]);
+  }, [localOrders, activeTab, searchQuery, isAllCaughtUpManualPreview, needsPackingOrders, payLaterOrders, settledOrders, selectedSlot]);
 
   // ── Real Optimistic Actions ───────────────────────────────────────────────
+
   const handleMarkSettled = async (order: RealOrder, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const prevOrder = { ...order };
+    const optimisticOrder: RealOrder = {
+      ...order,
+      payment_status: 'paid',
+      status: order.status === 'delivered' ? 'delivered' : 'confirmed',
+    };
 
-    // Optimistic UI state (<50ms)
     setLocalOrders((prev) =>
-      prev.map((o) => (o.id === order.id ? { ...o, payment_status: 'paid', status: 'delivered' } : o))
+      prev.map((o) => (o.id === order.id ? optimisticOrder : o))
     );
 
-    showToast(`Marked #${order.id.slice(0, 8)} (${order.customer_name || 'Customer'}) settled`, () => {
-      // Revert if undone
+    showToast(`Marked #${order.id.slice(0, 8)} as settled`, () => {
       setLocalOrders((prev) =>
         prev.map((o) => (o.id === order.id ? prevOrder : o))
       );
@@ -380,32 +566,41 @@ export default function OperationsDashboard({
         await onUpdatePaymentStatus(order.id, 'paid');
       }
     } catch {
-      // Revert on server error
       setLocalOrders((prev) =>
         prev.map((o) => (o.id === order.id ? prevOrder : o))
       );
-      showToast(`Failed to update #${order.id.slice(0, 8)} on server`);
+      showToast(`Failed to update payment on server`);
     }
   };
 
   const handlePackOrder = async (order: RealOrder, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const prevOrder = { ...order };
+    const nextStatus = order.status === 'preparing' ? 'delivered' : 'preparing';
+    const optimisticOrder: RealOrder = {
+      ...order,
+      status: nextStatus,
+    };
 
     setLocalOrders((prev) =>
-      prev.map((o) => (o.id === order.id ? { ...o, status: 'preparing' } : o))
+      prev.map((o) => (o.id === order.id ? optimisticOrder : o))
     );
 
-    showToast(`Order #${order.id.slice(0, 8)} packed and ready`, () => {
-      setLocalOrders((prev) =>
-        prev.map((o) => (o.id === order.id ? prevOrder : o))
-      );
-      onUpdateOrderStatus?.(order.id, prevOrder.status || 'pending');
-    });
+    showToast(
+      nextStatus === 'delivered'
+        ? `Order #${order.id.slice(0, 8)} marked as delivered`
+        : `Order #${order.id.slice(0, 8)} packed and ready`,
+      () => {
+        setLocalOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? prevOrder : o))
+        );
+        onUpdateOrderStatus?.(order.id, prevOrder.status || 'pending');
+      }
+    );
 
     try {
       if (onUpdateOrderStatus) {
-        await onUpdateOrderStatus(order.id, 'preparing');
+        await onUpdateOrderStatus(order.id, nextStatus);
       }
     } catch {
       setLocalOrders((prev) =>
@@ -450,6 +645,35 @@ export default function OperationsDashboard({
     }
   };
 
+  const handleExportCsv = () => {
+    if (filteredOrders.length === 0) {
+      showToast('No orders to export in current view');
+      return;
+    }
+    const headers = ['Order ID', 'Created At', 'Customer Name', 'Phone', 'Items', 'Total', 'Status', 'Payment Status', 'Payment Method'];
+    const rows = filteredOrders.map((o) => [
+      `"${o.id}"`,
+      `"${o.created_at}"`,
+      `"${o.customer_name || 'Counter Customer'}"`,
+      `"${o.customer_phone || ''}"`,
+      `"${(o.items || []).map((i) => `${i.product_name || i.name} (x${i.quantity})`).join('; ')}"`,
+      `"${o.total || 0}"`,
+      `"${o.status}"`,
+      `"${o.payment_status || 'pending'}"`,
+      `"${o.payment_method || 'upi'}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ferasetu-orders-ledger-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Exported ${filteredOrders.length} orders to CSV`);
+  };
+
   // ── Command Palette Items ─────────────────────────────────────────────────
   const commandItems = useMemo(() => {
     const list = [
@@ -476,6 +700,14 @@ export default function OperationsDashboard({
         category: 'Storefront',
         shortcut: 'Q',
         action: () => onOpenQrModal?.(),
+      },
+      {
+        id: 'cmd-export',
+        title: 'Export Orders Ledger CSV',
+        subtitle: 'Download spreadsheet of all orders',
+        category: 'Data',
+        shortcut: 'E',
+        action: handleExportCsv,
       },
       {
         id: 'cmd-toggle-dark',
@@ -507,82 +739,38 @@ export default function OperationsDashboard({
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-200 select-none ${
-        isDarkMode
-          ? 'bg-[#090D16] text-[#F1F5F9]'
-          : 'bg-[#F8FAFC] text-[#0F172A]'
+      className={`min-h-screen transition-colors duration-200 ${
+        isDarkMode ? 'dark bg-[#090D16] text-[#E2E8F0]' : 'bg-[#F8FAFC] text-[#0F172A]'
       }`}
-      style={{
-        fontFamily: "'Geist', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-        letterSpacing: '-0.01em',
-      }}
     >
-      {/* ── STYLE TOKENS INJECTION ──────────────────────────────────────────── */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
-
-        .font-display {
-          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-          letter-spacing: -0.03em;
-        }
-        .font-mono-tabular {
-          font-family: 'JetBrains Mono', 'Geist Mono', monospace;
-          font-variant-numeric: tabular-nums;
-        }
-        .btn-tactile-primary {
-          background-color: #0052FF;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 82, 255, 0.2);
-          transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 120ms ease;
-        }
-        .btn-tactile-primary:hover {
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px rgba(0, 82, 255, 0.28);
-        }
-        .btn-tactile-primary:active {
-          transform: scale(0.98);
-        }
-        .btn-tactile-ghost {
-          transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), background-color 120ms ease;
-        }
-        .btn-tactile-ghost:active {
-          transform: scale(0.98);
-        }
-      `}</style>
-
-      {/* ── WORKSPACE WRAPPER ───────────────────────────────────────────────── */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* ── Main Container ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         {/* ================================================================== */}
-        {/* ZONE A: CO-PILOT BRIEFING BAR (REAL DATA ONLY)                     */}
+        {/* ZONE A: CO-PILOT MORNING/EVENING BRIEFING BAR                      */}
         {/* ================================================================== */}
         <header
           className={`rounded-xl border p-4 sm:p-5 transition-all ${
             isDarkMode
-              ? 'bg-[#0F1623] border-white/[0.07]'
+              ? 'bg-[#0F1623] border-white/[0.07] shadow-[0_2px_8px_rgba(0,0,0,0.4)]'
               : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
           }`}
         >
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Left: Context-Aware Briefing from Real Numbers */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Left: Warm Contextual Greeting */}
             <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Storefront Connected
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="text-xs text-slate-400 dark:text-slate-500 font-mono-tabular">
-                  • 0% FeraSetu Commission
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Store Operations Live
                 </span>
-                {storeUrl && (
-                  <a
-                    href={storeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    <span>View Store</span>
-                    <ExternalLink size={11} />
-                  </a>
-                )}
+                <span className="text-xs text-slate-300 dark:text-slate-700">•</span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {storeName}
+                </span>
               </div>
 
               <h1 className="text-lg sm:text-xl font-bold font-display tracking-tight text-slate-900 dark:text-white">
@@ -590,31 +778,43 @@ export default function OperationsDashboard({
                 <span className="font-normal text-slate-600 dark:text-slate-300">
                   {todayOrders.length > 0 ? (
                     <>
-                      Your store has{' '}
-                      <span className="font-semibold text-slate-900 dark:text-white font-mono-tabular">
-                        {formatInr(totalCollectedToday)}
-                      </span>{' '}
-                      collected across {todayOrders.length} orders today. Just{' '}
-                      <span className="font-semibold text-amber-600 dark:text-amber-400 font-mono-tabular">
-                        {payLaterOrders.length} khata dues
-                      </span>{' '}
-                      and{' '}
-                      <span className="font-semibold text-amber-600 dark:text-amber-400 font-mono-tabular">
-                        {needsPackingOrders.length} orders to pack
-                      </span>{' '}
-                      need a quick look.
+                      Store is humming—<strong className="font-semibold text-slate-900 dark:text-white font-mono-tabular">{formatInr(totalCollectedToday)}</strong> collected across{' '}
+                      <strong className="font-semibold text-slate-900 dark:text-white font-mono-tabular">{todayOrders.length}</strong> orders today.
                     </>
                   ) : (
-                    <>
-                      Your store counter is ready. You have{' '}
-                      <span className="font-semibold text-slate-900 dark:text-white font-mono-tabular">
-                        {products.length} active products
-                      </span>{' '}
-                      in stock. No orders placed yet today.
-                    </>
+                    <>Ready for today's sales. Counter is open and UPI QR is active.</>
                   )}
                 </span>
               </h1>
+
+              {/* Status Pills */}
+              <div className="flex items-center flex-wrap gap-2 pt-1 text-xs text-slate-500 dark:text-slate-400">
+                {payLaterOrders.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium">
+                    <Clock size={12} />
+                    <strong className="font-mono-tabular">{payLaterOrders.length}</strong> khata dues to nudge
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium">
+                    <CheckCircle2 size={12} />
+                    Zero credit dues
+                  </span>
+                )}
+
+                {lowStockProducts.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium">
+                    <AlertTriangle size={12} />
+                    <strong className="font-mono-tabular">{lowStockProducts.length}</strong> low stock items
+                  </span>
+                )}
+
+                {needsPackingOrders.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium">
+                    <Zap size={12} />
+                    <strong className="font-mono-tabular">{needsPackingOrders.length}</strong> awaiting packing
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Right: Tactile Command Palette Trigger & Power Actions */}
@@ -669,7 +869,7 @@ export default function OperationsDashboard({
                 title="Quick Invoice (Key: I)"
               >
                 <FileText size={14} className="text-slate-500" />
-                <span>Invoice</span>
+                <span>Tax Invoice</span>
                 <kbd className="hidden sm:inline-block px-1 py-0.2 text-[10px] bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 rounded font-mono-tabular">
                   I
                 </kbd>
@@ -697,7 +897,7 @@ export default function OperationsDashboard({
         {/* ================================================================== */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* ────────────────────────────────────────────────────────────────── */}
-          {/* LEFT 60%: Real Net Cash Flow & Live Settlement Pulse               */}
+          {/* LEFT 60%: Real Net Cash Flow & Dynamic Settlement Pulse Chart      */}
           {/* ────────────────────────────────────────────────────────────────── */}
           <div
             className={`lg:col-span-7 xl:col-span-7 rounded-xl border p-5 flex flex-col justify-between transition-all ${
@@ -706,7 +906,7 @@ export default function OperationsDashboard({
                 : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
             }`}
           >
-            {/* Header + Time Scrubber */}
+            {/* Header + Dynamic Time Scrubber */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-white/[0.06]">
               <div>
                 <div className="flex items-center gap-2">
@@ -719,19 +919,16 @@ export default function OperationsDashboard({
                 </div>
                 <div className="mt-1 flex items-baseline gap-3">
                   <div className="text-3xl sm:text-4xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
-                    {timeRange === 'today'
-                      ? formatInr(totalCollectedToday)
-                      : formatInr(
-                          localOrders.reduce((s, o) => s + (Number(o.total) || 0), 0)
-                        )}
+                    {formatInr(rangeSettledTotal)}
                   </div>
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    {todayOrders.length} orders recorded today
+                    {rangeOrdersCount} orders in {timeRange === 'today' ? 'today' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'}
+                    {rangePendingTotal > 0 && ` • ${formatInr(rangePendingTotal)} pending dues`}
                   </span>
                 </div>
               </div>
 
-              {/* Time Scrubber */}
+              {/* Time Scrubber (Today / 7D / 30D) */}
               <div
                 className={`inline-flex p-1 rounded-lg border text-xs font-medium self-start sm:self-auto ${
                   isDarkMode
@@ -744,7 +941,7 @@ export default function OperationsDashboard({
                     key={range}
                     type="button"
                     onClick={() => setTimeRange(range)}
-                    className={`px-3 py-1 rounded-md transition-all font-semibold ${
+                    className={`px-3 py-1 rounded-md transition-all font-semibold cursor-pointer ${
                       timeRange === range
                         ? isDarkMode
                           ? 'bg-[#0F1623] text-white shadow-sm'
@@ -758,27 +955,30 @@ export default function OperationsDashboard({
               </div>
             </div>
 
-            {/* High-Precision Dynamic Pulse Chart */}
+            {/* Dynamic Pulse Chart Bars */}
             <div className="pt-5 pb-3">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
-                <span>Real hourly sales distribution (settled vs pending)</span>
+                <span>
+                  {timeRange === 'today'
+                    ? 'Hourly sales & settlements (06:00 - 24:00)'
+                    : timeRange === '7d'
+                    ? 'Daily sales distribution (last 7 calendar days)'
+                    : 'Interval breakdown (last 30 days)'}
+                </span>
                 <span className="font-mono-tabular">
-                  {selectedBarIndex !== null && hourlyPulseData[selectedBarIndex] ? (
-                    <>
-                      Slot:{' '}
-                      <strong className="text-slate-700 dark:text-slate-200">
-                        {hourlyPulseData[selectedBarIndex].slot}
-                      </strong>
-                    </>
+                  {selectedSlot ? (
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                      Selected: {selectedSlot.fullLabel || selectedSlot.slot} ({selectedSlot.orderCount} orders)
+                    </span>
                   ) : (
-                    'Hover bar to inspect'
+                    'Click bar to filter table • Hover to inspect'
                   )}
                 </span>
               </div>
 
               {/* Chart Grid with Hairline Dividers */}
               <div className="h-44 flex items-end gap-2 sm:gap-3 pt-6 pb-2 border-b border-slate-100 dark:border-white/[0.06] relative">
-                {hourlyPulseData.map((pulse, idx) => {
+                {chartSlots.map((pulse, idx) => {
                   const isHovered = selectedBarIndex === idx;
                   const total = pulse.settledAmount + pulse.pendingAmount;
                   const heightPercent = total > 0 ? Math.max(12, Math.round((total / maxChartVal) * 100)) : 4;
@@ -786,12 +986,18 @@ export default function OperationsDashboard({
 
                   return (
                     <div
-                      key={pulse.slot}
-                      onMouseEnter={() => setSelectedBarIndex(idx)}
-                      onMouseLeave={() => setSelectedBarIndex(null)}
+                      key={pulse.slot + idx}
+                      onClick={() => {
+                        setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
+                      }}
+                      onMouseEnter={() => {
+                        if (selectedBarIndex === null) {
+                          // only temporary hover if nothing selected
+                        }
+                      }}
                       className="flex-1 h-full flex flex-col justify-end items-center group cursor-pointer relative"
                     >
-                      {/* Tooltip on hover */}
+                      {/* Tooltip on hover/active */}
                       {isHovered && (
                         <div
                           className={`absolute -top-16 z-20 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono-tabular shadow-lg whitespace-nowrap pointer-events-none transition-all ${
@@ -809,16 +1015,16 @@ export default function OperationsDashboard({
                             </div>
                           )}
                           <div className="text-slate-300 text-[10px]">
-                            {pulse.orderCount} orders • {pulse.slot}
+                            {pulse.orderCount} orders • {pulse.fullLabel || pulse.slot}
                           </div>
                         </div>
                       )}
 
-                      {/* Stacked Bar */}
+                      {/* Stacked Bar with tactile transition */}
                       <div
                         className={`w-full max-w-[42px] rounded-t transition-all duration-150 overflow-hidden flex flex-col justify-end ${
                           isHovered
-                            ? 'ring-2 ring-blue-500/50 scale-[1.02]'
+                            ? 'ring-2 ring-blue-500 scale-[1.04]'
                             : 'opacity-85 hover:opacity-100'
                         }`}
                         style={{ height: `${heightPercent}%` }}
@@ -827,6 +1033,7 @@ export default function OperationsDashboard({
                           <div
                             style={{ height: `${100 - settledPercent}%` }}
                             className="w-full bg-amber-500/80"
+                            title={`Pending: ${formatInr(pulse.pendingAmount)}`}
                           />
                         )}
                         <div
@@ -841,7 +1048,13 @@ export default function OperationsDashboard({
                         />
                       </div>
 
-                      <span className="text-[11px] font-mono-tabular mt-2 text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                      <span
+                        className={`text-[11px] font-mono-tabular mt-2 transition-colors ${
+                          isHovered
+                            ? 'font-bold text-blue-600 dark:text-blue-400'
+                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
+                        }`}
+                      >
                         {pulse.slot}
                       </span>
                     </div>
@@ -853,21 +1066,23 @@ export default function OperationsDashboard({
             {/* Bottom Real Ledger Summary Row */}
             <div className="pt-3 grid grid-cols-3 gap-2 text-xs">
               <div className="space-y-0.5">
-                <span className="text-slate-400 dark:text-slate-500">Settled to Bank</span>
+                <span className="text-slate-400 dark:text-slate-500">
+                  {timeRange === 'today' ? "Today's Settled" : 'Period Settled'}
+                </span>
                 <p className="font-semibold font-mono-tabular text-slate-900 dark:text-white">
-                  {formatInr(totalCollectedToday)}
+                  {formatInr(rangeSettledTotal)}
                 </p>
               </div>
               <div className="space-y-0.5 border-l border-slate-100 dark:border-white/[0.06] pl-3">
-                <span className="text-slate-400 dark:text-slate-500">Khata Balance Due</span>
+                <span className="text-slate-400 dark:text-slate-500">Khata Pending</span>
                 <p className="font-semibold font-mono-tabular text-amber-600 dark:text-amber-400">
-                  {formatInr(totalCreditDue)}
+                  {formatInr(rangePendingTotal)}
                 </p>
               </div>
               <div className="space-y-0.5 border-l border-slate-100 dark:border-white/[0.06] pl-3">
-                <span className="text-slate-400 dark:text-slate-500">Active Products</span>
+                <span className="text-slate-400 dark:text-slate-500">Total Orders</span>
                 <p className="font-semibold font-mono-tabular text-slate-900 dark:text-white">
-                  {products.length} registered
+                  {rangeOrdersCount} recorded
                 </p>
               </div>
             </div>
@@ -899,24 +1114,24 @@ export default function OperationsDashboard({
             {/* Operational Strip 1: Real Pay-Later / Credit Dues */}
             <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
               <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-amber-600 dark:text-amber-400">
+                    <span className="text-amber-600 dark:text-amber-400 shrink-0">
                       <Clock size={16} />
                     </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                       {payLaterOrders.length > 0
                         ? `${formatInr(totalCreditDue)} due from ${payLaterOrders.length} customer${payLaterOrders.length > 1 ? 's' : ''}`
                         : 'No pending khata balance'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {payLaterOrders.length > 0
                       ? payLaterOrders
                           .slice(0, 3)
                           .map((o) => `${o.customer_name || 'Customer'} (${formatInr(Number(o.total) || 0)})`)
                           .join(' • ')
-                      : 'All accounts and invoices are settled in full.'}
+                      : 'All customer accounts are settled in full.'}
                   </p>
                 </div>
 
@@ -924,7 +1139,7 @@ export default function OperationsDashboard({
                   <button
                     type="button"
                     onClick={(e) => handleNudgeWhatsApp(payLaterOrders[0], e)}
-                    className="btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap bg-amber-50 dark:bg-[#1A253A] border-amber-200 dark:border-white/10 text-amber-800 dark:text-amber-400 hover:bg-amber-100 cursor-pointer"
+                    className="btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap bg-amber-50 dark:bg-[#1A253A] border-amber-200 dark:border-white/10 text-amber-800 dark:text-amber-400 hover:bg-amber-100 cursor-pointer shrink-0"
                   >
                     Nudge on WhatsApp →
                   </button>
@@ -935,18 +1150,18 @@ export default function OperationsDashboard({
             {/* Operational Strip 2: Real Inventory Watch */}
             <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
               <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-amber-600 dark:text-amber-400">
+                    <span className="text-amber-600 dark:text-amber-400 shrink-0">
                       <AlertTriangle size={16} />
                     </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                       {lowStockProducts.length > 0
                         ? `${lowStockProducts.length} items low on stock (≤5 units)`
-                        : 'Inventory healthy (no low stock items)'}
+                        : 'Inventory healthy (no low stock)'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {lowStockProducts.length > 0
                       ? lowStockProducts
                           .slice(0, 2)
@@ -958,7 +1173,7 @@ export default function OperationsDashboard({
 
                 <Link
                   to="/products"
-                  className={`btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap ${
+                  className={`btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap shrink-0 ${
                     isDarkMode
                       ? 'bg-[#1A253A] border-white/10 text-slate-200 hover:border-white/25'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -972,18 +1187,18 @@ export default function OperationsDashboard({
             {/* Operational Strip 3: Real Packing Queue Signal */}
             <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
               <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-blue-600 dark:text-blue-400">
+                    <span className="text-blue-600 dark:text-blue-400 shrink-0">
                       <Zap size={16} />
                     </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                       {needsPackingOrders.length > 0
                         ? `${needsPackingOrders.length} order${needsPackingOrders.length > 1 ? 's' : ''} awaiting packing`
                         : 'Packing queue is clear'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {needsPackingOrders.length > 0
                       ? 'Pack and prepare items for direct delivery or counter pickup.'
                       : 'Zero orders waiting in the preparation line.'}
@@ -993,7 +1208,7 @@ export default function OperationsDashboard({
                 <button
                   type="button"
                   onClick={() => setActiveTab('needs_packing')}
-                  className={`btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap ${
+                  className={`btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap shrink-0 cursor-pointer ${
                     activeTab === 'needs_packing'
                       ? 'bg-blue-500/15 border-blue-500/30 text-blue-600 dark:text-blue-400'
                       : isDarkMode
@@ -1035,6 +1250,25 @@ export default function OperationsDashboard({
               : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
           }`}
         >
+          {/* Active Slot Filter Banner (if bar was clicked) */}
+          {selectedSlot && (
+            <div className="px-4 py-2 bg-blue-50/90 dark:bg-blue-950/40 border-b border-blue-200 dark:border-blue-900/50 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
+              <div className="flex items-center gap-2">
+                <Filter size={13} className="text-blue-600" />
+                <span>
+                  Filtering by graph slot: <strong>{selectedSlot.fullLabel || selectedSlot.slot}</strong> ({selectedSlot.orderCount} matching orders)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedBarIndex(null)}
+                className="text-blue-600 hover:text-blue-800 dark:hover:text-blue-100 font-semibold underline cursor-pointer"
+              >
+                Clear Graph Filter ✕
+              </button>
+            </div>
+          )}
+
           {/* Table Header Control Bar */}
           <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Filter Tabs with Real Counts */}
@@ -1045,7 +1279,7 @@ export default function OperationsDashboard({
                   setActiveTab('all');
                   setIsAllCaughtUpManualPreview(false);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'all' && !isAllCaughtUpManualPreview
                     ? isDarkMode
                       ? 'bg-white/10 text-white shadow-sm'
@@ -1071,7 +1305,7 @@ export default function OperationsDashboard({
                   setActiveTab('needs_packing');
                   setIsAllCaughtUpManualPreview(false);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'needs_packing' && !isAllCaughtUpManualPreview
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -1095,7 +1329,7 @@ export default function OperationsDashboard({
                   setActiveTab('pay_later');
                   setIsAllCaughtUpManualPreview(false);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'pay_later' && !isAllCaughtUpManualPreview
                     ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -1119,7 +1353,7 @@ export default function OperationsDashboard({
                   setActiveTab('settled');
                   setIsAllCaughtUpManualPreview(false);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'settled' && !isAllCaughtUpManualPreview
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -1138,32 +1372,48 @@ export default function OperationsDashboard({
               </button>
             </div>
 
-            {/* Real Search Bar */}
-            <div className="relative min-w-[240px]">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search real orders, customer, item..."
-                className={`w-full pl-8 pr-3 py-1.5 rounded-lg text-xs border transition-all outline-none ${
+            {/* Right Controls: Search + CSV Export */}
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-[200px] sm:min-w-[240px]">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search orders, phone, item..."
+                  className={`w-full pl-8 pr-3 py-1.5 rounded-lg text-xs border transition-all outline-none ${
+                    isDarkMode
+                      ? 'bg-[#141E2F] border-white/10 text-white placeholder-slate-500 focus:border-blue-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white'
+                  }`}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   isDarkMode
-                    ? 'bg-[#141E2F] border-white/10 text-white placeholder-slate-500 focus:border-blue-500'
-                    : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white'
+                    ? 'border-white/10 text-slate-300 hover:bg-white/5'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={12} />
-                </button>
-              )}
+                title="Download CSV of current table rows"
+              >
+                <Download size={13} />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
             </div>
           </div>
 
@@ -1179,43 +1429,58 @@ export default function OperationsDashboard({
               >
                 ☕
               </div>
+
               <div className="space-y-1.5">
                 <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
-                  {localOrders.length === 0
-                    ? `Counter is ready, ${merchantName}.`
-                    : `No orders in ${activeTab.replace('_', ' ')}.`}
+                  {selectedSlot
+                    ? `No orders in ${selectedSlot.fullLabel || selectedSlot.slot}`
+                    : searchQuery
+                    ? 'No matching orders found'
+                    : activeTab === 'needs_packing'
+                    ? 'All orders are packed and shipped'
+                    : activeTab === 'pay_later'
+                    ? 'Zero pending khata accounts'
+                    : 'All caught up—no orders in this queue'}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {localOrders.length === 0
-                    ? `Your catalog has ${products.length} products. Create your first manual order at the counter or share your storefront link to start receiving customer orders.`
-                    : 'All items in this queue are cleared. Select "All Orders" to view your full transaction history.'}
+                  {selectedSlot ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBarIndex(null)}
+                      className="text-blue-600 font-semibold underline cursor-pointer"
+                    >
+                      Clear graph filter to view all orders
+                    </button>
+                  ) : searchQuery ? (
+                    'Try searching with a different customer name, phone number, or product item.'
+                  ) : (
+                    'Your counter is clear. Record instant walk-in orders or share your direct UPI storefront link with customers.'
+                  )}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 pt-2 flex-wrap justify-center">
+              <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => onOpenNewOrderModal?.()}
-                  className="btn-tactile-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer"
+                  className="btn-tactile-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer"
                 >
-                  Create In-Store Order (C)
+                  + Create Quick Order
                 </button>
                 {storeUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(storeUrl);
-                      showToast('Storefront link copied to clipboard');
-                    }}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 ${
+                  <a
+                    href={storeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`btn-tactile-ghost px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ${
                       isDarkMode
                         ? 'border-white/10 text-slate-300 hover:bg-white/5'
                         : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <Share2 size={13} />
-                    <span>Copy Store Link</span>
-                  </button>
+                    <span>View Storefront</span>
+                    <ExternalLink size={12} />
+                  </a>
                 )}
               </div>
             </div>
@@ -1333,7 +1598,7 @@ export default function OperationsDashboard({
                                 onClick={(e) => handleSendReceipt(order, e)}
                                 className={`p-1.5 rounded-md border text-slate-500 hover:text-slate-900 dark:hover:text-white transition-opacity ${
                                   isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-100'
-                                } opacity-80 group-hover:opacity-100`}
+                                } opacity-80 group-hover:opacity-100 cursor-pointer`}
                                 title="Send WhatsApp receipt"
                               >
                                 <Send size={13} />
@@ -1344,36 +1609,51 @@ export default function OperationsDashboard({
                               <button
                                 type="button"
                                 onClick={(e) => handlePackOrder(order, e)}
-                                className="btn-tactile-primary px-2.5 py-1 rounded-md text-[11px] font-semibold text-white flex items-center gap-1"
+                                className="btn-tactile-primary px-2.5 py-1 rounded-md text-[11px] font-semibold text-white flex items-center gap-1 cursor-pointer"
                                 title="Pack order"
                               >
                                 <Check size={12} />
-                                <span>Pack</span>
+                                <span>Pack &amp; Ship</span>
                               </button>
                             ) : !isPaid ? (
                               <button
                                 type="button"
                                 onClick={(e) => handleMarkSettled(order, e)}
-                                className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm transition-transform active:scale-95"
-                                title="Mark settled"
+                                className="btn-tactile-primary px-2.5 py-1 rounded-md text-[11px] font-semibold text-white flex items-center gap-1 cursor-pointer"
+                                title="Mark as Paid"
                               >
                                 <Check size={12} />
                                 <span>Mark Settled</span>
                               </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setInspectedOrder(order);
-                                }}
-                                className={`px-2 py-1 rounded-md text-[11px] font-medium border text-slate-500 hover:text-slate-900 dark:hover:text-white ${
-                                  isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-100'
-                                }`}
-                              >
-                                View
-                              </button>
-                            )}
+                            ) : null}
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenInvoiceModal?.(order);
+                              }}
+                              className={`p-1.5 rounded-md border text-slate-500 hover:text-slate-900 dark:hover:text-white transition-opacity cursor-pointer ${
+                                isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-100'
+                              } opacity-80 group-hover:opacity-100`}
+                              title="Tax Invoice"
+                            >
+                              <FileText size={13} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInspectedOrder(order);
+                              }}
+                              className={`p-1.5 rounded-md border text-slate-500 hover:text-slate-900 dark:hover:text-white transition-opacity cursor-pointer ${
+                                isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-100'
+                              } opacity-80 group-hover:opacity-100`}
+                              title="View details"
+                            >
+                              <Eye size={13} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1383,102 +1663,74 @@ export default function OperationsDashboard({
               </table>
             </div>
           )}
-
-          {/* Table Footer */}
-          <div
-            className={`p-3.5 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 ${
-              isDarkMode ? 'bg-[#141E2F]/40 border-white/[0.06]' : 'bg-slate-50/60 border-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={14} className="text-emerald-500" />
-              <span>Real-time live ledger directly connected to FeraSetu merchant backend.</span>
-            </div>
-            <div className="font-mono-tabular">
-              Showing {filteredOrders.length} of {localOrders.length} live records
-            </div>
-          </div>
         </section>
 
         {/* ================================================================== */}
-        {/* ZONE D: REAL INSIDER METRIC & QUICK LAUNCHPAD                      */}
+        {/* ZONE D: RELATIONAL "INSIDER" CELEBRATORY EMPTY STATE               */}
         {/* ================================================================== */}
-        <section
-          className={`rounded-xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-            isDarkMode
-              ? 'bg-[#0F1623] border-white/[0.07]'
-              : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
-              <Sparkles size={18} />
+        {isAllCaughtUpManualPreview && (
+          <div className="p-8 rounded-xl border border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 text-center space-y-3">
+            <div className="inline-flex p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 size={24} />
             </div>
-            <div className="space-y-0.5">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                FeraSetu Direct Commerce Ledger
-              </h4>
-              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-snug">
-                <strong>0% commission platform policy.</strong> All payments go directly to your linked UPI bank account without intermediary holding or per-transaction platform deductions.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <Link
-              to="/orders"
-              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                isDarkMode
-                  ? 'border-white/10 text-slate-300 hover:bg-white/5'
-                  : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Full Orders Ledger
-            </Link>
+            <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-200 font-display">
+              You are completely caught up!
+            </h3>
+            <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 max-w-md mx-auto">
+              Every customer invoice is settled, the packing line is clear, and stock registers are accurate. Enjoy your evening—FeraSetu continues taking direct orders 24/7.
+            </p>
             <button
               type="button"
-              onClick={() => onOpenNewOrderModal?.()}
-              className="btn-tactile-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+              onClick={() => setIsAllCaughtUpManualPreview(false)}
+              className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 underline cursor-pointer"
             >
-              New Order (C)
+              Return to Live Workbench
             </button>
           </div>
-        </section>
+        )}
 
       </div>
 
       {/* ==================================================================== */}
-      {/* COMMAND PALETTE (⌘K / Ctrl+K)                                        */}
+      {/* COMMAND PALETTE MODAL (⌘K)                                           */}
       {/* ==================================================================== */}
       {commandPaletteOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-100">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-slate-950/40 backdrop-blur-xs"
+          onClick={() => setCommandPaletteOpen(false)}
+        >
           <div
             className={`w-full max-w-xl rounded-xl border shadow-2xl overflow-hidden transition-all ${
-              isDarkMode ? 'bg-[#0F1623] border-white/15' : 'bg-white border-slate-200'
+              isDarkMode
+                ? 'bg-[#0F1623] border-white/10 text-white'
+                : 'bg-white border-slate-200 text-slate-900'
             }`}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-3.5 border-b border-slate-100 dark:border-white/10 flex items-center gap-3">
+            {/* Input Header */}
+            <div className="p-3 border-b border-slate-100 dark:border-white/[0.06] flex items-center gap-2.5">
               <Search size={16} className="text-slate-400" />
               <input
-                type="text"
                 autoFocus
+                type="text"
                 value={commandSearch}
                 onChange={(e) => setCommandSearch(e.target.value)}
-                placeholder="Type an action or search..."
-                className="w-full bg-transparent text-sm outline-none placeholder-slate-400 text-slate-900 dark:text-white"
+                placeholder="Type a command, search orders, or jump to view..."
+                className="w-full bg-transparent border-none outline-none text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
               />
-              <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono-tabular border bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-white/10">
-                ESC
-              </kbd>
+              <span className="text-[10px] font-mono-tabular px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-500">
+                Esc
+              </span>
             </div>
 
-            <div className="max-h-[340px] overflow-y-auto p-2 space-y-1">
+            {/* List */}
+            <div className="max-h-80 overflow-y-auto p-2 space-y-1">
               {commandItems.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  No actions found for &ldquo;{commandSearch}&rdquo;
+                <div className="p-6 text-center text-xs text-slate-400">
+                  No commands match your query.
                 </div>
               ) : (
-                commandItems.map((cmd, idx) => (
+                commandItems.map((cmd) => (
                   <button
                     key={cmd.id}
                     type="button"
@@ -1486,42 +1738,16 @@ export default function OperationsDashboard({
                       cmd.action();
                       setCommandPaletteOpen(false);
                     }}
-                    onMouseEnter={() => setActiveCommandIndex(idx)}
-                    className={`w-full px-3 py-2.5 rounded-lg text-left flex items-center justify-between transition-colors ${
-                      activeCommandIndex === idx
-                        ? isDarkMode
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-blue-50 text-blue-950'
-                        : isDarkMode
-                        ? 'text-slate-300 hover:bg-white/5'
-                        : 'text-slate-700 hover:bg-slate-50'
+                    className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                      isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'
                     }`}
                   >
                     <div>
-                      <div className="text-xs font-semibold">{cmd.title}</div>
-                      <div
-                        className={`text-[11px] ${
-                          activeCommandIndex === idx
-                            ? isDarkMode
-                              ? 'text-blue-100'
-                              : 'text-blue-700'
-                            : 'text-slate-400'
-                        }`}
-                      >
-                        {cmd.subtitle}
-                      </div>
+                      <div className="font-semibold">{cmd.title}</div>
+                      <div className="text-[11px] text-slate-400">{cmd.subtitle}</div>
                     </div>
-
                     {cmd.shortcut && (
-                      <kbd
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono-tabular border ${
-                          activeCommandIndex === idx
-                            ? isDarkMode
-                              ? 'bg-blue-700 border-blue-500 text-white'
-                              : 'bg-blue-100 border-blue-200 text-blue-800'
-                            : 'bg-slate-100 dark:bg-white/10 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400'
-                        }`}
-                      >
+                      <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono-tabular bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10">
                         {cmd.shortcut}
                       </kbd>
                     )}
@@ -1534,148 +1760,134 @@ export default function OperationsDashboard({
       )}
 
       {/* ==================================================================== */}
-      {/* REAL ORDER INSPECTION DRAWER                                         */}
+      {/* INSPECT ORDER SLIDE-OVER DRAWER                                      */}
       {/* ==================================================================== */}
       {inspectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-100">
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-xs"
+          onClick={() => setInspectedOrder(null)}
+        >
           <div
-            className={`w-full max-w-md h-full border-l p-6 flex flex-col justify-between overflow-y-auto shadow-2xl transition-all ${
-              isDarkMode ? 'bg-[#0F1623] border-white/15' : 'bg-white border-slate-200'
+            className={`w-full max-w-md h-full flex flex-col justify-between p-6 shadow-2xl transition-all ${
+              isDarkMode
+                ? 'bg-[#0F1623] border-l border-white/10 text-white'
+                : 'bg-white border-l border-slate-200 text-slate-900'
             }`}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-white/10">
-                <div>
-                  <div className="text-xs text-slate-400 font-mono-tabular">Order Details</div>
-                  <h3 className="text-lg font-bold font-display text-slate-900 dark:text-white">
-                    #{inspectedOrder.id.slice(0, 8)}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setInspectedOrder(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                >
-                  <X size={18} />
-                </button>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-white/[0.06]">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Order Details
+                </span>
+                <h3 className="text-base font-bold font-mono-tabular">
+                  #{inspectedOrder.id.slice(0, 8)}
+                </h3>
               </div>
-
-              {/* Customer Information */}
-              <div
-                className={`p-3.5 rounded-lg border ${
-                  isDarkMode ? 'bg-[#141E2F] border-white/10' : 'bg-slate-50 border-slate-200'
-                }`}
+              <button
+                type="button"
+                onClick={() => setInspectedOrder(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
               >
-                <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                  {inspectedOrder.customer_name || 'Counter Customer'}
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
+              {/* Customer Info */}
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] space-y-1">
+                <div className="font-semibold text-sm">
+                  {inspectedOrder.customer_name || 'Counter Walk-in Customer'}
                 </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-tabular">
-                  {inspectedOrder.customer_phone || 'No phone recorded'}
+                <div className="text-slate-500 font-mono-tabular">
+                  {inspectedOrder.customer_phone || 'No phone number recorded'}
                 </div>
                 {inspectedOrder.customer_address && (
-                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <div className="text-slate-500 pt-1 border-t border-slate-200/50 dark:border-white/5">
                     {inspectedOrder.customer_address}
                   </div>
                 )}
               </div>
 
-              {/* Line Items */}
+              {/* Items List */}
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Purchased Items ({(inspectedOrder.items || []).length})
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-white/10 text-xs">
+                <span className="font-semibold text-slate-400 uppercase tracking-wider text-[11px]">
+                  Ordered Items ({inspectedOrder.items?.length || 0})
+                </span>
+                <div className="divide-y divide-slate-100 dark:divide-white/5">
                   {(inspectedOrder.items || []).map((item, idx) => (
-                    <div key={idx} className="py-2.5 flex items-center justify-between">
+                    <div key={idx} className="py-2 flex items-center justify-between">
                       <div>
                         <div className="font-medium text-slate-800 dark:text-slate-200">
-                          {item.product_name || item.name}
+                          {item.product_name || item.name || 'Product'}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono-tabular">
-                          {item.quantity} × {formatInr(Number(item.price) || 0)}
+                          Qty: {item.quantity} × {formatInr(item.price)}
                         </div>
                       </div>
-                      <div className="font-semibold font-mono-tabular text-slate-900 dark:text-white">
-                        {formatInr((Number(item.quantity) || 1) * (Number(item.price) || 0))}
+                      <div className="font-bold font-mono-tabular">
+                        {formatInr(item.quantity * item.price)}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Total */}
-              <div className="pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-sm font-bold">
-                <span>Total Amount</span>
-                <span className="font-mono-tabular text-slate-900 dark:text-white text-base">
-                  {formatInr(Number(inspectedOrder.total) || 0)}
-                </span>
+              {/* Financial Breakdown */}
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Payment Status:</span>
+                  <span className="font-semibold uppercase">{inspectedOrder.payment_status || 'Pending'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Method:</span>
+                  <span className="font-semibold uppercase">{inspectedOrder.payment_method || 'UPI / Cash'}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-slate-200/50 dark:border-white/5 text-sm font-bold">
+                  <span>Grand Total:</span>
+                  <span className="font-mono-tabular">{formatInr(Number(inspectedOrder.total) || 0)}</span>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="pt-6 border-t border-slate-100 dark:border-white/10 space-y-2">
-              {(inspectedOrder.status === 'pending' || inspectedOrder.status === 'confirmed') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handlePackOrder(inspectedOrder);
-                    setInspectedOrder(null);
-                  }}
-                  className="w-full btn-tactile-primary py-2 rounded-lg text-xs font-semibold text-white cursor-pointer"
-                >
-                  Pack Order
-                </button>
-              )}
+            {/* Footer Quick Triggers */}
+            <div className="pt-4 border-t border-slate-100 dark:border-white/[0.06] flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenInvoiceModal?.(inspectedOrder);
+                  setInspectedOrder(null);
+                }}
+                className="flex-1 py-2 rounded-lg btn-tactile-ghost border border-slate-200 dark:border-white/10 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <FileText size={14} />
+                <span>GST Tax Invoice</span>
+              </button>
 
-              {inspectedOrder.payment_status !== 'paid' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleMarkSettled(inspectedOrder);
-                    setInspectedOrder(null);
-                  }}
-                  className="w-full py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-                >
-                  Mark Settled
-                </button>
-              )}
-
-              {inspectedOrder.customer_phone && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSendReceipt(inspectedOrder);
-                    setInspectedOrder(null);
-                  }}
-                  className={`w-full py-2 rounded-lg text-xs font-semibold border ${
-                    isDarkMode
-                      ? 'border-white/10 text-slate-200 hover:bg-white/5'
-                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Send WhatsApp Receipt
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleMarkSettled(inspectedOrder)}
+                className="flex-1 py-2 rounded-lg btn-tactile-primary text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Check size={14} />
+                <span>Mark Settled</span>
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* OPTIMISTIC INSTANT CONFIRMATION PILL WITH UNDO (<50ms FEEDBACK)      */}
+      {/* OPTIMISTIC CONFIRMATION TOAST WITH UNDO (DOHERTY THRESHOLD <50MS)     */}
       {/* ==================================================================== */}
       {toastNotification && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs shadow-xl animate-in slide-in-from-bottom-3 duration-150 ${
-            isDarkMode
-              ? 'bg-[#141E2F] border-white/15 text-slate-100'
-              : 'bg-slate-900 border-slate-800 text-white'
-          }`}
-        >
-          <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
-          <span className="font-medium">{toastNotification.message}</span>
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-800 text-xs animate-in slide-in-from-bottom-3 duration-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>{toastNotification.message}</span>
+          </div>
 
           {toastNotification.undoAction && (
             <button
@@ -1684,7 +1896,7 @@ export default function OperationsDashboard({
                 toastNotification.undoAction?.();
                 setToastNotification(null);
               }}
-              className="ml-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
+              className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white font-semibold text-[11px] transition-colors cursor-pointer"
             >
               Undo
             </button>
@@ -1693,9 +1905,9 @@ export default function OperationsDashboard({
           <button
             type="button"
             onClick={() => setToastNotification(null)}
-            className="text-slate-400 hover:text-white ml-1"
+            className="text-slate-400 hover:text-white"
           >
-            <X size={12} />
+            <X size={13} />
           </button>
         </div>
       )}

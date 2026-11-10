@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import OperationsDashboard from '../components/dashboard/OperationsDashboard';
+import OperationsDashboard, { RealOrder } from '../components/dashboard/OperationsDashboard';
 import PaymentSetupModal from '../components/dashboard/PaymentSetupModal';
 import CounterQrModal from '../components/dashboard/CounterQrModal';
 import AddOrderModal from '../components/orders/AddOrderModal';
+import InvoiceDocumentModal, { InvoiceModalOrder } from '../components/orders/InvoiceDocumentModal';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 
 export default function DashboardPage() {
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState<InvoiceModalOrder | null>(null);
 
   const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
   const currentUpiId = user?.upi_id || 'merchant@okaxis';
@@ -61,7 +63,7 @@ export default function DashboardPage() {
     retry: 1,
   });
 
-  const orders = useMemo(() => {
+  const orders: RealOrder[] = useMemo(() => {
     if (Array.isArray(rawOrders)) return rawOrders;
     if (rawOrders && Array.isArray((rawOrders as any).orders)) return (rawOrders as any).orders;
     return [];
@@ -98,6 +100,18 @@ export default function DashboardPage() {
     await updatePaymentMutation.mutateAsync({ orderId, newPaymentStatus });
   };
 
+  const handleOpenInvoiceModal = (specificOrder?: RealOrder) => {
+    if (specificOrder) {
+      setInvoiceModalOrder(specificOrder as unknown as InvoiceModalOrder);
+      return;
+    }
+    if (orders.length > 0) {
+      setInvoiceModalOrder(orders[0] as unknown as InvoiceModalOrder);
+    } else {
+      setShowAddOrderModal(true);
+    }
+  };
+
   return (
     <>
       <OperationsDashboard
@@ -110,7 +124,7 @@ export default function DashboardPage() {
         storeName={user?.business_name || 'My Store'}
         isLoading={ordersLoading || productsLoading}
         onOpenNewOrderModal={() => setShowAddOrderModal(true)}
-        onOpenInvoiceModal={() => setShowPaymentModal(true)}
+        onOpenInvoiceModal={handleOpenInvoiceModal}
         onOpenQrModal={() => setShowQrModal(true)}
         onUpdateOrderStatus={handleUpdateOrderStatus}
         onUpdatePaymentStatus={handleUpdatePaymentStatus}
@@ -143,6 +157,15 @@ export default function DashboardPage() {
           upiId={currentUpiId}
           businessName={user?.business_name || user?.name || 'My Store'}
           storeUrl={storeUrl}
+        />
+      )}
+
+      {invoiceModalOrder && (
+        <InvoiceDocumentModal
+          order={invoiceModalOrder}
+          merchantName={user?.business_name || user?.name || 'My Store'}
+          onClose={() => setInvoiceModalOrder(null)}
+          onPaymentUpdate={(id, status) => handleUpdatePaymentStatus(id, status)}
         />
       )}
     </>
