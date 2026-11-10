@@ -99,7 +99,7 @@ export default function CreateGiftCardPage() {
     collection: 'Gift Cards',
     tags: ['Gift Card', 'Digital', 'Festive', 'Presents'],
     seo_title: `${storeName} Digital Gift Card • Store Credit Voucher`,
-    seo_description: `Buy a digital gift card for ${storeName}. Delivered instantly by email, redeemable towards any product in our catalog.`,
+    seo_description: `Buy a digital gift card for ${storeName}. Delivered by email after successful fulfillment, redeemable towards any product in our catalog.`,
     is_active: true,
   });
 

@@ -37,12 +37,24 @@ export default function GiftCardsPage() {
 
   const [activeTab, setActiveTab] = useState<'products' | 'issued' | 'guide'>('products');
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showConfirmIssue, setShowConfirmIssue] = useState(false);
   const [issueForm, setIssueForm] = useState({
     amount: '1000',
     recipient_email: '',
     recipient_name: '',
     note: 'A special gift voucher for your shopping.',
+    issued_by: '',
   });
+
+  // Sync user name when user is loaded
+  React.useEffect(() => {
+    if (user && !issueForm.issued_by) {
+      setIssueForm(prev => ({
+        ...prev,
+        issued_by: user.name || user.email || 'Store Owner',
+      }));
+    }
+  }, [user]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['gift-cards'],
@@ -87,18 +99,21 @@ export default function GiftCardsPage() {
     onSuccess: (resData) => {
       queryClient.invalidateQueries({ queryKey: ['gift-cards'] });
       toast.success(`Gift card code issued: ${resData.card?.code || 'Created'}`);
+      setShowConfirmIssue(false);
       setShowIssueModal(false);
       setIssueForm({
         amount: '1000',
         recipient_email: '',
         recipient_name: '',
         note: 'A special gift voucher for your shopping.',
+        issued_by: user?.name || user?.email || '',
       });
       setActiveTab('issued');
     },
     onError: (err: any) => {
       const msg = err.response?.data?.error || err.message || 'Failed to issue gift card';
       toast.error(msg);
+      setShowConfirmIssue(false);
     },
   });
 
@@ -109,6 +124,19 @@ export default function GiftCardsPage() {
       toast.error('Enter a valid gift card amount in ₹');
       return;
     }
+    const hasRecipientOrReason = issueForm.recipient_email.trim() || issueForm.recipient_name.trim() || issueForm.note.trim();
+    if (!hasRecipientOrReason) {
+      toast.error('Recipient email, name, or a reason note is required.');
+      return;
+    }
+    if (!issueForm.issued_by.trim()) {
+      toast.error('Issuing staff member name is required.');
+      return;
+    }
+    setShowConfirmIssue(true);
+  };
+
+  const handleConfirmIssueSubmit = () => {
     issueCardMutation.mutate(issueForm);
   };
 
@@ -478,13 +506,29 @@ export default function GiftCardsPage() {
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Note / Reason
+                  Note / Reason <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   type="text"
+                  placeholder="e.g. Loyalty reward, order dispute courtesy, or VIP credit"
                   value={issueForm.note}
                   onChange={e => setIssueForm({ ...issueForm, note: e.target.value })}
                   className="mt-1 h-10 text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Issuing Staff Member <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Staff or owner name"
+                  value={issueForm.issued_by}
+                  onChange={e => setIssueForm({ ...issueForm, issued_by: e.target.value })}
+                  className="mt-1 h-10 text-xs font-semibold"
+                  required
                 />
               </div>
 
@@ -502,10 +546,58 @@ export default function GiftCardsPage() {
                   disabled={issueCardMutation.isPending}
                   className="h-10 px-5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs"
                 >
-                  {issueCardMutation.isPending ? 'Generating Code...' : 'Issue Code'}
+                  Review &amp; Issue
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION DIALOG FOR DIRECT VALUE ISSUANCE */}
+      {showConfirmIssue && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                <AlertTriangle size={22} />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Confirm Store Credit Issuance
+                </h3>
+                <span className="text-xs text-slate-500">₹{parseFloat(issueForm.amount || '0').toLocaleString('en-IN')} store value</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-700 leading-relaxed bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/80">
+              You are issuing store credit without collecting payment. This action will be recorded in the merchant ledger. Continue?
+            </p>
+
+            <div className="space-y-1 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div><strong>Recipient:</strong> {issueForm.recipient_name || issueForm.recipient_email || 'Direct courtesy'}</div>
+              <div><strong>Reason:</strong> {issueForm.note}</div>
+              <div><strong>Authorized by:</strong> {issueForm.issued_by}</div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowConfirmIssue(false)}
+                className="h-10 text-xs font-semibold rounded-xl"
+              >
+                No, Go Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmIssueSubmit}
+                disabled={issueCardMutation.isPending}
+                className="h-10 px-5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-xs"
+              >
+                {issueCardMutation.isPending ? 'Issuing...' : 'Confirm & Issue Code'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

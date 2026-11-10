@@ -16,6 +16,8 @@ import {
   Layers,
   HelpCircle,
   ShieldCheck,
+  Copy,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
@@ -28,6 +30,8 @@ interface DiscountWizardModalProps {
   onSuccess: () => void;
   products?: Array<{ id: string; name: string; price: number; cost_price?: number; category?: string }>;
   categories?: string[];
+  existingCodes?: string[];
+  hasShippingConfigured?: boolean;
 }
 
 export default function DiscountWizardModal({
@@ -36,6 +40,8 @@ export default function DiscountWizardModal({
   onSuccess,
   products = [],
   categories = [],
+  existingCodes = [],
+  hasShippingConfigured = true,
 }: DiscountWizardModalProps) {
   // Wizard current step: 1 to 5 (grouped for smooth progressive disclosure)
   // Step 1: Type & Application Method
@@ -94,6 +100,124 @@ export default function DiscountWizardModal({
   const [combinesWithProduct, setCombinesWithProduct] = useState(false);
   const [combinesWithOrder, setCombinesWithOrder] = useState(false);
   const [combinesWithShipping, setCombinesWithShipping] = useState(true);
+
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  const isCodeDuplicate = useMemo(() => {
+    if (applicationMethod !== 'code' || !code.trim()) return false;
+    return existingCodes.map(c => c.toUpperCase()).includes(code.trim().toUpperCase());
+  }, [applicationMethod, code, existingCodes]);
+
+  const handleGenerateCode = () => {
+    try {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let generated = '';
+      let attempts = 0;
+      const upperExisting = new Set(existingCodes.map(c => c.toUpperCase()));
+      do {
+        let suffix = '';
+        for (let i = 0; i < 4; i++) {
+          suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        generated = `SAVE${suffix}`;
+        attempts++;
+      } while (upperExisting.has(generated) && attempts < 50);
+
+      if (attempts >= 50) {
+        toast.error('Could not generate a unique code. Please enter one manually.');
+        return;
+      }
+      setCode(generated);
+      setStepError(null);
+      toast.success(`Generated code: ${generated}`);
+    } catch {
+      toast.error('Code generation failed. Please type a code manually.');
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (!code) {
+      toast.error('No code to copy.');
+      return;
+    }
+    navigator.clipboard.writeText(code);
+    toast.success(`Code "${code}" copied to clipboard!`);
+  };
+
+  const validateStep = (step: number): boolean => {
+    setStepError(null);
+    if (step === 1) {
+      if (!title.trim()) {
+        const err = 'Promotion title is required.';
+        setStepError(err);
+        toast.error(err);
+        return false;
+      }
+      if (discountType === 'free_shipping' && !hasShippingConfigured) {
+        const err = 'Shipping rules must be configured before creating a free shipping discount.';
+        setStepError(err);
+        toast.error(err);
+        return false;
+      }
+      if (applicationMethod === 'code') {
+        if (!code.trim()) {
+          const err = 'Discount code is required.';
+          setStepError(err);
+          toast.error(err);
+          return false;
+        }
+        if (isCodeDuplicate) {
+          const err = `Discount code "${code.trim().toUpperCase()}" already exists. Please choose a unique code.`;
+          setStepError(err);
+          toast.error(err);
+          return false;
+        }
+      }
+    } else if (step === 2) {
+      if (discountType === 'percentage') {
+        const val = parseFloat(valueInput);
+        if (isNaN(val) || val < 1 || val > 100) {
+          const err = 'Percentage discount must be between 1% and 100%.';
+          setStepError(err);
+          toast.error(err);
+          return false;
+        }
+      } else if (discountType === 'fixed_amount') {
+        const val = parseFloat(valueInput);
+        if (isNaN(val) || val <= 0) {
+          const err = 'Discount amount must be greater than ₹0.';
+          setStepError(err);
+          toast.error(err);
+          return false;
+        }
+      } else if (discountType === 'bogo') {
+        const buy = parseInt(bogoBuyQty, 10);
+        const get = parseInt(bogoGetQty, 10);
+        if (isNaN(buy) || buy < 1 || isNaN(get) || get < 1) {
+          const err = 'Buy and Get quantities must be at least 1.';
+          setStepError(err);
+          toast.error(err);
+          return false;
+        }
+      }
+    } else if (step === 5) {
+      if (!startsAt) {
+        const err = 'Start date is required.';
+        setStepError(err);
+        toast.error(err);
+        return false;
+      }
+      if (hasEndDate && expiresAt) {
+        if (new Date(expiresAt) <= new Date(startsAt)) {
+          const err = 'End date must be after the start date.';
+          setStepError(err);
+          toast.error(err);
+          return false;
+        }
+      }
+    }
+    return true;
+  };
 
   if (!isOpen) return null;
 
@@ -163,12 +287,7 @@ export default function DiscountWizardModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      toast.error('Please enter a promotion title');
-      return;
-    }
-    if (applicationMethod === 'code' && !code.trim()) {
-      toast.error('Please enter a discount code');
+    if (!validateStep(1) || !validateStep(2) || !validateStep(5)) {
       return;
     }
 
@@ -272,6 +391,12 @@ export default function DiscountWizardModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+          {stepError && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-rose-800 animate-in fade-in duration-150">
+              <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+              <span>{stepError}</span>
+            </div>
+          )}
           {/* STEP 1: DISCOUNT TYPE & METHOD */}
           {currentStep === 1 && (
             <div className="space-y-6 animate-in fade-in duration-150">
@@ -283,7 +408,10 @@ export default function DiscountWizardModal({
                   type="text"
                   required
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setStepError(null);
+                  }}
                   placeholder="e.g. Diwali Festive Celebration 15% Off"
                   className="font-medium text-slate-900"
                 />
@@ -323,7 +451,10 @@ export default function DiscountWizardModal({
                     <button
                       key={type.id}
                       type="button"
-                      onClick={() => setDiscountType(type.id as any)}
+                      onClick={() => {
+                        setDiscountType(type.id as any);
+                        setStepError(null);
+                      }}
                       className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${
                         discountType === type.id
                           ? 'border-[#0052FF] bg-blue-50/40 ring-1 ring-[#0052FF]'
@@ -341,6 +472,16 @@ export default function DiscountWizardModal({
                   ))}
                 </div>
               </div>
+
+              {discountType === 'free_shipping' && !hasShippingConfigured && (
+                <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
+                  <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Shipping rules not configured</span>
+                    <span>Shipping rules must be configured before creating a free shipping discount.</span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5">
@@ -377,26 +518,49 @@ export default function DiscountWizardModal({
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                     Discount Code *
                   </label>
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      required
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-                      placeholder="e.g. WELCOME10, FESTIVE50"
-                      className="font-mono uppercase font-bold tracking-wider"
-                    />
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type="text"
+                        required
+                        value={code}
+                        onChange={(e) => {
+                          setCode(e.target.value.toUpperCase().replace(/\s+/g, ''));
+                          setStepError(null);
+                        }}
+                        placeholder="e.g. WELCOME10, FESTIVE50"
+                        className={`font-mono uppercase font-bold tracking-wider ${isCodeDuplicate ? 'border-rose-500 focus:ring-rose-500' : ''}`}
+                      />
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setCode(`PROMO${Math.floor(1000 + Math.random() * 9000)}`)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                      onClick={handleGenerateCode}
+                      className="h-10 px-3 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg text-xs font-bold transition-colors whitespace-nowrap"
                     >
                       Generate Code
                     </button>
+                    {code && (
+                      <button
+                        type="button"
+                        onClick={handleCopyCode}
+                        className="h-10 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                        title="Copy code to clipboard"
+                      >
+                        <Copy size={13} />
+                        <span>Copy</span>
+                      </button>
+                    )}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Customers enter this code at checkout. Unique and case-insensitive.
-                  </p>
+                  {isCodeDuplicate ? (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
+                      <AlertTriangle size={12} />
+                      This discount code already exists. Please choose or generate a unique code.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Customers enter this code at checkout. Unique and case-insensitive.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -558,12 +722,12 @@ export default function DiscountWizardModal({
               )}
 
               {discountType === 'free_shipping' && (
-                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
-                  <Truck size={20} className="text-amber-700 mt-0.5" />
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex items-start gap-3">
+                  <Truck size={20} className="text-blue-700 mt-0.5" />
                   <div>
-                    <div className="text-xs font-bold text-amber-950">Free Delivery Protection Guaranteed</div>
-                    <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
-                      Customer pays ₹0 for standard delivery. Your courier contracts remain intact and courier fees are never inflated or negative.
+                    <div className="text-xs font-bold text-blue-950">Free delivery promotion</div>
+                    <p className="text-[11px] text-blue-800 leading-relaxed mt-0.5">
+                      Free delivery promotion. Eligibility depends on configured delivery rules.
                     </p>
                   </div>
                 </div>
@@ -942,7 +1106,11 @@ export default function DiscountWizardModal({
             {currentStep < 5 ? (
               <Button
                 type="button"
-                onClick={() => setCurrentStep(prev => prev + 1)}
+                onClick={() => {
+                  if (validateStep(currentStep)) {
+                    setCurrentStep(prev => prev + 1);
+                  }
+                }}
                 className="bg-[#0052FF] hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 min-h-[44px] px-6"
               >
                 Continue <ArrowRight size={15} />

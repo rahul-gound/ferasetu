@@ -710,9 +710,13 @@ export default function FeraSetuAIPage() {
       setInput(transcript);
       setTimeout(() => sendMessage(transcript), 300);
     };
-    recognition.onerror = () => {
+    recognition.onerror = (e: any) => {
       setIsListening(false);
-      toast.error('Voice input failed. Please try typing instead.');
+      if (e?.error === 'not-allowed') {
+        toast.error('Microphone permission is required for voice input.');
+      } else {
+        toast.error('Voice input is unavailable. You can type the instruction instead.');
+      }
     };
     recognition.start();
   };

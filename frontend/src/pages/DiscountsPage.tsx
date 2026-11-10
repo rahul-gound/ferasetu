@@ -466,7 +466,9 @@ export default function DiscountsPage() {
                 </span>
                 <h3 className="text-sm font-bold text-slate-900">Most Popular Promotion</h3>
               </div>
-              <span className="text-[11px] font-semibold text-slate-500 uppercase">Database Verified</span>
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">
+                {analytics.topDiscount ? 'Database Verified' : 'No promotion data yet'}
+              </span>
             </div>
 
             {analytics.topDiscount ? (
@@ -531,6 +533,8 @@ export default function DiscountsPage() {
           }}
           products={productsList}
           categories={categoriesList}
+          existingCodes={discounts.map((d: any) => d.code).filter(Boolean)}
+          hasShippingConfigured={Boolean((user as any)?.shipping_configured || (user as any)?.shipping_zones?.length)}
         />
       )}
 

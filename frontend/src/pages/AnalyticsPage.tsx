@@ -71,17 +71,43 @@ export default function AnalyticsPage() {
     staleTime: 60000,
   });
 
-  // Computed Financials & KPIs
+  const periodDays = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+
+  // Strict date range formatted string in IST
+  const periodDateRange = useMemo(() => {
+    const end = new Date();
+    const start = new Date(Date.now() - (periodDays - 1) * 24 * 60 * 60 * 1000);
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' };
+    return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)} (IST)`;
+  }, [periodDays]);
+
+  // Last updated timestamp in IST
+  const [lastUpdated] = useState(() => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) + ' IST');
+
+  // Filter orders strictly by selected period
+  const periodOrders = useMemo(() => {
+    const cutoff = Date.now() - periodDays * 24 * 60 * 60 * 1000;
+    return orders.filter(o => {
+      if (!o.created_at) return true;
+      const t = new Date(o.created_at).getTime();
+      return !isNaN(t) ? t >= cutoff : true;
+    });
+  }, [orders, periodDays]);
+
+  // Computed Financials & KPIs strictly bound to selected period
   const totalRecordedGross = useMemo(() => {
-    if (analyticsData?.sales?.summary?.total_revenue) {
+    if (analyticsData?.sales?.summary?.total_revenue != null) {
       return Number(analyticsData.sales.summary.total_revenue);
     }
-    return orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-  }, [analyticsData, orders]);
+    return periodOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  }, [analyticsData, periodOrders]);
 
   const totalInvoices = useMemo(() => {
-    return orders.length || analyticsData?.sales?.summary?.total_orders || 0;
-  }, [orders, analyticsData]);
+    if (analyticsData?.sales?.summary?.total_orders != null) {
+      return Number(analyticsData.sales.summary.total_orders);
+    }
+    return periodOrders.length;
+  }, [periodOrders, analyticsData]);
 
   const aov = useMemo(() => {
     if (totalInvoices === 0) return 0;
@@ -89,45 +115,45 @@ export default function AnalyticsPage() {
   }, [totalRecordedGross, totalInvoices]);
 
   const uniqueShoppers = useMemo(() => {
-    const fromApi = analyticsData?.dashboard?.stats?.different_customers || analyticsData?.sales?.different_customers;
+    const fromApi = analyticsData?.sales?.different_customers;
     if (fromApi) return fromApi;
-    const distinctPhones = new Set(orders.map(o => o.customer_phone).filter(Boolean));
-    return distinctPhones.size || (orders.length > 0 ? orders.length : 1);
-  }, [analyticsData, orders]);
+    const distinctPhones = new Set(periodOrders.map(o => o.customer_phone).filter(Boolean));
+    return distinctPhones.size || periodOrders.length;
+  }, [analyticsData, periodOrders]);
 
-  const estimatedFootfall = useMemo(() => {
-    const raw = analyticsData?.dashboard?.stats?.total_visitors || analyticsData?.sales?.visitors?.total_visitors;
-    if (raw && raw > 0) return raw;
-    return Math.max(uniqueShoppers * 12, 48);
-  }, [analyticsData, uniqueShoppers]);
+  // Store visits: verified telemetry only, no synthetic multipliers
+  const verifiedVisitors = useMemo(() => {
+    const raw = analyticsData?.sales?.visitors?.total_visitors ?? analyticsData?.dashboard?.stats?.total_visitors;
+    return typeof raw === 'number' && raw > 0 ? raw : null;
+  }, [analyticsData]);
 
   const conversionRate = useMemo(() => {
-    if (estimatedFootfall === 0) return 0;
-    return Number(((totalInvoices / Math.max(1, estimatedFootfall)) * 100).toFixed(2));
-  }, [totalInvoices, estimatedFootfall]);
+    if (!verifiedVisitors || verifiedVisitors === 0) return 0;
+    return Number(((totalInvoices / verifiedVisitors) * 100).toFixed(2));
+  }, [totalInvoices, verifiedVisitors]);
 
   const settledRevenue = useMemo(() => {
-    const cancelledOrders = orders.filter(o => o.status === 'cancelled');
-    const returnedOrders = orders.filter(o => o.return_status === 'approved');
+    const cancelledOrders = periodOrders.filter(o => o.status === 'cancelled');
+    const returnedOrders = periodOrders.filter(o => o.return_status === 'approved');
     const deductions = [...cancelledOrders, ...returnedOrders].reduce((sum, o) => sum + (Number(o.total) || 0), 0);
     return Math.max(0, totalRecordedGross - deductions);
-  }, [orders, totalRecordedGross]);
+  }, [periodOrders, totalRecordedGross]);
 
   const directUpiRevenue = useMemo(() => {
-    return orders
+    return periodOrders
       .filter(o => {
         const pm = (o.payment_method || '').toLowerCase();
         const ps = (o.payment_status || '').toLowerCase();
         return pm.includes('upi') || pm.includes('online') || ps === 'paid';
       })
       .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-  }, [orders]);
+  }, [periodOrders]);
 
   const counterCashRevenue = useMemo(() => {
     return Math.max(0, totalRecordedGross - directUpiRevenue);
   }, [totalRecordedGross, directUpiRevenue]);
 
-  // Daily Chart Trajectory Points (Real or Fallback from Sales)
+  // Daily Chart Trajectory Points strictly matching period
   const trajectoryPoints = useMemo(() => {
     const raw = analyticsData?.sales?.sales || analyticsData?.sales?.revenue_chart || [];
     if (Array.isArray(raw) && raw.length > 0) {
@@ -137,13 +163,12 @@ export default function AnalyticsPage() {
         orders: Number(pt.orders) || 0,
       }));
     }
-    const days = period === '7d' ? 7 : period === '30d' ? 30 : 60;
     const result = [];
     const now = new Date();
-    for (let i = days - 1; i >= 0; i--) {
+    for (let i = periodDays - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const dateStr = d.toISOString().slice(0, 10);
-      const matchingOrders = orders.filter(o => (o.created_at || '').startsWith(dateStr));
+      const matchingOrders = periodOrders.filter(o => (o.created_at || '').startsWith(dateStr));
       const rev = matchingOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
       result.push({
         label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
@@ -152,7 +177,7 @@ export default function AnalyticsPage() {
       });
     }
     return result;
-  }, [analyticsData, orders, period]);
+  }, [analyticsData, periodOrders, periodDays]);
 
   const maxRevenuePoint = useMemo(() => {
     let peak = { label: 'Peak Day', revenue: 0, orders: 0 };
@@ -244,6 +269,13 @@ export default function AnalyticsPage() {
             <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl font-medium">
               Understand your store's sales cadence, customer retention, and footfall trajectory without data analyst complexity.
             </p>
+            <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-500 font-medium mt-2">
+              <span className="font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">
+                {periodDateRange}
+              </span>
+              <span>•</span>
+              <span>Last updated: {lastUpdated}</span>
+            </div>
           </div>
 
           {/* Controls */}
@@ -385,15 +417,17 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Store Conversion</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">{conversionRate > 0 ? `${conversionRate}%` : '4.13%'}</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px]">
+                {verifiedVisitors ? `${conversionRate}%` : 'Not Configured'}
+              </span>
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums tracking-tight">
-              {conversionRate > 0 ? `${conversionRate}%` : '4.13%'}
+              {verifiedVisitors ? `${conversionRate}%` : '—'}
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Counter + Online checkout</span>
-            <CheckCircle2 size={12} className="text-emerald-600" />
+            <span>{verifiedVisitors ? `${verifiedVisitors} verified visits` : 'Visitor tracking not configured'}</span>
+            <CheckCircle2 size={12} className={verifiedVisitors ? "text-emerald-600" : "text-slate-400"} />
           </div>
         </div>
       </div>
@@ -522,10 +556,19 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Scaled SVG Canvas */}
-        <div className="w-full overflow-x-auto">
-          <div className="min-w-[700px] h-64 relative bg-slate-50/50 rounded-xl p-3 border border-slate-100">
-            <svg className="w-full h-full" viewBox="0 0 800 220" preserveAspectRatio="none">
+        {/* Scaled SVG Canvas or Empty State */}
+        {totalInvoices === 0 ? (
+          <div className="p-12 text-center bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+            <TrendingUp size={32} className="mx-auto text-slate-400 mb-2" />
+            <h4 className="text-sm font-bold text-slate-800">No sales activity in this period</h4>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+              No sales activity in this period. Try selecting another date range or share your store link.
+            </p>
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[700px] h-64 relative bg-slate-50/50 rounded-xl p-3 border border-slate-100">
+              <svg className="w-full h-full" viewBox="0 0 800 220" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="analyticsAreaGrad" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stopColor="#0052FF" stopOpacity="0.25" />
@@ -585,21 +628,24 @@ export default function AnalyticsPage() {
             </svg>
 
             {/* Peak Tooltip Card */}
-            <div className="absolute left-[58%] top-3 -translate-x-1/2 bg-slate-900 text-white px-3 py-2 rounded-xl shadow-lg pointer-events-none text-left z-10 w-52 border border-slate-800">
-              <div className="flex items-center justify-between text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-0.5">
-                <span>Peak Volume Day</span>
-                <span>Verified Till</span>
+            {maxRevenuePoint.revenue > 0 && (
+              <div className="absolute left-[58%] top-3 -translate-x-1/2 bg-slate-900 text-white px-3 py-2 rounded-xl shadow-lg pointer-events-none text-left z-10 w-52 border border-slate-800">
+                <div className="flex items-center justify-between text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-0.5">
+                  <span>Peak Volume Day</span>
+                  <span>Verified Till</span>
+                </div>
+                <div className="text-base font-extrabold text-white tabular-nums">
+                  ₹{maxRevenuePoint.revenue.toLocaleString('en-IN')}
+                </div>
+                <div className="text-[11px] text-slate-300 mt-0.5 flex items-center justify-between font-medium">
+                  <span>{maxRevenuePoint.orders} order{maxRevenuePoint.orders !== 1 ? 's' : ''} recorded</span>
+                  <span className="text-emerald-400 font-bold">100% direct</span>
+                </div>
               </div>
-              <div className="text-base font-extrabold text-white tabular-nums">
-                ₹{maxRevenuePoint.revenue > 0 ? maxRevenuePoint.revenue.toLocaleString('en-IN') : '12,480.00'}
-              </div>
-              <div className="text-[11px] text-slate-300 mt-0.5 flex items-center justify-between font-medium">
-                <span>{maxRevenuePoint.orders > 0 ? `${maxRevenuePoint.orders} orders` : '28 orders recorded'}</span>
-                <span className="text-emerald-400 font-bold">100% direct</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
+        )}
 
         {/* Settlement Breakdown Strip */}
         <div className="pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -638,61 +684,42 @@ export default function AnalyticsPage() {
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">Where buyers progress along your store catalog</p>
               </div>
               <span className="text-xs font-bold text-blue-700 px-2.5 py-1 rounded-xl bg-blue-50 border border-blue-100">
-                {conversionRate > 0 ? `${conversionRate}% overall` : '4.13% overall'}
+                {verifiedVisitors ? `${conversionRate}% overall` : 'Tracking inactive'}
               </span>
             </div>
 
-            <div className="flex flex-col gap-3.5 mt-5">
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
-                  <span>1. Storefront Visits</span>
-                  <span className="font-bold text-slate-900">{estimatedFootfall.toLocaleString('en-IN')} sessions (100%)</span>
+            {verifiedVisitors ? (
+              <div className="flex flex-col gap-3.5 mt-5">
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
+                    <span>1. Storefront Visits</span>
+                    <span className="font-bold text-slate-900">{verifiedVisitors.toLocaleString('en-IN')} sessions (100%)</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 rounded-full w-full" />
+                  </div>
                 </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 rounded-full w-full" />
-                </div>
-              </div>
 
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
-                  <span>2. Product Details Viewed</span>
-                  <span className="font-bold text-slate-900">{Math.round(estimatedFootfall * 0.62).toLocaleString('en-IN')} sessions (62%)</span>
-                </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full w-[62%]" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
-                  <span>3. Added Items to Bag</span>
-                  <span className="font-bold text-slate-900">{Math.round(estimatedFootfall * 0.22).toLocaleString('en-IN')} sessions (22%)</span>
-                </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-400 rounded-full w-[22%]" />
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
+                    <span>2. Completed Orders</span>
+                    <span className="font-bold text-slate-900">{totalInvoices} orders ({conversionRate}%)</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${Math.min(100, Math.max(5, conversionRate))}%` }} />
+                  </div>
                 </div>
               </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
-                  <span>4. Reached Checkout Address / UPI</span>
-                  <span className="font-bold text-slate-900">{Math.round(estimatedFootfall * 0.08).toLocaleString('en-IN')} sessions (8%)</span>
-                </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-full w-[8%]" />
-                </div>
+            ) : (
+              <div className="p-6 text-center bg-slate-50/60 rounded-xl border border-slate-100 my-4 space-y-1.5">
+                <p className="text-xs font-semibold text-slate-700">
+                  Visitor tracking not configured
+                </p>
+                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                  To view storefront visits, product views, and cart additions, configure web analytics or share your direct store link with customers.
+                </p>
               </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1 font-medium text-slate-700">
-                  <span>5. Orders Finalized & Paid</span>
-                  <span className="font-bold text-slate-900">{totalInvoices} orders ({conversionRate > 0 ? `${conversionRate}%` : '4.1%'})</span>
-                </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-600 rounded-full w-[5%]" />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">

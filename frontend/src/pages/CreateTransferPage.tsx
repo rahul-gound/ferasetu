@@ -20,9 +20,11 @@ import {
   Package,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   HelpCircle,
   X,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import api from '../services/api';
 import SEO from '../components/SEO';
@@ -59,12 +61,15 @@ export default function CreateTransferPage() {
   const [items, setItems] = useState<TransferItem[]>([]);
   const [status, setStatus] = useState<'draft' | 'in_transit'>('draft');
 
-  // Transfer Details Metadata with dynamic future arrival date (prevents past dates)
+  // Default estimated arrival to tomorrow in merchant's configured timezone
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [estimatedArrival, setEstimatedArrival] = useState<string>(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 3);
+    d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
   });
+  const [dateError, setDateError] = useState<string | null>(null);
+
   const [referenceName, setReferenceName] = useState<string>('');
   const [isEditingRef, setIsEditingRef] = useState(false);
   const [note, setNote] = useState<string>('');
@@ -92,10 +97,10 @@ export default function CreateTransferPage() {
         return {
           success: true,
           locations: [
-            { id: 'loc-wh-1', name: 'Main Warehouse (Central Godown)', type: 'warehouse', address: 'Plot 42, Industrial Area', city: 'Delhi', is_default: 1 },
-            { id: 'loc-st-1', name: 'Primary Retail Dukaan (Front Store)', type: 'store', address: 'Shop 12, Main Market', city: 'Delhi', is_default: 0 },
-            { id: 'loc-sp-1', name: 'Regional Wholesale Supplier', type: 'supplier', address: 'APMC Market Yard', city: 'Karnal', is_default: 0 },
-            { id: 'loc-hb-1', name: 'Express Delivery Hub', type: 'hub', address: 'Ring Road Depot', city: 'Gurugram', is_default: 0 },
+            { id: 'loc-wh-1', name: 'Main Warehouse', type: 'warehouse', address: 'Plot 42, Industrial Area', city: 'Delhi', is_default: 1 },
+            { id: 'loc-st-1', name: 'Storefront Retail Counter', type: 'store', address: 'Shop 12, Main Market', city: 'Delhi', is_default: 0 },
+            { id: 'loc-sp-1', name: 'Wholesale Supplier Node', type: 'supplier', address: 'APMC Market Yard', city: 'Karnal', is_default: 0 },
+            { id: 'loc-hb-1', name: 'Regional Express Depot', type: 'hub', address: 'Ring Road Depot', city: 'Gurugram', is_default: 0 },
           ],
         };
       }
@@ -114,7 +119,7 @@ export default function CreateTransferPage() {
   }, [locations, originId, destinationId]);
 
   // Fetch Merchant Products for searching
-  const { data: productsData } = useQuery<{ products: any[] }>({
+  const { data: productsData, isLoading: isProductsLoading } = useQuery<{ products: any[] }>({
     queryKey: ['products'],
     queryFn: async () => {
       const res = await api.get('/products');
@@ -141,10 +146,34 @@ export default function CreateTransferPage() {
       .slice(0, 8);
   }, [productsList, searchQuery]);
 
+  // Validation status
+  const originMatchesDestination = Boolean(originId && destinationId && originId === destinationId);
+  const isDateInvalid = Boolean(estimatedArrival && estimatedArrival < todayStr);
+
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (!originId) errors.push('Select an origin location.');
+    if (!destinationId) errors.push('Select a destination location.');
+    if (originMatchesDestination) errors.push('Origin and destination cannot be the same location.');
+    if (items.length === 0) errors.push('Add at least one product to transfer.');
+    if (isDateInvalid) errors.push('Estimated arrival must be today or a future date.');
+    const zeroQtyItem = items.find((it) => it.quantity <= 0);
+    if (zeroQtyItem) errors.push(`Quantity for ${zeroQtyItem.title} must be greater than zero.`);
+    return errors;
+  }, [originId, destinationId, originMatchesDestination, items, isDateInvalid]);
+
+  const isFormValid = validationErrors.length === 0;
+
   // Add Item to Transfer
   const handleAddItem = (product: any, qty = 1) => {
     const pid = String(product.id);
     const existingIndex = items.findIndex((it) => it.product_id === pid);
+    const availableStock = Number(product.stock_quantity ?? product.inventory ?? product.stock ?? 50);
+
+    if (availableStock <= 0) {
+      toast.error(`"${product.title || product.name}" is out of stock (0 units).`);
+      return;
+    }
 
     if (existingIndex !== -1) {
       const updated = [...items];
@@ -158,7 +187,7 @@ export default function CreateTransferPage() {
           title: product.title || product.name || 'Product',
           sku: product.sku || `SKU-${pid.slice(-4)}`,
           image: product.image_url || product.image || undefined,
-          available_origin: product.inventory ?? product.stock ?? 50,
+          available_origin: availableStock,
           quantity: qty,
           unit_cost: Number(product.price || 0),
         },
@@ -222,7 +251,10 @@ export default function CreateTransferPage() {
       if (match) setDestinationId(match.id);
     }
     if (proposal.estimated_arrival) {
-      setEstimatedArrival(proposal.estimated_arrival);
+      if (proposal.estimated_arrival >= todayStr) {
+        setEstimatedArrival(proposal.estimated_arrival);
+        setDateError(null);
+      }
     }
     if (proposal.reference_name) {
       setReferenceName(proposal.reference_name);
@@ -247,7 +279,7 @@ export default function CreateTransferPage() {
         (item.title || item.name || '').toLowerCase().includes(proposal.product_name!.toLowerCase())
       );
       if (p) {
-        handleAddItem(p, proposal.quantity || 20);
+        handleAddItem(p, proposal.quantity || 1);
       }
     } else if (proposal.quantity && items.length > 0) {
       const updated = [...items];
@@ -256,10 +288,10 @@ export default function CreateTransferPage() {
     }
   };
 
-  // Export items to CSV
+  // Export items to CSV with defensive checks
   const handleExportCSV = () => {
     if (items.length === 0) {
-      toast.error('Add products first to export transfer sheet');
+      toast.error('Add products first to export the transfer sheet.');
       return;
     }
     const headers = ['SKU', 'Title', 'Quantity', 'Unit Cost', 'Total'];
@@ -275,29 +307,33 @@ export default function CreateTransferPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `transfer_${referenceName || 'draft'}.csv`);
+    link.setAttribute('download', `transfer_${referenceName || 'sheet'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Transfer CSV exported');
+    toast.success('Transfer sheet exported to CSV');
   };
 
   // Save Transfer Submission
   const handleSaveTransfer = async (selectedStatus: 'draft' | 'in_transit') => {
     if (!originId) {
-      toast.error('Please select an origin location');
+      toast.error('Select an origin location');
       return;
     }
     if (!destinationId) {
-      toast.error('Please select a destination location');
+      toast.error('Select a destination location');
       return;
     }
-    if (originId === destinationId) {
+    if (originMatchesDestination) {
       toast.error('Origin and destination cannot be the same location');
       return;
     }
     if (items.length === 0) {
-      toast.error('Please add at least one product to transfer');
+      toast.error('Add at least one product to transfer');
+      return;
+    }
+    if (isDateInvalid) {
+      toast.error('Estimated arrival must be today or a future date.');
       return;
     }
 
@@ -326,16 +362,19 @@ export default function CreateTransferPage() {
         })),
       };
 
-      await api.post('/transfers', payload);
+      const res = await api.post('/transfers', payload);
+      const createdId = res.data?.transfer?.id || res.data?.id || `TR-${Date.now().toString().slice(-6)}`;
+
       posthog.capture('inventory_transfer_created', {
         status: selectedStatus,
         product_count: items.length,
         unit_count: items.reduce((sum, item) => sum + item.quantity, 0),
       });
+
       toast.success(
         selectedStatus === 'in_transit'
-          ? 'Transfer marked as in transit! Stock moving.'
-          : 'Transfer draft saved successfully.'
+          ? `Transfer #${createdId.slice(0, 8)} marked as in transit! Stock moving.`
+          : `Transfer #${createdId.slice(0, 8)} draft saved successfully.`
       );
       queryClient.invalidateQueries({ queryKey: ['inventory-transfers'] });
       navigate('/transfers');
@@ -386,23 +425,40 @@ export default function CreateTransferPage() {
             type="button"
             onClick={() => handleSaveTransfer('draft')}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-xl text-xs font-bold border border-[#E5EAF1] bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-2xs active:scale-95 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl text-xs font-bold border border-[#E5EAF1] bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
           >
-            Save as draft
+            {isSubmitting && <Loader2 size={13} className="animate-spin" />}
+            <span>Save as draft</span>
           </button>
           <button
             type="button"
             onClick={() => handleSaveTransfer('in_transit')}
-            disabled={isSubmitting}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-[#152238] text-white hover:bg-black transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+            disabled={isSubmitting || !isFormValid}
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-[#152238] text-white hover:bg-black transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+            title={!isFormValid ? validationErrors[0] : 'Dispatch shipment into transit'}
           >
-            <Truck size={14} />
+            {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Truck size={14} />}
             <span>Mark as in transit</span>
           </button>
         </div>
       </div>
 
-      {/* Main Origin -> Destination Pipeline Card matching screenshot */}
+      {/* Inline Validation Warnings Banner if form has issues */}
+      {validationErrors.length > 0 && items.length > 0 && (
+        <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/80 text-amber-950 text-xs flex items-start gap-2.5">
+          <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <span className="font-bold">Please resolve the following before dispatching:</span>
+            <ul className="list-disc pl-5 mt-1 space-y-0.5 text-amber-900">
+              {validationErrors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Main Origin -> Destination Pipeline Card */}
       <div className="bg-white rounded-2xl border border-[#E5EAF1] shadow-xs overflow-hidden">
         {/* Origin / In Transit / Destination Bar */}
         <div className="p-4 sm:p-6 border-b border-[#E5EAF1] bg-white">
@@ -410,16 +466,20 @@ export default function CreateTransferPage() {
             {/* Origin Dropdown */}
             <div className="flex-1">
               <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Origin
+                Origin <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={originId}
                   onChange={(e) => setOriginId(e.target.value)}
-                  className="w-full h-11 pl-3 pr-8 rounded-xl border border-[#E5EAF1] bg-[#F8FAFC] text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600 transition-all appearance-none cursor-pointer"
+                  className={`w-full h-11 pl-3 pr-8 rounded-xl border text-xs sm:text-sm font-semibold transition-all appearance-none cursor-pointer ${
+                    originMatchesDestination
+                      ? 'border-rose-400 bg-rose-50 text-rose-900'
+                      : 'border-[#E5EAF1] bg-[#F8FAFC] text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600'
+                  }`}
                 >
                   <option value="" disabled>
-                    Select origin
+                    Select origin location
                   </option>
                   {locations.map((loc) => (
                     <option key={loc.id} value={loc.id} disabled={loc.id === destinationId}>
@@ -448,16 +508,20 @@ export default function CreateTransferPage() {
             {/* Destination Dropdown */}
             <div className="flex-1">
               <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Destination
+                Destination <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={destinationId}
                   onChange={(e) => setDestinationId(e.target.value)}
-                  className="w-full h-11 pl-3 pr-8 rounded-xl border border-[#E5EAF1] bg-[#F8FAFC] text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600 transition-all appearance-none cursor-pointer"
+                  className={`w-full h-11 pl-3 pr-8 rounded-xl border text-xs sm:text-sm font-semibold transition-all appearance-none cursor-pointer ${
+                    originMatchesDestination
+                      ? 'border-rose-400 bg-rose-50 text-rose-900'
+                      : 'border-[#E5EAF1] bg-[#F8FAFC] text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600'
+                  }`}
                 >
                   <option value="" disabled>
-                    Select destination
+                    Select destination location
                   </option>
                   {locations.map((loc) => (
                     <option key={loc.id} value={loc.id} disabled={loc.id === originId}>
@@ -471,9 +535,15 @@ export default function CreateTransferPage() {
               </div>
             </div>
           </div>
+
+          {originMatchesDestination && (
+            <p className="text-[11px] text-rose-600 mt-2 font-medium">
+              Origin and destination cannot be the same location.
+            </p>
+          )}
         </div>
 
-        {/* Product Search Bar matching screenshot */}
+        {/* Product Search Bar */}
         <div className="p-4 sm:p-6 bg-white relative">
           <div className="relative flex items-center">
             <Search size={16} className="absolute left-3.5 text-slate-400 pointer-events-none" />
@@ -485,17 +555,22 @@ export default function CreateTransferPage() {
                 setIsSearchOpen(true);
               }}
               onFocus={() => setIsSearchOpen(true)}
-              placeholder="Search products to add"
+              placeholder="Search products in catalog to add..."
               className="w-full h-11 pl-10 pr-24 rounded-xl border border-[#E5EAF1] bg-white text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 shadow-2xs transition-all"
             />
 
-            {/* Actions inside search input right edge matching screenshot: Download CSV + Barcode Scan */}
+            {/* Actions inside search input right edge: Export CSV + Barcode Scan */}
             <div className="absolute right-2 flex items-center gap-1">
               <button
                 type="button"
                 onClick={handleExportCSV}
-                title="Export or download items template"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                disabled={items.length === 0}
+                title={items.length === 0 ? 'Add at least one product before exporting.' : 'Export transfer sheet to CSV'}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  items.length === 0
+                    ? 'text-slate-300 cursor-not-allowed'
+                    : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer'
+                }`}
               >
                 <Download size={16} />
               </button>
@@ -503,7 +578,7 @@ export default function CreateTransferPage() {
                 type="button"
                 onClick={() => setIsBarcodeModalOpen(true)}
                 title="Scan barcode or SKU"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <ScanBarcode size={16} />
               </button>
@@ -518,13 +593,21 @@ export default function CreateTransferPage() {
                 <button
                   type="button"
                   onClick={() => setIsSearchOpen(false)}
-                  className="hover:text-slate-700"
+                  className="hover:text-slate-700 cursor-pointer"
                 >
                   <X size={14} />
                 </button>
               </div>
 
-              {searchResults.length === 0 ? (
+              {productsList.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500">
+                  <Package size={20} className="mx-auto text-slate-400 mb-1" />
+                  <p className="font-semibold text-slate-700">No products available</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Add or import a product to continue.
+                  </p>
+                </div>
+              ) : searchResults.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-500">
                   No products found matching "{searchQuery}".
                 </div>
@@ -532,11 +615,18 @@ export default function CreateTransferPage() {
                 <div className="divide-y divide-slate-100">
                   {searchResults.map((p) => {
                     const isAlreadyAdded = items.some((it) => it.product_id === String(p.id));
+                    const stock = Number(p.stock_quantity ?? p.inventory ?? p.stock ?? 50);
+                    const isOutOfStock = stock <= 0;
+
                     return (
                       <div
                         key={p.id}
-                        onClick={() => handleAddItem(p, 1)}
-                        className="p-3 sm:px-4 hover:bg-indigo-50/60 cursor-pointer flex items-center justify-between text-xs transition-colors group"
+                        onClick={() => !isOutOfStock && handleAddItem(p, 1)}
+                        className={`p-3 sm:px-4 flex items-center justify-between text-xs transition-colors group ${
+                          isOutOfStock
+                            ? 'opacity-50 cursor-not-allowed bg-slate-50/50'
+                            : 'hover:bg-indigo-50/60 cursor-pointer'
+                        }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden shrink-0">
@@ -561,11 +651,17 @@ export default function CreateTransferPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-slate-500">
-                            {p.inventory ?? p.stock ?? 50} available
+                          <span className={`text-[11px] ${isOutOfStock ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                            {isOutOfStock ? '0 in stock' : `${stock} available`}
                           </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                            {isAlreadyAdded ? '+ Add more' : '+ Add'}
+                          <span
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] border transition-all ${
+                              isOutOfStock
+                                ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                : 'bg-indigo-50 text-indigo-700 border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white'
+                            }`}
+                          >
+                            {isOutOfStock ? 'Out of stock' : isAlreadyAdded ? '+ Add more' : '+ Add'}
                           </span>
                         </div>
                       </div>
@@ -591,76 +687,87 @@ export default function CreateTransferPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5EAF1]">
-                  {items.map((it) => (
-                    <tr key={it.product_id} className="hover:bg-slate-50/60">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden shrink-0">
-                            {it.image ? (
-                              <img src={it.image} alt={it.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <Package size={15} />
-                            )}
-                          </div>
-                          <div>
-                            <span className="font-bold text-[#152238] block">{it.title}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">SKU: {it.sku}</span>
-                          </div>
-                        </div>
-                      </td>
+                  {items.map((it) => {
+                    const exceedsStock = it.quantity > it.available_origin;
 
-                      <td className="py-3 px-3 text-center text-slate-600 font-medium">
-                        {it.available_origin} units
-                      </td>
+                    return (
+                      <tr key={it.product_id} className={`hover:bg-slate-50/60 ${exceedsStock ? 'bg-amber-50/30' : ''}`}>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden shrink-0">
+                              {it.image ? (
+                                <img src={it.image} alt={it.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <Package size={15} />
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-bold text-[#152238] block">{it.title}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">SKU: {it.sku}</span>
+                              {exceedsStock && (
+                                <span className="text-[10px] text-amber-700 font-semibold block">
+                                  Warning: Exceeds origin stock ({it.available_origin} avail)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
 
-                      <td className="py-3 px-3">
-                        <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-3 px-3 text-center text-slate-600 font-medium">
+                          {it.available_origin} units
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(it.product_id, -1)}
+                              className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-sm cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={it.quantity}
+                              onChange={(e) =>
+                                handleSetExactQuantity(it.product_id, parseInt(e.target.value, 10) || 1)
+                              }
+                              className={`w-14 h-7 text-center font-bold border rounded-lg text-xs ${
+                                exceedsStock ? 'border-amber-400 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-900'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(it.product_id, 1)}
+                              className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-sm cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 text-right font-mono text-slate-700">
+                          ₹{it.unit_cost.toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                          ₹{(it.quantity * it.unit_cost).toLocaleString('en-IN')}
+                        </td>
+
+                        <td className="py-3 px-3 text-center">
                           <button
                             type="button"
-                            onClick={() => handleUpdateQuantity(it.product_id, -1)}
-                            className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-sm"
+                            onClick={() => handleRemoveItem(it.product_id)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Remove item"
                           >
-                            -
+                            <Trash2 size={14} />
                           </button>
-                          <input
-                            type="number"
-                            min="1"
-                            value={it.quantity}
-                            onChange={(e) =>
-                              handleSetExactQuantity(it.product_id, parseInt(e.target.value, 10) || 1)
-                            }
-                            className="w-14 h-7 text-center font-bold text-slate-900 border border-slate-200 rounded-lg text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(it.product_id, 1)}
-                            className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-sm"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3 text-right font-mono text-slate-700">
-                        ₹{it.unit_cost.toLocaleString('en-IN')}
-                      </td>
-
-                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
-                        ₹{(it.quantity * it.unit_cost).toLocaleString('en-IN')}
-                      </td>
-
-                      <td className="py-3 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(it.product_id)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
-                          title="Remove item"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
@@ -686,38 +793,49 @@ export default function CreateTransferPage() {
         </div>
       </div>
 
-      {/* Transfer details Card matching screenshot */}
+      {/* Transfer details Card */}
       <div className="bg-white rounded-2xl border border-[#E5EAF1] shadow-xs p-5 sm:p-6 space-y-4">
         <h2 className="text-base font-bold text-[#152238]">Transfer details</h2>
 
         <div className="space-y-3.5 divide-y divide-slate-100 text-xs">
-          {/* Row 1: Estimated arrival date */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-3 text-slate-700">
-              <CalendarIcon size={16} className="text-slate-400 shrink-0" />
-              <span className="font-medium">Estimated arrival:</span>
-              <span className="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
-                {formattedArrivalDate}
-              </span>
-            </div>
+          {/* Row 1: Estimated arrival date with strict future validation */}
+          <div className="pt-1 space-y-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-3 text-slate-700">
+                <CalendarIcon size={16} className="text-slate-400 shrink-0" />
+                <span className="font-medium">Estimated arrival:</span>
+                <span className="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg font-mono-tabular">
+                  {formattedArrivalDate}
+                </span>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                min={new Date().toISOString().slice(0, 10)}
-                value={estimatedArrival}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const today = new Date().toISOString().slice(0, 10);
-                  if (val && val < today) {
-                    toast.error('Estimated arrival cannot be in the past');
-                    return;
-                  }
-                  setEstimatedArrival(val);
-                }}
-                className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg text-slate-700 bg-white focus:outline-none focus:border-indigo-600"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  min={todayStr}
+                  value={estimatedArrival}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val && val < todayStr) {
+                      setDateError('Estimated arrival must be today or a future date.');
+                      toast.error('Estimated arrival must be today or a future date.');
+                    } else {
+                      setDateError(null);
+                    }
+                    setEstimatedArrival(val);
+                  }}
+                  className={`px-2.5 py-1 text-xs border rounded-lg bg-white focus:outline-none ${
+                    dateError ? 'border-rose-400 text-rose-900 bg-rose-50' : 'border-slate-200 text-slate-700 focus:border-indigo-600'
+                  }`}
+                  aria-label="Estimated arrival date"
+                />
+              </div>
             </div>
+            {dateError && (
+              <p className="text-[11px] text-rose-600 font-semibold pl-7">
+                {dateError}
+              </p>
+            )}
           </div>
 
           {/* Row 2: Add reference name */}
@@ -726,7 +844,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingRef(!isEditingRef)}
-                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors"
+                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
               >
                 <Tag size={16} className="text-slate-400 shrink-0" />
                 <span>
@@ -736,7 +854,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingRef(!isEditingRef)}
-                className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
               >
                 {isEditingRef ? 'Done' : referenceName ? 'Edit' : '+ Add'}
               </button>
@@ -748,7 +866,7 @@ export default function CreateTransferPage() {
                   type="text"
                   value={referenceName}
                   onChange={(e) => setReferenceName(e.target.value)}
-                  placeholder="e.g. TR-2026-OCT-102 or Tracking #AWB-98124"
+                  placeholder="e.g. TR-2026-RESTOCK-01 or Tracking #AWB-98124"
                   className="w-full h-9 px-3 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-600"
                 />
               </div>
@@ -761,7 +879,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingNote(!isEditingNote)}
-                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors"
+                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
               >
                 <FileText size={16} className="text-slate-400 shrink-0" />
                 <span>
@@ -771,7 +889,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingNote(!isEditingNote)}
-                className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
               >
                 {isEditingNote ? 'Done' : note ? 'Edit' : '+ Add'}
               </button>
@@ -783,7 +901,7 @@ export default function CreateTransferPage() {
                   rows={2}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Carrier instructions or inventory notes (e.g. Handle fragile textiles carefully)..."
+                  placeholder="Carrier instructions or inventory notes (e.g. Fragile items, deliver to rear bay)..."
                   className="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-600 resize-none"
                 />
               </div>
@@ -796,7 +914,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingTags(!isEditingTags)}
-                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors"
+                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
               >
                 <Hash size={16} className="text-slate-400 shrink-0" />
                 <span>
@@ -806,7 +924,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingTags(!isEditingTags)}
-                className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
               >
                 {isEditingTags ? 'Done' : tags.length > 0 ? 'Edit' : '+ Add'}
               </button>
@@ -819,12 +937,12 @@ export default function CreateTransferPage() {
                     type="text"
                     value={newTagInput}
                     onChange={(e) => setNewTagInput(e.target.value)}
-                    placeholder="e.g. Diwali Restock, Urgent, Express"
+                    placeholder="e.g. Urgent, Express, Store Restock"
                     className="flex-1 h-9 px-3 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-600"
                   />
                   <button
                     type="submit"
-                    className="px-3 h-9 bg-slate-900 text-white font-bold rounded-xl text-xs hover:bg-black"
+                    className="px-3 h-9 bg-slate-900 text-white font-bold rounded-xl text-xs hover:bg-black cursor-pointer"
                   >
                     Add Tag
                   </button>
@@ -841,7 +959,7 @@ export default function CreateTransferPage() {
                         <button
                           type="button"
                           onClick={() => handleRemoveTag(t)}
-                          className="hover:text-rose-600"
+                          className="hover:text-rose-600 cursor-pointer"
                         >
                           <X size={11} />
                         </button>
@@ -859,7 +977,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingPO(!isEditingPO)}
-                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors"
+                className="flex items-center gap-3 text-slate-700 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
               >
                 <Receipt size={16} className="text-slate-400 shrink-0" />
                 <span>
@@ -869,7 +987,7 @@ export default function CreateTransferPage() {
               <button
                 type="button"
                 onClick={() => setIsEditingPO(!isEditingPO)}
-                className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
               >
                 {isEditingPO ? 'Done' : purchaseOrderId ? 'Edit' : '+ Add'}
               </button>
@@ -890,7 +1008,7 @@ export default function CreateTransferPage() {
         </div>
       </div>
 
-      {/* Barcode Scanner Modal */}
+      {/* Barcode Scanner Modal with Catalog Connection */}
       <BarcodeScannerModal
         isOpen={isBarcodeModalOpen}
         onClose={() => setIsBarcodeModalOpen(false)}
@@ -898,10 +1016,11 @@ export default function CreateTransferPage() {
         onAddProduct={handleAddItem}
       />
 
-      {/* Docked Floating "Work with Sidekick" Pill Bar matching screenshot */}
+      {/* Docked Floating "Work with Sidekick" Pill Bar */}
       <SidekickCopilotBar
         onApplyProposal={handleApplyProposal}
         availableProducts={productsList}
+        availableLocations={locations}
       />
     </div>
   );
