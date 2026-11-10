@@ -229,11 +229,15 @@ export default function ProductCard({
               disabled={isOutOfStock}
               onClick={(e) => {
                 e.stopPropagation();
-                addToCart(product);
+                if (!isOutOfStock) addToCart(product);
               }}
-              className="w-full bg-[var(--theme-color-primary)] text-white hover:bg-[var(--theme-color-primary-hover)] font-bold text-xs py-2.5 px-4 rounded-full shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              className="w-full bg-[var(--theme-color-primary)] text-white hover:bg-[var(--theme-color-primary-hover)] font-bold text-xs py-2.5 px-4 rounded-full shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ShoppingBag size={14} /> Add to Bag
+              {isOutOfStock ? 'Sold Out' : (
+                <>
+                  <ShoppingBag size={14} /> Add to Bag
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -324,11 +328,11 @@ export default function ProductCard({
               disabled={isOutOfStock}
               onClick={(e) => {
                 e.stopPropagation();
-                addToCart(product);
+                if (!isOutOfStock) addToCart(product);
               }}
-              className="text-xs font-semibold px-3 py-1.5 bg-[#C25E3E] text-white hover:bg-[#A64B2F] rounded transition-colors disabled:opacity-50"
+              className="text-xs font-semibold px-3 py-1.5 bg-[#C25E3E] text-white hover:bg-[#A64B2F] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isOutOfStock ? 'Sold' : 'Select'}
+              {isOutOfStock ? 'Sold Out' : 'Select'}
             </button>
           </div>
         </div>
@@ -450,11 +454,17 @@ export default function ProductCard({
               disabled={isOutOfStock}
               onClick={(e) => {
                 e.stopPropagation();
-                addToCart(product);
+                if (!isOutOfStock) addToCart(product);
               }}
               className="min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 px-3 rounded-xl bg-[var(--theme-color-primary,#0F172A)] text-white hover:opacity-90 active:scale-[0.97] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
-              <ShoppingBag size={14} /> Add
+              {isOutOfStock ? (
+                <span>Out of Stock</span>
+              ) : (
+                <>
+                  <ShoppingBag size={14} /> Add
+                </>
+              )}
             </button>
           )}
 

@@ -7,6 +7,7 @@ import {
 } from './electronicData';
 import { useStorefront } from '../../runtime/StorefrontProvider';
 import type { ShopProduct } from '../../../types/template';
+import { getProductPlaceholderSvg } from '../../utilities/imageFallback';
 
 interface ToastItem {
   id: string;
@@ -127,33 +128,39 @@ export function MonoShopProvider({ children }: MonoShopProviderProps) {
     }
   }, [orders]);
 
-  // Merge real store products if merchant has inventory with the rich electronic catalog
+  // Ground storefront exclusively to merchant catalog (zero fake products / reviews / images)
   const products: ElectronicProduct[] = useMemo(() => {
     if (parentStorefront?.products && parentStorefront.products.length > 0) {
       // Convert merchant products to ElectronicProduct format
-      const converted: ElectronicProduct[] = parentStorefront.products.map((p: ShopProduct) => ({
-        id: p.id,
-        brand: p.category || shopName,
-        name: p.name,
-        sub: p.category || 'Direct Quality Product',
-        category: (p.category || 'general').toLowerCase().replace(/\s+/g, '-'),
-        rating: 5,
-        reviews: 120,
-        price: Number(p.sale_price != null && p.sale_price > 0 ? p.sale_price : p.price) || 99,
-        stock: (p.stock_quantity ?? 1) > 0 ? 'in' : 'out',
-        img: p.image_url || '/products/macbook-pro-14.png',
-        fit: 'contain',
-        desc: p.description || 'Precision crafted and directly fulfilled with zero commission.',
-        specs: [
-          'Direct Merchant Fulfillment',
-          '0% Platform Markup',
-          'Official Quality Guarantee',
-          'Doorstep Local Delivery',
-        ],
-      }));
+      const converted: ElectronicProduct[] = parentStorefront.products.map((p: ShopProduct) => {
+        const hasRealReviews = typeof (p as any).reviews_count === 'number' && (p as any).reviews_count > 0;
+        const realReviews = hasRealReviews ? (p as any).reviews_count : 0;
+        const realRating = hasRealReviews ? Number((p as any).rating) || 5 : 0;
+        const hasStock = (Number(p.stock_quantity) || 0) > 0;
+
+        return {
+          id: p.id,
+          brand: p.category || shopName,
+          name: p.name,
+          sub: p.category || 'Direct Quality Product',
+          category: (p.category || 'general').toLowerCase().replace(/\s+/g, '-'),
+          rating: realRating,
+          reviews: realReviews,
+          price: Number(p.sale_price != null && p.sale_price > 0 ? p.sale_price : p.price) || 0,
+          stock: hasStock ? 'in' : 'out',
+          img: p.image_url || getProductPlaceholderSvg(p.name, '#0F172A'),
+          fit: 'contain',
+          desc: p.description || 'Direct merchant fulfillment with 0% platform commission.',
+          specs: [
+            'Direct Merchant Fulfillment',
+            '0% Platform Commission',
+            'Doorstep Local Delivery',
+          ],
+        };
+      });
       return converted;
     }
-    return MONO_ELECTRONIC_PRODUCTS;
+    return [];
   }, [parentStorefront?.products, shopName]);
 
   const toast = useCallback((msg: string) => {

@@ -287,7 +287,13 @@ export default function ProductDetailModal() {
                   onClick={handleAddToCart}
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-[var(--theme-radius-button)] bg-[var(--theme-color-primary)] text-white font-bold text-sm hover:bg-[var(--theme-color-primary-hover)] shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShoppingBag size={17} /> Add to Cart
+                  {isOutOfStock ? (
+                    <span>Out of Stock</span>
+                  ) : (
+                    <>
+                      <ShoppingBag size={17} /> Add to Cart
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -295,7 +301,7 @@ export default function ProductDetailModal() {
                   onClick={handleBuyNow}
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-[var(--theme-radius-button)] bg-slate-900 text-white font-bold text-sm hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Buy Now
+                  {isOutOfStock ? <span>Sold Out</span> : <span>Buy Now</span>}
                 </button>
               </div>
 

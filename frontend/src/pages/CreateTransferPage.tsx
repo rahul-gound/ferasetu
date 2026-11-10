@@ -59,8 +59,12 @@ export default function CreateTransferPage() {
   const [items, setItems] = useState<TransferItem[]>([]);
   const [status, setStatus] = useState<'draft' | 'in_transit'>('draft');
 
-  // Transfer Details Metadata matching screenshot
-  const [estimatedArrival, setEstimatedArrival] = useState<string>('2026-10-31');
+  // Transfer Details Metadata with dynamic future arrival date (prevents past dates)
+  const [estimatedArrival, setEstimatedArrival] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  });
   const [referenceName, setReferenceName] = useState<string>('');
   const [isEditingRef, setIsEditingRef] = useState(false);
   const [note, setNote] = useState<string>('');
@@ -345,13 +349,14 @@ export default function CreateTransferPage() {
   const totalTransferUnits = items.reduce((sum, it) => sum + it.quantity, 0);
   const totalTransferValue = items.reduce((sum, it) => sum + it.quantity * it.unit_cost, 0);
 
-  // Format date display
+  // Format date display using merchant locale
   const formattedArrivalDate = useMemo(() => {
     try {
       const d = new Date(estimatedArrival);
-      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      if (isNaN(d.getTime())) throw new Error();
+      return d.toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' });
     } catch {
-      return estimatedArrival || 'October 31, 2026';
+      return new Date().toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' });
     }
   }, [estimatedArrival]);
 
@@ -699,8 +704,17 @@ export default function CreateTransferPage() {
             <div className="flex items-center gap-2">
               <input
                 type="date"
+                min={new Date().toISOString().slice(0, 10)}
                 value={estimatedArrival}
-                onChange={(e) => setEstimatedArrival(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const today = new Date().toISOString().slice(0, 10);
+                  if (val && val < today) {
+                    toast.error('Estimated arrival cannot be in the past');
+                    return;
+                  }
+                  setEstimatedArrival(val);
+                }}
                 className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg text-slate-700 bg-white focus:outline-none focus:border-indigo-600"
               />
             </div>

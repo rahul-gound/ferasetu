@@ -74,8 +74,12 @@ export default function MonoQuickView() {
               </div>
 
               <div className="mt-3 flex items-center gap-3">
-                <Stars value={product.rating} />
-                <span className="text-xs text-ink/50">{product.reviews.toLocaleString()} reviews</span>
+                {product.reviews > 0 && (
+                  <>
+                    <Stars value={product.rating} />
+                    <span className="text-xs text-ink/50">{product.reviews.toLocaleString()} verified review{product.reviews === 1 ? '' : 's'}</span>
+                  </>
+                )}
                 <StockPill state={product.stock} />
               </div>
 
@@ -111,10 +115,10 @@ export default function MonoQuickView() {
 
               <div className="mt-4 flex items-center justify-center gap-5 text-[11px] text-ink/50">
                 <span className="flex items-center gap-1.5">
-                  <Truck size={13} /> Free delivery
+                  <Truck size={13} /> Direct doorstep fulfillment
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <ShieldCheck size={13} /> 2-year warranty
+                  <ShieldCheck size={13} /> 0% Platform markup
                 </span>
               </div>
             </div>

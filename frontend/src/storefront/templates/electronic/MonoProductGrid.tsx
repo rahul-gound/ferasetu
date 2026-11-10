@@ -108,7 +108,11 @@ function ProductCard({ product }: { product: ElectronicProduct }) {
         <p className="mt-1 truncate text-xs text-ink/50">{product.sub}</p>
 
         <div className="mt-3 flex items-center justify-between">
-          <Stars value={product.rating} />
+          {product.reviews > 0 ? (
+            <Stars value={product.rating} />
+          ) : (
+            <span className="text-[11px] font-medium text-ink/40">Direct from store</span>
+          )}
           <StockPill state={product.stock} />
         </div>
 
