@@ -43,6 +43,8 @@ import {
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAiAssistant } from '../contexts/AiAssistantContext';
+import ContextualAiAssistantPanel from './ai/ContextualAiAssistantPanel';
 import { useLanguage } from '../contexts/LanguageContext';
 import SEO from './SEO';
 import FeraSetuUpdatesCenter, { useFeraSetuUpdates } from './notifications/FeraSetuUpdatesCenter';
@@ -81,6 +83,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [hasPlatformAccess, setHasPlatformAccess] = useState(false);
+  const { isOpen: isAssistantOpen, toggleAssistant } = useAiAssistant();
 
   useEffect(() => {
     let active = true;
@@ -208,6 +211,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
     { path: '/website-design', icon: <Palette size={17} />, label: 'Website & Design' },
     { path: '/domains', icon: <Globe size={17} />, label: 'Domains & DNS' },
+    { path: '/community', icon: <MessageSquareText size={17} />, label: 'Merchant Community' },
+    { path: '/integrations', icon: <Server size={17} />, label: 'Integrations & Hub' },
     { path: '/marketing-and-seo', icon: <Megaphone size={17} />, label: 'Marketing & SEO' },
     { path: '/payments', icon: <CreditCard size={17} />, label: 'Payments & Settlements' },
     { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
@@ -232,6 +237,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       p.startsWith('/website-design') ||
       p.startsWith('/website-and-design') ||
       p.startsWith('/domains') ||
+      p.startsWith('/community') ||
+      p.startsWith('/integrations') ||
       p.startsWith('/marketing-and-seo') ||
       p.startsWith('/payments') ||
       p.startsWith('/inventory-and-locations') ||
@@ -730,6 +737,22 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </span>
             </button>
 
+            {/* Ask AI Contextual Co-pilot Button */}
+            <button
+              type="button"
+              onClick={toggleAssistant}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[12px] font-semibold transition-all shadow-2xs cursor-pointer active:scale-95 ${
+                isAssistantOpen
+                  ? 'border-blue-500 bg-blue-600 text-white shadow-blue-600/20'
+                  : 'border-blue-200/90 bg-blue-50/80 hover:bg-blue-100 text-[#0052FF]'
+              }`}
+              title="Toggle FeraSetu AI Store Co-pilot"
+              aria-label="Toggle Fera AI Store Co-pilot"
+            >
+              <Sparkles size={14} className={isAssistantOpen ? 'animate-spin' : ''} />
+              <span>Ask AI</span>
+            </button>
+
             {/* Refer & Earn */}
             <button
               onClick={() => navigate('/refer-earn')}
@@ -883,6 +906,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           }
         >
           {children ?? <Outlet context={{ setSidebarOpen, isCollapsed, setIsCollapsed }} />}
+          <ContextualAiAssistantPanel />
         </main>
       </div>
     </div>

@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"outline-variant":"#c3c5d9","on-error":"#ffffff","primary-fixed-dim":"#b7c4ff","on-primary-fixed-variant":"#0038b6","secondary-fixed-dim":"#c0c6da","secondary-container":"#d9dff4","tertiary-fixed-dim":"#ffb4a1","surface-tint":"#004ced","on-tertiary-container":"#ffddd5","on-primary-container":"#dfe3ff","primary":"#003ec7","primary-container":"#0052ff","surface-bright":"#f9f9ff","background":"#f9f9ff","inverse-primary":"#b7c4ff","surface-container":"#e7eeff","on-secondary":"#ffffff","on-secondary-container":"#5c6274","on-error-container":"#93000a","surface-container-high":"#dee8fe","inverse-on-surface":"#ebf1ff","on-primary-fixed":"#001452","on-tertiary-fixed":"#3c0800","on-secondary-fixed-variant":"#404757","on-tertiary":"#ffffff","primary-fixed":"#dde1ff","outline":"#737688","tertiary-fixed":"#ffdbd2","surface-container-low":"#f0f3ff","on-tertiary-fixed-variant":"#891e00","tertiary":"#952200","surface-container-lowest":"#ffffff","on-surface":"#121c2b","error-container":"#ffdad6","on-background":"#121c2b","secondary-fixed":"#dce2f6","error":"#ba1a1a","tertiary-container":"#bf3003","surface":"#f9f9ff","inverse-surface":"#273141","surface-container-highest":"#d9e3f8","surface-variant":"#d9e3f8","on-primary":"#ffffff","secondary":"#585e6f","surface-dim":"#d0daef","on-surface-variant":"#434656","on-secondary-fixed":"#151b2a"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},spacing:{"margin":"1rem","space-md":"1rem","space-xl":"2rem","space-lg":"1.5rem","space-sm":"0.5rem","gutter":"1rem","margin-tablet":"1.5rem","margin-desktop":"2rem","gutter-desktop":"1.5rem","space-xs":"0.25rem"},fontFamily:{"label-md":["Hanken Grotesk"],"numeral-lg":["Hanken Grotesk"],"title-md":["Hanken Grotesk"],"headline-xl-mobile":["Hanken Grotesk"],"body-md":["Hanken Grotesk"],"numeral-xl":["Hanken Grotesk"],"headline-md":["Hanken Grotesk"],"body-md-medium":["Hanken Grotesk"],"headline-lg":["Hanken Grotesk"],"headline-xl":["Hanken Grotesk"],"body-sm":["Hanken Grotesk"]},fontSize:{"label-md":["13px",{lineHeight:"18px",letterSpacing:"0.01em",fontWeight:"500"}],"numeral-lg":["28px",{lineHeight:"32px",fontWeight:"600"}],"title-md":["17px",{lineHeight:"24px",fontWeight:"600"}],"headline-xl-mobile":["32px",{lineHeight:"40px",letterSpacing:"-0.02em",fontWeight:"600"}],"body-md":["15px",{lineHeight:"22px",fontWeight:"400"}],"numeral-xl":["40px",{lineHeight:"44px",fontWeight:"600"}],"headline-md":["22px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-md-medium":["15px",{lineHeight:"22px",fontWeight:"500"}],"headline-lg":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],"headline-xl":["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"600"}],"body-sm":["13px",{lineHeight:"18px",fontWeight:"400"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-screen w-64 bg-surface-container-lowest border-r border-outline-variant/30 z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-md border-b border-outline-variant/20 flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm"><span class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md">FS</span><div class="flex flex-col"><span class="font-title-md text-title-md text-on-surface leading-tight tracking-tight">FeraSetu</span><span class="font-body-sm text-body-sm text-secondary leading-none">Merchant OS</span></div></div><span class="material-symbols-outlined text-outline text-[18px] cursor-pointer">unfold_more</span></div><div class="p-space-sm border-b border-outline-variant/20"><div class="bg-surface-container-low rounded-lg p-space-sm flex items-center justify-between"><div class="flex flex-col min-w-0 pr-space-xs"><span class="font-body-md-medium text-body-md-medium text-on-surface truncate">Himmat's General Store</span><div class="flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span class="font-body-sm text-body-sm text-secondary truncate">Storefront Live</span></div></div><span class="material-symbols-outlined text-outline text-[18px]">storefront</span></div></div><nav class="flex flex-col py-space-sm px-space-xs space-y-4" data-active-classes="bg-surface-container text-primary font-body-md-medium"><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Overview</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="overview" href="#"><span class="material-symbols-outlined text-[18px]">space_dashboard</span><span class="font-body-md text-body-md">Overview</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Business</div><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="orders" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">receipt_long</span><span class="font-body-md text-body-md">Orders</span></div><span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-secondary-container text-on-secondary-container">2</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="products" href="#"><span class="material-symbols-outlined text-[18px]">inventory_2</span><span class="font-body-md text-body-md">Products</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="customers" href="#"><span class="material-symbols-outlined text-[18px]">group</span><span class="font-body-md text-body-md">Customers</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Your Store</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="website-and-design" href="#"><span class="material-symbols-outlined text-[18px]">palette</span><span class="font-body-md text-body-md">Website &amp; Design</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="pages-and-content" href="#"><span class="material-symbols-outlined text-[18px]">article</span><span class="font-body-md text-body-md">Pages &amp; Content</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="domains" href="#"><span class="material-symbols-outlined text-[18px]">language</span><span class="font-body-md text-body-md">Domains</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Growth</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="analytics" href="#"><span class="material-symbols-outlined text-[18px]">monitoring</span><span class="font-body-md text-body-md">Analytics</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="marketing-and-seo" href="#"><span class="material-symbols-outlined text-[18px]">campaign</span><span class="font-body-md text-body-md">Marketing &amp; SEO</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="integrations" href="#"><span class="material-symbols-outlined text-[18px]">hub</span><span class="font-body-md text-body-md">Integrations</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Operations</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="payments" href="#"><span class="material-symbols-outlined text-[18px]">account_balance_wallet</span><span class="font-body-md text-body-md">Payments</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="inventory-and-locations" href="#"><span class="material-symbols-outlined text-[18px]">warehouse</span><span class="font-body-md text-body-md">Inventory &amp; Locations</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-sm py-2 rounded transition-colors bg-surface-container text-primary font-body-md-medium" data-path="staff" href="#"><span class="material-symbols-outlined text-[18px]">badge</span><span class="font-body-md text-body-md">Staff</span></a></div></nav></div><div class="p-space-sm border-t border-outline-variant/20 flex flex-col space-y-1 bg-surface-container-lowest"><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="ferasetu-ai" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[18px]">auto_awesome</span><span class="font-body-md-medium text-body-md-medium text-on-surface">FeraSetu AI</span></div><span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-primary-fixed text-on-primary-fixed uppercase tracking-wider">Beta</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="help-and-learning" href="#"><span class="material-symbols-outlined text-[18px]">help_center</span><span class="font-body-md text-body-md">Help &amp; Learning</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">settings</span><span class="font-body-md text-body-md">Settings</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest border-b border-outline-variant/20 z-40 px-space-lg flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md flex-1 max-w-xl"><div class="flex items-center gap-2 px-space-sm py-1 bg-surface-container-low rounded border border-outline-variant/30 text-nowrap"><span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span class="font-label-md text-label-md text-on-surface">Verified Kirana</span><span class="text-outline font-label-md text-label-md">•</span><span class="font-label-md text-label-md text-secondary">Store is open</span></div><div class="flex-1 relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span><input class="w-full h-10 pl-9 pr-3 rounded bg-surface-container-lowest border border-outline-variant/40 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container" placeholder="Search orders, products, operations... (⌘K)" type="text"/></div></div><div class="flex items-center gap-space-sm"><button class="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary-container/30 bg-primary-fixed/20 text-primary hover:bg-primary-fixed/40 transition-colors" type="button"><span class="material-symbols-outlined text-[18px]">arrow_back_ios_new</span><span class="font-label-md text-label-md font-medium">Ask AI</span></button><a class="px-2.5 py-1.5 rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" href="#">Docs</a><div class="flex items-center border border-outline-variant/40 rounded overflow-hidden"><button class="px-2 py-1 font-label-md text-label-md bg-surface-container text-primary font-medium" type="button">EN</button><button class="px-2 py-1 font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant hover:text-on-surface" type="button">हिन्दी</button></div><button class="relative p-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error inline-block"></span></button><div class="flex items-center gap-space-sm pl-space-xs border-l border-outline-variant/30"><div class="flex flex-col text-right"><span class="font-body-md-medium text-body-md-medium text-on-surface leading-tight">Himmat Patel</span><span class="font-body-sm text-body-sm text-secondary leading-none">Owner</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1Uv5M9sRsiNbN2-C42d9EHfvuerpfO22LFJRY8JCeorCIELY2fvg4DP9BdAzVqjX5GY8JLkseln_24jJJ0zLlOe41WtEDTAONjJbujX4hhrTfST01sndBONhh8cPmXiiXoqRxd0q_Yabx-t3o3PUeXi07NnVuALf9Ee5be7GmhIp9FPHkhEeoEC-BVgxTcpORZV6fO0B8tdmlMDap9vqRD8Guz4vnQ7qof001Zmt9VmX1y39LL1I4oFltc"/></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<!-- Interactive & Notification Script -->
+<script>
+    function switchWorkspaceTab(tabId) {
+      const tabs = ['members', 'roles', 'locations', 'audit'];
+      tabs.forEach(t => {
+        const content = document.getElementById('tab-content-' + t);
+        const button = document.getElementById('tab-btn-' + t);
+        if (content && button) {
+          if (t === tabId) {
+            content.classList.remove('hidden');
+            button.classList.add('bg-surface-container', 'text-primary', 'font-body-md-medium');
+            button.classList.remove('text-on-surface-variant');
+          } else {
+            content.classList.add('hidden');
+            button.classList.remove('bg-surface-container', 'text-primary', 'font-body-md-medium');
+            button.classList.add('text-on-surface-variant');
+          }
+        }
+      });
+    }
+
+    function toggleInviteModal(show) {
+      const modal = document.getElementById('invite-modal');
+      if (modal) {
+        if (show) modal.classList.remove('hidden');
+        else modal.classList.add('hidden');
+      }
+    }
+
+    function triggerToast(message) {
+      const toast = document.getElementById('ledger-toast');
+      const text = document.getElementById('toast-message');
+      if (toast && text) {
+        text.innerText = message;
+        toast.classList.remove('translate-y-24', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-24', 'opacity-0');
+        }, 3200);
+      }
+    }
+  </script>
+<!-- Workspace Container (Max 1280px Grid) -->
+<div class="max-w-[1280px] w-full mx-auto px-margin-tablet lg:px-margin-desktop py-space-lg flex flex-col space-y-space-lg">
+<!-- Workspace Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="flex flex-col space-y-1">
+<div class="flex items-center gap-space-xs text-outline">
+<span class="font-label-md text-label-md uppercase tracking-wider">Operations Console</span>
+<span>/</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Access Governance</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Staff &amp; Access Management</h1>
+<p class="font-body-md text-body-md text-secondary max-w-2xl">
+          Bring your team together, assign physical store locations, and control granular operational permissions under sovereign verification.
+        </p>
+</div>
+<!-- Action Cluster -->
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="h-11 px-4 rounded bg-surface-container-lowest text-on-surface border border-outline-variant/30 hover:bg-surface-container-low transition-colors font-body-md-medium text-body-md-medium flex items-center gap-2 shadow-sm" onclick="switchWorkspaceTab('roles')" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">admin_panel_settings</span>
+          Role Templates &amp; Policies
+        </button>
+<button class="h-11 px-5 rounded bg-primary-container text-on-primary hover:bg-primary transition-colors font-body-md-medium text-body-md-medium flex items-center gap-2 shadow-sm" onclick="toggleInviteModal(true)" type="button">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+          + Invite Team Member
+        </button>
+</div>
+</div>
+<!-- Telemetry Metric Strip -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Metric 1: Total Team -->
+<div class="bg-surface-container-lowest p-5 rounded border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Total Team</span>
+<span class="material-symbols-outlined text-outline text-[20px]">group</span>
+</div>
+<div class="mt-3 flex items-baseline gap-2">
+<span class="font-numeral-xl text-numeral-xl text-on-surface">4</span>
+<span class="font-body-sm text-body-sm text-secondary">Registered</span>
+</div>
+<div class="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-secondary">
+<span class="font-body-sm text-body-sm">1 Sovereign Owner</span>
+<span class="font-body-sm text-body-sm">3 Floor Staff</span>
+</div>
+</div>
+<!-- Metric 2: Active Logins -->
+<div class="bg-surface-container-lowest p-5 rounded border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Active Shift</span>
+<span class="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded text-[11px] font-medium tracking-wide">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+            LIVE
+          </span>
+</div>
+<div class="mt-3 flex items-baseline gap-2">
+<span class="font-numeral-xl text-numeral-xl text-on-surface">3</span>
+<span class="font-body-sm text-body-sm text-secondary">Devices active</span>
+</div>
+<div class="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-secondary">
+<span class="font-body-sm text-body-sm">Vasai POS + Godown</span>
+<span class="font-body-sm text-body-sm text-primary font-medium">Synced</span>
+</div>
+</div>
+<!-- Metric 3: Pending Invites -->
+<div class="bg-surface-container-lowest p-5 rounded border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Pending Approvals</span>
+<span class="material-symbols-outlined text-tertiary-container text-[20px]">mark_email_unread</span>
+</div>
+<div class="mt-3 flex items-baseline gap-2">
+<span class="font-numeral-xl text-numeral-xl text-tertiary-container">1</span>
+<span class="font-body-sm text-body-sm text-tertiary-container font-medium">Awaiting Join</span>
+</div>
+<div class="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-secondary">
+<span class="font-body-sm text-body-sm truncate">Ramesh Y. (Packing)</span>
+<span class="font-label-md text-label-md text-tertiary">48h Expire</span>
+</div>
+</div>
+<!-- Metric 4: Least Privilege -->
+<div class="bg-surface-container-lowest p-5 rounded border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Security Posture</span>
+<span class="material-symbols-outlined text-primary text-[20px]">verified_user</span>
+</div>
+<div class="mt-3 flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md text-on-surface">Enforced</span>
+<span class="font-body-sm text-body-sm text-secondary">Least-Privilege</span>
+</div>
+<div class="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-secondary">
+<span class="font-body-sm text-body-sm">OTP Guard: Bank/Keys</span>
+<span class="font-label-md text-label-md text-emerald-700 font-medium">100% Locked</span>
+</div>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<div class="flex items-center justify-between border-b border-outline-variant/30 overflow-x-auto">
+<div class="flex items-center gap-1">
+<button class="px-4 py-2.5 rounded-t font-body-md-medium text-body-md-medium bg-surface-container text-primary flex items-center gap-2 border-b-2 border-primary-container transition-all" id="tab-btn-members" onclick="switchWorkspaceTab('members')">
+<span class="material-symbols-outlined text-[18px]">badge</span>
+          Team Members
+          <span class="ml-1 px-1.5 py-0.2 rounded-full text-label-md text-label-md bg-primary-fixed text-on-primary-fixed">4</span>
+</button>
+<button class="px-4 py-2.5 rounded-t font-body-md text-body-md text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-all" id="tab-btn-roles" onclick="switchWorkspaceTab('roles')">
+<span class="material-symbols-outlined text-[18px]">security</span>
+          Roles &amp; Permissions Matrix
+        </button>
+<button class="px-4 py-2.5 rounded-t font-body-md text-body-md text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-all" id="tab-btn-locations" onclick="switchWorkspaceTab('locations')">
+<span class="material-symbols-outlined text-[18px]">pin_drop</span>
+          Location Assignments
+        </button>
+<button class="px-4 py-2.5 rounded-t font-body-md text-body-md text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-all" id="tab-btn-audit" onclick="switchWorkspaceTab('audit')">
+<span class="material-symbols-outlined text-[18px]">history</span>
+          Administrative Audit Log
+        </button>
+</div>
+<div class="hidden sm:flex items-center gap-2 pb-2">
+<span class="font-body-sm text-body-sm text-secondary">Store Context:</span>
+<span class="font-label-md text-label-md px-2 py-0.5 bg-surface-container-high text-on-surface rounded">2 Physical Units</span>
+</div>
+</div>
+<!-- TAB 1: TEAM MEMBERS DIRECTORY -->
+<div class="flex flex-col space-y-space-md" id="tab-content-members">
+<!-- Search and Filter Bar -->
+<div class="bg-surface-container-lowest p-3 rounded border border-outline-variant/30 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+<div class="flex items-center gap-2 flex-1 max-w-md">
+<span class="material-symbols-outlined text-outline text-[18px] ml-1">filter_list</span>
+<input class="w-full h-9 px-3 bg-surface-container-low rounded border border-outline-variant/30 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container" placeholder="Filter staff by name, phone, or assigned station..." type="text"/>
+</div>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-body-sm text-body-sm text-secondary">Scope:</span>
+<button class="px-2.5 py-1 rounded bg-surface-container-high text-on-surface font-label-md text-label-md" type="button">All Roles</button>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container-low text-secondary font-label-md text-label-md" type="button">Storefront Only</button>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container-low text-secondary font-label-md text-label-md" type="button">Godown Only</button>
+<div class="h-4 w-[1px] bg-outline-variant/30 mx-1"></div>
+<button class="px-2.5 py-1 rounded border border-outline-variant/30 hover:bg-surface-container-low text-on-surface-variant font-label-md text-label-md flex items-center gap-1" onclick="triggerToast('Staff ledger exported to CSV format')" type="button">
+<span class="material-symbols-outlined text-[16px]">file_download</span>
+            Export Sheet
+          </button>
+</div>
+</div>
+<!-- Tabular Directory Ledger -->
+<div class="bg-surface-container-lowest rounded border border-outline-variant/30 overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/30 bg-surface-container-low/50">
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Member Identification</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Role Template</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Assigned Physical Unit</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Operational Scope</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Status</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary text-right">Last Session</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20">
+<!-- Member 1: Himmat Patel -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-primary-container text-on-primary font-title-md text-title-md flex items-center justify-center shrink-0">
+                      HP
+                    </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-body-md-medium text-body-md-medium text-on-surface truncate">Himmat Patel</span>
+<span class="material-symbols-outlined text-primary text-[16px]" title="Owner Sovereign Key">verified</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary truncate">himmat@generalstore.in</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">Store Owner</span>
+<span class="font-body-sm text-body-sm text-outline">Super Admin Sovereignty</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-body-md text-body-md text-on-surface">All Locations</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Vasai Storefront &amp; Godown</span>
+</td>
+<td class="py-3.5 px-4 max-w-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                    Full Sovereignty, Financial Payouts, Domain Keys, Staff Management
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    Active (Owner)
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">Now</span>
+<span class="block font-body-sm text-body-sm text-outline">Terminal #1</span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<button class="p-1.5 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" onclick="triggerToast('Store owner credentials are encrypted and immutable.')" title="Account Config" type="button">
+<span class="material-symbols-outlined text-[18px]">lock_reset</span>
+</button>
+</td>
+</tr>
+<!-- Member 2: Rajesh Kumar -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest text-on-surface font-title-md text-title-md flex items-center justify-center shrink-0">
+                      RK
+                    </div>
+<div class="flex flex-col min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface truncate">Rajesh Kumar</span>
+<span class="font-body-sm text-body-sm text-secondary truncate">rajesh.k@generalstore.in</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">Godown Manager</span>
+<span class="font-body-sm text-body-sm text-outline">Inventory In/Out Specialization</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-body-md text-body-md text-on-surface">Nalasopara Godown</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Central Bulk Storage</span>
+</td>
+<td class="py-3.5 px-4 max-w-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                    Stock Inward/Outward, Stock Transfers, Supplier Delivery Receipts (No Payouts)
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    Active
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-body-md text-body-md text-on-surface">14 mins ago</span>
+<span class="block font-body-sm text-body-sm text-outline">Godown Handheld</span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded text-outline hover:text-primary hover:bg-surface-container transition-colors" onclick="triggerToast('Managing permissions for Rajesh Kumar')" title="Adjust Roles" type="button">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+<button class="p-1.5 rounded text-outline hover:text-error hover:bg-surface-container transition-colors" onclick="triggerToast('Session revoked for Rajesh Kumar')" title="Force Signout" type="button">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Member 3: Priya Sharma -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-highest text-on-surface font-title-md text-title-md flex items-center justify-center shrink-0">
+                      PS
+                    </div>
+<div class="flex flex-col min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface truncate">Priya Sharma</span>
+<span class="font-body-sm text-body-sm text-secondary truncate">priya.s@generalstore.in</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">Counter Cashier</span>
+<span class="font-body-sm text-body-sm text-outline">POS Order Desk</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-body-md text-body-md text-on-surface">Vasai Main Store</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Front Register #1 &amp; #2</span>
+</td>
+<td class="py-3.5 px-4 max-w-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                    Order Processing, Counter POS billing, WhatsApp customer dispatch (No API/Settings)
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    Active
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-body-md text-body-md text-on-surface">5 mins ago</span>
+<span class="block font-body-sm text-body-sm text-outline">Register Tablet</span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded text-outline hover:text-primary hover:bg-surface-container transition-colors" onclick="triggerToast('Managing permissions for Priya Sharma')" title="Adjust Roles" type="button">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+<button class="p-1.5 rounded text-outline hover:text-error hover:bg-surface-container transition-colors" onclick="triggerToast('Session revoked for Priya Sharma')" title="Force Signout" type="button">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Member 4: Ramesh Yadav (Pending Invite) -->
+<tr class="hover:bg-surface-container-low/40 transition-colors bg-tertiary-fixed/10">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-tertiary-fixed text-on-tertiary-fixed font-title-md text-title-md flex items-center justify-center shrink-0 border border-tertiary/20">
+                      RY
+                    </div>
+<div class="flex flex-col min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface truncate">Ramesh Yadav</span>
+<span class="font-body-sm text-body-sm text-secondary truncate">+91 98201 44820</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">Fulfillment Associate</span>
+<span class="font-body-sm text-body-sm text-outline">Packing &amp; Label Verification</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<span class="font-body-md text-body-md text-on-surface">Vasai Main Store</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Dispatch Corner</span>
+</td>
+<td class="py-3.5 px-4 max-w-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                    Order picking, packing slips, dispatch labeling, parcel photos
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded font-label-md text-label-md bg-tertiary-fixed text-on-tertiary-fixed-variant border border-tertiary-container/20">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container animate-pulse"></span>
+                    Pending Invite (48h)
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-body-sm text-body-sm text-secondary italic">Invitation Sent</span>
+<span class="block font-body-sm text-body-sm text-outline">SMS &amp; WhatsApp</span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="px-2.5 py-1 rounded bg-surface-container-lowest border border-tertiary-container/30 text-tertiary font-label-md text-label-md hover:bg-tertiary-fixed/30 transition-colors flex items-center gap-1" onclick="triggerToast('Invitation re-sent via WhatsApp and SMS to +91 98201 44820')" type="button">
+<span class="material-symbols-outlined text-[14px]">send</span>
+                      Resend
+                    </button>
+<button class="p-1 rounded text-outline hover:text-error transition-colors" onclick="triggerToast('Invitation for Ramesh Yadav revoked.')" title="Cancel Invitation" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- TAB 2: ROLES & LEAST-PRIVILEGE PERMISSION MATRIX (HIDDEN INITIALLY OR TOGGLEABLE) -->
+<div class="hidden flex flex-col space-y-space-md" id="tab-content-roles">
+<!-- Sovereignty Callout Banner -->
+<div class="p-4 rounded bg-primary-fixed/20 border border-primary-container/30 flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-[22px] shrink-0 mt-0.5">shield</span>
+<div class="flex flex-col space-y-0.5">
+<span class="font-body-md-medium text-body-md-medium text-on-primary-fixed">Owner Sovereignty Protection Enforced</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Sensitive payment routing, nodal bank account modifications, wholesale ledger alterations, and ICANN domain management strictly require Store Owner OTP verification. Floor staff cannot elevate their own tier under any circumstance.
+          </p>
+</div>
+</div>
+<!-- Matrix Table -->
+<div class="bg-surface-container-lowest rounded border border-outline-variant/30 overflow-hidden shadow-sm">
+<div class="p-4 border-b border-outline-variant/30 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface">Capability Matrix Across Preset Roles</span>
+<span class="font-body-sm text-body-sm text-secondary">Defines real device restrictions on checkout counters and godown scanners</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 font-label-md text-label-md text-secondary">
+<span class="w-2 h-2 rounded-full bg-emerald-600"></span> Full Manage
+            </span>
+<span class="inline-flex items-center gap-1 font-label-md text-label-md text-secondary ml-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span> View Only
+            </span>
+<span class="inline-flex items-center gap-1 font-label-md text-label-md text-secondary ml-2">
+<span class="w-2 h-2 rounded-full bg-outline"></span> Restricted
+            </span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/30 bg-surface-container-low/50">
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Functional Area</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Store Owner</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Godown Manager</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Counter Cashier</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Packing Associate</th>
+<th class="py-3 px-4 font-label-md text-label-md uppercase tracking-wider text-secondary">Accountant (External)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20 font-body-sm text-body-sm">
+<!-- Orders -->
+<tr class="hover:bg-surface-container-low/30">
+<td class="py-3 px-4 font-body-md-medium text-body-md-medium text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">receipt_long</span>
+                    Orders &amp; Counter POS
+                  </div>
+</td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+</tr>
+<!-- Products -->
+<tr class="hover:bg-surface-container-low/30">
+<td class="py-3 px-4 font-body-md-medium text-body-md-medium text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">inventory_2</span>
+                    Product Catalog &amp; MRPs
+                  </div>
+</td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+</tr>
+<!-- Inventory -->
+<tr class="hover:bg-surface-container-low/30">
+<td class="py-3 px-4 font-body-md-medium text-body-md-medium text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">warehouse</span>
+                    Stock Inward &amp; Adjustments
+                  </div>
+</td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">Pick &amp; Scan</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+</tr>
+<!-- Payments & Settlements -->
+<tr class="hover:bg-surface-container-low/30">
+<td class="py-3 px-4 font-body-md-medium text-body-md-medium text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">account_balance_wallet</span>
+                    Settlements &amp; Payout Route
+                  </div>
+</td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Reports</span></td>
+</tr>
+<!-- Customer Ledgers -->
+<tr class="hover:bg-surface-container-low/30">
+<td class="py-3 px-4 font-body-md-medium text-body-md-medium text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">contacts</span>
+                    Customer Khata &amp; Credits
+                  </div>
+</td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Full Manage</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Record Entry</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-primary-fixed/40 text-primary">View Only</span></td>
+</tr>
+<!-- Staff & Sovereignty -->
+<tr class="hover:bg-surface-container-low/30">
+<td class="py-3 px-4 font-body-md-medium text-body-md-medium text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">vpn_key</span>
+                    Staff, OTP Keys &amp; Domains
+                  </div>
+</td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Exclusive Sovereignty</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+<td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-label-md text-label-md bg-surface-container text-outline flex items-center gap-1 w-fit"><span class="material-symbols-outlined text-[12px]">lock</span> Restricted</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- TAB 3: LOCATION ASSIGNMENTS -->
+<div class="hidden flex flex-col space-y-space-md" id="tab-content-locations">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Physical Unit 1: Vasai Storefront -->
+<div class="bg-surface-container-lowest p-5 rounded border border-outline-variant/30 flex flex-col justify-between space-y-4">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-secondary uppercase tracking-wider">Unit #01 • Primary Storefront</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Vasai Main Counter</h3>
+<p class="font-body-sm text-body-sm text-secondary">Shop 4-5, Sai Krupa Complex, Station Road, Vasai West</p>
+</div>
+<span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Active Register</span>
+</div>
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant/20 flex flex-col space-y-2">
+<span class="font-label-md text-label-md text-outline uppercase tracking-wider">Stationed Staff (3)</span>
+<div class="flex items-center gap-2">
+<span class="px-2 py-1 bg-surface-container-lowest rounded text-body-sm text-body-sm font-medium border border-outline-variant/30">Himmat Patel (Super Admin)</span>
+<span class="px-2 py-1 bg-surface-container-lowest rounded text-body-sm text-body-sm font-medium border border-outline-variant/30">Priya Sharma (Cashier)</span>
+<span class="px-2 py-1 bg-surface-container-lowest rounded text-body-sm text-body-sm font-medium border border-outline-variant/30 text-tertiary">Ramesh Yadav (Pending)</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-body-sm text-body-sm text-secondary pt-2 border-t border-outline-variant/20">
+<span>Linked Terminals: 2 POS Displays</span>
+<button class="text-primary font-body-md-medium hover:underline" onclick="triggerToast('Opening Vasai terminal management')" type="button">Reassign Staff →</button>
+</div>
+</div>
+<!-- Physical Unit 2: Nalasopara Godown -->
+<div class="bg-surface-container-lowest p-5 rounded border border-outline-variant/30 flex flex-col justify-between space-y-4">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-secondary uppercase tracking-wider">Unit #02 • Bulk Storage &amp; Godown</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Nalasopara Central Godown</h3>
+<p class="font-body-sm text-body-sm text-secondary">Gala 12, Industrial Estate, Pelhar Road, Nalasopara East</p>
+</div>
+<span class="px-2 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-800">Inwarding Active</span>
+</div>
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant/20 flex flex-col space-y-2">
+<span class="font-label-md text-label-md text-outline uppercase tracking-wider">Stationed Staff (2)</span>
+<div class="flex items-center gap-2">
+<span class="px-2 py-1 bg-surface-container-lowest rounded text-body-sm text-body-sm font-medium border border-outline-variant/30">Himmat Patel (Super Admin)</span>
+<span class="px-2 py-1 bg-surface-container-lowest rounded text-body-sm text-body-sm font-medium border border-outline-variant/30">Rajesh Kumar (Inventory Manager)</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-body-sm text-body-sm text-secondary pt-2 border-t border-outline-variant/20">
+<span>Linked Terminals: 1 Zebra Scanner</span>
+<button class="text-primary font-body-md-medium hover:underline" onclick="triggerToast('Opening Godown station controls')" type="button">Reassign Staff →</button>
+</div>
+</div>
+</div>
+</div>
+<!-- TAB 4: ADMINISTRATIVE AUDIT LOG -->
+<div class="hidden flex flex-col space-y-space-md" id="tab-content-audit">
+<div class="bg-surface-container-lowest rounded border border-outline-variant/30 overflow-hidden shadow-sm">
+<div class="p-4 border-b border-outline-variant/30 flex items-center justify-between">
+<div>
+<h3 class="font-title-md text-title-md text-on-surface">Immutable Operations Audit Trail</h3>
+<p class="font-body-sm text-body-sm text-secondary">Verifiable digital ledger logs for store staff activities</p>
+</div>
+<span class="px-2 py-1 rounded bg-surface-container-high text-on-surface font-label-md text-label-md">SHA-256 Ledger Synced</span>
+</div>
+<div class="divide-y divide-outline-variant/20">
+<!-- Event 1 -->
+<div class="p-4 flex items-start justify-between gap-4 hover:bg-surface-container-low/30 transition-colors">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px] text-primary">inventory</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">
+                  Rajesh Kumar recorded stock adjustment (+50 units Aashirvaad Atta 10kg)
+                </span>
+<span class="font-body-sm text-body-sm text-secondary">
+                  Location: Nalasopara Central Godown • Batch #IN-8891 • Source: Supplier Inward Challan
+                </span>
+</div>
+</div>
+<div class="text-right shrink-0">
+<span class="font-body-sm text-body-sm text-on-surface font-medium">Today, 11:42 AM</span>
+<span class="block font-body-sm text-body-sm text-outline">IP 103.22.45.19</span>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="p-4 flex items-start justify-between gap-4 hover:bg-surface-container-low/30 transition-colors">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-tertiary-fixed flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px] text-tertiary">person_add</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">
+                  Himmat Patel invited Ramesh Yadav as Fulfillment &amp; Packing Associate
+                </span>
+<span class="font-body-sm text-body-sm text-secondary">
+                  Dispatch method: WhatsApp SMS Auth • Assigned Storefront: Vasai Main Storefront
+                </span>
+</div>
+</div>
+<div class="text-right shrink-0">
+<span class="font-body-sm text-body-sm text-on-surface font-medium">Yesterday, 04:15 PM</span>
+<span class="block font-body-sm text-body-sm text-outline">Terminal #1 (Owner Key)</span>
+</div>
+</div>
+<!-- Event 3 -->
+<div class="p-4 flex items-start justify-between gap-4 hover:bg-surface-container-low/30 transition-colors">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px] text-primary">point_of_sale</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md-medium text-body-md-medium text-on-surface">
+                  Priya Sharma fulfilled and settled Order #FS-9042 (₹1,480.00)
+                </span>
+<span class="font-body-sm text-body-sm text-secondary">
+                  Vasai Counter Register #1 • Cash Received &amp; Printed Physical GST Bill
+                </span>
+</div>
+</div>
+<div class="text-right shrink-0">
+<span class="font-body-sm text-body-sm text-on-surface font-medium">Yesterday, 01:20 PM</span>
+<span class="block font-body-sm text-body-sm text-outline">POS Tablet #02</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Security Footnote & Trust Indicator -->
+<div class="p-4 rounded bg-surface-container-low border border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-secondary">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">verified</span>
+<span class="font-body-sm text-body-sm">All staff roles operate in compliance with India Digital Personal Data Protection (DPDP) Act requirements.</span>
+</div>
+<div class="flex items-center gap-4 text-outline font-label-md text-label-md">
+<span>FeraSetu Vault v3.4.1</span>
+<span>•</span>
+<span>Sovereign Ledger Online</span>
+</div>
+</div>
+</div>
+<!-- INVITE MODAL OVERLAY -->
+<div class="hidden fixed inset-0 z-50 bg-inverse-surface/40 flex items-center justify-center p-4" id="invite-modal">
+<div class="bg-surface-container-lowest max-w-lg w-full rounded border border-outline-variant/40 shadow-xl p-space-lg flex flex-col space-y-space-md">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-on-surface">Invite Store Staff Member</h2>
+<p class="font-body-sm text-body-sm text-secondary">Assign operational scope and physical access rights.</p>
+</div>
+<button class="text-outline hover:text-on-surface" onclick="toggleInviteModal(false)" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="flex flex-col space-y-4">
+<div class="flex flex-col space-y-1">
+<label class="font-label-md text-label-md text-on-surface">Full Legal Name</label>
+<input class="h-11 px-3 rounded bg-surface-container-lowest border border-outline-variant/40 font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary-container" placeholder="e.g. Suresh Varma" type="text"/>
+</div>
+<div class="flex flex-col space-y-1">
+<label class="font-label-md text-label-md text-on-surface">Phone Number (For WhatsApp OTP)</label>
+<div class="flex">
+<span class="inline-flex items-center px-3 bg-surface-container-low border border-r-0 border-outline-variant/40 font-body-md text-body-md text-secondary rounded-l">+91</span>
+<input class="flex-1 h-11 px-3 rounded-r bg-surface-container-lowest border border-outline-variant/40 font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary-container" placeholder="98200 00000" type="tel"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col space-y-1">
+<label class="font-label-md text-label-md text-on-surface">Assigned Role</label>
+<select class="h-11 px-3 rounded bg-surface-container-lowest border border-outline-variant/40 font-body-sm text-body-sm text-on-surface focus:outline-none">
+<option>Counter &amp; Order Cashier</option>
+<option>Inventory &amp; Godown Manager</option>
+<option>Fulfillment &amp; Packing Associate</option>
+<option>Accountant (Read-Only)</option>
+</select>
+</div>
+<div class="flex flex-col space-y-1">
+<label class="font-label-md text-label-md text-on-surface">Store Location</label>
+<select class="h-11 px-3 rounded bg-surface-container-lowest border border-outline-variant/40 font-body-sm text-body-sm text-on-surface focus:outline-none">
+<option>Vasai Main Storefront</option>
+<option>Nalasopara Central Godown</option>
+<option>Both Locations</option>
+</select>
+</div>
+</div>
+<div class="p-3 bg-surface-container-low rounded border border-outline-variant/20 flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+<span class="font-body-sm text-body-sm text-secondary">
+            Invitation links expire in 48 hours. Floor associates cannot modify bank accounts or billing keys.
+          </span>
+</div>
+</div>
+<div class="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant/20">
+<button class="h-10 px-4 rounded font-body-md-medium text-body-md-medium text-secondary hover:text-on-surface" onclick="toggleInviteModal(false)" type="button">
+          Cancel
+        </button>
+<button class="h-10 px-5 rounded bg-primary-container text-on-primary font-body-md-medium text-body-md-medium hover:bg-primary transition-colors" onclick="toggleInviteModal(false); triggerToast('Invitation dispatched via WhatsApp &amp; SMS');" type="button">
+          Send Direct Invitation
+        </button>
+</div>
+</div>
+</div>
+<!-- TOAST NOTIFICATION STRIP -->
+<div class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none" id="ledger-toast">
+<div class="bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded shadow-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+<span class="font-body-md text-body-md" id="toast-message">Action confirmed</span>
+</div>
+</div>
+</div></main></div></body></html>

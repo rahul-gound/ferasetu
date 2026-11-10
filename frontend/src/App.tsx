@@ -6,6 +6,7 @@ import { AuthKitProvider } from '@workos-inc/authkit-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { MarketProvider } from './contexts/MarketContext';
+import { AiAssistantProvider } from './contexts/AiAssistantContext';
 import { ENABLED_LANGUAGES } from './i18n';
 import ErrorBoundary from './components/ErrorBoundary';
 import { RESERVED_SUBDOMAINS } from './utils/canonicalHostname';
@@ -43,6 +44,8 @@ const CreateGiftCardPage = lazy(() => import('./pages/CreateGiftCardPage'));
 const TransfersPage = lazy(() => import('./pages/TransfersPage'));
 const CreateTransferPage = lazy(() => import('./pages/CreateTransferPage'));
 const DiscountsPage = lazy(() => import('./pages/DiscountsPage'));
+const CommunityPage = lazy(() => import('./pages/CommunityPage'));
+const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage'));
 const WebsiteBuilderPage = lazy(() => import('./pages/WebsiteBuilderPage'));
 const WebsiteSettingsPage = lazy(() => import('./pages/WebsiteSettingsPage'));
 const WebsiteDesignPage = lazy(() => import('./pages/WebsiteDesignPage'));
@@ -230,6 +233,11 @@ function AppRoutes() {
           <Route path="/domains" element={<DomainsPage />} />
           <Route path="/marketing-and-seo" element={<MarketingSeoPage />} />
           <Route path="/marketing-seo" element={<Navigate to="/marketing-and-seo" replace />} />
+          <Route path="/community" element={<CommunityPage />} />
+          <Route path="/help-and-community" element={<Navigate to="/community" replace />} />
+          <Route path="/merchant-community" element={<Navigate to="/community" replace />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/integrations-hub" element={<Navigate to="/integrations" replace />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/operations/payments" element={<Navigate to="/payments" replace />} />
           <Route path="/inventory-and-locations" element={<InventoryLocationsPage />} />
@@ -413,6 +421,7 @@ function AppContent() {
             <BrowserRouter>
               <LanguageProvider>
                 <MarketProvider>
+                    <AiAssistantProvider>
                   <SmoothScroll>
                     <RouteTracker />
                   <ErrorBoundary>
@@ -421,6 +430,7 @@ function AppContent() {
                   <ConsentBanner />
                   <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
                   </SmoothScroll>
+                </AiAssistantProvider>
                 </MarketProvider>
               </LanguageProvider>
             </BrowserRouter>

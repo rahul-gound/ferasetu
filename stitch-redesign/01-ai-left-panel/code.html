@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"tertiary-container":"#bf3003","surface":"#f9f9ff","on-background":"#121c2b","on-tertiary-fixed-variant":"#891e00","surface-variant":"#d9e3f8","on-secondary-container":"#5c6274","surface-container-low":"#f0f3ff","surface-tint":"#004ced","on-secondary-fixed":"#151b2a","secondary-container":"#d9dff4","tertiary-fixed-dim":"#ffb4a1","surface-container-highest":"#d9e3f8","secondary":"#585e6f","tertiary":"#952200","on-primary-container":"#dfe3ff","primary-container":"#0052ff","error-container":"#ffdad6","on-secondary-fixed-variant":"#404757","on-secondary":"#ffffff","surface-container":"#e7eeff","surface-bright":"#f9f9ff","tertiary-fixed":"#ffdbd2","on-surface-variant":"#434656","on-primary-fixed-variant":"#0038b6","surface-container-high":"#dee8fe","on-error-container":"#93000a","inverse-primary":"#b7c4ff","error":"#ba1a1a","outline-variant":"#c3c5d9","secondary-fixed-dim":"#c0c6da","primary-fixed-dim":"#b7c4ff","outline":"#737688","inverse-on-surface":"#ebf1ff","surface-dim":"#d0daef","on-tertiary":"#ffffff","primary":"#003ec7","on-surface":"#121c2b","secondary-fixed":"#dce2f6","surface-container-lowest":"#ffffff","inverse-surface":"#273141","on-primary-fixed":"#001452","background":"#f9f9ff","on-tertiary-container":"#ffddd5","on-error":"#ffffff","on-tertiary-fixed":"#3c0800","primary-fixed":"#dde1ff","on-primary":"#ffffff"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"gutter":"1rem","gutter-desktop":"1.5rem","margin":"1rem","space-md":"1rem","margin-desktop":"2rem","margin-tablet":"1.5rem","space-sm":"0.5rem","space-xs":"0.25rem","space-lg":"1.5rem","space-xl":"2rem"},"fontFamily":{"headline-lg":["Hanken Grotesk"],"title-md":["Hanken Grotesk"],"headline-xl":["Hanken Grotesk"],"numeral-xl":["Hanken Grotesk"],"headline-xl-mobile":["Hanken Grotesk"],"body-md":["Hanken Grotesk"],"body-sm":["Hanken Grotesk"],"body-md-medium":["Hanken Grotesk"],"label-md":["Hanken Grotesk"],"headline-md":["Hanken Grotesk"],"numeral-lg":["Hanken Grotesk"]},"fontSize":{"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.015em","fontWeight":"600"}],"title-md":["17px",{"lineHeight":"24px","fontWeight":"600"}],"headline-xl":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"600"}],"numeral-xl":["40px",{"lineHeight":"44px","fontWeight":"600"}],"headline-xl-mobile":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-md":["15px",{"lineHeight":"22px","fontWeight":"400"}],"body-sm":["13px",{"lineHeight":"18px","fontWeight":"400"}],"body-md-medium":["15px",{"lineHeight":"22px","fontWeight":"500"}],"label-md":["13px",{"lineHeight":"18px","letterSpacing":"0.01em","fontWeight":"500"}],"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"numeral-lg":["28px",{"lineHeight":"32px","fontWeight":"600"}]}}}}</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-screen w-60 bg-surface-container-lowest flex flex-col z-50 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-space-md flex items-center justify-between gap-space-sm bg-surface-container-lowest"><div class="flex items-center gap-space-sm overflow-hidden"><div class="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center flex-shrink-0 font-headline-md text-headline-md font-bold leading-none">FS</div><div class="min-w-0 flex-1"><p class="font-label-md text-label-md text-on-surface truncate">Himmat's General Store</p><p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>Merchant OS</p></div></div><button class="text-on-surface-variant hover:text-on-surface p-1 rounded transition-colors" type="button"><span class="material-symbols-outlined text-[18px]">unfold_more</span></button></div><div class="flex-1 overflow-y-auto px-space-sm py-space-sm space-y-4"><nav class="space-y-4" data-active-classes="bg-primary-container text-on-primary font-body-md-medium"><div class="space-y-1"><div class="px-2 py-1 font-label-md text-label-md uppercase tracking-wider text-on-surface-variant/80 font-semibold">Overview</div><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="overview" href="#"><span class="material-symbols-outlined text-[18px]">dashboard</span>Overview</a></div><div class="space-y-1"><div class="px-2 py-1 font-label-md text-label-md uppercase tracking-wider text-on-surface-variant/80 font-semibold">Business</div><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="orders" href="#"><span class="material-symbols-outlined text-[18px]">receipt_long</span>Orders</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="products" href="#"><span class="material-symbols-outlined text-[18px]">inventory_2</span>Products</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="customers" href="#"><span class="material-symbols-outlined text-[18px]">group</span>Customers</a></div><div class="space-y-1"><div class="px-2 py-1 font-label-md text-label-md uppercase tracking-wider text-on-surface-variant/80 font-semibold">Your Store</div><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="website-and-design" href="#"><span class="material-symbols-outlined text-[18px]">storefront</span>Website &amp; Design</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="pages-and-content" href="#"><span class="material-symbols-outlined text-[18px]">article</span>Pages &amp; Content</a><a aria-current="page" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-colors bg-primary-container text-on-primary font-body-md-medium" data-path="domains" href="#"><span class="material-symbols-outlined text-[18px]">language</span>Domains</a></div><div class="space-y-1"><div class="px-2 py-1 font-label-md text-label-md uppercase tracking-wider text-on-surface-variant/80 font-semibold">Growth</div><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="analytics" href="#"><span class="material-symbols-outlined text-[18px]">monitoring</span>Analytics</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="marketing-and-seo" href="#"><span class="material-symbols-outlined text-[18px]">campaign</span>Marketing &amp; SEO</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="integrations" href="#"><span class="material-symbols-outlined text-[18px]">hub</span>Integrations</a></div><div class="space-y-1"><div class="px-2 py-1 font-label-md text-label-md uppercase tracking-wider text-on-surface-variant/80 font-semibold">Operations</div><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="payments" href="#"><span class="material-symbols-outlined text-[18px]">account_balance_wallet</span>Payments</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="inventory-and-locations" href="#"><span class="material-symbols-outlined text-[18px]">warehouse</span>Inventory &amp; Locations</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="staff" href="#"><span class="material-symbols-outlined text-[18px]">badge</span>Staff</a></div></nav></div><div class="p-space-sm bg-surface-container-low space-y-1 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><a class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="ferasetu-ai" href="#"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[18px] text-tertiary-container">auto_awesome</span><span>FeraSetu AI</span></div><span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-tertiary-fixed text-on-tertiary-fixed">BETA</span></a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="help-and-learning" href="#"><span class="material-symbols-outlined text-[18px]">help_outline</span>Help &amp; Community</a><a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-body-md text-body-md" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">settings</span>Settings</a></div></aside><div class="pl-60 min-h-screen bg-surface"><header class="fixed top-0 left-60 right-0 h-16 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 px-gutter-desktop flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md"><div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold"><span class="material-symbols-outlined text-[16px]">verified</span>Verified Kirana</div><div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container text-on-surface font-label-md text-label-md"><span class="w-2 h-2 rounded-full bg-primary inline-block"></span>Store is open</div></div><div class="flex-1 max-w-md mx-4"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-[18px] text-on-surface-variant pointer-events-none">search</span><input class="w-full h-10 pl-9 pr-14 rounded-lg bg-surface-container-low text-body-sm font-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Search orders, inventory, settlements..." type="text"/><div class="absolute right-2 px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant text-[11px] font-mono pointer-events-none">⌘K</div></div></div><div class="flex items-center gap-space-sm"><button class="h-10 px-3.5 rounded-lg bg-primary-container text-on-primary font-body-md-medium text-body-md-medium flex items-center gap-1.5 transition-colors" type="button"><span class="material-symbols-outlined text-[18px]">arrow_back_ios_new</span>Ask AI</button><a class="h-10 px-3 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface flex items-center gap-1 font-body-sm text-body-sm transition-colors" data-path="documentation" href="#">Docs</a><div class="flex items-center h-8 px-2 rounded-lg bg-surface-container-low text-on-surface-variant font-label-md text-label-md"><span class="text-primary font-semibold">EN</span><span class="mx-1 text-outline-variant">/</span><span class="hover:text-on-surface cursor-pointer">हिन्दी</span></div><button class="w-10 h-10 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface relative transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-tertiary-container"></span></button><div class="flex items-center gap-2 pl-2 border-l border-surface-variant"><div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-fixed flex items-center justify-center font-label-md text-label-md font-bold">HP</div><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1Uv5M9sRsiNbN2-C42d9EHfvuerpfO22LFJRY8JCeorCIELY2fvg4DP9BdAzVqjX5GY8JLkseln_24jJJ0zLlOe41WtEDTAONjJbujX4hhrTfST01sndBONhh8cPmXiiXoqRxd0q_Yabx-t3o3PUeXi07NnVuALf9Ee5be7GmhIp9FPHkhEeoEC-BVgxTcpORZV6fO0B8tdmlMDap9vqRD8Guz4vnQ7qof001Zmt9VmX1y39LL1I4oFltc"/></div></div></header><main class="relative w-full pt-16 bg-surface px-gutter-desktop py-space-lg"><div class="flex flex-col w-full">
+<!-- Interactive Canvas Shell containing AI Docked Panel (380px) and Page Main Workspace -->
+<div class="relative flex w-full min-h-[calc(100vh-4rem)] bg-surface text-on-surface">
+<!-- 1. FERASETU AI ASSISTANT PERSISTENT LEFT PANEL (380px Fixed Width) -->
+<aside class="w-[380px] flex-shrink-0 bg-surface-container-lowest flex flex-col z-30 shadow-sm transition-all duration-300" id="ferasetu-ai-panel">
+<!-- Panel Header -->
+<div class="p-space-md bg-surface-container-lowest flex items-center justify-between gap-2">
+<div class="flex items-center gap-2 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md text-on-surface truncate">FeraSetu AI</span>
+<span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-tertiary-fixed text-on-tertiary-fixed leading-none">BETA</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Helping with Domains &amp; DNS</p>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="New Session" type="button">
+<span class="material-symbols-outlined text-[18px]">add_comment</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="History" type="button">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" id="toggle-ai-panel" title="Close Panel" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- Active Context Pill/Banner -->
+<div class="px-space-md py-2 bg-tertiary-fixed/30 flex items-center justify-between gap-2">
+<div class="flex items-center gap-2 min-w-0">
+<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse flex-shrink-0"></span>
+<p class="font-label-md text-label-md text-on-tertiary-fixed-variant truncate">
+            Context: <span class="font-semibold">himmat.store</span> DNS Mismatch
+          </p>
+</div>
+<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-tertiary-fixed text-tertiary">1 Alert</span>
+</div>
+<!-- Scrollable Conversation Stream -->
+<div class="flex-1 overflow-y-auto p-space-md space-y-4">
+<!-- Assistant Initial Contextual Greeting -->
+<div class="flex gap-2.5 items-start">
+<div class="w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+</div>
+<div class="space-y-1.5 flex-1 min-w-0">
+<div class="bg-surface-container-low p-3 rounded-lg rounded-tl-none text-on-surface space-y-2">
+<p class="font-body-md text-body-md">
+                Namaste Himmat. I'm actively monitoring your Domains ledger. I identified an unresolved CNAME configuration on <strong class="text-on-surface font-semibold">himmat.store</strong>.
+              </p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                It is currently anchored to an unconfigured registrar parking address (<code class="bg-surface-container-high px-1 py-0.5 rounded text-[12px] font-mono text-tertiary">192.64.119.1</code>), blocking web visits.
+              </p>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant px-1">10:41 AM • Automated Inspection</span>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex gap-2.5 items-start justify-end">
+<div class="space-y-1 max-w-[85%]">
+<div class="bg-primary text-on-primary p-3 rounded-lg rounded-tr-none">
+<p class="font-body-md text-body-md">
+                How do I fix this in GoDaddy / Namecheap without breaking WhatsApp store links?
+              </p>
+</div>
+<div class="text-right px-1">
+<span class="font-body-sm text-[11px] text-on-surface-variant">10:42 AM</span>
+</div>
+</div>
+</div>
+<!-- Assistant Rich Step-by-Step Response -->
+<div class="flex gap-2.5 items-start">
+<div class="w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+</div>
+<div class="space-y-3 flex-1 min-w-0">
+<div class="bg-surface-container-low p-3.5 rounded-lg rounded-tl-none text-on-surface space-y-3">
+<!-- Verification Header Badge -->
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span class="font-label-md text-label-md font-semibold tracking-wide uppercase text-[11px]">Official FeraSetu Protocol</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface leading-snug">
+                Follow these 3 precise adjustments in your registrar console:
+              </p>
+<!-- Ordered Steps with high legible tabular presentation -->
+<div class="space-y-2 font-body-sm text-body-sm">
+<div class="flex items-start gap-2 bg-surface-container-lowest p-2 rounded">
+<span class="w-5 h-5 rounded-full bg-surface-container-high text-on-surface font-semibold flex items-center justify-center text-[11px] flex-shrink-0">1</span>
+<p class="text-on-surface"><span class="font-medium">Open Namecheap</span> → Manage → Advanced DNS Tab for <strong class="font-semibold">himmat.store</strong>.</p>
+</div>
+<div class="flex items-start gap-2 bg-surface-container-lowest p-2 rounded">
+<span class="w-5 h-5 rounded-full bg-tertiary-fixed text-tertiary font-semibold flex items-center justify-center text-[11px] flex-shrink-0">2</span>
+<p class="text-on-surface">Delete legacy Parking <span class="font-mono bg-surface-container px-1 rounded text-[11px]">A Record</span> pointing to <code class="text-tertiary">192.64.119.1</code>.</p>
+</div>
+<div class="flex items-start gap-2 bg-surface-container-lowest p-2 rounded">
+<span class="w-5 h-5 rounded-full bg-surface-container-high text-on-surface font-semibold flex items-center justify-center text-[11px] flex-shrink-0">3</span>
+<div class="space-y-1 text-on-surface">
+<p class="font-medium">Create Primary Canonical Name:</p>
+<div class="bg-surface-container-low p-1.5 rounded font-mono text-[11px] text-on-surface-variant">
+                      Type: <span class="text-primary font-bold">CNAME</span><br/>
+                      Host: <span class="text-primary font-bold">@</span><br/>
+                      Target: <span class="text-primary font-bold">shops.ferasetu.store</span><br/>
+                      TTL: <span>300 (Automatic)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Review Action Block -->
+<div class="p-3 bg-surface-container-lowest rounded-lg space-y-2.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-semibold text-on-surface">Safe Record Payload</span>
+<span class="px-2 py-0.5 bg-surface-container-high text-on-surface-variant rounded text-[10px] uppercase font-bold tracking-wider">Awaiting Check</span>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 h-9 px-3 bg-primary hover:bg-primary-container text-on-primary rounded font-label-md text-label-md transition-colors flex items-center justify-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px]">sync_alt</span>
+                    Run Diagnostic
+                  </button>
+<button class="h-9 px-3 bg-surface-container-low hover:bg-surface-container text-on-surface rounded font-label-md text-label-md transition-colors flex items-center justify-center" type="button">
+                    Locate
+                  </button>
+</div>
+</div>
+<!-- Reassurance Callout -->
+<div class="flex items-start gap-2 p-2 bg-surface-container rounded text-on-surface-variant font-body-sm text-[12px] leading-relaxed">
+<span class="material-symbols-outlined text-[16px] text-primary flex-shrink-0 mt-0.5">shield</span>
+<span>WhatsApp catalog links anchor to <strong class="text-on-surface">himmatcrafts.ferasetu.store</strong> and endure with 100% continuous uptime.</span>
+</div>
+</div>
+<!-- Community Sourced Solution Card -->
+<div class="p-3 bg-surface-container-lowest rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 text-on-surface-variant text-[11px] font-label-md mb-1">
+<span class="material-symbols-outlined text-[14px]">forum</span>
+<span>Kirana Tech Circle • 42 Upvotes</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface group-hover:text-primary transition-colors font-medium">
+                “How do I map a custom domain without 404 errors?”
+              </p>
+<p class="font-body-sm text-[12px] text-on-surface-variant mt-0.5">Answered by Suresh M. (Parel General Stores)</p>
+</div>
+<span class="font-body-sm text-[11px] text-on-surface-variant px-1">10:42 AM</span>
+</div>
+</div>
+</div>
+<!-- Quick Prompt Suggestion Chips -->
+<div class="px-space-md py-2 bg-surface-container-lowest flex flex-wrap gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-body-sm transition-colors flex items-center gap-1 text-[12px]" type="button">
+<span>हिन्दी में समझाएं</span>
+</button>
+<button class="px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-body-sm transition-colors text-[12px]" type="button">
+          Check SSL propagation
+        </button>
+<button class="px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-body-sm transition-colors text-[12px]" type="button">
+          Verify Namecheap now
+        </button>
+</div>
+<!-- AI Fixed Bottom Input Box -->
+<div class="p-space-md bg-surface-container-lowest space-y-2">
+<form class="relative flex items-center" onsubmit="event.preventDefault();">
+<input class="w-full h-11 pl-3.5 pr-11 rounded-lg bg-surface-container-low text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ask anything about this page or DNS..." type="text"/>
+<button class="absolute right-1.5 w-8 h-8 rounded-lg bg-primary text-on-primary hover:bg-primary-container flex items-center justify-center transition-colors shadow-sm" title="Send Message" type="submit">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+</button>
+</form>
+<div class="flex items-center justify-between text-[11px] font-body-sm text-on-surface-variant px-1">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">lock</span> Context isolated</span>
+<span>Zero credential leaks</span>
+</div>
+</div>
+</aside>
+<!-- 2. MAIN PAGE WORKSPACE (Domains Diagnostics & Resolution Management) -->
+<main class="flex-1 min-w-0 p-space-lg space-y-6">
+<!-- Breadcrumbs & Page Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-md text-body-sm">
+<span>Settings &amp; Store</span>
+<span>/</span>
+<span class="text-on-surface font-medium">Domains</span>
+</div>
+<div class="flex items-center gap-3">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Domains &amp; DNS Routing</h1>
+<span class="px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-label-md text-label-md flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary inline-block"></span>
+              Live Storefront Resolving
+            </span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-10 px-4 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-body-md-medium text-body-md transition-colors shadow-sm flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[18px]">cached</span>
+            Refresh Telemetry
+          </button>
+<button class="h-10 px-4 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-body-md-medium text-body-md transition-colors shadow-sm flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            Connect Custom Domain
+          </button>
+</div>
+</div>
+<!-- Critical Diagnostic Triage Banner -->
+<div class="p-space-md rounded-lg bg-tertiary-fixed/40 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+<div class="flex items-start gap-3">
+<div class="w-9 h-9 rounded-lg bg-tertiary-container text-on-tertiary flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">warning</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-on-surface">Triage: 1 Missing DNS Record Detected</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+              Domain <strong class="text-on-surface">himmat.store</strong> has an active A-Record pointing to registrar parking IP (<code class="font-mono text-tertiary">192.64.119.1</code>) instead of the high-speed edge cluster.
+            </p>
+</div>
+</div>
+<div class="flex items-center gap-2 flex-shrink-0">
+<button class="h-9 px-3.5 rounded bg-tertiary-container hover:bg-tertiary text-on-tertiary font-label-md text-label-md transition-colors flex items-center gap-1.5 shadow-sm" type="button">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+            Fix with FeraSetu AI
+          </button>
+</div>
+</div>
+<!-- Real-Time Edge Telemetry Strip -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Metric 1: Configured Nodes -->
+<div class="p-space-md bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md uppercase tracking-wider text-[11px]">Active Routing</span>
+<span class="material-symbols-outlined text-[18px]">hub</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-numeral-xl text-numeral-xl text-on-surface">2</span>
+<span class="font-title-md text-title-md text-on-surface-variant">/ 3 Domains</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-2">
+<div class="bg-primary h-full w-2/3"></div>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant pt-1">1 secondary alias unresolved</p>
+</div>
+<!-- Metric 2: Latency -->
+<div class="p-space-md bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md uppercase tracking-wider text-[11px]">India Edge TTFB</span>
+<span class="material-symbols-outlined text-[18px]">speed</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-numeral-xl text-numeral-xl text-on-surface">21.8</span>
+<span class="font-title-md text-title-md text-on-surface-variant">ms mean</span>
+</div>
+<div class="flex items-center gap-1 text-[12px] font-body-sm text-primary">
+<span class="material-symbols-outlined text-[14px]">arrow_downward</span>
+<span>Sub-35ms across 4 Indian metros</span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant pt-1">Cloudflare BOM / DEL Edge</p>
+</div>
+<!-- Metric 3: Automated SSL Certificates -->
+<div class="p-space-md bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md uppercase tracking-wider text-[11px]">TLS Automated Vault</span>
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-on-surface font-semibold">TLS 1.3 Active</span>
+</div>
+<div class="flex items-center gap-1 text-[12px] font-body-sm text-on-surface-variant">
+<span>256-Bit ECDSA Auto-Renewal</span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant pt-1">Next rotation: in 82 days</p>
+</div>
+<!-- Metric 4: Propagation Status -->
+<div class="p-space-md bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md uppercase tracking-wider text-[11px]">Sync Pulse</span>
+<span class="material-symbols-outlined text-[18px]">radar</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-numeral-xl text-numeral-xl text-on-surface font-mono">00:39</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">poll cycle</span>
+</div>
+<div class="flex items-center gap-1 text-[12px] font-body-sm text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-primary inline-block"></span>
+<span>Authoritative SOA listening</span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant pt-1">TTL query: recursive uncached</p>
+</div>
+</div>
+<!-- Domain Resolution & Node Routing Ledger Table -->
+<div class="bg-surface-container-lowest rounded-lg shadow-sm overflow-hidden space-y-0">
+<!-- Table Control Bar -->
+<div class="p-space-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest">
+<div class="space-y-0.5">
+<h2 class="font-title-md text-title-md text-on-surface">Configured Domain Endpoints</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">All inbound requests route through FeraSetu distributed retail gateways</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-body-sm font-body-sm text-on-surface-variant">3 Registrations</span>
+</div>
+</div>
+<!-- Ledger Data Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-md text-body-md">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-label-md text-label-md uppercase tracking-wider text-[11px]">
+<th class="py-3 px-4">Domain Endpoint</th>
+<th class="py-3 px-4">Type &amp; Registrar</th>
+<th class="py-3 px-4">DNS Target Value</th>
+<th class="py-3 px-4">SSL Vault</th>
+<th class="py-3 px-4 text-right">Edge TTFB (BOM)</th>
+<th class="py-3 px-4 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y-0">
+<!-- Row 1: himmatcrafts.com -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<div>
+<span class="font-body-md-medium text-body-md-medium text-on-surface">himmatcrafts.com</span>
+<span class="block font-body-sm text-[12px] text-on-surface-variant">Apex Domain (A + CNAME)</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">GoDaddy DNS</span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-primary font-semibold text-[11px]">PRIMARY</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<code class="font-mono text-body-sm text-on-surface bg-surface-container px-1.5 py-0.5 rounded">shops.ferasetu.store</code>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-primary font-label-md text-[11px]">
+<span class="material-symbols-outlined text-[13px]">lock</span> TLS Grade A+
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right font-mono font-numeral-lg text-[15px] text-on-surface">
+                  18 ms
+                </td>
+<td class="py-3.5 px-4 text-right">
+<button class="h-8 px-2.5 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors" type="button">
+                    Manage
+                  </button>
+</td>
+</tr>
+<!-- Row 2: himmatcrafts.ferasetu.store (Native Fallback) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<div>
+<span class="font-body-md-medium text-body-md-medium text-on-surface">himmatcrafts.ferasetu.store</span>
+<span class="block font-body-sm text-[12px] text-on-surface-variant">Native Subdomain • WhatsApp Routing</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">FeraSetu Core</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface font-semibold text-[11px]">SYSTEM</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<span class="font-body-sm text-on-surface-variant italic">Direct Edge Binding</span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-primary font-label-md text-[11px]">
+<span class="material-symbols-outlined text-[13px]">lock</span> Managed Wildcard
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right font-mono font-numeral-lg text-[15px] text-on-surface">
+                  14 ms
+                </td>
+<td class="py-3.5 px-4 text-right">
+<span class="text-[12px] font-body-sm text-on-surface-variant">Default Fallback</span>
+</td>
+</tr>
+<!-- Row 3: himmat.store (The Disputed/Action Required Record) -->
+<tr class="bg-tertiary-fixed/20 hover:bg-tertiary-fixed/30 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+<div>
+<span class="font-body-md-medium text-body-md-medium text-on-surface font-semibold">himmat.store</span>
+<span class="block font-body-sm text-[12px] text-tertiary font-medium">Secondary Brand Alias • Resolution Failed</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">Namecheap DNS</span>
+<span class="px-2 py-0.5 rounded bg-tertiary-container text-on-tertiary font-semibold text-[11px]">MISCONFIGURED</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-1.5">
+<code class="font-mono text-body-sm text-tertiary line-through bg-surface-container-lowest px-1.5 py-0.5 rounded">192.64.119.1</code>
+<span class="material-symbols-outlined text-[14px] text-tertiary">arrow_forward</span>
+<code class="font-mono text-body-sm text-primary font-semibold">shops.ferasetu.store</code>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">
+<span class="material-symbols-outlined text-[13px]">pending</span> CSR Awaiting DNS
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right font-mono font-numeral-lg text-[15px] text-tertiary">
+                  Unreachable
+                </td>
+<td class="py-3.5 px-4 text-right">
+<button class="h-8 px-3 rounded bg-tertiary-container hover:bg-tertiary text-on-tertiary font-label-md text-label-md transition-colors flex items-center gap-1 ml-auto" type="button">
+<span class="material-symbols-outlined text-[14px]">build</span>
+                    Repair
+                  </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Summary / Footer -->
+<div class="p-space-md bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary">info</span>
+<span>All active stores support instant automatic SNI routing for incoming HTTPS traffic.</span>
+</div>
+<a class="text-primary hover:underline font-label-md text-label-md flex items-center gap-1" href="#">
+<span>DNS Troubleshooting Handbook</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Indian Edge Node Telemetry Grid -->
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-title-md text-title-md text-on-surface">Domestic Edge Health &amp; CDN Nodes</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Real-time roundtrip ping speeds directly to neighborhood shoppers</p>
+</div>
+<span class="px-2.5 py-1 rounded bg-surface-container-high text-on-surface font-label-md text-[12px]">All 4 Indian PoPs Operational</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<!-- Node 1: Mumbai -->
+<div class="p-3 bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">Mumbai (BOM-01)</span>
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant">Primary Transit Node</p>
+<div class="flex items-baseline gap-1 pt-1 font-mono">
+<span class="font-headline-md text-headline-md text-on-surface">18</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant">ms</span>
+</div>
+</div>
+<!-- Node 2: Delhi -->
+<div class="p-3 bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">Delhi NCR (DEL-02)</span>
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant">North Cluster</p>
+<div class="flex items-baseline gap-1 pt-1 font-mono">
+<span class="font-headline-md text-headline-md text-on-surface">26</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant">ms</span>
+</div>
+</div>
+<!-- Node 3: Bengaluru -->
+<div class="p-3 bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">Bengaluru (BLR-01)</span>
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant">South Central Spine</p>
+<div class="flex items-baseline gap-1 pt-1 font-mono">
+<span class="font-headline-md text-headline-md text-on-surface">31</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant">ms</span>
+</div>
+</div>
+<!-- Node 4: Chennai -->
+<div class="p-3 bg-surface-container-lowest rounded-lg shadow-sm space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">Chennai (MAA-01)</span>
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant">Subsea Gateway</p>
+<div class="flex items-baseline gap-1 pt-1 font-mono">
+<span class="font-headline-md text-headline-md text-on-surface">29</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant">ms</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+<script>
+  // Panel Collapse / Expand toggle functionality
+  (function() {
+    const toggleBtn = document.getElementById('toggle-ai-panel');
+    const panel = document.getElementById('ferasetu-ai-panel');
+    
+    if (toggleBtn && panel) {
+      toggleBtn.addEventListener('click', function() {
+        if (panel.style.width === '0px' || panel.classList.contains('w-0')) {
+          panel.classList.remove('w-0', 'overflow-hidden', 'p-0');
+          panel.classList.add('w-[380px]');
+        } else {
+          panel.classList.remove('w-[380px]');
+          panel.classList.add('w-0', 'overflow-hidden', 'p-0');
+        }
+      });
+    }
+  })();
+</script></main></div></body></html>

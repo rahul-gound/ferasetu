@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"outline-variant":"#c3c5d9","on-error":"#ffffff","primary-fixed-dim":"#b7c4ff","on-primary-fixed-variant":"#0038b6","secondary-fixed-dim":"#c0c6da","secondary-container":"#d9dff4","tertiary-fixed-dim":"#ffb4a1","surface-tint":"#004ced","on-tertiary-container":"#ffddd5","on-primary-container":"#dfe3ff","primary":"#003ec7","primary-container":"#0052ff","surface-bright":"#f9f9ff","background":"#f9f9ff","inverse-primary":"#b7c4ff","surface-container":"#e7eeff","on-secondary":"#ffffff","on-secondary-container":"#5c6274","on-error-container":"#93000a","surface-container-high":"#dee8fe","inverse-on-surface":"#ebf1ff","on-primary-fixed":"#001452","on-tertiary-fixed":"#3c0800","on-secondary-fixed-variant":"#404757","on-tertiary":"#ffffff","primary-fixed":"#dde1ff","outline":"#737688","tertiary-fixed":"#ffdbd2","surface-container-low":"#f0f3ff","on-tertiary-fixed-variant":"#891e00","tertiary":"#952200","surface-container-lowest":"#ffffff","on-surface":"#121c2b","error-container":"#ffdad6","on-background":"#121c2b","secondary-fixed":"#dce2f6","error":"#ba1a1a","tertiary-container":"#bf3003","surface":"#f9f9ff","inverse-surface":"#273141","surface-container-highest":"#d9e3f8","surface-variant":"#d9e3f8","on-primary":"#ffffff","secondary":"#585e6f","surface-dim":"#d0daef","on-surface-variant":"#434656","on-secondary-fixed":"#151b2a"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},spacing:{"margin":"1rem","space-md":"1rem","space-xl":"2rem","space-lg":"1.5rem","space-sm":"0.5rem","gutter":"1rem","margin-tablet":"1.5rem","margin-desktop":"2rem","gutter-desktop":"1.5rem","space-xs":"0.25rem"},fontFamily:{"label-md":["Hanken Grotesk"],"numeral-lg":["Hanken Grotesk"],"title-md":["Hanken Grotesk"],"headline-xl-mobile":["Hanken Grotesk"],"body-md":["Hanken Grotesk"],"numeral-xl":["Hanken Grotesk"],"headline-md":["Hanken Grotesk"],"body-md-medium":["Hanken Grotesk"],"headline-lg":["Hanken Grotesk"],"headline-xl":["Hanken Grotesk"],"body-sm":["Hanken Grotesk"]},fontSize:{"label-md":["13px",{lineHeight:"18px",letterSpacing:"0.01em",fontWeight:"500"}],"numeral-lg":["28px",{lineHeight:"32px",fontWeight:"600"}],"title-md":["17px",{lineHeight:"24px",fontWeight:"600"}],"headline-xl-mobile":["32px",{lineHeight:"40px",letterSpacing:"-0.02em",fontWeight:"600"}],"body-md":["15px",{lineHeight:"22px",fontWeight:"400"}],"numeral-xl":["40px",{lineHeight:"44px",fontWeight:"600"}],"headline-md":["22px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-md-medium":["15px",{lineHeight:"22px",fontWeight:"500"}],"headline-lg":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],"headline-xl":["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"600"}],"body-sm":["13px",{lineHeight:"18px",fontWeight:"400"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-screen w-64 bg-surface-container-lowest border-r border-outline-variant/30 z-50 flex flex-col justify-between overflow-y-auto"><div class="flex flex-col"><div class="h-16 px-space-md border-b border-outline-variant/20 flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm"><span class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md">FS</span><div class="flex flex-col"><span class="font-title-md text-title-md text-on-surface leading-tight tracking-tight">FeraSetu</span><span class="font-body-sm text-body-sm text-secondary leading-none">Merchant OS</span></div></div><span class="material-symbols-outlined text-outline text-[18px] cursor-pointer">unfold_more</span></div><div class="p-space-sm border-b border-outline-variant/20"><div class="bg-surface-container-low rounded-lg p-space-sm flex items-center justify-between"><div class="flex flex-col min-w-0 pr-space-xs"><span class="font-body-md-medium text-body-md-medium text-on-surface truncate">Himmat's General Store</span><div class="flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span class="font-body-sm text-body-sm text-secondary truncate">Storefront Live</span></div></div><span class="material-symbols-outlined text-outline text-[18px]">storefront</span></div></div><nav class="flex flex-col py-space-sm px-space-xs space-y-4" data-active-classes="bg-surface-container text-primary font-body-md-medium"><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Overview</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="overview" href="#"><span class="material-symbols-outlined text-[18px]">space_dashboard</span><span class="font-body-md text-body-md">Overview</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Business</div><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="orders" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px]">receipt_long</span><span class="font-body-md text-body-md">Orders</span></div><span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-secondary-container text-on-secondary-container">2</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="products" href="#"><span class="material-symbols-outlined text-[18px]">inventory_2</span><span class="font-body-md text-body-md">Products</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="customers" href="#"><span class="material-symbols-outlined text-[18px]">group</span><span class="font-body-md text-body-md">Customers</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Your Store</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="website-and-design" href="#"><span class="material-symbols-outlined text-[18px]">palette</span><span class="font-body-md text-body-md">Website &amp; Design</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="pages-and-content" href="#"><span class="material-symbols-outlined text-[18px]">article</span><span class="font-body-md text-body-md">Pages &amp; Content</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="domains" href="#"><span class="material-symbols-outlined text-[18px]">language</span><span class="font-body-md text-body-md">Domains</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Growth</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="analytics" href="#"><span class="material-symbols-outlined text-[18px]">monitoring</span><span class="font-body-md text-body-md">Analytics</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="marketing-and-seo" href="#"><span class="material-symbols-outlined text-[18px]">campaign</span><span class="font-body-md text-body-md">Marketing &amp; SEO</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="integrations" href="#"><span class="material-symbols-outlined text-[18px]">hub</span><span class="font-body-md text-body-md">Integrations</span></a></div><div class="flex flex-col space-y-0.5"><div class="px-space-sm py-1 font-label-md text-label-md uppercase tracking-wider text-outline">Operations</div><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="payments" href="#"><span class="material-symbols-outlined text-[18px]">account_balance_wallet</span><span class="font-body-md text-body-md">Payments</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-sm py-2 rounded transition-colors bg-surface-container text-primary font-body-md-medium" data-path="inventory-and-locations" href="#"><span class="material-symbols-outlined text-[18px]">warehouse</span><span class="font-body-md text-body-md">Inventory &amp; Locations</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="staff" href="#"><span class="material-symbols-outlined text-[18px]">badge</span><span class="font-body-md text-body-md">Staff</span></a></div></nav></div><div class="p-space-sm border-t border-outline-variant/20 flex flex-col space-y-1 bg-surface-container-lowest"><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="ferasetu-ai" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[18px]">auto_awesome</span><span class="font-body-md-medium text-body-md-medium text-on-surface">FeraSetu AI</span></div><span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-primary-fixed text-on-primary-fixed uppercase tracking-wider">Beta</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="help-and-learning" href="#"><span class="material-symbols-outlined text-[18px]">help_center</span><span class="font-body-md text-body-md">Help &amp; Learning</span></a><a class="flex items-center gap-space-sm px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">settings</span><span class="font-body-md text-body-md">Settings</span></a></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest border-b border-outline-variant/20 z-40 px-space-lg flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md flex-1 max-w-xl"><div class="flex items-center gap-2 px-space-sm py-1 bg-surface-container-low rounded border border-outline-variant/30 text-nowrap"><span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span class="font-label-md text-label-md text-on-surface">Verified Kirana</span><span class="text-outline font-label-md text-label-md">•</span><span class="font-label-md text-label-md text-secondary">Store is open</span></div><div class="flex-1 relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span><input class="w-full h-10 pl-9 pr-3 rounded bg-surface-container-lowest border border-outline-variant/40 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container" placeholder="Search orders, products, operations... (⌘K)" type="text"/></div></div><div class="flex items-center gap-space-sm"><button class="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary-container/30 bg-primary-fixed/20 text-primary hover:bg-primary-fixed/40 transition-colors" type="button"><span class="material-symbols-outlined text-[18px]">arrow_back_ios_new</span><span class="font-label-md text-label-md font-medium">Ask AI</span></button><a class="px-2.5 py-1.5 rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" href="#">Docs</a><div class="flex items-center border border-outline-variant/40 rounded overflow-hidden"><button class="px-2 py-1 font-label-md text-label-md bg-surface-container text-primary font-medium" type="button">EN</button><button class="px-2 py-1 font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant hover:text-on-surface" type="button">हिन्दी</button></div><button class="relative p-2 rounded text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error inline-block"></span></button><div class="flex items-center gap-space-sm pl-space-xs border-l border-outline-variant/30"><div class="flex flex-col text-right"><span class="font-body-md-medium text-body-md-medium text-on-surface leading-tight">Himmat Patel</span><span class="font-body-sm text-body-sm text-secondary leading-none">Owner</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1Uv5M9sRsiNbN2-C42d9EHfvuerpfO22LFJRY8JCeorCIELY2fvg4DP9BdAzVqjX5GY8JLkseln_24jJJ0zLlOe41WtEDTAONjJbujX4hhrTfST01sndBONhh8cPmXiiXoqRxd0q_Yabx-t3o3PUeXi07NnVuALf9Ee5be7GmhIp9FPHkhEeoEC-BVgxTcpORZV6fO0B8tdmlMDap9vqRD8Guz4vnQ7qof001Zmt9VmX1y39LL1I4oFltc"/></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<div class="max-w-[1280px] w-full mx-auto px-space-md md:px-margin-desktop py-space-lg space-y-space-lg">
+<!-- Workspace Header -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface">Inventory &amp; Locations</span>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container text-primary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>
+            Multi-Node Active
+          </span>
+</div>
+<p class="font-body-md text-body-md text-secondary max-w-2xl">
+          Keep track of your products, available stock across multiple physical locations, and manage stock transfers.
+        </p>
+</div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="h-11 px-4 rounded bg-surface-container-lowest text-on-surface font-body-md-medium text-body-md-medium shadow-sm hover:bg-surface-container-low transition-colors flex items-center gap-2" id="openTransferBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+<span>Transfer Stock</span>
+</button>
+<button class="h-11 px-4 rounded bg-primary-container text-on-primary font-body-md-medium text-body-md-medium shadow-sm hover:opacity-95 transition-opacity flex items-center gap-2" id="openAdjustModalBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+<span>Record Stock Adjustment</span>
+</button>
+</div>
+</div>
+<!-- Ledger Internal Tabs Navigation -->
+<div class="bg-surface-container-low rounded-lg p-1 flex items-center gap-1 overflow-x-auto">
+<button class="tab-btn px-3.5 py-1.5 rounded bg-surface-container-lowest text-primary font-body-md-medium text-body-md-medium shadow-sm flex items-center gap-2 whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">inventory_2</span>
+<span>Inventory Ledger</span>
+<span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-primary-fixed text-on-primary-fixed">86</span>
+</button>
+<button class="tab-btn px-3.5 py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-md text-body-md transition-colors flex items-center gap-2 whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">store</span>
+<span>Locations</span>
+<span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-surface-container-highest text-on-surface-variant">2 Active</span>
+</button>
+<button class="tab-btn px-3.5 py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-md text-body-md transition-colors flex items-center gap-2 whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">move_up</span>
+<span>Stock Transfers</span>
+</button>
+<button class="tab-btn px-3.5 py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-md text-body-md transition-colors flex items-center gap-2 whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px] text-tertiary">warning</span>
+<span>Low Stock Triage</span>
+<span class="px-1.5 py-0.2 rounded font-label-md text-label-md bg-tertiary-fixed text-on-tertiary-fixed font-medium">4 SKUs</span>
+</button>
+<button class="tab-btn px-3.5 py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-md text-body-md transition-colors flex items-center gap-2 whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[18px]">history</span>
+<span>Audit History</span>
+</button>
+</div>
+<!-- 1. Stock Telemetry Ledger Strip -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-space-sm">
+<div class="bg-surface-container-lowest p-4 rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-md text-label-md uppercase tracking-wider">Tracked SKUs</span>
+<span class="material-symbols-outlined text-[18px] text-outline">category</span>
+</div>
+<div class="mt-2">
+<div class="font-numeral-lg text-numeral-lg text-on-surface">86</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5">Across 2 designated hubs</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-md text-label-md uppercase tracking-wider">Total Units</span>
+<span class="material-symbols-outlined text-[18px] text-outline">package_2</span>
+</div>
+<div class="mt-2">
+<div class="font-numeral-lg text-numeral-lg text-on-surface">4,820</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5">Physical ledger tally</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg shadow-sm flex flex-col justify-between bg-gradient-to-br from-tertiary-fixed/15 to-transparent">
+<div class="flex items-center justify-between text-tertiary">
+<span class="font-label-md text-label-md uppercase tracking-wider font-medium">Low Stock Alert</span>
+<span class="material-symbols-outlined text-[18px]">priority_high</span>
+</div>
+<div class="mt-2">
+<div class="font-numeral-lg text-numeral-lg text-tertiary">4 <span class="font-title-md text-title-md font-normal">SKUs</span></div>
+<p class="font-body-sm text-body-sm text-on-tertiary-container mt-0.5 font-medium">Below safety threshold</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-md text-label-md uppercase tracking-wider">Out of Stock</span>
+<span class="material-symbols-outlined text-[18px] text-outline">check_circle</span>
+</div>
+<div class="mt-2">
+<div class="font-numeral-lg text-numeral-lg text-on-surface">0</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5">100% catalog availability</p>
+</div>
+</div>
+<div class="col-span-2 lg:col-span-1 bg-surface-container-lowest p-4 rounded-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-md text-label-md uppercase tracking-wider">Nodes Registered</span>
+<span class="material-symbols-outlined text-[18px] text-outline">domain</span>
+</div>
+<div class="mt-2">
+<div class="font-numeral-lg text-numeral-lg text-on-surface">2</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5">Vasai &amp; Nalasopara</p>
+</div>
+</div>
+</div>
+<!-- 2. Physical Locations Summary Cards -->
+<div class="space-y-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-title-md text-title-md text-on-surface">Physical Storage Facilities</span>
+<span class="font-body-sm text-body-sm text-secondary">Synchronized live inventory ledger</span>
+</div>
+<button class="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md font-medium flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Add Location</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Node 1: Vasai Storefront -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="space-y-3">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">storefront</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-title-md text-title-md text-on-surface">Vasai Main Storefront</span>
+<span class="px-2 py-0.5 rounded bg-surface-container font-label-md text-label-md text-primary">Primary POS</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+                    Station Road, Vasai West, MH
+                  </p>
+</div>
+</div>
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-4 ring-emerald-50 inline-block" title="Online &amp; Syncing"></span>
+</div>
+<!-- Visual Bar of Capacity -->
+<div class="pt-2">
+<div class="flex justify-between font-body-sm text-body-sm mb-1.5">
+<span class="text-secondary">Floor Capacity Usage</span>
+<span class="font-body-md-medium text-body-md-medium text-on-surface">71% (1,420 / 2,000 units)</span>
+</div>
+<div class="w-full h-2 rounded bg-surface-container overflow-hidden">
+<div class="h-full bg-primary-container rounded" style="width: 71%;"></div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2 pt-1 font-body-sm text-body-sm">
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-secondary block font-label-md text-label-md uppercase">Stocked SKUs</span>
+<span class="font-title-md text-title-md text-on-surface">68</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-secondary block font-label-md text-label-md uppercase">Staff Present</span>
+<span class="font-title-md text-title-md text-on-surface">3 Active</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-secondary block font-label-md text-label-md uppercase">Lead Custodian</span>
+<span class="font-body-md-medium text-body-md-medium text-on-surface truncate block" title="Himmat Patel">Himmat P.</span>
+</div>
+</div>
+</div>
+<div class="pt-3 mt-3 flex items-center justify-between text-secondary">
+<span class="font-body-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">sync</span> Last counter sync: 4m ago
+            </span>
+<button class="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md font-medium" type="button">Manage Node</button>
+</div>
+</div>
+<!-- Node 2: Nalasopara Central Godown -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="space-y-3">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-secondary-container/60 flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[20px]">warehouse</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-title-md text-title-md text-on-surface">Nalasopara Central Godown</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-md text-label-md text-secondary">Bulk Depot</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+                    Gala 14, Industrial Estate, Nalasopara East
+                  </p>
+</div>
+</div>
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-4 ring-emerald-50 inline-block" title="Online &amp; Syncing"></span>
+</div>
+<!-- Visual Bar of Capacity -->
+<div class="pt-2">
+<div class="flex justify-between font-body-sm text-body-sm mb-1.5">
+<span class="text-secondary">Depot Capacity Usage</span>
+<span class="font-body-md-medium text-body-md-medium text-on-surface">56% (3,400 / 6,000 units)</span>
+</div>
+<div class="w-full h-2 rounded bg-surface-container overflow-hidden">
+<div class="h-full bg-secondary rounded" style="width: 56%;"></div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2 pt-1 font-body-sm text-body-sm">
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-secondary block font-label-md text-label-md uppercase">Stocked SKUs</span>
+<span class="font-title-md text-title-md text-on-surface">86</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-secondary block font-label-md text-label-md uppercase">Staff Present</span>
+<span class="font-title-md text-title-md text-on-surface">2 Active</span>
+</div>
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-secondary block font-label-md text-label-md uppercase">Lead Custodian</span>
+<span class="font-body-md-medium text-body-md-medium text-on-surface truncate block" title="Rajesh K.">Rajesh K.</span>
+</div>
+</div>
+</div>
+<div class="pt-3 mt-3 flex items-center justify-between text-secondary">
+<span class="font-body-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">local_shipping</span> Transfer dock cleared today
+            </span>
+<button class="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md font-medium" type="button">Manage Node</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. Low Stock Triage Banner (Saffron-Orange Alert) -->
+<div class="rounded-lg p-space-md bg-surface-container-lowest shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md relative overflow-hidden">
+<div class="flex items-start gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-tertiary-fixed flex items-center justify-center text-tertiary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[22px]">notification_important</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="font-body-md-medium text-body-md-medium text-tertiary">Priority Restock Alert</span>
+<span class="font-label-md text-label-md px-2 py-0.2 rounded bg-tertiary-fixed text-on-tertiary-fixed font-medium">Weekend Pre-Rush</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-3xl leading-relaxed">
+            4 SKUs are nearing minimum threshold at Vasai Front: <strong>Aashirvaad Superior MP Atta (10kg)</strong> (6 units left) &amp; <strong>Fortune Sunlite Sunflower Oil (5L)</strong> (4 units left). Nalasopara Godown currently holds 45 units ready for dispatch.
+          </p>
+</div>
+</div>
+<div class="flex items-center gap-2 shrink-0 self-end md:self-center">
+<button class="h-10 px-4 rounded bg-surface-container text-primary hover:bg-surface-container-high transition-colors font-body-md-medium text-body-md-medium flex items-center gap-2 whitespace-nowrap" id="triggerTriageTransfer" type="button">
+<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+<span>Initiate Internal Transfer</span>
+</button>
+</div>
+</div>
+<!-- 4. Multi-Location Inventory Table & Control Panel -->
+<div class="bg-surface-container-lowest rounded-lg shadow-sm overflow-hidden">
+<!-- Table Filters & Search Ribbon -->
+<div class="p-space-md bg-surface-container-lowest flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-2 flex-1 max-w-lg">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">search</span>
+<input class="w-full h-10 pl-9 pr-3 rounded bg-surface-container-low font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest" id="inventorySearch" placeholder="Filter by product name, SKU or barcode scan..." type="text"/>
+</div>
+<button class="h-10 px-3 rounded bg-surface-container-low text-secondary hover:text-on-surface flex items-center gap-1.5 font-label-md text-label-md" type="button">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+<span>Filters</span>
+</button>
+</div>
+<div class="flex items-center gap-2 self-start lg:self-center">
+<span class="font-body-sm text-body-sm text-secondary">Showing 5 of 86 SKUs</span>
+<div class="flex items-center bg-surface-container-low rounded p-0.5">
+<button class="px-2 py-1 rounded bg-surface-container-lowest text-on-surface font-label-md text-label-md shadow-sm" type="button">All Stock</button>
+<button class="px-2 py-1 rounded text-secondary hover:text-on-surface font-label-md text-label-md" type="button">Low Stock (4)</button>
+<button class="px-2 py-1 rounded text-secondary hover:text-on-surface font-label-md text-label-md" type="button">Replenished</button>
+</div>
+</div>
+</div>
+<!-- Ledger Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low font-label-md text-label-md uppercase tracking-wider text-secondary">
+<th class="py-3 px-4 font-medium">Product / SKU Details</th>
+<th class="py-3 px-3 font-medium">Barcode</th>
+<th class="py-3 px-3 font-medium text-right">Vasai Counter</th>
+<th class="py-3 px-3 font-medium text-right">Godown Hub</th>
+<th class="py-3 px-3 font-medium text-right">Total Net</th>
+<th class="py-3 px-3 font-medium text-right">Reserved</th>
+<th class="py-3 px-4 font-medium text-center">Health Status</th>
+<th class="py-3 px-3 font-medium text-right">Last Adjusted</th>
+<th class="py-3 px-4 font-medium text-right">Operations</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm divide-y-0" id="inventoryTableBody">
+<!-- Item 1: Aashirvaad Atta -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded object-cover bg-surface-container shrink-0" data-alt="High resolution studio photo of a 10kg paper sack of Aashirvaad Superior MP whole wheat flour with natural golden grains on clean commercial neutral background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuASDsmAIlpGje7MZm9KRq3yMF-xUSNuH0QyL4zhBedGIKSxXqLydK8NMpOEsXHJVk0zwp7YCdvpWmK5lJVEBSp-T-IgbVhvbNYYwNriSgoyFQElq9fGxZdNUhY_cCyTnohlcNHPx72zIfYfjD-8wsajojHHNsmr_TipWPN9katz8BA7Ubm7ZttZ-kIdgnL--JeonISna2j4rX5t6xetBkVDdzsMUUJ7u8i0g73XPUs"/>
+<div class="min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface block truncate max-w-xs">Aashirvaad Superior MP Atta (10kg)</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">SKU-AASH-MP-10K</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 font-mono text-[12px] text-secondary">8901030894512</td>
+<td class="py-3.5 px-3 text-right">
+<span class="font-title-md text-title-md text-tertiary">6</span>
+<span class="font-body-sm text-body-sm text-secondary block text-[11px]">Min: 12</span>
+</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">48</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface font-semibold">54</td>
+<td class="py-3.5 px-3 text-right font-body-md text-body-md text-secondary">2</td>
+<td class="py-3.5 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded font-label-md text-label-md bg-tertiary-fixed text-on-tertiary-fixed font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Low at Vasai
+                </span>
+</td>
+<td class="py-3.5 px-3 text-right text-secondary whitespace-nowrap">Today, 08:30 AM</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" onclick="openQuickAdjust('Aashirvaad Superior MP Atta (10kg)', 'SKU-AASH-MP-10K', 6, 48)" type="button">Adjust</button>
+<button class="px-2.5 py-1 rounded bg-primary-container text-on-primary hover:opacity-90 transition-opacity font-label-md text-label-md" onclick="openQuickTransfer('Aashirvaad Superior MP Atta (10kg)', 48)" type="button">Transfer</button>
+</div>
+</td>
+</tr>
+<!-- Item 2: Fortune Sunflower Oil -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-surface-container-lowest">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded object-cover bg-surface-container shrink-0" data-alt="High resolution product photograph of Fortune Sunlite refined sunflower oil 5 litre yellow transparent handled jar with crisp typography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuADOQs_oByzVkkN2BaQIFFmmesw2Z2lxtN4l-FxGmfhU77gqCriqm3aihcvheqLFTAv5r1bUwCuDFhE37kCFC6WNcB3l34gKpXg4M7GWxP-2LwRZtInCyp0WdnR_44sNeCeabjPxhkNDI3NLIzOaAmnaoLQwntdvyazQlNZPYSXCLVjzXVCRkvWYFGzTE6M24OyKGTx5LVyhxEvlmIVRGBjmt_ErtBieuMBDq7htfc"/>
+<div class="min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface block truncate max-w-xs">Fortune Sunlite Sunflower Oil (5L Can)</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">SKU-FORT-SUN-5L</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 font-mono text-[12px] text-secondary">8906007281098</td>
+<td class="py-3.5 px-3 text-right">
+<span class="font-title-md text-title-md text-tertiary">4</span>
+<span class="font-body-sm text-body-sm text-secondary block text-[11px]">Min: 10</span>
+</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">32</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface font-semibold">36</td>
+<td class="py-3.5 px-3 text-right font-body-md text-body-md text-secondary">1</td>
+<td class="py-3.5 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded font-label-md text-label-md bg-tertiary-fixed text-on-tertiary-fixed font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Low at Vasai
+                </span>
+</td>
+<td class="py-3.5 px-3 text-right text-secondary whitespace-nowrap">Yesterday</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" onclick="openQuickAdjust('Fortune Sunlite Sunflower Oil (5L Can)', 'SKU-FORT-SUN-5L', 4, 32)" type="button">Adjust</button>
+<button class="px-2.5 py-1 rounded bg-primary-container text-on-primary hover:opacity-90 transition-opacity font-label-md text-label-md" onclick="openQuickTransfer('Fortune Sunlite Sunflower Oil (5L Can)', 32)" type="button">Transfer</button>
+</div>
+</td>
+</tr>
+<!-- Item 3: Tata Salt -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-surface-container-lowest">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded object-cover bg-surface-container shrink-0" data-alt="High resolution commercial packshot of Tata Salt 1kg vacuum evaporated iodised salt packet in bright white and blue packaging." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAERGNqWqCU5sJLDndRwb0jeRrUqrboQBn4DtSsYK6R-DFLSa9um68sPLGTlVdEgPdc03F7c0Pi4k2_sFPCctRSGF4Wq0QIYs4EvtOgowg3IH-o-acRRCF-XTVQAatu6T_6Lf2NevhJuS93l5YfkPoyPdKR4hx0D2ATu533LbK7Ov8Hfi8ZUr_luswViNGYvWN7azDWlxAuRhb5Wcbla8-j51qnNhDI6TLR8S-e698"/>
+<div class="min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface block truncate max-w-xs">Tata Salt Vacuum Evaporated (1kg)</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">SKU-TATA-SLT-1K</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 font-mono text-[12px] text-secondary">8901030784013</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">84</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">240</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface font-semibold">324</td>
+<td class="py-3.5 px-3 text-right font-body-md text-body-md text-secondary">5</td>
+<td class="py-3.5 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-700 font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                  Optimal
+                </span>
+</td>
+<td class="py-3.5 px-3 text-right text-secondary whitespace-nowrap">May 24, 2024</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" onclick="openQuickAdjust('Tata Salt Vacuum Evaporated (1kg)', 'SKU-TATA-SLT-1K', 84, 240)" type="button">Adjust</button>
+<button class="px-2.5 py-1 rounded bg-surface-container-low text-secondary hover:text-on-surface transition-colors font-label-md text-label-md" onclick="openQuickTransfer('Tata Salt Vacuum Evaporated (1kg)', 240)" type="button">Transfer</button>
+</div>
+</td>
+</tr>
+<!-- Item 4: Wagh Bakri Tea -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-surface-container-lowest">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded object-cover bg-surface-container shrink-0" data-alt="High resolution commercial packshot of Wagh Bakri Premium CTC Indian leaf tea in glossy 500g pouch packet with clean label layout." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAys9w2LySoq7g0vqfEIW6c7RUeScNp168WWur6_bIryxUwj7McVxArHKedIjVY6zai4qD90ZVRSTbuGjhF_snqNEZkuHHsmYumrBFIvzNYAZjSVjr7EEBmKFVhVEbFyjokiDkcLgIM4-sw0gaNDMf4x1NTjCnVad2Hc9IvhFMk1Jlxvar-TZLF9SFYdjO9eqmLAy1yC4oQpma0RJ7POQfRPEF3Rs1f3Rw6ki2_z2g"/>
+<div class="min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface block truncate max-w-xs">Wagh Bakri Premium CTC Tea (500g)</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">SKU-WAGH-TEA-500</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 font-mono text-[12px] text-secondary">8901242001150</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">18</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">60</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface font-semibold">78</td>
+<td class="py-3.5 px-3 text-right font-body-md text-body-md text-secondary">0</td>
+<td class="py-3.5 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-700 font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                  Optimal
+                </span>
+</td>
+<td class="py-3.5 px-3 text-right text-secondary whitespace-nowrap">May 21, 2024</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" onclick="openQuickAdjust('Wagh Bakri Premium CTC Tea (500g)', 'SKU-WAGH-TEA-500', 18, 60)" type="button">Adjust</button>
+<button class="px-2.5 py-1 rounded bg-surface-container-low text-secondary hover:text-on-surface transition-colors font-label-md text-label-md" onclick="openQuickTransfer('Wagh Bakri Premium CTC Tea (500g)', 60)" type="button">Transfer</button>
+</div>
+</td>
+</tr>
+<!-- Item 5: Everest Turmeric Powder -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-surface-container-lowest">
+<td class="py-3.5 px-4">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded object-cover bg-surface-container shrink-0" data-alt="High quality studio shot of Everest Turmeric Powder 200g spice box carton packaging in saffron yellow and green typography on neutral background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiHa2kU003nSf6f4Ms6TX3JH4n9m8d6m_wvHsko1Q036zEDKkLmriYl8RXvbkeiPKpeRmBECHDO8Lz6DaNeGbdhXu5TwvbTb8ljLXsKcMR3cqf-8CGRwZro4iLcz7FqCH5XylLDOivAZXyr42z_YBblKn_nWdbtP7kdfrKk03sVKiwssTHTFgH_RAiMMVnnisQ05vHjevpQcvgrrGt7BZIT5Iemh3pZQwiNN-dJPg"/>
+<div class="min-w-0">
+<span class="font-body-md-medium text-body-md-medium text-on-surface block truncate max-w-xs">Everest Turmeric Powder (200g)</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">SKU-EVR-HLD-200</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 font-mono text-[12px] text-secondary">8901786110294</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">42</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface">120</td>
+<td class="py-3.5 px-3 text-right font-title-md text-title-md text-on-surface font-semibold">162</td>
+<td class="py-3.5 px-3 text-right font-body-md text-body-md text-secondary">3</td>
+<td class="py-3.5 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded font-label-md text-label-md bg-emerald-50 text-emerald-700 font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                  Optimal
+                </span>
+</td>
+<td class="py-3.5 px-3 text-right text-secondary whitespace-nowrap">May 20, 2024</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-md text-label-md" onclick="openQuickAdjust('Everest Turmeric Powder (200g)', 'SKU-EVR-HLD-200', 42, 120)" type="button">Adjust</button>
+<button class="px-2.5 py-1 rounded bg-surface-container-low text-secondary hover:text-on-surface transition-colors font-label-md text-label-md" onclick="openQuickTransfer('Everest Turmeric Powder (200g)', 120)" type="button">Transfer</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Ledger Pagination & Quick Bar -->
+<div class="p-space-md bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-space-sm text-secondary font-body-sm text-body-sm">
+<div class="flex items-center gap-2">
+<span>Row display limit:</span>
+<select class="h-8 px-2 rounded bg-surface-container-lowest text-on-surface font-body-sm text-body-sm focus:outline-none">
+<option>25 rows</option>
+<option>50 rows</option>
+<option>100 rows</option>
+</select>
+<span>of 86 items logged</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded bg-surface-container-lowest text-secondary flex items-center justify-center hover:text-on-surface disabled:opacity-40" disabled="" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<span class="px-2.5 py-1 rounded bg-surface-container-lowest text-on-surface font-body-md-medium text-body-md-medium">1</span>
+<span class="px-2.5 py-1 text-secondary">2</span>
+<span class="px-2.5 py-1 text-secondary">3</span>
+<span class="px-2.5 py-1 text-secondary">4</span>
+<button class="w-8 h-8 rounded bg-surface-container-lowest text-secondary flex items-center justify-center hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 5. Recent Stock Adjustment Log & Audit Preview -->
+<div class="space-y-space-sm">
+<div class="flex items-center justify-between">
+<div>
+<span class="font-title-md text-title-md text-on-surface">Recent Stock Adjustment Logs</span>
+<p class="font-body-sm text-body-sm text-secondary">Strict audit trail with custodian attribution &amp; variance notes</p>
+</div>
+<a class="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md font-medium flex items-center gap-1" href="#">
+<span>Export Full Audit (.CSV)</span>
+<span class="material-symbols-outlined text-[16px]">download</span>
+</a>
+</div>
+<div class="bg-surface-container-lowest rounded-lg shadow-sm divide-y-0 overflow-hidden">
+<div class="grid grid-cols-1 md:grid-cols-4 p-4 hover:bg-surface-container-low/40 transition-colors gap-3 items-center">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+</div>
+<div>
+<span class="font-body-md-medium text-body-md-medium text-on-surface block">Supplier delivery received</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">PO-2024-0588 • Tata Salt (120 units)</span>
+</div>
+</div>
+<div>
+<span class="font-label-md text-label-md text-secondary block uppercase">Facility</span>
+<span class="font-body-md text-body-md text-on-surface">Nalasopara Godown Hub</span>
+</div>
+<div>
+<span class="font-label-md text-label-md text-secondary block uppercase">Custodian</span>
+<div class="flex items-center gap-1.5">
+<span class="font-body-md text-body-md text-on-surface">Rajesh K. (Depot Lead)</span>
+</div>
+</div>
+<div class="md:text-right">
+<span class="font-body-md-medium text-body-md-medium text-emerald-700 block">+120 Units</span>
+<span class="font-body-sm text-body-sm text-secondary">Today, 07:15 AM</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 p-4 hover:bg-surface-container-low/40 transition-colors gap-3 items-center bg-surface-container-low/20">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-error-container flex items-center justify-center text-error shrink-0">
+<span class="material-symbols-outlined text-[18px]">remove_shopping_cart</span>
+</div>
+<div>
+<span class="font-body-md-medium text-body-md-medium text-on-surface block">Damaged in transit</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">Carton drop puncture • Fortune Sunlite (2 cans)</span>
+</div>
+</div>
+<div>
+<span class="font-label-md text-label-md text-secondary block uppercase">Facility</span>
+<span class="font-body-md text-body-md text-on-surface">Vasai Main Storefront</span>
+</div>
+<div>
+<span class="font-label-md text-label-md text-secondary block uppercase">Custodian</span>
+<div class="flex items-center gap-1.5">
+<span class="font-body-md text-body-md text-on-surface">Himmat Patel (Owner)</span>
+</div>
+</div>
+<div class="md:text-right">
+<span class="font-body-md-medium text-body-md-medium text-error block">-2 Units</span>
+<span class="font-body-sm text-body-sm text-secondary">Yesterday, 04:40 PM</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 p-4 hover:bg-surface-container-low/40 transition-colors gap-3 items-center">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[18px]">fact_check</span>
+</div>
+<div>
+<span class="font-body-md-medium text-body-md-medium text-on-surface block">Physical count reconciliation</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[12px]">Weekly cycle audit • Wagh Bakri Tea</span>
+</div>
+</div>
+<div>
+<span class="font-label-md text-label-md text-secondary block uppercase">Facility</span>
+<span class="font-body-md text-body-md text-on-surface">Vasai Main Storefront</span>
+</div>
+<div>
+<span class="font-label-md text-label-md text-secondary block uppercase">Custodian</span>
+<div class="flex items-center gap-1.5">
+<span class="font-body-md text-body-md text-on-surface">Suresh M. (Counter Staff)</span>
+</div>
+</div>
+<div class="md:text-right">
+<span class="font-body-md-medium text-body-md-medium text-emerald-700 block">+1 Unit (Found)</span>
+<span class="font-body-sm text-body-sm text-secondary">May 21, 2024, 09:20 PM</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Modal: Record Stock Adjustment -->
+<div class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 hidden" id="adjustModal">
+<div class="bg-surface-container-lowest rounded-lg max-w-lg w-full p-space-lg shadow-xl space-y-4">
+<div class="flex items-center justify-between pb-2">
+<div class="space-y-0.5">
+<span class="font-headline-md text-headline-md text-on-surface block">Record Stock Adjustment</span>
+<span class="font-body-sm text-body-sm text-secondary">Document physical delta to retain financial integrity</span>
+</div>
+<button class="text-outline hover:text-on-surface p-1 rounded" id="closeAdjustModalBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="space-y-3 font-body-sm text-body-sm">
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Target Product SKU</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface font-body-md-medium text-body-md-medium" id="modalProductName" readonly="" type="text" value="Aashirvaad Superior MP Atta (10kg)"/>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Facility Node</label>
+<select class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface" id="modalFacility">
+<option value="vasai">Vasai Main Storefront</option>
+<option value="nalasopara">Nalasopara Godown Hub</option>
+</select>
+</div>
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Reason for Adjustment</label>
+<select class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface" id="modalReason">
+<option>Supplier delivery received</option>
+<option>Damaged in transit / spillage</option>
+<option>Physical count reconciliation</option>
+<option>Customer return to warehouse</option>
+<option>Internal shrinkage write-off</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Quantity Adjustment (+ / -)</label>
+<div class="flex items-center">
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface font-title-md text-title-md focus:bg-surface-container-lowest" id="modalQtyChange" type="number" value="12"/>
+</div>
+</div>
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Authorized Custodian</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-secondary" readonly="" type="text" value="Himmat Patel (Owner)"/>
+</div>
+</div>
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Audit Ledger Note (Optional)</label>
+<textarea class="w-full p-2.5 rounded bg-surface-container-low text-on-surface placeholder:text-outline focus:bg-surface-container-lowest focus:outline-none" placeholder="e.g. Invoiced via Delivery Challan #DC-9921 from MP Flour Mills" rows="2"></textarea>
+</div>
+</div>
+<div class="pt-2 flex items-center justify-end gap-2">
+<button class="h-11 px-4 rounded bg-surface-container-low text-on-surface font-body-md-medium text-body-md-medium hover:bg-surface-container transition-colors" id="cancelAdjustBtn" type="button">
+          Cancel
+        </button>
+<button class="h-11 px-5 rounded bg-primary-container text-on-primary font-body-md-medium text-body-md-medium hover:opacity-95 transition-opacity" id="saveAdjustBtn" type="button">
+          Commit Adjustment
+        </button>
+</div>
+</div>
+</div>
+<!-- Interactive Slide-in / Modal: Transfer Stock -->
+<div class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 hidden" id="transferModal">
+<div class="bg-surface-container-lowest rounded-lg max-w-lg w-full p-space-lg shadow-xl space-y-4">
+<div class="flex items-center justify-between pb-2">
+<div class="space-y-0.5">
+<span class="font-headline-md text-headline-md text-on-surface block">Internal Stock Transfer</span>
+<span class="font-body-sm text-body-sm text-secondary">Dispatch stock units between registered store facilities</span>
+</div>
+<button class="text-outline hover:text-on-surface p-1 rounded" id="closeTransferModalBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="space-y-3 font-body-sm text-body-sm">
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Select SKU to Move</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface font-body-md-medium text-body-md-medium" id="transferItemName" type="text" value="Aashirvaad Superior MP Atta (10kg)"/>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Source Node (Origin)</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface" readonly="" type="text" value="Nalasopara Central Godown"/>
+</div>
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Destination Node</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface font-body-md-medium text-body-md-medium" readonly="" type="text" value="Vasai Main Storefront"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Transfer Units</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low text-on-surface font-title-md text-title-md focus:bg-surface-container-lowest" id="transferUnitsInput" type="number" value="24"/>
+</div>
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Available at Godown</label>
+<div class="h-11 px-3 rounded bg-surface-container-low flex items-center font-title-md text-title-md text-secondary" id="transferMaxUnits">
+              48 units
+            </div>
+</div>
+</div>
+<div>
+<label class="font-label-md text-label-md text-secondary block mb-1">Internal Transfer Passcode / Tag</label>
+<input class="w-full h-11 px-3 rounded bg-surface-container-low font-mono text-[13px] text-secondary" readonly="" type="text" value="TRANS-VAS-2024-099"/>
+</div>
+</div>
+<div class="pt-2 flex items-center justify-end gap-2">
+<button class="h-11 px-4 rounded bg-surface-container-low text-on-surface font-body-md-medium text-body-md-medium hover:bg-surface-container transition-colors" id="cancelTransferBtn" type="button">
+          Cancel
+        </button>
+<button class="h-11 px-5 rounded bg-primary-container text-on-primary font-body-md-medium text-body-md-medium hover:opacity-95 transition-opacity" id="confirmTransferBtn" type="button">
+          Generate Transfer Slip &amp; Dispatch
+        </button>
+</div>
+</div>
+</div>
+<!-- Notification Toast -->
+<div class="fixed bottom-6 right-6 bg-surface-container-lowest text-on-surface px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 transition-transform duration-300 translate-y-24 z-50 max-w-sm" id="toastNotification">
+<span class="material-symbols-outlined text-primary text-[20px]" id="toastIcon">check_circle</span>
+<span class="font-body-md text-body-md" id="toastMessage">Stock action performed successfully.</span>
+</div>
+<script>
+    // Tab switching interactions
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => {
+          t.className = 'tab-btn px-3.5 py-1.5 rounded text-secondary hover:text-on-surface hover:bg-surface-container font-body-md text-body-md transition-colors flex items-center gap-2 whitespace-nowrap';
+        });
+        tab.className = 'tab-btn px-3.5 py-1.5 rounded bg-surface-container-lowest text-primary font-body-md-medium text-body-md-medium shadow-sm flex items-center gap-2 whitespace-nowrap';
+      });
+    });
+
+    // Modals
+    const adjustModal = document.getElementById('adjustModal');
+    const transferModal = document.getElementById('transferModal');
+    const toast = document.getElementById('toastNotification');
+    const toastMsg = document.getElementById('toastMessage');
+
+    function showToast(message) {
+      toastMsg.textContent = message;
+      toast.classList.remove('translate-y-24');
+      setTimeout(() => {
+        toast.classList.add('translate-y-24');
+      }, 3500);
+    }
+
+    document.getElementById('openAdjustModalBtn').addEventListener('click', () => {
+      document.getElementById('modalProductName').value = 'General Catalog Select';
+      adjustModal.classList.remove('hidden');
+    });
+
+    document.getElementById('closeAdjustModalBtn').addEventListener('click', () => {
+      adjustModal.classList.add('hidden');
+    });
+    document.getElementById('cancelAdjustBtn').addEventListener('click', () => {
+      adjustModal.classList.add('hidden');
+    });
+
+    document.getElementById('saveAdjustBtn').addEventListener('click', () => {
+      adjustModal.classList.add('hidden');
+      showToast('Adjustment recorded in master audit ledger.');
+    });
+
+    document.getElementById('openTransferBtn').addEventListener('click', () => {
+      transferModal.classList.remove('hidden');
+    });
+    document.getElementById('triggerTriageTransfer').addEventListener('click', () => {
+      document.getElementById('transferItemName').value = 'Aashirvaad Superior MP Atta (10kg)';
+      transferModal.classList.remove('hidden');
+    });
+
+    document.getElementById('closeTransferModalBtn').addEventListener('click', () => {
+      transferModal.classList.add('hidden');
+    });
+    document.getElementById('cancelTransferBtn').addEventListener('click', () => {
+      transferModal.classList.add('hidden');
+    });
+
+    document.getElementById('confirmTransferBtn').addEventListener('click', () => {
+      transferModal.classList.add('hidden');
+      showToast('Transfer slip generated. Units dispatched to Vasai.');
+    });
+
+    // Quick Action Functions
+    window.openQuickAdjust = function(name, sku, vasaiQty, godownQty) {
+      document.getElementById('modalProductName').value = name + ' (' + sku + ')';
+      adjustModal.classList.remove('hidden');
+    };
+
+    window.openQuickTransfer = function(name, godownQty) {
+      document.getElementById('transferItemName').value = name;
+      document.getElementById('transferMaxUnits').textContent = godownQty + ' units';
+      transferModal.classList.remove('hidden');
+    };
+
+    // Client-side quick filter
+    const searchInput = document.getElementById('inventorySearch');
+    const tableBody = document.getElementById('inventoryTableBody');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const rows = tableBody.getElementsByTagName('tr');
+        for (let row of rows) {
+          const text = row.innerText.toLowerCase();
+          row.style.display = text.includes(query) ? '' : 'none';
+        }
+      });
+    }
+  </script>
+</div></main></div></body></html>
