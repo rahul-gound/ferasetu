@@ -543,19 +543,63 @@ export async function handleDiscountsRoutes(path, method, request, env) {
     const now = new Date().toISOString();
     const insertedCodes = [];
 
-    for (const code of generated) {
-      const codeId = `dc_${crypto.randomUUID()}`;
-      const codeNormalized = normalizeDiscountCode(code);
-      try {
-        await env.DB.prepare(`
-          INSERT INTO discount_codes (
-            id, organization_id, discount_id, code, code_normalized,
-            times_used, max_uses, is_primary, created_at
-          ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
-        `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now).run();
-        insertedCodes.push({ id: codeId, code, maxUses: maxUsesPerCode });
-      } catch (err) {
-        console.warn("Bulk code collision skipped:", code);
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < generated.length; i += CHUNK_SIZE) {
+      const chunk = generated.slice(i, i + CHUNK_SIZE);
+      const batchStmts = [];
+      const chunkData = [];
+
+      for (const code of chunk) {
+        const codeId = `dc_${crypto.randomUUID()}`;
+        const codeNormalized = normalizeDiscountCode(code);
+        batchStmts.push(
+          env.DB.prepare(`
+            INSERT INTO discount_codes (
+              id, organization_id, discount_id, code, code_normalized,
+              times_used, max_uses, is_primary, created_at
+            ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+          `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now)
+        );
+        chunkData.push({ id: codeId, code, codeNormalized });
+      }
+
+      if (typeof env.DB.batch === 'function') {
+        try {
+          await env.DB.batch(batchStmts);
+          chunkData.forEach(item => {
+            insertedCodes.push({ id: item.id, code: item.code, maxUses: maxUsesPerCode });
+          });
+        } catch (err) {
+          // Fallback to sequential inserts if batch fails (e.g. unique constraint collision)
+          for (const item of chunkData) {
+            try {
+              await env.DB.prepare(`
+                INSERT INTO discount_codes (
+                  id, organization_id, discount_id, code, code_normalized,
+                  times_used, max_uses, is_primary, created_at
+                ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+              `).bind(item.id, orgId, discountId, item.code, item.codeNormalized, maxUsesPerCode, now).run();
+              insertedCodes.push({ id: item.id, code: item.code, maxUses: maxUsesPerCode });
+            } catch (innerErr) {
+              console.warn("Bulk code collision skipped:", item.code);
+            }
+          }
+        }
+      } else {
+        // Fallback for mock environments without batch()
+        for (const item of chunkData) {
+          try {
+            await env.DB.prepare(`
+              INSERT INTO discount_codes (
+                id, organization_id, discount_id, code, code_normalized,
+                times_used, max_uses, is_primary, created_at
+              ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+            `).bind(item.id, orgId, discountId, item.code, item.codeNormalized, maxUsesPerCode, now).run();
+            insertedCodes.push({ id: item.id, code: item.code, maxUses: maxUsesPerCode });
+          } catch (innerErr) {
+            console.warn("Bulk code collision skipped:", item.code);
+          }
+        }
       }
     }
 
