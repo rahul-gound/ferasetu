@@ -59,6 +59,32 @@ const kiranaFaqSchema = {
   ],
 };
 
+const kiranaArticleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Kirana Store Online Kaise Banaye — Free Digital Dukaan',
+  description:
+    'Apne kirana store ko FeraSetu par online le jayein. 25 products free, WhatsApp cart orders, direct UPI payments, aur 0% platform commission.',
+  url: 'https://ferasetu.com/kirana-store-online/',
+  inLanguage: 'hi',
+  author: {
+    '@type': 'Organization',
+    name: 'FeraSetu',
+    url: 'https://ferasetu.com/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'FeraSetu',
+    url: 'https://ferasetu.com/',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://ferasetu.com/logo-official.png',
+    },
+  },
+  datePublished: '2026-10-15T00:00:00Z',
+  dateModified: '2026-11-10T00:00:00Z',
+};
+
 const kiranaBreadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -125,8 +151,9 @@ export default function KiranaStoreOnline() {
       <SEO
         title="Kirana Store Online Kaise Banaye — Free Digital Dukaan | FeraSetu"
         description="Apne kirana store ko FeraSetu par online le jayein. 25 products free, WhatsApp cart orders, direct UPI payments, home delivery & pickup options, 0% commission."
+        type="article"
         structuredData={{
-          '@graph': [kiranaFaqSchema, kiranaBreadcrumbSchema],
+          '@graph': [kiranaArticleSchema, kiranaFaqSchema, kiranaBreadcrumbSchema],
         }}
       />
 

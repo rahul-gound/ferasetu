@@ -187,6 +187,18 @@ export async function onRequest(context: EventContext): Promise<Response> {
       description:
         'Sovereign B2B digital commerce infrastructure for independent retailers, grocers, and brands with 0% platform commission.',
       email: 'support@ferasetu.com',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'support@ferasetu.com',
+        availableLanguage: ['en', 'hi'],
+        areaServed: 'Global',
+      },
+      address: {
+        '@type': 'PostalAddress',
+        addressCountry: 'IN',
+      },
+      foundingDate: '2024',
       sameAs: [
         'https://twitter.com/ferasetu',
         'https://linkedin.com/company/ferasetu',
@@ -255,7 +267,7 @@ export async function onRequest(context: EventContext): Promise<Response> {
     })
     .on('link[rel="canonical"]', {
       element(e) {
-        e.setAttribute('content', meta.canonical);
+        e.setAttribute('href', meta.canonical);
       },
     })
     .on('meta[property="og:title"]', {
@@ -289,5 +301,10 @@ export async function onRequest(context: EventContext): Promise<Response> {
       },
     });
 
-  return rewriter.transform(response);
+  const transformedResponse = rewriter.transform(response);
+  transformedResponse.headers.set(
+    'Cache-Control',
+    'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800'
+  );
+  return transformedResponse;
 }

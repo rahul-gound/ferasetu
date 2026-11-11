@@ -66,6 +66,32 @@ const freeStoreFaqSchema = {
   ],
 };
 
+const freeStoreArticleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Free Online Store Kaise Banaye — ₹0 Free Plan & Limits',
+  description:
+    'FeraSetu par ₹0 me apna online store shuru karein. 25 products, WhatsApp cart checkout, UPI payments, aur 0% commission. No credit card required.',
+  url: 'https://ferasetu.com/free-online-store/',
+  inLanguage: 'hi',
+  author: {
+    '@type': 'Organization',
+    name: 'FeraSetu',
+    url: 'https://ferasetu.com/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'FeraSetu',
+    url: 'https://ferasetu.com/',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://ferasetu.com/logo-official.png',
+    },
+  },
+  datePublished: '2026-10-15T00:00:00Z',
+  dateModified: '2026-11-10T00:00:00Z',
+};
+
 const freeStoreBreadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -166,8 +192,9 @@ export default function FreeOnlineStore() {
       <SEO
         title="Free Online Store Kaise Banaye — ₹0 Free Plan & Limits | FeraSetu"
         description="FeraSetu par ₹0 me apna online store shuru karein. 25 products, WhatsApp cart checkout, UPI payments, aur 0% commission. No credit card required."
+        type="article"
         structuredData={{
-          '@graph': [freeStoreFaqSchema, freeStoreBreadcrumbSchema],
+          '@graph': [freeStoreArticleSchema, freeStoreFaqSchema, freeStoreBreadcrumbSchema],
         }}
       />
 

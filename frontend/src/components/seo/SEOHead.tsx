@@ -47,6 +47,18 @@ export const GLOBAL_ORGANIZATION_SCHEMA = {
   description:
     'Sovereign B2B digital commerce infrastructure for independent retailers, grocers, and brands with 0% platform commission.',
   email: 'support@ferasetu.com',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    email: 'support@ferasetu.com',
+    availableLanguage: ['en', 'hi'],
+    areaServed: 'Global',
+  },
+  address: {
+    '@type': 'PostalAddress',
+    addressCountry: 'IN',
+  },
+  foundingDate: '2024',
   sameAs: [
     'https://twitter.com/ferasetu',
     'https://linkedin.com/company/ferasetu',

@@ -112,3 +112,59 @@ test('Public page components have descriptions within 100-160 characters (no too
     );
   }
 });
+
+test('Cloudflare Pages _middleware.ts sets href on canonical link and includes complete Organization schema', () => {
+  const middlewarePath = path.join(frontendDir, 'functions/_middleware.ts');
+  const content = fs.readFileSync(middlewarePath, 'utf8');
+
+  // Verify href is used for link[rel="canonical"]
+  assert.match(content, /e\.setAttribute\('href',\s*meta\.canonical\)/);
+  assert.match(content, /\.on\('link\[rel="canonical"\]'[\s\S]*?e\.setAttribute\('href',\s*meta\.canonical\)/);
+
+  // Verify complete Organization schema
+  assert.match(content, /contactPoint/);
+  assert.match(content, /PostalAddress/);
+  assert.match(content, /addressCountry/);
+
+  // Verify Edge Cache-Control header
+  assert.match(content, /Cache-Control/);
+});
+
+test('All i18n landing page descriptions meet minimum length (>= 100 characters)', () => {
+  const i18nDir = path.join(frontendDir, 'src/i18n');
+  const files = fs.readdirSync(i18nDir).filter(f => f.endsWith('.ts'));
+
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(i18nDir, file), 'utf8');
+    const descMatch = content.match(/"seo\.landing\.desc":\s*"([^"]+)"/);
+    if (descMatch) {
+      const desc = descMatch[1];
+      assert.ok(
+        desc.length >= 100,
+        `i18n ${file} description length ${desc.length} is too short (< 100): "${desc}"`
+      );
+    }
+  }
+});
+
+test('PublicFooter.tsx contains incoming links for guides, comparisons, and regional storefront editions', () => {
+  const footerPath = path.join(frontendDir, 'src/components/public/PublicFooter.tsx');
+  const content = fs.readFileSync(footerPath, 'utf8');
+
+  // Verify guide links
+  assert.match(content, /\/free-online-store/);
+  assert.match(content, /\/shopify-alternative-india/);
+  assert.match(content, /\/online-dukaan-banaye/);
+  assert.match(content, /\/kirana-store-online/);
+
+  // Verify regional editions bar
+  assert.match(content, /Storefront Editions:/);
+  assert.match(content, /lang\.code/);
+});
+
+test('IndexNow key file exists and matches 32-character hexadecimal format', () => {
+  const keyPath = path.join(frontendDir, 'public/c96b8e39f72b4c10a184e9d1bf7b9a2d.txt');
+  assert.ok(fs.existsSync(keyPath), 'IndexNow key file must exist in public directory');
+  const key = fs.readFileSync(keyPath, 'utf8').trim();
+  assert.equal(key, 'c96b8e39f72b4c10a184e9d1bf7b9a2d');
+});

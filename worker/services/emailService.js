@@ -917,7 +917,7 @@ export class EmailService {
       html: optHtml,
       text: optText,
       template = null,
-      data = {},
+      data = options.data || options.templateData || {},
       idempotencyKey = null,
       priority = 'NORMAL',
       customHeaders = {}

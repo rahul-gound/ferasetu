@@ -66,6 +66,32 @@ const dukaanFaqSchema = {
   ],
 };
 
+const dukaanArticleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Online Dukaan Kaise Banaye — Step-by-Step Store Setup Guide',
+  description:
+    'Apni dukaan ka online website 4 aasan steps me banayein. Subdomain claim karein, products add karein, WhatsApp orders paayein. Free me dukaan online karein.',
+  url: 'https://ferasetu.com/online-dukaan-banaye/',
+  inLanguage: 'hi',
+  author: {
+    '@type': 'Organization',
+    name: 'FeraSetu',
+    url: 'https://ferasetu.com/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'FeraSetu',
+    url: 'https://ferasetu.com/',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://ferasetu.com/logo-official.png',
+    },
+  },
+  datePublished: '2026-10-15T00:00:00Z',
+  dateModified: '2026-11-10T00:00:00Z',
+};
+
 const dukaanBreadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -137,8 +163,9 @@ export default function OnlineDukaanBanaye() {
       <SEO
         title="Online Dukaan Kaise Banaye — Step-by-Step Store Setup Guide | FeraSetu"
         description="Apni dukaan ka online website 4 aasan steps me banayein. Subdomain claim karein, products add karein, WhatsApp orders paayein. Free me dukaan online karein."
+        type="article"
         structuredData={{
-          '@graph': [dukaanFaqSchema, dukaanBreadcrumbSchema],
+          '@graph': [dukaanArticleSchema, dukaanFaqSchema, dukaanBreadcrumbSchema],
         }}
       />
 

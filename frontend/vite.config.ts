@@ -17,7 +17,7 @@ export default defineConfig({
   },
   build: {
     cssMinify: false,
-    sourcemap: true,
+    sourcemap: false,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true

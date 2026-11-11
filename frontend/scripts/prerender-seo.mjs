@@ -228,6 +228,18 @@ const globalGraphSchema = {
       },
       "description": "Sovereign B2B digital commerce infrastructure for independent retailers, grocers, and brands with 0% platform commission.",
       "email": "support@ferasetu.com",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "email": "support@ferasetu.com",
+        "availableLanguage": ["en", "hi"],
+        "areaServed": "Global"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "IN"
+      },
+      "foundingDate": "2024",
       "sameAs": [
         "https://twitter.com/ferasetu",
         "https://linkedin.com/company/ferasetu",
@@ -275,7 +287,9 @@ function generateSemanticBody(route) {
           <a href="/compare/" style="color: #334155; text-decoration: none;">Compare Platforms</a>
           <a href="/compare/shopify-alternative/" style="color: #334155; text-decoration: none;">Shopify Alternative</a>
           <a href="/free-online-store/" style="color: #334155; text-decoration: none;">Free Online Store</a>
+          <a href="/shopify-alternative-india/" style="color: #334155; text-decoration: none;">Shopify Alternative India</a>
           <a href="/online-dukaan-banaye/" style="color: #334155; text-decoration: none;">Online Dukaan</a>
+          <a href="/kirana-store-online/" style="color: #334155; text-decoration: none;">Kirana Store</a>
         </nav>
       </header>
 
@@ -340,6 +354,10 @@ function generateSemanticBody(route) {
             <a href="/compare/bigcommerce-alternative/" style="color: #475569; text-decoration: none;">BigCommerce Alternative</a>
             <a href="/compare/dukaan-alternative/" style="color: #475569; text-decoration: none;">Dukaan Alternative</a>
             <a href="/compare/wix-squarespace-alternative/" style="color: #475569; text-decoration: none;">Wix &amp; Squarespace Alternative</a>
+            <a href="/free-online-store/" style="color: #475569; text-decoration: none;">Free Online Store</a>
+            <a href="/shopify-alternative-india/" style="color: #475569; text-decoration: none;">Shopify Alternative India</a>
+            <a href="/online-dukaan-banaye/" style="color: #475569; text-decoration: none;">Online Dukaan Banaye</a>
+            <a href="/kirana-store-online/" style="color: #475569; text-decoration: none;">Kirana Store Online</a>
             <a href="/terms/" style="color: #475569; text-decoration: none;">Terms of Service</a>
             <a href="/privacy/" style="color: #475569; text-decoration: none;">Privacy Policy</a>
           </div>
@@ -411,6 +429,31 @@ function renderPage(route) {
 
   // Inject Schema.org Graph
   const graph = [...globalGraphSchema["@graph"]];
+  if (['/free-online-store', '/online-dukaan-banaye', '/kirana-store-online'].includes(route.path)) {
+    graph.push({
+      "@type": "Article",
+      "headline": route.title,
+      "description": route.description,
+      "url": route.canonical,
+      "inLanguage": "hi",
+      "author": {
+        "@type": "Organization",
+        "name": "FeraSetu",
+        "url": "https://ferasetu.com/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "FeraSetu",
+        "url": "https://ferasetu.com/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://ferasetu.com/logo-official.png"
+        }
+      },
+      "datePublished": "2026-10-15T00:00:00Z",
+      "dateModified": "2026-11-10T00:00:00Z"
+    });
+  }
   if (route.faq && route.faq.length > 0) {
     graph.push({
       "@type": "FAQPage",

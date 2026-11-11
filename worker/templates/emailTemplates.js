@@ -822,7 +822,9 @@ export function validateTemplateVariables(templateKey, data = {}) {
 
   const missing = [];
   for (const field of template.requiredVariables) {
-    const val = data[field];
+    const camel = field.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    const snake = field.replace(/([A-Z])/g, '_$1').toLowerCase();
+    const val = data[field] !== undefined ? data[field] : (data[camel] !== undefined ? data[camel] : data[snake]);
     if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
       missing.push(field);
     }
@@ -860,7 +862,15 @@ export function renderEmailTemplate({
     throw new Error(validation.message);
   }
 
-  const rendered = template.render(data, branding, isPlatform);
+  const normalizedData = { ...data };
+  for (const field of template.requiredVariables) {
+    const camel = field.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    if (normalizedData[field] === undefined && normalizedData[camel] !== undefined) {
+      normalizedData[field] = normalizedData[camel];
+    }
+  }
+
+  const rendered = template.render(normalizedData, branding, isPlatform);
 
   const fullHtml = wrapHtmlLayout({
     title: rendered.subject,

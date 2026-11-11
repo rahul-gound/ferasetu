@@ -10,7 +10,7 @@ const dict: Dictionary = {
   "nav.startFree": "Kezdés ingyen",
   "nav.dashboard": "Irányítópult",
   "seo.landing.title": "FeraSetu — Egyszerű webáruház jutalékok nélkül",
-  "seo.landing.desc": "Indítsa el webshopját percek alatt a FeraSetu segítségével. 0% jutalék, beépített AI támogatás.",
+  "seo.landing.desc": "Indítsa el saját online áruházát percek alatt a FeraSetu segítségével. Közvetlen banki elszámolás, 0% platform jutalék és beépített AI támogatás.",
   "hero.badge": "FÜGGETLEN KERESKEDŐKNEK ÉS KÉSZÍTŐKNEK",
   "hero.title": "Vigye vállalkozását az internetre. Több rendelés, kevesebb felesleges munka.",
   "hero.titleHighlight": "Több rendelés, kevesebb felesleges munka",

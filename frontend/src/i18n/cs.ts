@@ -10,7 +10,7 @@ const dict: Dictionary = {
   "nav.startFree": "Začít zdarma",
   "nav.dashboard": "Přehled",
   "seo.landing.title": "FeraSetu — Váš jednoduchý online obchod bez provizí",
-  "seo.landing.desc": "Spusťte svůj e-shop během několika minut s FeraSetu. Nulové provize z prodeje a integrovaná AI.",
+  "seo.landing.desc": "Spusťte svůj vlastní internetový obchod s FeraSetu za 0 Kč. Přímé platby na účet, žádné provize z prodeje a integrovaná AI podpora.",
   "hero.badge": "PRO NEZÁVISLÉ OBCHODNÍKY A TVŮRCE",
   "hero.title": "Přeneste svůj obchod online. Více objednávek, méně starostí.",
   "hero.titleHighlight": "Více objednávek, méně starostí",

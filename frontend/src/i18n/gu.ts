@@ -12,7 +12,7 @@ const dict: Dictionary = {
   "nav.startFree": "મફત શરૂ કરો",
   "nav.dashboard": "ડેશબોર્ડ",
   "seo.landing.title": "FeraSetu — તમારી દુકાનનો ડિજિટલ સાથી",
-  "seo.landing.desc": "FeraSetu દરેક દુકાનદારને કોઈ પણ માર્કેટપ્લેસ પર નિર્ભર રહ્યા વગર ઓનલાઇન વેચવાની શક્તિ આપે છે.",
+  "seo.landing.desc": "FeraSetu સાથે તમારી પોતાની ઓનલાઇન દુકાન ₹0 માં શરૂ કરો. સીધા બેંક ખાતામાં UPI પેમેન્ટ, 0% પ્લેટફોર્મ કમિશન અને સુરક્ષિત ગ્રાહક ડેટા.",
   "hero.badge": "સ્વતંત્ર ડિજિટલ કોમર્સ",
   "hero.title": "આપણી દુકાન. ઓનલાઇન.",
   "hero.titleHighlight": "આપણી શરતો પર.",

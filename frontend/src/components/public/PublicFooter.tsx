@@ -176,6 +176,30 @@ export default function PublicFooter() {
                   Free Online Store Guide
                 </Link>
               </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/shopify-alternative-india')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Shopify Alternative India
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/online-dukaan-banaye')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Online Dukaan Banaye
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/kirana-store-online')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Kirana Store Online
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -217,6 +241,41 @@ export default function PublicFooter() {
                 </a>
               </li>
             </ul>
+          </div>
+        </div>
+
+        {/* Regional Storefront Editions (Crawlable for Global Search & AI Discovery) */}
+        <div className="pt-6 pb-2 border-t border-slate-200/80 mb-6">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="font-semibold text-slate-700 mr-1">Storefront Editions:</span>
+            {[
+              { code: 'hi', label: 'हिन्दी' },
+              { code: 'bn', label: 'বাংলা' },
+              { code: 'mr', label: 'मराठी' },
+              { code: 'gu', label: 'ગુજરાતી' },
+              { code: 'ta', label: 'தமிழ்' },
+              { code: 'te', label: 'తెలుగు' },
+              { code: 'kn', label: 'ಕನ್ನಡ' },
+              { code: 'ml', label: 'മലയാളം' },
+              { code: 'pa', label: 'ਪੰਜਾਬੀ' },
+              { code: 'fr', label: 'Français' },
+              { code: 'de', label: 'Deutsch' },
+              { code: 'es', label: 'Español' },
+              { code: 'it', label: 'Italiano' },
+              { code: 'nl', label: 'Nederlands' },
+              { code: 'pt', label: 'Português' },
+              { code: 'pl', label: 'Polski' },
+              { code: 'cs', label: 'Čeština' },
+              { code: 'hu', label: 'Magyar' }
+            ].map((lang) => (
+              <a
+                key={lang.code}
+                href={`/${lang.code}/`}
+                className="px-2 py-0.5 rounded border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-colors bg-white font-medium text-[11px]"
+              >
+                {lang.label}
+              </a>
+            ))}
           </div>
         </div>
 
