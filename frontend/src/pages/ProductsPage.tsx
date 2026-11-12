@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Plus,
@@ -34,6 +34,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import UpgradePrompt from '../components/ui/UpgradePrompt';
 import ImportInventoryModal from '../components/products/ImportInventoryModal';
 import AddProductModal, { type ProductItem } from '../components/products/AddProductModal';
+import EmotionalEmptyState from '../components/ui/EmotionalEmptyState';
 import { getPlanLimits, hasReachedProductLimit } from '../config/plans';
 import { resolveMediaUrl } from '../utils/media';
 
@@ -51,6 +52,7 @@ export default function ProductsPage() {
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const planLimits = getPlanLimits(user?.plan);
   const productLimit = planLimits.products;
@@ -759,24 +761,29 @@ export default function ProductsPage() {
             <p className="text-xs text-[#737688]">Loading catalog items...</p>
           </div>
         ) : filtered.length === 0 ? (
-          /* Empty State */
-          <div className="p-12 flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 rounded-full bg-[#dee8fe] flex items-center justify-center text-[#434656] mb-3">
-              <Package size={24} className="text-[#0052ff]" />
-            </div>
-            <h3 className="text-base font-bold text-[#121c2b] m-0">
-              No products match your criteria
-            </h3>
-            <p className="text-xs text-[#737688] mt-1 max-w-sm m-0">
-              Try resetting filters or searching with another keyword or SKU number.
-            </p>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="mt-4 px-4 py-2 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#0052ff] font-semibold text-xs transition-colors cursor-pointer"
-            >
-              Clear all filters
-            </button>
+          /* Emotional Guided Empty State with Fero Guardian */
+          <div className="p-6 sm:p-10">
+            <EmotionalEmptyState
+              title={search || category ? "No matching products found" : "Your sovereign catalog is ready"}
+              description={
+                search || category
+                  ? "Try resetting your search filters or searching with another keyword or SKU number."
+                  : "Add your first product to start taking direct customer orders on your branded storefront with 0% platform commission."
+              }
+              badgeText="0% Commission Catalog · Direct Ownership"
+              primaryAction={{
+                label: "+ Add Product",
+                onClick: () => {
+                  setEditProduct(null);
+                  setShowAddModal(true);
+                },
+              }}
+              onGenerateWithAi={() => {
+                navigate('/ai?intent=add_sample_products');
+              }}
+              aiPromptLabel="Generate Catalog with Fera AI"
+              trustAnchor="100% of product pricing, margins, and photos belong directly to you."
+            />
           </div>
         ) : (
           /* Table Ledger */

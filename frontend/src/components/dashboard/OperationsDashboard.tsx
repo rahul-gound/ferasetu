@@ -52,6 +52,7 @@ import {
 import SettlementModal from './SettlementModal';
 import PrinterStatusModal from './PrinterStatusModal';
 import QuickStockModal from './QuickStockModal';
+import FeroMascot from '../ui/FeroMascot';
 
 // ============================================================================
 // TYPES
@@ -926,15 +927,17 @@ export default function OperationsDashboard({
           }`}
         >
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Left: Warm Contextual Greeting & Dynamic Period Label */}
-            <div className="space-y-1.5">
+            {/* Left: Sovereign Morning Briefing & Contextual Greeting */}
+            <div className="space-y-2">
               <div className="flex items-center flex-wrap gap-2">
+                <FeroMascot size={28} showBadge={false} />
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  Store Operations Live
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-bold tracking-tight">
+                  <ShieldCheck size={12} className="text-[#10B981]" />
+                  <span>Store Live · Direct Settlement Active</span>
                 </span>
                 <span className="text-xs text-slate-300 dark:text-slate-700">•</span>
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -945,6 +948,14 @@ export default function OperationsDashboard({
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 font-mono-tabular">
                   <Clock size={11} />
                   {reportingPeriodLabel}
+                </span>
+                {/* Commission Saved Counter Pill */}
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-mono-tabular cursor-help"
+                  title="Estimated 18% commission saved compared to traditional marketplaces. On FeraSetu, you keep 100%."
+                >
+                  <Sparkles size={11} className="text-[#F59E0B]" />
+                  <span>{formatInr(Math.round((metrics.grossSales || 0) * 0.18))} Commission Retained</span>
                 </span>
               </div>
 
@@ -1975,12 +1986,8 @@ export default function OperationsDashboard({
           {/* REAL ORDERS TABLE OR AUTHENTIC EMPTY STATE */}
           {filteredOrders.length === 0 ? (
             <div className="p-12 text-center flex flex-col items-center justify-center max-w-md mx-auto space-y-4">
-              <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${
-                  isDarkMode ? 'bg-[#141E2F] text-amber-400' : 'bg-amber-50 text-amber-600'
-                }`}
-              >
-                ☕
+              <div className="mb-2">
+                <FeroMascot size={64} showBadge={true} />
               </div>
 
               <div className="space-y-1.5">

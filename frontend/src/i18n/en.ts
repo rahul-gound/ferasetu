@@ -108,7 +108,7 @@ export default {
 
   // Pricing Preview
   "pricingPreview.title": "Simple, transparent pricing",
-  "pricingPreview.subtitle": "Start for â‚¹0, upgrade when you need to grow. No hidden charges.",
+  "pricingPreview.subtitle": "Start for ₹0, upgrade when you need to grow. No hidden charges.",
   "pricingPreview.recommended": "MOST POPULAR",
   "pricingPreview.viewAll": "See full pricing & feature comparison",
   "pricingPreview.mo": "/mo",
@@ -132,7 +132,7 @@ export default {
   "footer.createStore": "Create Free Store",
   "footer.privacy": "Privacy Policy",
   "footer.terms": "Terms of Service",
-  "footer.rights": "Â© {{year}} FeraSetu. All rights reserved.",
+  "footer.rights": "© {{year}} FeraSetu. All rights reserved.",
 
   // Auth Pages
   "auth.redirectLogin": "Redirecting to secure login...",
@@ -141,7 +141,7 @@ export default {
   // Value Calculator
   "calc.tag": "Think About It",
   "calc.title": "Would FeraSetu pay for itself?",
-  "calc.desc": "You know your margins better than we do. Use this to think it through â€” we won't promise you anything we can't deliver.",
+  "calc.desc": "You know your margins better than we do. Use this to think it through — we won't promise you anything we can't deliver.",
   "calc.orders": "Orders per week",
   "calc.aov": "Average order value",
   "calc.estOrders": "Est. monthly orders",
@@ -150,7 +150,7 @@ export default {
   "calc.timeSaved": "Time saved per week",
   "calc.basedOn": "Based on {{billing}} billing ({{price}}/mo)",
   "calc.disclaimerTitle": "Honest note:",
-  "calc.disclaimerText": "These are your numbers, not ours. We can't promise how many orders you'll get or what your revenue will be â€” that depends on your shop, your products, and your customers. What FeraSetu does is make it easier to manage what you already have, and give it a better online presence. The rest is up to you.",
+  "calc.disclaimerText": "These are your numbers, not ours. We can't promise how many orders you'll get or what your revenue will be — that depends on your shop, your products, and your customers. What FeraSetu does is make it easier to manage what you already have, and give it a better online presence. The rest is up to you.",
 
   // Pricing Page
   "pricing.tag": "Choose the right plan",
@@ -172,17 +172,17 @@ export default {
   "pricing.cta.tag": "Try it first",
   "pricing.cta.title": "Start for free.",
   "pricing.cta.titleHighlight": "Upgrade when you're ready.",
-  "pricing.cta.desc": "The Free plan isn't a trick to get you to pay. It's a complete, working store for up to 25 products. When your shop grows, Business is there at â‚¹399/month.",
+  "pricing.cta.desc": "The Free plan isn't a trick to get you to pay. It's a complete, working store for up to 25 products. When your shop grows, Business is there at ₹399/month.",
   "pricing.cta.free": "Create Free Store",
   "pricing.cta.login": "Already have an account? Sign in",
-  "pricing.cta.footer": "No credit card Â· No setup fee Â· No lock-in",
+  "pricing.cta.footer": "No credit card · No setup fee · No lock-in",
 
   // Pricing Card
   "card.popular": "MOST POPULAR",
-  "card.save": "â‚¹{{total}}/year â€” save 2 months",
-  "card.day": "â‚¹{{price}}/day",
+  "card.save": "₹{{total}}/year — save 2 months",
+  "card.day": "₹{{price}}/day",
   "card.current": "Current plan",
-  "card.cancel": "Cancel anytime Â· No hidden fees",
+  "card.cancel": "Cancel anytime · No hidden fees",
   
   // Dashboard
   "dashboard": "Dashboard",
@@ -255,5 +255,22 @@ export default {
   // Support label
   "surveyFeedback": "Feedback",
   "support": "Support",
+  // Missing translation keys called across the app
+  'addFirstProduct': 'Add First Product',
+  'chooseTemplate': 'Choose Store Template',
+  'personalizeStore': 'Personalize Store',
+  'goLive': 'Go Live',
+  'Please answer this question': 'Please answer this question',
+  'profileUpdated': 'Profile updated successfully',
+  'profileSaveFailed': 'Failed to save profile',
+
+  // Sovereign Emotional Design System Keys
+  'sovereign.commissionSaved': 'Commission Retained',
+  'sovereign.directSettlement': 'Direct Bank Settlement Active',
+  'sovereign.zeroCommission': '0% Platform Commission',
+  'sovereign.feroGuardian': 'Protected by Fero Guardian',
+  'sovereign.aiCopilot': 'Fera AI Sovereign Co-Pilot',
+  'sovereign.generateWithAi': 'Generate with Fera AI',
+  'sovereign.claimStore': 'Claim Your Sovereign Store',
 
 };

@@ -24,6 +24,9 @@ import CompleteCircuit from '../components/marketing/CompleteCircuit';
 import StorefrontShowcase from '../components/marketing/StorefrontShowcase';
 import TransparencyTable from '../components/marketing/TransparencyTable';
 import FAQSection from '../components/marketing/FAQSection';
+import HeroConnectedJourney from '../components/marketing/HeroConnectedJourney';
+import CommissionCalculatorMatrix from '../components/marketing/CommissionCalculatorMatrix';
+import HowItWorksFeraAIShowcase from '../components/marketing/HowItWorksFeraAIShowcase';
 import SEO from '../components/SEO';
 import SplitText from '../components/ui/SplitText';
 import SpotlightCard from '../components/ui/SpotlightCard';
@@ -170,17 +173,17 @@ export default function LandingPage() {
 
             {/* Top Eyebrow, Headline & Value Statement */}
             <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-12">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-200/90 text-orange-950 text-xs sm:text-sm font-semibold mb-6 shadow-xs">
-                <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-                <span className="font-mono text-[11px] font-black tracking-wider uppercase text-orange-700">INDEPENDENT COMMERCE</span>
-                <span className="text-orange-300">|</span>
-                <span className="font-extrabold text-orange-600">0% Commission</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm font-semibold mb-6 shadow-md">
+                <span className="flex h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
+                <span className="font-mono text-[11px] font-black tracking-wider uppercase text-[#F59E0B]">
+                  🌍 Global · 0% Platform Commission · Direct Bank Settlement
+                </span>
               </div>
 
               <SplitText
                 text="Your business is yours."
                 highlightText="The internet should be too."
-                highlightClassName="text-blue-600 block sm:inline"
+                highlightClassName="text-[#0052FF] block sm:inline"
                 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6"
               />
 
@@ -193,14 +196,14 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => handleStart('hero_primary')}
-                  className="group w-full sm:w-auto px-7 py-3.5 rounded-xl bg-orange-500 text-white font-bold text-base hover:bg-orange-600 transition-all duration-150 hover:-translate-y-0.5 shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                  className="group w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#0052FF] text-white font-bold text-base hover:bg-[#0047E0] transition-all duration-150 hover:-translate-y-0.5 shadow-lg shadow-[#0052FF]/25 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] focus-visible:ring-offset-2"
                 >
                   <span>Bring my business online</span>
                   <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
                 </button>
 
                 <a
-                  href="#complete-circuit"
+                  href="#how-it-works-showcase"
                   className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-1.5"
                 >
                   <span>See how it works</span>
@@ -280,7 +283,15 @@ export default function LandingPage() {
             {/* ================================================================
               SECTION 2 — PRODUCT PROOF: DUAL-STATE REAL PRODUCT UI
             ================================================================ */}
-            <div id="product-proof" className="max-w-5xl mx-auto rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden text-left">
+            <div id="product-proof">
+              <HeroConnectedJourney
+                market={market}
+                onExplorePlans={() => {
+                  document.getElementById('commission-calculator')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              />
+            </div>
+            <div className="hidden" aria-hidden="true">
               {/* Top System Bar */}
               <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
@@ -540,9 +551,25 @@ export default function LandingPage() {
 
 
         {/* ================================================================
+          SECTION 3.2 — HOW IT WORKS & FERA AI SHOWCASE: 3-STEP CIRCUIT
+        ================================================================ */}
+        <HowItWorksFeraAIShowcase
+          onStart={() => handleStart('how_it_works_cta')}
+          market={market}
+        />
+
+        {/* ================================================================
           SECTION 3.5 — STOREFRONT SHOWCASE: LIVE MERCHANT CONDUITS
         ================================================================ */}
         <StorefrontShowcase />
+
+        {/* ================================================================
+          SECTION 3.8 — COMMISSION TRANSPARENCY CALCULATOR & SOVEREIGNTY MATRIX
+        ================================================================ */}
+        <CommissionCalculatorMatrix
+          market={market}
+          onStart={() => handleStart('calculator_cta')}
+        />
 
 
         {/* ================================================================

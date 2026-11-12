@@ -64,4 +64,8 @@ extracted-mono-template/
 ferasetu-experiment/
 .posthog-wizard-cache/
 
+# Agent local skill heavy assets
+.agents/skills/design-taste-frontend/
+.agents/skills/taste-skill/
+
 
