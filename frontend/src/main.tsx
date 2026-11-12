@@ -19,3 +19,14 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
+
+if (typeof window !== 'undefined') {
+  const initTelemetry = () => {
+    import('./services/errorTelemetry').then((m) => m.initGlobalErrorTelemetry?.());
+  };
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(initTelemetry, { timeout: 3000 });
+  } else {
+    setTimeout(initTelemetry, 1500);
+  }
+}

@@ -13,6 +13,10 @@ if (!isPostHogConfigured) {
 } else {
   posthog.init(posthogKey, {
     api_host: posthogHost,
+    autocapture: false, // Prevent continuous DOM scanning & mutation observers
+    disable_session_recording: true, // Prevent continuous DOM snapshotting & serialization
+    capture_pageview: false, // Page views explicitly tracked via first-party tracker
+    advanced_disable_decide: true, // Prevent remote feature flag polling thrash
     capture_exceptions: {
       capture_unhandled_errors: true,
       capture_unhandled_rejections: true,

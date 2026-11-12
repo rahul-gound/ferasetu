@@ -1,45 +1,74 @@
 import React, { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
-import gsap from 'gsap';
 import { useLocation } from 'react-router-dom';
 
 /**
- * SmoothScroll component using Lenis and GSAP ticker sync.
- * Gives the entire FeraSetu merchant experience a buttery smooth, lively feel
- * while honoring accessibility and reduced motion preferences.
+ * High-Performance SmoothScroll component using on-demand RAF.
+ * Automatically goes to sleep when idle to ensure 0% CPU overhead,
+ * honoring reduced motion and skipping emulation on touch/mobile devices.
  */
 export default function SmoothScroll({ children }: { children?: React.ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null);
   const location = useLocation();
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     // Respect user preference for reduced motion
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
 
+    // Mobile / touch devices natively handle smooth inertial scrolling with hardware acceleration
+    const isTouchOrCoarse =
+      window.matchMedia('(pointer: coarse)').matches ||
+      ('ontouchstart' in window) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+      window.innerWidth < 1024;
+    if (isTouchOrCoarse) return;
+
     const lenis = new Lenis({
-      duration: 1.1,
+      duration: 1.0,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
       wheelMultiplier: 0.9,
-      touchMultiplier: 1.5,
+      touchMultiplier: 1.0,
       infinite: false,
     });
     lenisRef.current = lenis;
 
-    // Connect Lenis with GSAP ticker for synchronized frame updates
-    function update(time: number) {
-      lenis.raf(time * 1000);
+    let rafId: number | null = null;
+    let isTicking = false;
+
+    // On-demand RAF loop: runs ONLY while scrolling / settling, then sleeps to eliminate idle CPU drain
+    function tick(time: number) {
+      lenis.raf(time);
+      const isSettled = !lenis.isScrolling && Math.abs(lenis.scroll - lenis.actualScroll) < 0.1;
+      if (!isSettled) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        isTicking = false;
+        rafId = null;
+      }
     }
-    gsap.ticker.add(update);
-    gsap.ticker.lagSmoothing(500, 33);
+
+    function wakeUp() {
+      if (!isTicking) {
+        isTicking = true;
+        rafId = requestAnimationFrame(tick);
+      }
+    }
+
+    window.addEventListener('wheel', wakeUp, { passive: true });
+    window.addEventListener('scroll', wakeUp, { passive: true });
+    window.addEventListener('keydown', wakeUp, { passive: true });
 
     return () => {
-      gsap.ticker.remove(update);
+      window.removeEventListener('wheel', wakeUp);
+      window.removeEventListener('scroll', wakeUp);
+      window.removeEventListener('keydown', wakeUp);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       lenis.destroy();
       lenisRef.current = null;
     };

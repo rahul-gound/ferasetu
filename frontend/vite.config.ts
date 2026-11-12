@@ -25,33 +25,17 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: 'index.html',
-        telemetry: 'src/telemetry-bootstrap.ts'
       },
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/recharts') || id.includes('node_modules/chart.js')) {
-            return 'vendor-charts';
-          }
-          if (id.includes('node_modules/@statsig')) {
-            return 'vendor-statsig';
-          }
           if (id.includes('node_modules/three') || id.includes('node_modules/@react-three')) {
             return 'vendor-three';
           }
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
-            return 'vendor-react';
-          }
-          if (id.includes('node_modules/lucide-react/')) {
-            return 'vendor-icons';
-          }
-          if (id.includes('node_modules/framer-motion/')) {
-            return 'vendor-motion';
-          }
-          if (id.includes('node_modules/@tanstack/react-query/')) {
-            return 'vendor-query';
-          }
           if (id.includes('node_modules/@workos-inc/')) {
             return 'vendor-auth';
+          }
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-query';
           }
         }
       }
