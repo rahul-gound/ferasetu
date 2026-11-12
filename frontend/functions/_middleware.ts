@@ -159,7 +159,21 @@ export async function onRequest(context: EventContext): Promise<Response> {
 
   // Normalize route path by stripping trailing slashes for lookup
   const normalizedPath = pathname.replace(/\/$/, '') || '/';
-  const meta = ROUTE_REGISTRY[normalizedPath];
+  let meta = ROUTE_REGISTRY[normalizedPath];
+
+  // Dynamic resolution for regional language landing pages (e.g. /kn, /ml, /pa)
+  if (!meta) {
+    const langMatch = normalizedPath.match(/^\/([a-z]{2,3}(?:-[a-z]+)?)$/);
+    if (langMatch) {
+      const code = langMatch[1];
+      meta = {
+        title: `FeraSetu — 0% Commission Sovereign Online Store (${code.toUpperCase()})`,
+        description:
+          'Run your own branded online store, receive direct customer orders, and keep what you make after payment processing. 0% FeraSetu platform commission.',
+        canonical: `${BASE_URL}/${code}/`,
+      };
+    }
+  }
 
   const response = await context.next();
 
