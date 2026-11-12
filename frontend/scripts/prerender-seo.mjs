@@ -226,7 +226,7 @@ const globalGraphSchema = {
         "width": 512,
         "height": 512
       },
-      "description": "Sovereign B2B digital commerce infrastructure for independent retailers, grocers, and brands with 0% platform commission.",
+      "description": "Sovereign B2B digital commerce infrastructure for independent retailers with 0% platform commission.",
       "email": "support@ferasetu.com",
       "contactPoint": {
         "@type": "ContactPoint",
@@ -311,7 +311,7 @@ function generateSemanticBody(route) {
             Direct Digital Storefront &amp; Sovereign Settlement
           </h2>
           <p style="margin: 0 0 16px 0;">
-            FeraSetu provides sovereign digital commerce infrastructure for retailers, grocers, boutiques, and artisans across 48+ regions. Run your own branded online store, receive direct customer orders via WhatsApp and web cart checkout, accept UPI and card payments directly into your bank account, and keep 100% of your earnings with 0% platform commission.
+            FeraSetu provides sovereign digital commerce infrastructure for independent retailers across 48+ regions. Run your own branded online store, receive direct customer orders via WhatsApp and web cart checkout, accept UPI and card payments directly into your bank account, and keep 100% of your earnings with 0% platform commission.
           </p>
           <p style="margin: 0 0 16px 0;">
             Unlike legacy platforms that penalize external payment gateways or generic drag-and-drop builders that slow down mobile checkouts, FeraSetu runs on high-speed Cloudflare edge infrastructure. You receive unmasked customer names, verified phone numbers, and full order histories with automated GST tax invoices.

@@ -25,6 +25,7 @@ import StorefrontShowcase from '../components/marketing/StorefrontShowcase';
 import TransparencyTable from '../components/marketing/TransparencyTable';
 import FAQSection from '../components/marketing/FAQSection';
 import HeroConnectedJourney from '../components/marketing/HeroConnectedJourney';
+import FeroGuardianSection from '../components/marketing/FeroGuardianSection';
 import CommissionCalculatorMatrix from '../components/marketing/CommissionCalculatorMatrix';
 import HowItWorksFeraAIShowcase from '../components/marketing/HowItWorksFeraAIShowcase';
 import SEO from '../components/SEO';
@@ -211,7 +212,7 @@ export default function LandingPage() {
               </div>
 
               {/* Trust Indicators */}
-              <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-8">
+              <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-6">
                 <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
                   <CheckCircle2 size={14} className="text-blue-600" aria-hidden="true" />
                   <span>{market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}</span>
@@ -226,6 +227,32 @@ export default function LandingPage() {
                   <ShieldCheck size={14} className="text-orange-600" aria-hidden="true" />
                   <span>0% FeraSetu platform commission</span>
                 </span>
+              </div>
+
+              {/* Hero Mascot Guardian Callout */}
+              <div className="mb-8 p-3.5 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-lg max-w-2xl mx-auto flex items-center gap-3.5 sm:gap-4 text-left">
+                <div className="relative shrink-0">
+                  <img
+                    src="/pictures/fero-mascot.webp"
+                    alt="Fero — The sovereign lion guardian"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover object-top border-2 border-[#F59E0B] shadow-md"
+                    loading="eager"
+                  />
+                  <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-[#10B981] text-white text-[9px] font-mono font-black border border-slate-900">
+                    0%
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-bold text-xs sm:text-sm text-white">Guarded by Fero</span>
+                    <span className="font-mono text-[10px] text-[#F59E0B] font-bold uppercase tracking-wider bg-[#F59E0B]/15 px-2 py-0.5 rounded border border-[#F59E0B]/30">
+                      Zero Platform Toll
+                    </span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-slate-300 leading-snug">
+                    Fero keeps 100% of your earnings in your bank account and unmasks every customer contact.
+                  </p>
+                </div>
               </div>
 
               {/* First-Glance High-Trust Value Anchors (First 50ms Cognitive Reassurance) */}
@@ -548,6 +575,15 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+
+        {/* ================================================================
+          SECTION 3.1 — FERO THE SOVEREIGN GUARDIAN SHOWCASE
+        ================================================================ */}
+        <FeroGuardianSection
+          onStart={() => handleStart('fero_guardian_cta')}
+          market={market}
+        />
 
 
         {/* ================================================================
@@ -911,9 +947,17 @@ export default function LandingPage() {
         <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden border-t border-slate-800">
           <div className="max-w-[800px] mx-auto px-4 sm:px-6 text-center relative z-10">
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-orange-500/30 text-orange-400 text-xs sm:text-sm font-semibold mb-6 shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-              <span>Ready When You Are</span>
+            {/* Fero Mascot Companion Pill in Final CTA */}
+            <div className="mb-6 inline-flex items-center gap-3 p-1.5 pr-4 rounded-full bg-slate-800/90 border border-slate-700 shadow-md">
+              <img
+                src="/pictures/fero-mascot.webp"
+                alt="Fero — Sovereign Lion Guardian"
+                className="w-10 h-10 rounded-full object-cover object-top border-2 border-[#F59E0B]"
+                loading="lazy"
+              />
+              <span className="font-mono text-xs font-bold text-[#F59E0B] uppercase tracking-wider">
+                Fero Stands Ready Beside Your Shop
+              </span>
             </div>
 
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-5">

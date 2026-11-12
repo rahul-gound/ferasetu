@@ -187,8 +187,8 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
 
               {/* Sovereign Rail Emblem */}
               <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-lg flex flex-col items-center text-center">
-                <FeroMascot size={36} showBadge={false} />
-                <span className="text-[10px] font-mono font-bold text-[#F59E0B] mt-1 uppercase tracking-wider">
+                <FeroMascot size={44} shape="circle" showBadge={false} />
+                <span className="text-[10px] font-mono font-bold text-[#F59E0B] mt-1.5 uppercase tracking-wider">
                   0% Toll Rail
                 </span>
                 <span className="text-[9px] text-slate-400 leading-tight mt-0.5">
