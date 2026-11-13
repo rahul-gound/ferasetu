@@ -51,3 +51,79 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at     TEXT NOT NULL,
   updated_at     TEXT
 );
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id             TEXT PRIMARY KEY,
+  title          TEXT NOT NULL,
+  content        TEXT NOT NULL,
+  category       TEXT NOT NULL DEFAULT 'feature',
+  badge_label    TEXT DEFAULT 'New Feature',
+  action_url     TEXT,
+  action_label   TEXT,
+  target_plan    TEXT DEFAULT 'all',
+  is_pinned      INTEGER NOT NULL DEFAULT 0,
+  is_active      INTEGER NOT NULL DEFAULT 1,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS customer_segments (
+  id             TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  description    TEXT,
+  query_type     TEXT NOT NULL DEFAULT 'custom',
+  template_id    TEXT,
+  rules_json     TEXT NOT NULL,
+  conjunction    TEXT NOT NULL DEFAULT 'AND',
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS gift_cards (
+  id             TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  user_id        TEXT,
+  code           TEXT UNIQUE NOT NULL,
+  initial_value  REAL NOT NULL,
+  balance        REAL NOT NULL,
+  currency       TEXT NOT NULL DEFAULT 'INR',
+  recipient_email TEXT,
+  recipient_name TEXT,
+  note           TEXT,
+  status         TEXT NOT NULL DEFAULT 'active',
+  expires_at     TEXT,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS inventory_transfers (
+  id             TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  user_id        TEXT,
+  transfer_number TEXT NOT NULL,
+  reference_name TEXT,
+  origin_location_id TEXT NOT NULL,
+  origin_name    TEXT NOT NULL,
+  destination_location_id TEXT NOT NULL,
+  destination_name TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'draft',
+  estimated_arrival TEXT,
+  note           TEXT,
+  tags           TEXT,
+  purchase_order_id TEXT,
+  total_items    INTEGER NOT NULL DEFAULT 0,
+  total_units    INTEGER NOT NULL DEFAULT 0,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS inventory_transfer_items (
+  id             TEXT PRIMARY KEY,
+  transfer_id    TEXT NOT NULL,
+  product_id     TEXT NOT NULL,
+  product_title  TEXT NOT NULL,
+  sku            TEXT,
+  quantity_requested INTEGER NOT NULL DEFAULT 1,
+  quantity_received INTEGER NOT NULL DEFAULT 0,
+  unit_cost      REAL NOT NULL DEFAULT 0
+);

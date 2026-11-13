@@ -39,8 +39,8 @@ export function normalizeChatEndpoint(endpoint = 'https://ai.fera-search.tech/v1
  */
 export function getProviderConfig(env = {}) {
   // Canonical Fera AI endpoint (OpenAI-compatible)
-  // Supports AI_ENDPOINT / ai_endpoint and API_AI / api_ai from Cloudflare Worker env / dev.vars
-  const rawAiEndpoint = env.AI_ENDPOINT || env.ai_endpoint || env.FERA_AI_ENDPOINT || env.FERA_AI_BASE_URL || env.MODAL_GLM_ENDPOINT || env.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
+  // Supports AI_ENDPOINT / ai_endpoint, AI_API_BASEURL / ai_api_baseurl, and API_AI / api_ai from Cloudflare Worker env / dev.vars
+  const rawAiEndpoint = env.AI_ENDPOINT || env.ai_endpoint || env.AI_API_BASEURL || env.ai_api_baseurl || env.AI_BASE_URL || env.ai_base_url || env.FERA_AI_ENDPOINT || env.FERA_AI_BASE_URL || env.MODAL_GLM_ENDPOINT || env.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
   const chatCompletionsEndpoint = normalizeChatEndpoint(rawAiEndpoint);
   const aiApiKey = env.API_AI || env.api_ai || env.AI_API_KEY || env.ai_api_key || env.FERA_AI_API_KEY || env.FERA_AI_KEY || env.OPENAI_API_KEY || env.MODAL_API_KEY || env.GLM_MODAL_API_KEY || '';
   const aiModel = env.FERA_AI_MODEL || env.AI_MODEL || env.ai_model || env.MODAL_GLM_MODEL || env.GLM_MODEL_NAME || 'glm-5.3-flash';

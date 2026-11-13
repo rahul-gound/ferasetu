@@ -1,28 +1,101 @@
-# Backblaze B2 S3-Compatible Storage Credentials (Local Development)
-# Copy this file to dev.vars and fill in with your local/testing credentials.
-# NEVER commit real credentials to git.
+# =============================================================================
+# FeraSetu Cloudflare Worker — Example Development Variables (dev.vars.example)
+# =============================================================================
+# Copy this file to `.dev.vars` for local development with `wrangler dev`.
+# DO NOT commit real secrets or production keys to version control.
+# =============================================================================
 
-B2_APPLICATION_KEY_ID=your_b2_application_key_id
-B2_APPLICATION_KEY=your_b2_application_key
-B2_BUCKET=ferasetu-media-prod
-B2_REGION=eu-central-003
-B2_ENDPOINT=https://s3.eu-central-003.backblazeb2.com
+# ─── 1. Platform Administration & Authentication ──────────────────────────────
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD_HASH="pbkdf2$100000$SHA-256$c29tZXNhbHQ=$tMvjC/hQ7lXj2V8WbXlE7RjE3N2S0m6F3zXQ1R+G5uM="
+ADMIN_JWT_SECRET="super-secret-local-jwt-key-do-not-use-in-production"
+JWT_SECRET="super-secret-local-jwt-key-do-not-use-in-production"
+ADMIN_USER_IDS="user_01M2FQ94TPQ7GQ18WNZ68EN50B"
 
-# Zoho Zia Agents Chat
+WORKOS_CLIENT_ID="client_01KZRE47KGSPK84HEP9WNBG9YY"
+WORKOS_API_KEY="sk_test_mock_workos_api_key"
+
+# ─── 2. Fera AI Service (OpenAI-Compatible Backend Cluster) ───────────────────
+# Canonical upstream endpoint: https://ai.fera-search.tech/v1
+AI_ENDPOINT="https://ai.fera-search.tech/v1"
+ai_endpoint="https://ai.fera-search.tech/v1"
+AI_API_BASEURL="https://ai.fera-search.tech/v1"
+ai_api_baseurl="https://ai.fera-search.tech/v1"
+AI_BASE_URL="https://ai.fera-search.tech/v1"
+ai_base_url="https://ai.fera-search.tech/v1"
+FERA_AI_ENDPOINT="https://ai.fera-search.tech/v1"
+FERA_AI_BASE_URL="https://ai.fera-search.tech/v1"
+
+API_AI="your_ai_api_key_here"
+api_ai="your_ai_api_key_here"
+AI_API_KEY="your_ai_api_key_here"
+ai_api_key="your_ai_api_key_here"
+FERA_AI_API_KEY="your_ai_api_key_here"
+
+FERA_AI_MODEL="glm-5.3-flash"
+AI_MODEL="glm-5.3-flash"
+ai_model="glm-5.3-flash"
+
+# ─── 3. Payments & Billing (Migrated to Razorpay) ─────────────────────────────
+PAYMENT_GATEWAY="razorpay"
+DEFAULT_PAYMENT_GATEWAY="razorpay"
+RAZORPAY_KEY_ID="rzp_test_your_key_id_here"
+RAZORPAY_KEY_SECRET="your_razorpay_key_secret_here"
+RAZORPAY_WEBHOOK_SECRET="your_razorpay_webhook_secret_here"
+
+ALLOW_TEST_PAYMENT="true"
+ENABLE_TEST_PAYMENT="true"
+
+# Legacy Cashfree Credentials (Secondary / Fallback Gateway)
+CASHFREE_APP_ID="your_cashfree_app_id"
+CASHFREE_SECRET_KEY="your_cashfree_secret_key"
+CASHFREE_ENV="sandbox"
+
+STRIPE_SECRET_KEY="sk_test_your_stripe_secret_key"
+
+# ─── 4. Storage & Media (Backblaze B2 S3-Compatible & R2) ─────────────────────
+B2_APPLICATION_KEY_ID="your_b2_application_key_id"
+B2_APPLICATION_KEY="your_b2_application_key"
+B2_BUCKET="ferasetu-media-prod"
+B2_REGION="eu-central-003"
+B2_ENDPOINT="https://s3.eu-central-003.backblazeb2.com"
+MEDIA_BUCKET_NAME="ferasetu-media-prod"
+CDN_BASE_URL="https://cdn.ferasetu.com"
+MAX_UPLOAD_FILE_SIZE_BYTES="26214400"
+UPLOAD_RESERVATION_TTL_SECONDS="3600"
+
+# ─── 5. Encryption & Security Keys ───────────────────────────────────────────
+DATA_ENCRYPTION_KEY="your_32_byte_hex_encryption_key_here"
+SMTP_ENCRYPTION_KEY="your_16_or_32_byte_smtp_key_here"
+INGRESS_PROXY_SECRET="your_ingress_proxy_shared_secret_here"
+
+# ─── 6. Custom Domains & DNS Provisioning ────────────────────────────────────
+CLOUDFLARE_ACCOUNT_ID="your_cloudflare_account_id"
+CLOUDFLARE_API_TOKEN="your_cloudflare_api_token"
+CLOUDFLARE_REGISTRAR_API_TOKEN="your_cloudflare_registrar_token"
+
+SPACESHIP_API_KEY="your_spaceship_api_key"
+SPACESHIP_API_SECRET="your_spaceship_api_secret"
+SPACESHIP_API_BASE="https://spaceship.dev/api/v1"
+SPACESHIP_TEST_MODE="true"
+ENABLE_SPACESHIP_CHECKOUT="false"
+
+# ─── 7. FeraSetu Transactional Mail & WhatsApp Assistant ─────────────────────
+FERASETU_SMTP_SERVICE_URL="https://singhantima203--ferasetu-smtp-web-gateway.modal.run"
+FERASETU_SMTP_API_KEY="your_ferasetu_smtp_service_api_key"
+
+WHATSAPP_CONNECTOR_URL="http://localhost:3001"
+WHATSAPP_INTERNAL_SECRET="your_whatsapp_internal_secret"
+
+# ─── 8. Zoho Zia Agents Chat (Support Integration) ───────────────────────────
 ZOHO_CHAT_ORG_ID="60088469696"
 ZOHO_CHAT_ENTITY_ID="12456000000002143"
 ZOHO_CHAT_KEY=""
 
-# Fera AI Service (OpenAI-compatible)
-# Cloudflare Worker backend secrets — NEVER exposed to or called by frontend
-AI_ENDPOINT="https://ai.fera-search.tech/v1"
-API_AI="your_ai_api_key_here"
-
-# Razorpay Credentials (FeraSetu SaaS subscription & AI credits billing)
-RAZORPAY_KEY_ID="rzp_test_your_key_id_here"
-RAZORPAY_KEY_SECRET="your_razorpay_key_secret_here"
-
-# Fera AI Service (OpenAI-compatible)
-FERA_AI_ENDPOINT="https://ai.fera-search.tech/v1"
-FERA_AI_API_KEY="fera-ai-secret-local-key"
-FERA_AI_MODEL="glm-5.3-flash"
+# ─── 9. Application & Origin Routing ─────────────────────────────────────────
+ENVIRONMENT="development"
+NODE_ENV="development"
+APP_ENV="development"
+PAGES_ORIGIN="http://localhost:5173"
+PUBLIC_APP_URL="http://localhost:5173"
+PAYMENT_WEBHOOK_URL="http://localhost:8787/api/payment/webhook"

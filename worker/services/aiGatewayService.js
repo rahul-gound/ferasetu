@@ -70,8 +70,8 @@ export function redactSecrets(val) {
  * @param {object} env - Cloudflare Worker environment bindings
  */
 export function createAiGatewayService(env = {}) {
-  // Fera AI / OpenAI-compatible reasoning config (AI_ENDPOINT / ai_endpoint and API_AI / api_ai from Worker dev.vars / env)
-  const rawAiEndpoint = env?.AI_ENDPOINT || env?.ai_endpoint || env?.FERA_AI_ENDPOINT || env?.FERA_AI_BASE_URL || env?.MODAL_GLM_ENDPOINT || env?.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
+  // Fera AI / OpenAI-compatible reasoning config (AI_ENDPOINT / ai_endpoint, AI_API_BASEURL / ai_api_baseurl, and API_AI / api_ai from Worker dev.vars / env)
+  const rawAiEndpoint = env?.AI_ENDPOINT || env?.ai_endpoint || env?.AI_API_BASEURL || env?.ai_api_baseurl || env?.AI_BASE_URL || env?.ai_base_url || env?.FERA_AI_ENDPOINT || env?.FERA_AI_BASE_URL || env?.MODAL_GLM_ENDPOINT || env?.GLM_MODAL_URL || 'https://ai.fera-search.tech/v1';
   const cleanEndpoint = String(rawAiEndpoint || '').trim().replace(/\/+$/, '');
   const aiChatEndpoint = cleanEndpoint.endsWith('/chat/completions')
     ? cleanEndpoint

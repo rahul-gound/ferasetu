@@ -1,6 +1,6 @@
 # ⚡ Edge Tier (Cloudflare Workers & D1)
 
-> **Subsystem Completion:** `94%`  
+> **Subsystem Completion:** `96%`  
 > **Status:** 🟢 Production Ready  
 > **Primary Path:** `worker/`  
 > **Parent:** [[00 - 🗺️ System Architecture Overview]] | **Progress:** [[01 - 📊 Progress & Completion Matrix]]
@@ -99,3 +99,25 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
   - `POST /api/discounts/:id/generate-codes`: Collision-safe batch code generator.
   - `POST /api/storefront/discounts/validate`: Pre-checkout code validation.
   - `POST /api/storefront/discounts/evaluate`: Public cart evaluation for automatic & manual discounts.
+
+## 7. Announcements, Customer Segments, Gift Cards & Transfers Edge Contracts
+- **Announcements & Updates Center (`worker/routes/announcementsRoutes.js`)**:
+  - `GET /api/announcements`: Public and merchant-facing platform updates feed with category filtering (`feature`, `update`, `message`, `tip`) and plan-based target filtering. Lazily seeds curated launch updates if empty.
+- **Customer Segments (`worker/routes/customerSegmentsRoutes.js`)**:
+  - `GET/POST /api/customers/segments`: Merchant saved dynamic searches that update automatically based on customer live order volume, lifetime spend, email subscription, or city.
+  - `POST /api/customers/segments/preview`: Instant test runner calculating segment matching percentage and customer sample from D1 data.
+  - `DELETE /api/customers/segments/:id`: Deletes segment from D1 with organization isolation.
+- **Gift Cards (`worker/routes/giftCardsRoutes.js`)**:
+  - `GET /api/gift-cards`: Aggregates active gift card products, issued codes, and financial liability stats (`outstanding_balance_obligation`, `total_issued_value`, `total_redeemed_value`).
+  - `POST /api/gift-cards/product`: Creates a digital sellable gift card catalog item with denomination arrays.
+  - `POST /api/gift-cards/issue`: Issues individual high-entropy gift card codes (`FERA-XXXX-XXXX-XXXX`) with optional recipient delivery and expiry.
+  - `POST /api/gift-cards/simulate`: Interactive split-payment and checkout deduction calculator.
+- **Inventory Transfers & Locations (`worker/routes/transfersRoutes.js`)**:
+  - `GET/POST /api/transfers/locations`: Retrieves and provisions warehouse, front store dukaan, supplier, and hub stock nodes.
+  - `GET/POST /api/transfers`: Lists and creates stock shipments with line items, tracking numbers (`TR-XXXX`), and unit tallies.
+  - `GET /api/transfers/:id`: Returns full shipment manifesto and item line status.
+  - `POST /api/transfers/:id/status`: Transitions transfer status (`draft`, `in_transit`, `partially_received`, `received`, `completed`, `cancelled`).
+  - `POST /api/transfers/:id/receive`: Receives units into destination store stock and marks transfer complete.
+  - `POST /api/transfers/ai-sidekick`: Natural language instruction parser preparing structured transfer proposals.
+  - `DELETE /api/transfers/:id`: Cancels and removes draft transfer.
+

@@ -109,6 +109,10 @@ import { createCashfreeService, getCashfreeCredentials, classifyCashfreeError } 
 import { createTurnstileService } from "./services/turnstileService.js";
 import { createAiGatewayService } from "./services/aiGatewayService.js";
 import { handlePlatformSitesRoutes } from "./routes/platformSitesRoutes.js";
+import { handleAnnouncementsRoutes } from "./routes/announcementsRoutes.js";
+import { handleCustomerSegmentsRoutes } from "./routes/customerSegmentsRoutes.js";
+import { handleGiftCardsRoutes } from "./routes/giftCardsRoutes.js";
+import { handleTransfersRoutes } from "./routes/transfersRoutes.js";
 import { isProduction } from "./utils/env.js";
 
 // ---------------------------------------------------------------------------
@@ -3507,8 +3511,8 @@ RULES:
 /**
  * Call Fera AI with retry and timeout handling.
  */
-async function callFeraAI({ messages, model, isComplex, aiApiKey, requestId }) {
-  const FERA_AI_BASE_URL = 'https://ai.fera-search.tech/v1';
+async function callFeraAI({ messages, model, isComplex, aiApiKey, requestId, aiBaseUrl }) {
+  const FERA_AI_BASE_URL = aiBaseUrl || 'https://ai.fera-search.tech/v1';
   const timeout = isComplex ? 90_000 : 30_000;
   const maxTokens = isComplex ? 2048 : 1024;
 
@@ -3517,7 +3521,7 @@ async function callFeraAI({ messages, model, isComplex, aiApiKey, requestId }) {
 
   let response;
   try {
-    response = await fetch(`${SARVAM_BASE_URL}/chat/completions`, {
+    response = await fetch(`${FERA_AI_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3809,7 +3813,11 @@ async function ensureTables(db) {
           const adminEntExists = await db.prepare("SELECT 1 FROM platform_admin_entitlements LIMIT 1").first();
           const analyticsIpExists = await db.prepare("SELECT ip_address FROM analytics_events LIMIT 1").first();
           const discountsExists = await db.prepare("SELECT 1 FROM discounts LIMIT 1").first();
-          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined && adminEntExists !== undefined && analyticsIpExists !== undefined && discountsExists !== undefined) {
+          const segmentsExists = await db.prepare("SELECT 1 FROM customer_segments LIMIT 1").first();
+          const transfersExists = await db.prepare("SELECT 1 FROM inventory_transfers LIMIT 1").first();
+          const giftCardsExists = await db.prepare("SELECT 1 FROM gift_cards LIMIT 1").first();
+          const announcementsExists = await db.prepare("SELECT 1 FROM announcements LIMIT 1").first();
+          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined && adminEntExists !== undefined && analyticsIpExists !== undefined && discountsExists !== undefined && segmentsExists !== undefined && transfersExists !== undefined && giftCardsExists !== undefined && announcementsExists !== undefined) {
             tablesInitialized = true;
             return;
           }
@@ -4859,6 +4867,103 @@ async function ensureTables(db) {
 
     // Ensure discounts engine tables
     await ensureDiscountsTables(db);
+
+    // Announcements & Platform Updates table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS announcements (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'feature',
+        badge_label TEXT DEFAULT 'New Feature',
+        action_url TEXT,
+        action_label TEXT,
+        target_plan TEXT DEFAULT 'all',
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_announcements_active ON announcements(is_active, is_pinned, created_at);`);
+
+    // Customer Segments table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS customer_segments (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        query_type TEXT NOT NULL DEFAULT 'custom',
+        template_id TEXT,
+        rules_json TEXT NOT NULL,
+        conjunction TEXT NOT NULL DEFAULT 'AND',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_customer_segments_org ON customer_segments(organization_id);`);
+
+    // Gift Cards table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS gift_cards (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT,
+        code TEXT UNIQUE NOT NULL,
+        initial_value REAL NOT NULL,
+        balance REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'INR',
+        recipient_email TEXT,
+        recipient_name TEXT,
+        note TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        expires_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_gift_cards_org ON gift_cards(organization_id);`);
+    await safeExec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_gift_cards_code ON gift_cards(code);`);
+
+    // Inventory Transfers tables
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS inventory_transfers (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT,
+        transfer_number TEXT NOT NULL,
+        reference_name TEXT,
+        origin_location_id TEXT NOT NULL,
+        origin_name TEXT NOT NULL,
+        destination_location_id TEXT NOT NULL,
+        destination_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        estimated_arrival TEXT,
+        note TEXT,
+        tags TEXT,
+        purchase_order_id TEXT,
+        total_items INTEGER NOT NULL DEFAULT 0,
+        total_units INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_inventory_transfers_org ON inventory_transfers(organization_id);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_inventory_transfers_status ON inventory_transfers(status);`);
+
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS inventory_transfer_items (
+        id TEXT PRIMARY KEY,
+        transfer_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        product_title TEXT NOT NULL,
+        sku TEXT,
+        quantity_requested INTEGER NOT NULL DEFAULT 1,
+        quantity_received INTEGER NOT NULL DEFAULT 0,
+        unit_cost REAL NOT NULL DEFAULT 0
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_transfer_items_transfer ON inventory_transfer_items(transfer_id);`);
 
     // Verify that organizations table actually exists in D1
     try {
@@ -7699,14 +7804,82 @@ async function handlePaymentEmailQuotaPurchase(request, env) {
   const purchaseId = `eqp_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
 
+  const hasRazorpay = Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && !env.RAZORPAY_KEY_ID.includes('your_key_id'));
   const cf = getCashfreeCredentials(env);
-  if (!cf.isValid) {
+  const hasCashfree = cf.isValid;
+
+  if (!hasRazorpay && !hasCashfree) {
     const requestId = crypto.randomUUID();
-    console.warn(`[handlePaymentEmailQuotaPurchase] Cashfree credentials missing. Req: ${requestId}`);
+    console.warn(`[handlePaymentEmailQuotaPurchase] Payment gateway credentials missing. Req: ${requestId}`);
     throw new HttpError("Payment gateway credentials are not configured on this server. Please contact support.", 503, {
       code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
       request_id: requestId
     });
+  }
+
+  if (hasRazorpay) {
+    const basicAuth = btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
+    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${basicAuth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: Math.round(amount * 100),
+        currency: 'INR',
+        receipt: transactionId,
+        notes: {
+          userId: me.$id,
+          orgId,
+          type: 'email_quota',
+          emails,
+          quantity
+        },
+      }),
+    });
+
+    if (!rzpRes.ok) {
+      const errText = await rzpRes.text();
+      console.error("Razorpay order creation for email quota failed:", rzpRes.status, errText);
+      throw new HttpError("Failed to initiate email quota payment with Razorpay", 502);
+    }
+
+    const rzpOrder = await rzpRes.json();
+
+    try {
+      await env.DB.prepare(
+        `INSERT INTO transactions (id, user_id, organization_id, provider, provider_order_id, amount, currency, status, plan, billing_cycle, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, 'razorpay', ?, ?, 'INR', 'pending', 'addon', 'one_time', ?, ?, ?)`
+      ).bind(
+        transactionId,
+        me.$id,
+        orgId,
+        rzpOrder.id,
+        amount,
+        JSON.stringify({
+          type: 'email_quota',
+          emails,
+          quantity,
+          purchaseId,
+          razorpay_order_id: rzpOrder.id
+        }),
+        now,
+        now
+      ).run();
+    } catch {}
+
+    return json({
+      success: true,
+      requiresPayment: true,
+      gateway: 'razorpay',
+      id: transactionId,
+      amount,
+      currency: 'INR',
+      razorpayOrderId: rzpOrder.id,
+      razorpayKeyId: env.RAZORPAY_KEY_ID,
+      message: `Razorpay order created for ${emails.toLocaleString()} emails`
+    }, 201, {}, request);
   }
 
   const cfBaseUrl = cf.baseUrl;
@@ -11704,6 +11877,30 @@ async function route(request, env) {
   }
   if (path === "/api/settings/smtp/test" && method === "POST") {
     return testSmtpSettings(request, env);
+  }
+
+  // Announcements & Updates Center Endpoints
+  if (path.startsWith("/api/announcements") || path.startsWith("/announcements")) {
+    const annRes = await handleAnnouncementsRoutes(request, env, { json, errorResponse, getAuthenticatedUser });
+    if (annRes) return withCors(annRes, request, env);
+  }
+
+  // Customer Segments Endpoints
+  if (path.startsWith("/api/customers/segments") || path.startsWith("/customers/segments")) {
+    const segRes = await handleCustomerSegmentsRoutes(request, env, { json, errorResponse, requireOrgContext, readJsonBody, HttpError });
+    if (segRes) return withCors(segRes, request, env);
+  }
+
+  // Gift Cards Endpoints
+  if (path.startsWith("/api/gift-cards") || path.startsWith("/gift-cards")) {
+    const gcRes = await handleGiftCardsRoutes(request, env, { json, errorResponse, requireOrgContext, readJsonBody, HttpError });
+    if (gcRes) return withCors(gcRes, request, env);
+  }
+
+  // Inventory Transfers & Stock Routing Endpoints
+  if (path.startsWith("/api/transfers") || path.startsWith("/transfers")) {
+    const trRes = await handleTransfersRoutes(request, env, { json, errorResponse, requireOrgContext, readJsonBody, HttpError });
+    if (trRes) return withCors(trRes, request, env);
   }
 
   // Meetings
