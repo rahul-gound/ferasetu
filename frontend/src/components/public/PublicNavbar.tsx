@@ -17,8 +17,16 @@ export default function PublicNavbar() {
       to: `${getLocalizedLink('/')}#why`
     },
     {
+      label: 'Fero AI Agent',
+      to: `${getLocalizedLink('/')}#fero-agent`
+    },
+    {
       label: 'How It Works',
-      to: `${getLocalizedLink('/')}#how-it-works`
+      to: `${getLocalizedLink('/')}#how-it-works-showcase`
+    },
+    {
+      label: 'Compare',
+      to: getLocalizedLink('/compare')
     },
     {
       label: 'Pricing',

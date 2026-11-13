@@ -1,146 +1,110 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useMarket } from '../contexts/MarketContext';
 import SEO from '../components/SEO';
-import { ArrowRight, Sparkles, CheckCircle2, Loader2, Lock } from 'lucide-react';
+import { ArrowRight, Lock, Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
-  const { register, user, isLoading } = useAuth();
-  const { market } = useMarket();
+  const { register, user, isLoading, getDirectAuthUrl } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const redirectTriggeredRef = useRef(false);
 
+  // Capture referral code if provided
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      try {
+        localStorage.setItem('fera_referral_code', refCode);
+      } catch {}
+    }
+  }, [searchParams]);
+
+  // If already authenticated, head straight to dashboard
   useEffect(() => {
     if (user) {
       navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);
 
-  const handleRegister = async () => {
-    if (isSubmitting || isLoading) return;
-    setIsSubmitting(true);
+  // Automatically send user directly to the sign-up URL without intermediate screens
+  useEffect(() => {
+    if (user || isLoading || redirectTriggeredRef.current) return;
+    redirectTriggeredRef.current = true;
+
     try {
-      await register();
+      register();
     } catch (err) {
-      console.error('Failed to initiate registration:', err);
-    } finally {
-      setIsSubmitting(false);
+      console.error('[RegisterPage] Auto-redirect failed, falling back to direct URL:', err);
+      const fallbackUrl = getDirectAuthUrl ? getDirectAuthUrl('sign-up') : null;
+      if (fallbackUrl) {
+        window.location.replace(fallbackUrl);
+      }
     }
-  };
+  }, [user, isLoading, register, getDirectAuthUrl]);
+
+  const directAuthUrl = getDirectAuthUrl ? getDirectAuthUrl('sign-up') : '#';
 
   return (
     <>
       <SEO
         title="Create Your Store • FeraSetu"
-        description="Create your free independent online store in 5 minutes with FeraSetu. 0% platform commission, direct UPI payments, and zero jargon."
+        description="Create your free independent online store in 5 minutes with FeraSetu. 0% platform commission, direct UPI payments, and zero technical jargon."
         noindex
       />
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 relative">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-          <div className="flex flex-col items-center justify-center mb-6">
-            <Link to="/" className="inline-flex items-center gap-2 group mb-3">
-              <img
-                src="/logo-official.png"
-                alt="FeraSetu"
-                className="h-11 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
-              />
-            </Link>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[11px] font-semibold text-blue-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-              <span>Official Merchant Registration</span>
+
+      <div className="min-h-screen bg-slate-50/70 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 select-none">
+        <div className="w-full max-w-sm mx-auto text-center flex flex-col items-center">
+          {/* Official Logo */}
+          <Link to="/" className="inline-flex items-center gap-2 mb-8 group">
+            <img
+              src="/logo-official.png"
+              alt="FeraSetu"
+              className="h-10 sm:h-11 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+            />
+          </Link>
+
+          {/* Calm Loading Animation */}
+          <div className="relative mb-6 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center shadow-inner">
+              <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
             </div>
+            <span className="absolute inset-0 rounded-full bg-orange-400/20 animate-ping -z-10" />
           </div>
 
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-              <span>{market === 'IN' ? '₹0 Free Plan Available' : '14-Day Free Trial Available'}</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Launch Your Online Store
-            </h1>
-            <p className="mt-2 text-sm text-slate-600 font-medium">
-              Build your online store, accept more orders, and manage your business from one place.
-            </p>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mb-2">
+            Taking you to create your store...
+          </h1>
+
+          <p className="text-sm text-slate-600 max-w-xs mx-auto mb-6 leading-relaxed">
+            Opening your store registration portal with 0% platform commission. One moment please.
+          </p>
+
+          {/* Instant fallback link if browser blocks auto-navigation */}
+          <div className="pt-2 pb-4">
+            <a
+              href={directAuthUrl}
+              onClick={(e) => {
+                e.preventDefault();
+                register();
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer group"
+            >
+              <span>Not redirected automatically? Click here</span>
+              <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+            </a>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="space-y-6">
-              <div className="space-y-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <div className="flex items-start gap-2.5 text-xs text-slate-700 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>{market === 'IN' ? 'Free ₹0 tier with 25 product catalog and WhatsApp orders' : 'Full access to Business capabilities during 14-day trial'}</span>
-                </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-700 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>Built-in AI assistant for instant catalog and description creation</span>
-                </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-700 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>Direct checkout with 0% platform commission</span>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={handleRegister}
-                  disabled={isLoading || isSubmitting}
-                  className="group w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:-translate-y-0.5 shadow-md shadow-blue-600/20 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Starting registration...</span>
-                    </>
-                  ) : isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Checking session...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{market === 'IN' ? 'Start Free with WorkOS' : 'Start 14-Day Free Trial'}</span>
-                      <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-1" />
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 text-center">
-                <p className="text-sm text-slate-600 font-medium">
-                  Already have a store?{' '}
-                  <Link
-                    to="/login"
-                    className="font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    Sign in
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Micro-trust indicators */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500 font-medium">
+          {/* Micro trust indicators */}
+          <div className="mt-8 pt-6 border-t border-slate-200/60 w-full flex items-center justify-center gap-3 text-[11px] text-slate-500 font-medium">
             <span className="inline-flex items-center gap-1">
               <Lock size={12} className="text-emerald-600" />
               <span>256-Bit SSL</span>
             </span>
             <span>•</span>
-            <span>0% Sales Commission</span>
+            <span>0% Commission</span>
             <span>•</span>
             <span>Merchant Data Owned</span>
-          </div>
-
-          <div className="text-center mt-4">
-            <Link
-              to="/"
-              className="text-xs text-slate-500 hover:text-slate-700 font-medium transition-colors inline-flex items-center gap-1"
-            >
-              ← Back to FeraSetu Home
-            </Link>
           </div>
         </div>
       </div>

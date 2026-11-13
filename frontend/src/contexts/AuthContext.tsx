@@ -77,6 +77,7 @@ interface AuthContextType {
   updateUser: (updates: Partial<User>) => void;
   setOrganizationContext: (org: Organization) => void;
   getAccessToken: () => Promise<string | null>;
+  getDirectAuthUrl: (screenHint?: 'sign-in' | 'sign-up', loginHint?: string) => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -451,8 +452,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[AuthContext] WorkOS signUp failed, falling back to direct URL:', err);
     }
-    window.location.assign('https://decent-grass-08.authkit.app/sign-up');
-  }, [signUp]);
+    window.location.assign(getWorkOSDirectAuthUrl('sign-up', opts?.loginHint));
+  }, [signUp, getWorkOSDirectAuthUrl]);
 
   const logout = useCallback(() => {
     authLog('AUTH_LOGOUT');
@@ -508,7 +509,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     updateUser,
     setOrganizationContext,
-    getAccessToken: getToken
+    getAccessToken: getToken,
+    getDirectAuthUrl: getWorkOSDirectAuthUrl
   }), [
     profile,
     organization,
@@ -527,7 +529,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     updateUser,
     setOrganizationContext,
-    getToken
+    getToken,
+    getWorkOSDirectAuthUrl
   ]);
 
   return (

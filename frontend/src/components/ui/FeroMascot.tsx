@@ -11,9 +11,9 @@ export interface FeroMascotProps {
 }
 
 /**
- * Fero — The Sovereign Lion Guardian of FeraSetu.
- * An iconic, protective character representing merchant independence,
- * 0% platform toll, and unyielding defense of merchant ownership.
+ * Fero — The Autonomous AI Shopkeeper Agent & Mascot of FeraSetu.
+ * An intelligent, protective companion monitoring stock, auditing direct settlements,
+ * and advising independent merchants with 0% platform commission.
  */
 export default function FeroMascot({
   size = 64,
@@ -41,7 +41,7 @@ export default function FeroMascot({
     <div
       className={`relative inline-flex items-center justify-center shrink-0 select-none ${className}`}
       style={{ width, height }}
-      aria-label="Fero, the protective lion guardian of FeraSetu"
+      aria-label="Fero, autonomous AI shopkeeper agent of FeraSetu"
       role="img"
     >
       {/* Ambient Sovereign Aura */}

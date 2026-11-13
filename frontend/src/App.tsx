@@ -29,6 +29,7 @@ const FreeOnlineStore = lazy(() => import('./pages/FreeOnlineStore'));
 const ShopifyAlternativeIndia = lazy(() => import('./pages/ShopifyAlternativeIndia'));
 const KiranaStoreOnline = lazy(() => import('./pages/KiranaStoreOnline'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const DocsPage = lazy(() => import('./pages/DocsPage'));
 const CompareIndexPage = lazy(() => import('./pages/compare/CompareIndexPage'));
 const CompetitorComparisonPage = lazy(() => import('./pages/compare/CompetitorComparisonPage'));
 
@@ -265,8 +266,16 @@ function AppRoutes() {
         <Route path="/" element={<ErrorBoundary><LandingPage /></ErrorBoundary>} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+        <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+        <Route path="/sign-up" element={<Navigate to="/signup" replace />} />
+        <Route path="/signin" element={<Navigate to="/login" replace />} />
+        <Route path="/sign-in" element={<Navigate to="/login" replace />} />
         <Route path="/ref/:code" element={<ReferralRedirect />} />
         <Route path="/callback" element={<AuthCallbackPage />} />
+
+        {/* Documentation Portal */}
+        <Route path="/docs" element={<DocsPage />} />
+        <Route path="/docs/:section" element={<DocsPage />} />
         
         {/* SEO landing pages & public pages */}
         <Route path="/pricing" element={<PricingPage />} />
@@ -313,7 +322,10 @@ function AppRoutes() {
           <Route index element={<ErrorBoundary><LandingPage /></ErrorBoundary>} />
           <Route path="login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+          <Route path="signup" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="pricing" element={<PricingPage />} />
+          <Route path="docs" element={<DocsPage />} />
+          <Route path="docs/:section" element={<DocsPage />} />
           <Route path="online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
           <Route path="free-online-store" element={<FreeOnlineStore />} />
           <Route path="shopify-alternative-india" element={<ShopifyAlternativeIndia />} />

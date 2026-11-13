@@ -88,6 +88,14 @@ export default function PublicFooter() {
                   Pricing Plans
                 </Link>
               </li>
+              <li>
+                <Link
+                  to={getLocalizedLink('/docs')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Documentation &amp; Guides
+                </Link>
+              </li>
             </ul>
           </div>
 

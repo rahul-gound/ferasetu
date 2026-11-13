@@ -1,134 +1,110 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
-import { Store, ArrowRight, ShieldCheck, Loader2, Lock } from 'lucide-react';
+import { ArrowRight, Lock, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login, user, isLoading } = useAuth();
+  const { login, user, isLoading, getDirectAuthUrl } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const redirectTriggeredRef = useRef(false);
 
+  // Capture return_to destination if provided
+  useEffect(() => {
+    const returnTo = searchParams.get('return_to');
+    if (returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
+      try {
+        sessionStorage.setItem('fera_auth_return_to', returnTo);
+      } catch {}
+    }
+  }, [searchParams]);
+
+  // If already authenticated, head straight to dashboard
   useEffect(() => {
     if (user) {
       navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);
 
-  const handleLogin = async () => {
-    if (isSubmitting || isLoading) return;
-    setIsSubmitting(true);
+  // Automatically send user directly to the login URL without intermediate screens
+  useEffect(() => {
+    if (user || isLoading || redirectTriggeredRef.current) return;
+    redirectTriggeredRef.current = true;
+
     try {
-      await login();
+      login();
     } catch (err) {
-      console.error('Failed to initiate login:', err);
-    } finally {
-      setIsSubmitting(false);
+      console.error('[LoginPage] Auto-redirect failed, falling back to direct URL:', err);
+      const fallbackUrl = getDirectAuthUrl ? getDirectAuthUrl('sign-in') : null;
+      if (fallbackUrl) {
+        window.location.replace(fallbackUrl);
+      }
     }
-  };
+  }, [user, isLoading, login, getDirectAuthUrl]);
+
+  const directAuthUrl = getDirectAuthUrl ? getDirectAuthUrl('sign-in') : '#';
 
   return (
     <>
       <SEO
         title="Sign In • FeraSetu"
-        description="Sign in to your FeraSetu merchant workspace to manage your products, track customer orders, and configure your online store."
+        description="Sign in to your FeraSetu merchant workspace to manage your products, track customer orders, and configure your independent online store."
         noindex
       />
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 relative">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-          <div className="flex flex-col items-center justify-center mb-6">
-            <Link to="/" className="inline-flex items-center gap-2 group mb-3">
-              <img
-                src="/logo-official.png"
-                alt="FeraSetu"
-                className="h-11 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
-              />
-            </Link>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[11px] font-semibold text-blue-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-              <span>Official Merchant Portal</span>
+
+      <div className="min-h-screen bg-slate-50/70 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 select-none">
+        <div className="w-full max-w-sm mx-auto text-center flex flex-col items-center">
+          {/* Official Logo */}
+          <Link to="/" className="inline-flex items-center gap-2 mb-8 group">
+            <img
+              src="/logo-official.png"
+              alt="FeraSetu"
+              className="h-10 sm:h-11 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+            />
+          </Link>
+
+          {/* Calm Loading Animation */}
+          <div className="relative mb-6 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center shadow-inner">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             </div>
+            <span className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping -z-10" />
           </div>
 
-          <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Sign In to Your Store
-            </h1>
-            <p className="mt-2 text-sm text-slate-600 font-medium">
-              Manage orders, update products, and grow your independent business.
-            </p>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mb-2">
+            Taking you to secure sign-in...
+          </h1>
+
+          <p className="text-sm text-slate-600 max-w-xs mx-auto mb-6 leading-relaxed">
+            Connecting directly to the official merchant portal. One moment please.
+          </p>
+
+          {/* Instant fallback link if browser blocks auto-navigation */}
+          <div className="pt-2 pb-4">
+            <a
+              href={directAuthUrl}
+              onClick={(e) => {
+                e.preventDefault();
+                login();
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer group"
+            >
+              <span>Not redirected automatically? Click here</span>
+              <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+            </a>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="space-y-6">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="flex items-start gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                  <div className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Secure merchant authentication powered by WorkOS AuthKit. One-click sign-in with your business email or Google account.
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={handleLogin}
-                  disabled={isLoading || isSubmitting}
-                  className="group w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 hover:-translate-y-0.5 shadow-md shadow-blue-600/20 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Connecting to secure sign-in...</span>
-                    </>
-                  ) : isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Checking session...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Continue with WorkOS</span>
-                      <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-1" />
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 text-center">
-                <p className="text-sm text-slate-600 font-medium">
-                  New to FeraSetu?{' '}
-                  <Link
-                    to="/register"
-                    className="font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    Create your store free
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Micro-trust indicators */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500 font-medium">
+          {/* Micro trust indicators */}
+          <div className="mt-8 pt-6 border-t border-slate-200/60 w-full flex items-center justify-center gap-3 text-[11px] text-slate-500 font-medium">
             <span className="inline-flex items-center gap-1">
               <Lock size={12} className="text-emerald-600" />
               <span>256-Bit SSL</span>
             </span>
             <span>•</span>
-            <span>0% Sales Commission</span>
+            <span>0% Commission</span>
             <span>•</span>
             <span>Merchant Data Owned</span>
-          </div>
-
-          <div className="text-center mt-4">
-            <Link
-              to="/"
-              className="text-xs text-slate-500 hover:text-slate-700 font-medium transition-colors inline-flex items-center gap-1"
-            >
-              ← Back to FeraSetu Home
-            </Link>
           </div>
         </div>
       </div>
