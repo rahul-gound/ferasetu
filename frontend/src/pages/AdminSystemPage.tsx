@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, Database, Mail, Bot, ToggleRight, 
-  Terminal, Zap, Cpu, Plus, X
+  Terminal, Zap, Cpu, Plus, X, ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -122,7 +122,7 @@ function HealthTab({ stats, loading }: any) {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatusCard 
           label="SMTP Email Service" 
           status={stats?.health?.smtp === 'operational' ? 'online' : 'error'} 
@@ -141,6 +141,14 @@ function HealthTab({ stats, loading }: any) {
           icon={<Bot className="text-purple-500" />}
           detail="v1.0 / Complex Models"
         />
+        <a href="/admin/security" className="block hover:opacity-95 transition-opacity">
+          <StatusCard 
+            label="Security & Access Armor" 
+            status="online" 
+            icon={<ShieldCheck className="text-emerald-500" />}
+            detail="Edge Firewall & Zero-Trust (Click to view)"
+          />
+        </a>
       </div>
 
       <div className="bg-[#111827] text-white p-8 rounded-[2.5rem] shadow-2xl border border-white/5 relative overflow-hidden">

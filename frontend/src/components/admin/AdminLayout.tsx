@@ -4,7 +4,7 @@ import {
   Users, LayoutDashboard, LifeBuoy, Globe,
   ShoppingBag, Store, Bell, Calendar,
   Menu, LogOut, ChevronRight, Zap, Terminal, Bug, MessageSquare, Activity,
-  Bot
+  Bot, ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SEO from '../SEO';
@@ -40,6 +40,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'tickets', path: '/admin/tickets', icon: <LifeBuoy size={20} strokeWidth={1.75} />, label: 'Support Desk' },
     { id: 'feedback', path: '/admin/feedback', icon: <MessageSquare size={20} strokeWidth={1.75} />, label: 'Merchant Feedback' },
     { id: 'errors', path: '/admin/errors', icon: <Bug size={20} strokeWidth={1.75} />, label: 'Error Tickets' },
+    { id: 'security', path: '/admin/security', icon: <ShieldCheck size={20} strokeWidth={1.75} />, label: 'Security & Access' },
     { id: 'system', path: '/admin/system', icon: <Terminal size={20} strokeWidth={1.75} />, label: 'System Controls' },
   ];
 

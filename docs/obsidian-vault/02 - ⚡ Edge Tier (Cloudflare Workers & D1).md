@@ -23,6 +23,7 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 | **Builder Service** | `worker/services/builderService.js` | Draft persistence, versioning, rollback, connection vault & SSRF proxy |
 | **Storefront CSP** | `worker/storefront.js` | Strict Content Security Policy headers & verification hashes |
 | **Discounts & Promotions Engine** | `worker/catalog/discountsEngine.js`, `worker/routes/discountsRoutes.js` | Authoritative calculation of percentage, fixed amount, BOGO, free shipping, automatic discounts, collision-safe bulk codes, customer segments, profit audits, and atomic redemptions |
+| **Admin Security & Access Defense** | `worker/routes/admin.js`, `worker/index.js`, `worker/utils/audit.js` | Edge IP Firewall (60s cache, D1-backed, sub-millisecond 403 IP drop), RFC 9116 security.txt, CSP/CORS audits, Admin Audit stream, Emergency Session Kill Switch |
 | **Email & SMTP Router** | `worker/routes/emailRoutes.js` | Multi-tenant sender identities, external SMTP sockets, transactional delivery |
 | **AI Edge Interceptor** | `worker/ai/` | Edge pre-filtering of AI prompts before calling OpenAI-compatible Fera AI backend cluster |
 

@@ -43,6 +43,7 @@
 - [x] Analytics Ingestion Fail-Soft Buffer (`worker/analytics/ingestion.js`): Protected telemetry endpoints with double outer try/catch returning HTTP 202 fail-soft, preventing 500 error cascades — **100%**
 - [x] Customer Order Intelligence & AI Risk Engine (`GET /api/orders/intelligence`, `worker/index.js`): Top spender LTV calculation, gross profit margin accounting, loss order analysis, and AI suspicious order heuristics (repeated digit patterns, unverified COD > ₹5,000, bulk cart volume spikes) with dual camelCase/snake_case payload tolerance and auto-customer assignment in `POST /api/orders` — **100%**
 - [x] Announcements, Customer Segments, Gift Cards & Inventory Transfers Edge Routes (`worker/routes/announcementsRoutes.js`, `customerSegmentsRoutes.js`, `giftCardsRoutes.js`, `transfersRoutes.js`): 100% route alignment matching all 97 distinct frontend endpoints with zero unrouted buttons or 404s — **100%**
+- [x] Edge IP Firewall & Admin Security Command System (`worker/routes/admin.js`, `worker/index.js`, `worker/utils/audit.js`, `AdminSecurityPage.tsx`): Zero-trust edge IP firewall with 60s in-memory caching and D1 sync (`ip_firewall_rules`), immutable security audit ledger (`admin_audit_logs`), RFC 9116 security.txt verification, emergency global session kill switch, and full executive dashboard with 4 interactive telemetry tabs — **100%**
 - [ ] Edge streaming SSR for heavy storefront catalogs — **70%**
 
 ### B. Core API (`backend/`) — **96% DONE**

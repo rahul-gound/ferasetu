@@ -6,7 +6,7 @@ import {
   TrendingUp, Bot, CheckCircle2,
   ArrowUpRight, ArrowDownRight, Eye, MousePointerClick,
   Sparkles, Smartphone, Globe, AlertCircle, RefreshCw, Trash2, Coins,
-  Network, Copy, Check, Search, Laptop, Tablet, Radio
+  Network, Copy, Check, Search, Laptop, Tablet, Radio, ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -152,6 +152,17 @@ export default function AdminDashboardPage() {
             </button>
           </div>
 
+          {activeTab === 'financial' && (
+            <div className="flex items-center gap-2">
+              <a
+                href="/admin/security"
+                className="px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <ShieldCheck size={14} className="text-emerald-600" />
+                <span>Security Command: Armored</span>
+              </a>
+            </div>
+          )}
           {activeTab === 'telemetry' && (
             <div className="flex items-center gap-2">
               <button

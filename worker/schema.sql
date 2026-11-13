@@ -127,3 +127,27 @@ CREATE TABLE IF NOT EXISTS inventory_transfer_items (
   quantity_received INTEGER NOT NULL DEFAULT 0,
   unit_cost      REAL NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS admin_audit_logs (
+  id             TEXT PRIMARY KEY,
+  admin_email    TEXT,
+  action         TEXT,
+  target_type    TEXT,
+  target_id      TEXT,
+  metadata       TEXT,
+  ip_address     TEXT,
+  severity       TEXT DEFAULT 'info',
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS ip_firewall_rules (
+  id             TEXT PRIMARY KEY,
+  ip             TEXT UNIQUE NOT NULL,
+  reason         TEXT,
+  rule_type      TEXT DEFAULT 'block',
+  blocked_by     TEXT,
+  hit_count      INTEGER DEFAULT 0,
+  expires_at     TEXT,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+

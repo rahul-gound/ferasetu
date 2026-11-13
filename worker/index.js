@@ -4965,6 +4965,38 @@ async function ensureTables(db) {
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_transfer_items_transfer ON inventory_transfer_items(transfer_id);`);
 
+    // Admin Security Audit Logs table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id TEXT PRIMARY KEY,
+        admin_email TEXT,
+        action TEXT,
+        target_type TEXT,
+        target_id TEXT,
+        metadata TEXT,
+        ip_address TEXT,
+        severity TEXT DEFAULT 'info',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_logs(created_at DESC);`);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_audit_action ON admin_audit_logs(action);`);
+
+    // Edge IP Firewall Rules table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS ip_firewall_rules (
+        id TEXT PRIMARY KEY,
+        ip TEXT UNIQUE NOT NULL,
+        reason TEXT,
+        rule_type TEXT DEFAULT 'block',
+        blocked_by TEXT,
+        hit_count INTEGER DEFAULT 0,
+        expires_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_firewall_ip ON ip_firewall_rules(ip);`);
+
     // Verify that organizations table actually exists in D1
     try {
       if (typeof db.prepare === 'function') {
@@ -12070,6 +12102,40 @@ async function handleCreateErrorLog(request, env) {
   }
 }
 
+const ipBlocklistCache = new Map();
+let lastIpCachePrune = Date.now();
+
+export async function checkIpFirewallRestricted(ip, db) {
+  if (!ip || !db) return null;
+  const now = Date.now();
+  if (now - lastIpCachePrune > 60000) {
+    ipBlocklistCache.clear();
+    lastIpCachePrune = now;
+  }
+  const cached = ipBlocklistCache.get(ip);
+  if (cached && now < cached.cacheExp) {
+    return cached.blocked ? cached : null;
+  }
+  try {
+    const row = await db.prepare(
+      "SELECT id, ip, reason, expires_at FROM ip_firewall_rules WHERE ip = ? LIMIT 1"
+    ).bind(ip).first();
+    if (row) {
+      if (row.expires_at && new Date(row.expires_at).getTime() < now) {
+        ipBlocklistCache.set(ip, { blocked: false, cacheExp: now + 60000 });
+        return null;
+      }
+      const val = { blocked: true, reason: row.reason, cacheExp: now + 60000 };
+      ipBlocklistCache.set(ip, val);
+      return val;
+    }
+    ipBlocklistCache.set(ip, { blocked: false, cacheExp: now + 60000 });
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -12106,6 +12172,28 @@ export default {
       // RFC 9116 Security.txt deterministic endpoint across all hosts
       if (url.pathname === "/.well-known/security.txt" || url.pathname === "/security.txt") {
         return getSecurityTxtResponse();
+      }
+
+      // Edge IP Firewall Enforcement (Active DDOS & Abusive IP Blocking)
+      const clientIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "";
+      if (clientIp && env?.DB && !url.pathname.startsWith("/api/admin/") && !url.pathname.startsWith("/admin/")) {
+        const firewallHit = await checkIpFirewallRestricted(clientIp, env.DB);
+        if (firewallHit) {
+          try {
+            await env.DB.prepare("UPDATE ip_firewall_rules SET hit_count = hit_count + 1 WHERE ip = ?").bind(clientIp).run();
+          } catch {}
+          return new Response(JSON.stringify({
+            error: "Access Denied: Your IP address has been restricted by FeraSetu Edge Firewall.",
+            code: "IP_BLOCKED",
+            reason: firewallHit.reason || "Suspicious automated activity detected"
+          }), {
+            status: 403,
+            headers: {
+              "Content-Type": "application/json",
+              "X-Robots-Tag": "noindex, nofollow"
+            }
+          });
+        }
       }
 
       // 0. Worker Custom Domain: cdn.ferasetu.com (or reserved 'cdn' subdomain or /cdn/ path)

@@ -77,6 +77,7 @@ const AdminQARunDetailPage = lazy(() => import('./pages/AdminQARunDetailPage'));
 const AdminQAIssueDetailPage = lazy(() => import('./pages/AdminQAIssueDetailPage'));
 const AdminQASandboxPage = lazy(() => import('./pages/AdminQASandboxPage'));
 const AdminAICreditsPage = lazy(() => import('./pages/AdminAICreditsPage'));
+const AdminSecurityPage = lazy(() => import('./pages/AdminSecurityPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
@@ -353,6 +354,7 @@ function AppRoutes() {
               <Route path="tickets" element={<AdminTicketsPage />} />
               <Route path="feedback" element={<AdminFeedbackPage />} />
               <Route path="errors" element={<AdminErrorLogsPage />} />
+              <Route path="security" element={<AdminSecurityPage />} />
               <Route path="system" element={<AdminSystemPage />} />
               <Route path="qa" element={<AdminQAPage />} />
               <Route path="qa/runs/:runId" element={<AdminQARunDetailPage />} />
