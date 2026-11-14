@@ -511,21 +511,42 @@ export async function handleAdminRoutes(request, env) {
       // 7-day revenue chart
       const revenueChart = [];
       const now = new Date();
+      const past7Days = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const past7DaysYmd = past7Days.toISOString().slice(0, 10);
+
+      // Construct a default array for the last 7 dates
+      const chartMap = new Map();
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const ymd = d.toISOString().slice(0, 10);
-        try {
-          const dayRow = await env.DB.prepare(
-            "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
-          ).bind(`${ymd}%`).first();
-          revenueChart.push({
-            date: ymd,
-            revenue: dayRow?.rev || 0,
-            orders: dayRow?.cnt || 0
-          });
-        } catch {
-          revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+        chartMap.set(ymd, { date: ymd, revenue: 0, orders: 0 });
+      }
+
+      try {
+        const { results } = await env.DB.prepare(
+          `SELECT substr(created_at, 1, 10) as date, SUM(total) as rev, COUNT(*) as cnt
+           FROM orders
+           WHERE status != 'cancelled' AND created_at >= ?
+           GROUP BY substr(created_at, 1, 10)`
+        ).bind(past7DaysYmd).all();
+
+        if (results && results.length > 0) {
+          for (const row of results) {
+            if (chartMap.has(row.date)) {
+              chartMap.set(row.date, {
+                date: row.date,
+                revenue: row.rev || 0,
+                orders: row.cnt || 0
+              });
+            }
+          }
         }
+      } catch (err) {
+        console.warn("Could not query 7-day revenue chart:", err);
+      }
+
+      for (const val of chartMap.values()) {
+        revenueChart.push(val);
       }
 
       return json({

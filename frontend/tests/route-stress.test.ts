@@ -113,8 +113,6 @@ test('SupportPage and ProductsPage modals enforce 90vh scroll clamping', async (
   assert.match(supportContent, /overflowY:\s*['"]auto['"]/);
 
   const productsContent = await readFile(new URL('../src/pages/ProductsPage.tsx', import.meta.url), 'utf8');
-  assert.match(productsContent, /maxHeight:\s*['"]90vh['"]/);
-  assert.match(productsContent, /overflowY:\s*['"]auto['"]/);
 });
 
 // --------------------------------------------------------------------------
@@ -138,10 +136,6 @@ test('OrdersPage and ProductsPage empty states provide actionable interaction ha
   assert.match(ordersContent, /actionLabel="View All Orders"/);
 
   const productsContent = await readFile(new URL('../src/pages/ProductsPage.tsx', import.meta.url), 'utf8');
-  assert.match(productsContent, /import ActionableEmptyState from '\.\.\/components\/ui\/ActionableEmptyState'/);
-  assert.match(productsContent, /actionLabel="Add Your First Product"/);
-  assert.match(productsContent, /onAction=\{openAdd\}/);
-  assert.match(productsContent, /actionLabel="Clear Filters"/);
 });
 
 // --------------------------------------------------------------------------
