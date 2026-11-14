@@ -511,19 +511,42 @@ export async function handleAdminRoutes(request, env) {
       // 7-day revenue chart
       const revenueChart = [];
       const now = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const ymd = d.toISOString().slice(0, 10);
-        try {
-          const dayRow = await env.DB.prepare(
-            "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
-          ).bind(`${ymd}%`).first();
+
+      const startDate = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const endDate = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+      try {
+        const { results } = await env.DB.prepare(`
+          SELECT SUBSTR(created_at, 1, 10) as date, SUM(total) as rev, COUNT(*) as cnt
+          FROM orders
+          WHERE status != 'cancelled'
+            AND created_at >= ?
+            AND created_at < ?
+          GROUP BY SUBSTR(created_at, 1, 10)
+        `).bind(startDate, endDate).all();
+
+        const resultsByDate = (results || []).reduce((acc, row) => {
+          acc[row.date] = row;
+          return acc;
+        }, {});
+
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const ymd = d.toISOString().slice(0, 10);
+          const dayRow = resultsByDate[ymd];
+
           revenueChart.push({
             date: ymd,
             revenue: dayRow?.rev || 0,
             orders: dayRow?.cnt || 0
           });
-        } catch {
+        }
+      } catch (err) {
+        console.warn("Could not fetch 7-day revenue chart:", err);
+        // Fallback to empty chart
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const ymd = d.toISOString().slice(0, 10);
           revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
         }
       }

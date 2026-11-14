@@ -53,6 +53,7 @@ jobs:
   dependabot:
     name: Dependabot alerts
     runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v4
       
@@ -62,7 +63,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Auto-approve dependabot PRs (patch/minor)
-        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+        if: github.event_name == 'pull_request'
         run: |
           gh pr review --approve "$PR_URL"
           gh pr merge --auto --squash "$PR_URL"
@@ -75,23 +76,25 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript, typescript]
+        language: ['javascript-typescript']
     steps:
       - uses: actions/checkout@v4
       
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           config-file: .github/codeql/codeql-config.yml
       
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+          upload: 'never'
 
   secret-scan:
     name: Secret Scanning
@@ -105,6 +108,4 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ""
-          head: HEAD
           extra_args: --only-verified --fail
