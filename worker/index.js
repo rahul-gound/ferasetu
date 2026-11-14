@@ -11196,40 +11196,70 @@ async function getPublicShop(shopName, request, env) {
     }
   }
 
-  // Attach options & variants for each product
+  // Attach options & variants for each product in bulk to prevent N+1 query bottlenecks
   try {
     for (const p of products) {
       p.price_minor = p.price_minor != null ? Number(p.price_minor) : Math.round((Number(p.sale_price) || Number(p.price) || 0) * 100);
-      try {
-        const optRes = await env.DB.prepare(
-          "SELECT id, name, position, values_json FROM product_options WHERE product_id = ? ORDER BY position ASC, created_at ASC"
-        ).bind(p.id).all();
-        p.options = (optRes?.results || []).map(o => ({
-          id: o.id,
-          name: o.name,
-          position: o.position,
-          values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
-        }));
-      } catch {
-        p.options = [];
+      p.options = [];
+      p.variants = [];
+      p.has_variants = false;
+    }
+
+    if (products.length > 0) {
+      const productIds = products.map(p => p.id);
+      const CHUNK_SIZE = 100;
+
+      const optionsByProduct = {};
+      const variantsByProduct = {};
+
+      for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
+        const chunk = productIds.slice(i, i + CHUNK_SIZE);
+        const placeholders = chunk.map(() => '?').join(',');
+
+        try {
+          const optRes = await env.DB.prepare(
+            `SELECT id, product_id, name, position, values_json FROM product_options WHERE product_id IN (${placeholders}) ORDER BY position ASC, created_at ASC`
+          ).bind(...chunk).all();
+
+          for (const o of (optRes?.results || [])) {
+            if (!optionsByProduct[o.product_id]) optionsByProduct[o.product_id] = [];
+            optionsByProduct[o.product_id].push({
+              id: o.id,
+              name: o.name,
+              position: o.position,
+              values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch product options bulk:", err);
+        }
+
+        try {
+          const varRes = await env.DB.prepare(
+            `SELECT id, product_id, title, option_signature, sku, barcode, currency, price_minor,
+                    compare_at_price_minor, image_url, status, option_values_json
+             FROM product_variants WHERE product_id IN (${placeholders}) AND status = 'active' ORDER BY created_at ASC`
+          ).bind(...chunk).all();
+
+          for (const v of (varRes?.results || [])) {
+            if (!variantsByProduct[v.product_id]) variantsByProduct[v.product_id] = [];
+            variantsByProduct[v.product_id].push({
+              ...v,
+              price: v.price_minor ? v.price_minor / 100 : 0,
+              compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
+              option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch product variants bulk:", err);
+        }
       }
 
-      try {
-        const varRes = await env.DB.prepare(
-          `SELECT id, title, option_signature, sku, barcode, currency, price_minor,
-                  compare_at_price_minor, image_url, status, option_values_json
-           FROM product_variants WHERE product_id = ? AND status = 'active' ORDER BY created_at ASC`
-        ).bind(p.id).all();
-        p.variants = (varRes?.results || []).map(v => ({
-          ...v,
-          price: v.price_minor ? v.price_minor / 100 : 0,
-          compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
-          option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
-        }));
-      } catch {
-        p.variants = [];
+      for (const p of products) {
+        p.options = optionsByProduct[p.id] || [];
+        p.variants = variantsByProduct[p.id] || [];
+        p.has_variants = p.variants.length > 0;
       }
-      p.has_variants = (p.variants || []).length > 0;
     }
   } catch {}
 
