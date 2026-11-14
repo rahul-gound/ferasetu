@@ -501,31 +501,53 @@ export async function handleAdminRoutes(request, env) {
     
     // DASHBOARD STATS
     if (path === "/api/admin/dashboard-stats" && method === "GET") {
-      const usersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM users").first("count")) || 0;
-      const ordersCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM orders").first("count")) || 0;
-      const productsCount = (await env.DB.prepare("SELECT COUNT(*) as count FROM products").first("count")) || 0;
-      const revenueRow = await env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'").first();
-      const totalRevenue = revenueRow?.rev || 0;
-      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
-
-      // 7-day revenue chart
-      const revenueChart = [];
       const now = new Date();
+      const chartDates = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const ymd = d.toISOString().slice(0, 10);
-        try {
-          const dayRow = await env.DB.prepare(
+        chartDates.push(d.toISOString().slice(0, 10));
+      }
+
+      const stmts = [
+        env.DB.prepare("SELECT COUNT(*) as count FROM users"),
+        env.DB.prepare("SELECT COUNT(*) as count FROM orders"),
+        env.DB.prepare("SELECT COUNT(*) as count FROM products"),
+        env.DB.prepare("SELECT SUM(total) as rev FROM orders WHERE status != 'cancelled'")
+      ];
+
+      for (const ymd of chartDates) {
+        stmts.push(
+          env.DB.prepare(
             "SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND created_at LIKE ?"
-          ).bind(`${ymd}%`).first();
-          revenueChart.push({
-            date: ymd,
-            revenue: dayRow?.rev || 0,
-            orders: dayRow?.cnt || 0
-          });
-        } catch {
-          revenueChart.push({ date: ymd, revenue: 0, orders: 0 });
+          ).bind(`${ymd}%`)
+        );
+      }
+
+      let batchRes;
+      if (typeof env.DB.batch === 'function') {
+        batchRes = await env.DB.batch(stmts);
+      } else {
+        batchRes = [];
+        for (const stmt of stmts) {
+          const res = await stmt.all();
+          batchRes.push(res);
         }
+      }
+
+      const usersCount = batchRes[0]?.results?.[0]?.count || 0;
+      const ordersCount = batchRes[1]?.results?.[0]?.count || 0;
+      const productsCount = batchRes[2]?.results?.[0]?.count || 0;
+      const totalRevenue = batchRes[3]?.results?.[0]?.rev || 0;
+      const conversionRate = ordersCount > 0 ? Number(((ordersCount / Math.max(1, usersCount)) * 100).toFixed(1)) : 0;
+
+      const revenueChart = [];
+      for (let i = 0; i < chartDates.length; i++) {
+        const row = batchRes[4 + i]?.results?.[0];
+        revenueChart.push({
+          date: chartDates[i],
+          revenue: row?.rev || 0,
+          orders: row?.cnt || 0
+        });
       }
 
       return json({
