@@ -543,19 +543,50 @@ export async function handleDiscountsRoutes(path, method, request, env) {
     const now = new Date().toISOString();
     const insertedCodes = [];
 
-    for (const code of generated) {
-      const codeId = `dc_${crypto.randomUUID()}`;
-      const codeNormalized = normalizeDiscountCode(code);
-      try {
-        await env.DB.prepare(`
-          INSERT INTO discount_codes (
-            id, organization_id, discount_id, code, code_normalized,
-            times_used, max_uses, is_primary, created_at
-          ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
-        `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now).run();
-        insertedCodes.push({ id: codeId, code, maxUses: maxUsesPerCode });
-      } catch (err) {
-        console.warn("Bulk code collision skipped:", code);
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < generated.length; i += CHUNK_SIZE) {
+      const chunk = generated.slice(i, i + CHUNK_SIZE);
+      const statements = [];
+      const chunkCodes = [];
+
+      for (const code of chunk) {
+        const codeId = `dc_${crypto.randomUUID()}`;
+        const codeNormalized = normalizeDiscountCode(code);
+
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO discount_codes (
+              id, organization_id, discount_id, code, code_normalized,
+              times_used, max_uses, is_primary, created_at
+            ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+          `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now)
+        );
+        chunkCodes.push({ id: codeId, code, maxUses: maxUsesPerCode });
+      }
+
+      if (statements.length > 0) {
+        try {
+          if (typeof env.DB.batch === 'function') {
+            await env.DB.batch(statements);
+            insertedCodes.push(...chunkCodes);
+          } else {
+            // Fallback for mocked DB environment (e.g. testing)
+            for (let j = 0; j < statements.length; j++) {
+              await statements[j].run();
+              insertedCodes.push(chunkCodes[j]);
+            }
+          }
+        } catch (err) {
+          // If a batch fails (e.g., uniqueness collision), fallback to sequential insertion
+          for (let j = 0; j < statements.length; j++) {
+            try {
+              await statements[j].run();
+              insertedCodes.push(chunkCodes[j]);
+            } catch (innerErr) {
+              console.warn("Bulk code collision skipped:", chunkCodes[j].code);
+            }
+          }
+        }
       }
     }
 
