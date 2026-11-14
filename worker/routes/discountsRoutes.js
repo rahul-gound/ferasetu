@@ -542,20 +542,49 @@ export async function handleDiscountsRoutes(path, method, request, env) {
     const generated = generateUniqueCodes({ prefix, count: Number(count) || 10 });
     const now = new Date().toISOString();
     const insertedCodes = [];
+    const payloadBuffer = [];
 
     for (const code of generated) {
       const codeId = `dc_${crypto.randomUUID()}`;
       const codeNormalized = normalizeDiscountCode(code);
-      try {
-        await env.DB.prepare(`
-          INSERT INTO discount_codes (
-            id, organization_id, discount_id, code, code_normalized,
-            times_used, max_uses, is_primary, created_at
-          ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
-        `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now).run();
-        insertedCodes.push({ id: codeId, code, maxUses: maxUsesPerCode });
-      } catch (err) {
-        console.warn("Bulk code collision skipped:", code);
+
+      const stmt = env.DB.prepare(`
+        INSERT INTO discount_codes (
+          id, organization_id, discount_id, code, code_normalized,
+          times_used, max_uses, is_primary, created_at
+        ) VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+      `).bind(codeId, orgId, discountId, code, codeNormalized, maxUsesPerCode, now);
+
+      payloadBuffer.push({ stmt, info: { id: codeId, code, maxUses: maxUsesPerCode } });
+    }
+
+    if (typeof env.DB.batch === 'function') {
+      for (let i = 0; i < payloadBuffer.length; i += 100) {
+        const chunk = payloadBuffer.slice(i, i + 100);
+        try {
+          await env.DB.batch(chunk.map(c => c.stmt));
+          insertedCodes.push(...chunk.map(c => c.info));
+        } catch (err) {
+          // If a chunk fails, fallback to sequential execution for this chunk to gracefully handle specific collisions
+          console.warn("Bulk code batch failed, falling back to sequential:", err?.message || err);
+          for (const item of chunk) {
+            try {
+              await item.stmt.run();
+              insertedCodes.push(item.info);
+            } catch (seqErr) {
+              console.warn("Bulk code collision skipped during fallback:", item.info.code);
+            }
+          }
+        }
+      }
+    } else {
+      for (const item of payloadBuffer) {
+        try {
+          await item.stmt.run();
+          insertedCodes.push(item.info);
+        } catch (err) {
+          console.warn("Bulk code collision skipped:", item.info.code);
+        }
       }
     }
 
