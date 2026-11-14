@@ -145,10 +145,18 @@ export default function PublicFooter() {
               </li>
               <li>
                 <Link
+                  to={getLocalizedLink('/compare/marketplace-alternative')}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Marketplace Alternative
+                </Link>
+              </li>
+              <li>
+                <Link
                   to={getLocalizedLink('/compare')}
                   className="text-xs text-blue-600 hover:text-blue-700 transition-colors font-bold inline-flex items-center gap-1 mt-1"
                 >
-                  <span>All 5 Comparisons →</span>
+                  <span>All 6 Comparisons →</span>
                 </Link>
               </li>
             </ul>

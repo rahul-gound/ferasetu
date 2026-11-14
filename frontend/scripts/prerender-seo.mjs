@@ -129,6 +129,118 @@ const coreRoutes = [
     ]
   },
   {
+    path: '/compare/marketplace-alternative',
+    outPath: 'compare/marketplace-alternative/index.html',
+    title: 'Online Marketplace Alternative — 0% Commission Direct Commerce | FeraSetu',
+    description: 'Compare FeraSetu vs online marketplaces. Keep 100% customer revenue, own direct buyer contact details, and stop paying 15-30% commissions on every sale.',
+    canonical: `${BASE_URL}/compare/marketplace-alternative/`,
+    lang: 'en',
+    faq: [
+      {
+        q: 'Does FeraSetu take commission on orders like Amazon or Flipkart?',
+        a: 'No. FeraSetu has an absolute 0% platform transaction commission policy. While marketplaces take 15% to 30%, FeraSetu charges ₹0 commission on all sales.'
+      },
+      {
+        q: 'Do I get access to customer phone numbers and addresses?',
+        a: 'Yes. On FeraSetu, customer records are 100% unmasked and owned by the merchant, allowing direct WhatsApp and customer support relationships.'
+      }
+    ]
+  },
+  {
+    path: '/docs',
+    outPath: 'docs/index.html',
+    title: 'Documentation & Merchant Help Center | FeraSetu',
+    description: 'Official FeraSetu documentation and guides for independent merchants. Learn store setup, WhatsApp ordering, 0% commission UPI payments, and custom domains.',
+    canonical: `${BASE_URL}/docs/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/quickstart',
+    outPath: 'docs/quickstart/index.html',
+    title: 'Store Setup in Under 2 Minutes — Documentation | FeraSetu',
+    description: 'Step-by-step walkthrough to register your merchant account, select your free shop domain, add initial stock, and start receiving customer orders.',
+    canonical: `${BASE_URL}/docs/quickstart/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/whatsapp-ordering',
+    outPath: 'docs/whatsapp-ordering/index.html',
+    title: 'WhatsApp 1-Click Ordering & Checkout — Documentation | FeraSetu',
+    description: 'Turn familiar WhatsApp chats into high-converting storefronts. Learn how the persistent bottom cart bar lets shoppers assemble orders and send to WhatsApp.',
+    canonical: `${BASE_URL}/docs/whatsapp-ordering/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/payments-zero-commission',
+    outPath: 'docs/payments-zero-commission/index.html',
+    title: 'Payments & 0% Platform Commission Guarantee — Documentation | FeraSetu',
+    description: 'Keep 100% of your hard-earned revenue. Compare direct UPI routing with gateway card processing and explore the daily bank settlement ledger.',
+    canonical: `${BASE_URL}/docs/payments-zero-commission/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/custom-domains',
+    outPath: 'docs/custom-domains/index.html',
+    title: 'Custom Domains & 1-Click DNS Sync — Documentation | FeraSetu',
+    description: 'Connect your own domain name (mystore.com) with automated Cloudflare edge SSL, Domain Connect v2, and sub-60ms global edge routing.',
+    canonical: `${BASE_URL}/docs/custom-domains/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/inventory-locations',
+    outPath: 'docs/inventory-locations/index.html',
+    title: 'Multi-Location Inventory & SKU Register — Documentation | FeraSetu',
+    description: 'Manage inventory across retail counters, backrooms, and central godowns. Prevent out-of-stock orders, scan EAN barcodes, and transfer stock with AI Sidekick.',
+    canonical: `${BASE_URL}/docs/inventory-locations/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/orders-delivery-otp',
+    outPath: 'docs/orders-delivery-otp/index.html',
+    title: 'Order Lifecycle, Delivery OTP & GST Invoices — Documentation | FeraSetu',
+    description: 'Secure orders from placement to doorstep handover. Use 4-digit customer delivery OTPs to prevent dispute claims and generate compliant PDF tax invoices.',
+    canonical: `${BASE_URL}/docs/orders-delivery-otp/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/ferasetu-ai-copilot',
+    outPath: 'docs/ferasetu-ai-copilot/index.html',
+    title: 'FeraSetu AI: Catalog-Grounded Intelligence — Documentation | FeraSetu',
+    description: 'Discover how FeraSetu AI helps merchants. Grounded strictly in your live catalog data with voice recognition and 48 sovereign language localizations.',
+    canonical: `${BASE_URL}/docs/ferasetu-ai-copilot/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/developer-api',
+    outPath: 'docs/developer-api/index.html',
+    title: 'REST API, Webhooks & Thermal Hardware — Documentation | FeraSetu',
+    description: 'Full API documentation for developers and hardware integrators. Query catalogs, ingest orders, register webhooks, and pair 58mm/80mm ESC/POS printers.',
+    canonical: `${BASE_URL}/docs/developer-api/`,
+    lang: 'en'
+  },
+  {
+    path: '/docs/sovereign-commerce-answers',
+    outPath: 'docs/sovereign-commerce-answers/index.html',
+    title: 'FeraSetu Core Architecture & FAQs — Documentation | FeraSetu',
+    description: 'Authoritative answers to the 12 core questions about FeraSetu: architecture, 0% commission model, customer data sovereignty, order routing, and limitations.',
+    canonical: `${BASE_URL}/docs/sovereign-commerce-answers/`,
+    lang: 'en',
+    faq: [
+      {
+        q: 'What is FeraSetu?',
+        a: 'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers, grocers, bodegas, boutiques, and artisans with 0% platform commission, direct bank settlement, and native WhatsApp ordering.'
+      },
+      {
+        q: 'How does FeraSetu differ from online marketplaces?',
+        a: 'FeraSetu is not a marketplace. Merchants own 100% of their customer data, pay 0% commission, and operate under their own brand and custom domain.'
+      },
+      {
+        q: 'What does 0% platform commission actually mean?',
+        a: 'FeraSetu takes ₹0 cut of merchant sales revenue across all tiers. Merchants only pay standard acquiring fees directly to payment gateways like Cashfree, Razorpay, or Stripe, or 0% on direct peer-to-peer UPI.'
+      }
+    ]
+  },
+  {
     path: '/free-online-store',
     outPath: 'free-online-store/index.html',
     title: 'Free Online Store Kaise Banaye — ₹0 Free Plan & Limits | FeraSetu',

@@ -51,6 +51,7 @@ graph TD
 | **QA Control Plane** | `/tests`, `/packages/qa-engine` | Node Test Runner | 38+ automated adversarial and integration test suites | [[09 - 🧪 QA, Testing & Control Plane]] |
 | **Database & State** | `/worker/migrations`, `/backend/src/models` | D1 SQLite, MySQL | Multi-tenant schema, catalog indices, order logs | [[10 - 🗄️ Database Schemas & Data Flow]] |
 | **SMTP & HE Tunnel** | `/ferasetu-smtp` | Modal, Postfix, HE 6in4 IPv6 | 0% commission email delivery, dedicated clean IPv6 rDNS | [[13 - 🌪️ Hurricane Electric IPv6 Tunnel & SMTP Relay]] |
+| **AEO & Search Infra** | `/frontend/functions/_middleware.ts` | HTMLRewriter, JSON-LD, Sitemap | Multi-engine discovery, AI bot access & knowledge authority | [[14 - 🔍 AEO, GEO & Search Infrastructure Architecture]] |
 
 ---
 

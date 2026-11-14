@@ -30,7 +30,12 @@ export interface CompetitorComparisonData {
     metricLabel: string;
   }[];
   matrix: ComparisonRow[];
-  whySwitchPoints: {
+  whySwitchPoints?: {
+    title: string;
+    description: string;
+    takeaway: string;
+  }[];
+  whySwitchReasons?: {
     title: string;
     description: string;
     takeaway: string;
@@ -812,6 +817,189 @@ export const COMPARISONS_DATA: Record<string, CompetitorComparisonData> = {
         question: 'Can I connect a domain purchased through Wix or Squarespace?',
         answer:
           'Yes. You can keep your domain registration with Wix, Squarespace, or Google Domains and simply update the DNS CNAME records to point your storefront to FeraSetu.',
+      },
+    ],
+  },
+  'marketplace-alternative': {
+    slug: 'marketplace-alternative',
+    competitorName: 'Traditional Marketplaces',
+    competitorCategory: 'Centralized Toll Marketplaces (Amazon, Flipkart, Swiggy)',
+    title: 'Online Marketplace Alternative — 0% Commission Direct Commerce | FeraSetu',
+    metaDescription:
+      'Compare FeraSetu vs online marketplaces. Keep 100% customer revenue, own direct buyer contact details, and stop paying 15-30% commissions on every sale.',
+    h1: 'The Sovereign Alternative to Commission-Heavy Online Marketplaces',
+    subheading:
+      'Stop losing 18% to 30% of your retail margin on every sale and being forbidden from contacting your own buyers. FeraSetu gives you a branded digital storefront with 0% platform commission and direct customer relationships.',
+    badge: '0% Platform Fee vs. 15%–30% Marketplace Toll',
+    targetQueries: [
+      'marketplace alternative',
+      'alternative to selling on amazon',
+      'sell online without marketplace commission',
+      'own customer data ecommerce',
+      'independent commerce infrastructure',
+    ],
+    summaryQuote:
+      'Centralized marketplaces treat merchants as replaceable inventory suppliers, masking customer contact info and charging 15%-30% commissions. FeraSetu provides sovereign commerce infrastructure: you keep 100% of your earnings, own your customer records, and build your own brand.',
+    pillarHighlights: [
+      {
+        title: '0% Platform Commission',
+        description:
+          'Centralized marketplaces deduct 15% to 30% on every order. FeraSetu charges 0% platform commission on all plans; 100% of customer payments settle directly into your bank account.',
+        metric: '0%',
+        metricLabel: 'Platform Cut on Sales',
+      },
+      {
+        title: 'Direct Customer Ownership',
+        description:
+          'Marketplaces strictly hide customer phone numbers and emails to prevent direct relationships. On FeraSetu, you own 100% of buyer contact records and can reach out directly via WhatsApp.',
+        metric: '100%',
+        metricLabel: 'Merchant-Owned Data',
+      },
+      {
+        title: 'Direct Bank Settlement',
+        description:
+          'Instead of waiting 7 to 15 business days for marketplace disbursements, payments route directly to your verified bank account instantly via UPI or T+1 via gateway.',
+        metric: 'Instant / T+1',
+        metricLabel: 'Direct Bank Payout',
+      },
+      {
+        title: 'Sovereign Brand Identity',
+        description:
+          'Build lasting equity under your own domain handle or custom domain. No competing sponsored ads or algorithmic private-label clones placed above your products.',
+        metric: 'Your Brand',
+        metricLabel: 'Zero Competitor Ads',
+      },
+    ],
+    matrix: [
+      {
+        feature: 'Platform Commission per Order',
+        category: 'Economics & Fees',
+        ferasetu: '0% platform commission on all tiers',
+        competitor: '15% to 30% commission + listing & closing fees',
+        isFeraAdvantage: true,
+        notes: 'Merchants retain 100% of gross earnings after standard payment processing.',
+      },
+      {
+        feature: 'Customer Contact Info Visibility',
+        category: 'Merchant Ownership',
+        ferasetu: 'Full unmasked customer names, phones & addresses',
+        competitor: 'Masked / strictly retained by the marketplace',
+        isFeraAdvantage: true,
+        notes: 'Marketplaces treat buyers as their own property, forbidding direct seller contact.',
+      },
+      {
+        feature: 'Direct Customer Communication',
+        category: 'Merchant Ownership',
+        ferasetu: 'Built-in 1-click WhatsApp messaging & direct order updates',
+        competitor: 'Strictly prohibited; penalty of account suspension',
+        isFeraAdvantage: true,
+        notes: 'Build lasting repeat customer relationships directly over WhatsApp.',
+      },
+      {
+        feature: 'Payment Disbursement & Settlement',
+        category: 'Economics & Fees',
+        ferasetu: 'Direct bank settlement (Instant UPI or T+1)',
+        competitor: 'Bi-weekly or monthly holding cycle (7–15 days)',
+        isFeraAdvantage: true,
+        notes: 'Funds settle directly to your verified merchant bank account.',
+      },
+      {
+        feature: 'Store Branding & Custom Domain',
+        category: 'Storefront & Ops',
+        ferasetu: 'Branded standalone storefront (yourshop.com)',
+        competitor: 'Generic catalog listing under marketplace logo',
+        isFeraAdvantage: true,
+        notes: 'Establish brand equity that you own rather than renting attention.',
+      },
+      {
+        feature: 'Listing Protection & Sponsored Clones',
+        category: 'Architecture & Speed',
+        ferasetu: 'Zero competitor ads or clone placements on your store',
+        competitor: 'Competing sponsored listings and in-house clones shown on product pages',
+        isFeraAdvantage: true,
+        notes: 'Marketplaces routinely promote cheaper competitors on your listing pages.',
+      },
+      {
+        feature: 'Entry Cost & Ongoing Subscriptions',
+        category: 'Economics & Fees',
+        ferasetu: '₹0 Free plan forever for up to 25 products',
+        competitor: 'Fulfillment deposits, storage penalties & advertising fees',
+        isFeraAdvantage: true,
+        notes: 'No credit card required to start selling independently on FeraSetu.',
+      },
+    ],
+    whySwitchPoints: [
+      {
+        title: 'Reclaim Your 15%–30% Profit Margins',
+        description:
+          'When selling on traditional marketplaces, commissions, closing fees, and shipping surcharges consume up to a third of your gross revenue. FeraSetu eliminates all platform tolls, allowing you to price competitively while earning significantly higher net profit.',
+        takeaway: 'Keep 100% of what your customers pay you.',
+      },
+      {
+        title: 'Turn One-Time Shoppers Into Lifelong Direct Customers',
+        description:
+          'On marketplaces, you cannot email, call, or message your buyers—they belong to the platform. FeraSetu provides full visibility into customer phone numbers, order histories, and addresses, enabling authentic WhatsApp loyalty campaigns and repeat sales.',
+        takeaway: 'Build genuine customer equity that nobody can take away.',
+      },
+      {
+        title: 'Protect Your Business from Arbitrary Account Bans',
+        description:
+          'Marketplaces frequently suspend seller accounts or suppress listings without human recourse. With FeraSetu sovereign infrastructure, your store, product catalog, customer list, and custom domain remain 100% under your ownership.',
+        takeaway: 'Your business is yours. The internet should be too.',
+      },
+    ],
+    whySwitchReasons: [
+      {
+        title: 'Reclaim Your 15%–30% Profit Margins',
+        description:
+          'When selling on traditional marketplaces, commissions, closing fees, and shipping surcharges consume up to a third of your gross revenue. FeraSetu eliminates all platform tolls, allowing you to price competitively while earning significantly higher net profit.',
+        takeaway: 'Keep 100% of what your customers pay you.',
+      },
+      {
+        title: 'Turn One-Time Shoppers Into Lifelong Direct Customers',
+        description:
+          'On marketplaces, you cannot email, call, or message your buyers—they belong to the platform. FeraSetu provides full visibility into customer phone numbers, order histories, and addresses, enabling authentic WhatsApp loyalty campaigns and repeat sales.',
+        takeaway: 'Build genuine customer equity that nobody can take away.',
+      },
+      {
+        title: 'Protect Your Business from Arbitrary Account Bans',
+        description:
+          'Marketplaces frequently suspend seller accounts or suppress listings without human recourse. With FeraSetu sovereign infrastructure, your store, product catalog, customer list, and custom domain remain 100% under your ownership.',
+        takeaway: 'Your business is yours. The internet should be too.',
+      },
+    ],
+    migrationSteps: [
+      {
+        step: 1,
+        title: 'Export Your Product Catalog',
+        detail: 'Download your product images, descriptions, and SKU details from your existing seller portal.',
+      },
+      {
+        step: 2,
+        title: 'Launch Your Sovereign FeraSetu Store',
+        detail: 'Register in 2 minutes for ₹0, claim your free handle, and upload your products with variants and pricing.',
+      },
+      {
+        step: 3,
+        title: 'Redirect Your Existing Customer Base',
+        detail: 'Share your branded store link via WhatsApp, print your counter standee QR code, and invite existing buyers to order directly.',
+      },
+    ],
+    faqs: [
+      {
+        question: 'Does FeraSetu bring traffic like an online marketplace?',
+        answer:
+          'No. FeraSetu is commerce infrastructure, not an aggregator marketplace. You bring your own customers via local reputation, WhatsApp, social media, and Google Search, and in exchange, you pay 0% commission and own 100% of the customer relationship.',
+      },
+      {
+        question: 'Can I sell on both marketplaces and FeraSetu at the same time?',
+        answer:
+          'Yes. Many merchants use marketplaces for initial discovery while directing repeat buyers to their FeraSetu store for 0% commission and higher profit margins.',
+      },
+      {
+        question: 'How do customers pay on my FeraSetu store?',
+        answer:
+          'Customers pay directly via instant UPI (PhonePe, Google Pay, Paytm, BHIM), debit/credit cards, netbanking, or Cash on Delivery. Funds settle directly into your linked bank account with zero intermediate holding.',
       },
     ],
   },

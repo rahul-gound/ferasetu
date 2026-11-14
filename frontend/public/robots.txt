@@ -10,6 +10,8 @@ Disallow: /callback
 Disallow: /verify-email
 Disallow: /onboarding
 Disallow: /ref/
+Disallow: /api/
+Disallow: /platform-sites
 
 # AI Search Engines & Retrieval Agents (Search Discovery & Answers)
 User-agent: Googlebot
@@ -28,6 +30,8 @@ Disallow: /callback
 Disallow: /verify-email
 Disallow: /onboarding
 Disallow: /ref/
+Disallow: /api/
+Disallow: /platform-sites
 
 # AI Training Crawlers & Model Indexers (Consistent Public Access Policy)
 User-agent: GPTBot
@@ -52,5 +56,7 @@ Disallow: /callback
 Disallow: /verify-email
 Disallow: /onboarding
 Disallow: /ref/
+Disallow: /api/
+Disallow: /platform-sites
 
 Sitemap: https://ferasetu.com/sitemap.xml

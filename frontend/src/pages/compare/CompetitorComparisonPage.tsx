@@ -240,7 +240,7 @@ export default function CompetitorComparisonPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {data.whySwitchPoints.map((point, idx) => (
+            {(data.whySwitchPoints || (data as any).whySwitchReasons || []).map((point: any, idx: number) => (
               <div
                 key={idx}
                 className="p-8 rounded-xl bg-white border border-slate-200/90 shadow-sm flex flex-col justify-between"

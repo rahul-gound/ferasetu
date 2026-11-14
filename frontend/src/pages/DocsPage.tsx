@@ -450,6 +450,104 @@ const DOCS_DATA: DocSection[] = [
         ]
       }
     ]
+  },
+  {
+    id: 'sovereign-commerce-answers',
+    category: 'Core Architecture & FAQ',
+    categoryIcon: HelpCircle,
+    title: 'FeraSetu Core Architecture & FAQs',
+    subtitle: 'Authoritative answers to the 12 core questions about sovereign commerce, data ownership, and pricing.',
+    readingTime: '4 min read',
+    keywords: ['what is ferasetu', 'who is ferasetu for', '0% commission', 'customer data', 'shopify alternative', 'marketplace alternative', 'faq', 'answers'],
+    summary: 'Definitive guide explaining what FeraSetu is, who it is built for, how 0% commission works, customer data sovereignty, order routing, and platform capabilities.',
+    content: [
+      {
+        heading: '1. What is FeraSetu?',
+        paragraphs: [
+          'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers, grocers, bodegas, boutiques, and artisans.',
+          'It enables merchants to operate their own branded online stores with 0% platform commission, direct payment settlement, unmasked customer relationships, and native WhatsApp ordering. FeraSetu is NOT a marketplace, NOT a closed drag-and-drop website builder, and NOT a logistics broker.'
+        ]
+      },
+      {
+        heading: '2. Who is FeraSetu Designed For?',
+        paragraphs: [
+          'FeraSetu is designed specifically for independent retailers, local kiranas and grocers, direct-to-consumer (D2C) brands, boutique owners, and service entrepreneurs across 48+ regions (India-first, expanding into the United States and Europe).',
+          'It is built for business owners who want to sell online and build digital equity without paying 15% to 30% marketplace commissions or losing control of their customer records.'
+        ]
+      },
+      {
+        heading: '3. What Problem Does FeraSetu Solve?',
+        paragraphs: [
+          'Marketplaces (like Amazon, Flipkart, or Swiggy) strip merchant identity, mask customer contact details, and extract 15% to 30% tolls on every transaction. Meanwhile, complex platforms like Shopify charge monthly app subscriptions, currency conversion fees, and a 2% surcharge if using non-Shopify payment gateways.',
+          'FeraSetu solves both problems by providing sovereign commerce infrastructure: 0% platform transaction fees, permanent free tier entry, unmasked customer ownership, and native tools out of the box.'
+        ]
+      },
+      {
+        heading: '4. How Does FeraSetu Work?',
+        paragraphs: [
+          'Merchants sign up in under 2 minutes, choose a free store subdomain (e.g., myshop.ferasetu.com) or connect their custom domain, upload products with images, variants, and HSN codes, and immediately begin receiving customer orders.',
+          'Orders arrive via high-performance web storefronts, dynamic counter UPI QR codes, or native 1-click WhatsApp cart checkout. Inventory across physical locations and customer delivery OTP handshakes are managed from a real-time dashboard.'
+        ]
+      },
+      {
+        heading: '5. How is FeraSetu Different from Shopify?',
+        paragraphs: [
+          'Shopify charges $39 to $399/mo plus up to 2% extra transaction surcharges when using external payment gateways, and requires expensive third-party apps ($10 to $50/mo each) for WhatsApp checkout, GST invoices, and Indian payment gateways.',
+          'FeraSetu charges 0% platform transaction commissions forever, includes native WhatsApp cart checkout, automated Indian GST invoicing, and Domain Connect v2 built-in, starting at ₹0/month.'
+        ]
+      },
+      {
+        heading: '6. How Does FeraSetu Differ from Online Marketplaces?',
+        paragraphs: [
+          'FeraSetu is NOT a marketplace. In a marketplace, buyers are the marketplace\'s customers, the marketplace sets policies, charges 15% to 30% commission, and can suspend seller listings at will.',
+          'On FeraSetu, the store is 100% merchant-owned: the merchant owns the customer phone numbers, addresses, sales histories, and domain name, receiving direct payments with zero intermediary cuts.'
+        ]
+      },
+      {
+        heading: '7. What Does 0% Platform Commission Actually Mean?',
+        paragraphs: [
+          'FeraSetu takes ₹0 ($0/€0) cut of merchant sales revenue across ALL subscription tiers (Free, Business, and Pro).',
+          'Merchants keep 100% of the money paid by their customers, minus only standard third-party payment gateway processing fees (e.g. standard Cashfree, Razorpay, or Stripe acquiring fees, or 0% on direct peer-to-peer UPI). FeraSetu never extracts a transactional toll.'
+        ]
+      },
+      {
+        heading: '8. Who Controls Customer Data?',
+        paragraphs: [
+          'The merchant controls 100% of customer data. Customer names, mobile phone numbers, physical delivery addresses, and purchase histories are never masked, never sold, and never shared with competing sellers.',
+          'Merchants can export their customer directory and order history at any time via CSV.'
+        ]
+      },
+      {
+        heading: '9. How Do Merchants Receive Orders?',
+        paragraphs: [
+          'Merchants receive orders through two primary channels:',
+          '1. Directly in their real-time FeraSetu Orders Dashboard with instant notifications, customer delivery verification code (OTP), and 1-click GST invoice generation; and',
+          '2. Via an automated, itemized WhatsApp order message sent directly from the buyer to the shopkeeper\'s WhatsApp business number.'
+        ]
+      },
+      {
+        heading: '10. What Payment Methods Are Supported?',
+        paragraphs: [
+          'Supported payment methods include: Instant UPI (Google Pay, PhonePe, Paytm, BHIM with dynamic counter QR codes and 0% gateway fees), Credit/Debit Cards, Netbanking, and Wallets via integrated Cashfree/Razorpay gateways (settling T+1 directly into the merchant\'s verified bank account), plus Cash on Delivery (COD) with fraud-prevention heuristics.'
+        ]
+      },
+      {
+        heading: '11. What Are the Limitations of the Platform?',
+        paragraphs: [
+          'FeraSetu maintains complete transparency regarding platform constraints:',
+          '1. The Free plan has a catalog limit of 25 products and operates on a .ferasetu.com subdomain (custom domains require the ₹399/mo Business tier).',
+          '2. FeraSetu is commerce software infrastructure, not a logistics fleet—merchants manage their own local delivery or integrate their existing third-party couriers (e.g. Shiprocket, Dunzo, or Porter).',
+          '3. FeraSetu does not provide aggregated buyer marketplace traffic—merchants build and own their direct customer audience via local reputation, WhatsApp, social channels, and search engines.'
+        ]
+      },
+      {
+        heading: '12. How Does a Merchant Get Started?',
+        paragraphs: [
+          'Visit https://ferasetu.com, click "Create Free Store", enter a business name and email or phone number, choose a store subdomain, upload at least 1 product, and share the store link or counter QR code.',
+          'No credit card is required to start on the permanent ₹0 Free plan.'
+        ]
+      }
+    ]
   }
 ];
 
@@ -524,14 +622,36 @@ export default function DocsPage() {
   return (
     <PublicLayout>
       <SEO
-        title="Documentation & Merchant Help Center | FeraSetu"
-        description="Official documentation, setup guides, WhatsApp checkout guides, 0% commission payment architecture, and API references for global shopkeepers."
-        url="https://ferasetu.com/docs"
-        type="website"
+        title={activeDoc ? `${activeDoc.title} — Guides & Documentation | FeraSetu` : "Documentation & Merchant Help Center | FeraSetu"}
+        description={activeDoc ? activeDoc.summary : "Official documentation, setup guides, WhatsApp checkout guides, 0% commission payment architecture, and API references for global shopkeepers."}
+        url={activeDoc ? `https://ferasetu.com/docs/${activeDoc.id}` : "https://ferasetu.com/docs"}
+        type="article"
         breadcrumbs={[
           { name: 'Home', url: 'https://ferasetu.com' },
-          { name: 'Documentation', url: 'https://ferasetu.com/docs' }
+          { name: 'Documentation', url: 'https://ferasetu.com/docs' },
+          ...(activeDoc ? [{ name: activeDoc.title, url: `https://ferasetu.com/docs/${activeDoc.id}` }] : [])
         ]}
+        structuredData={activeDoc ? [
+          {
+            '@type': 'TechArticle',
+            '@id': `https://ferasetu.com/docs/${activeDoc.id}#article`,
+            headline: activeDoc.title,
+            description: activeDoc.summary,
+            url: `https://ferasetu.com/docs/${activeDoc.id}`,
+            datePublished: '2024-01-01',
+            dateModified: '2026-11-10',
+            author: {
+              '@type': 'Organization',
+              name: 'FeraSetu',
+              url: 'https://ferasetu.com/'
+            },
+            publisher: {
+              '@type': 'Organization',
+              name: 'FeraSetu',
+              url: 'https://ferasetu.com/'
+            }
+          }
+        ] : undefined}
       />
 
       {/* Hero Header */}
