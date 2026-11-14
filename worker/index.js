@@ -11198,38 +11198,60 @@ async function getPublicShop(shopName, request, env) {
 
   // Attach options & variants for each product
   try {
+    const productIds = products.map(p => p.id);
+    const optionsMap = new Map();
+    const variantsMap = new Map();
+
+    if (productIds.length > 0) {
+      for (let i = 0; i < productIds.length; i += 100) {
+        const chunk = productIds.slice(i, i + 100);
+        const placeholders = chunk.map(() => '?').join(',');
+
+        try {
+          const optRes = await env.DB.prepare(
+            `SELECT id, product_id, name, position, values_json FROM product_options WHERE product_id IN (${placeholders}) ORDER BY position ASC, created_at ASC`
+          ).bind(...chunk).all();
+
+          for (const o of optRes?.results || []) {
+            if (!optionsMap.has(o.product_id)) optionsMap.set(o.product_id, []);
+            optionsMap.get(o.product_id).push({
+              id: o.id,
+              name: o.name,
+              position: o.position,
+              values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
+            });
+          }
+        } catch (optErr) {
+          console.warn("Bulk product options query failed:", optErr?.message);
+        }
+
+        try {
+          const varRes = await env.DB.prepare(
+            `SELECT id, product_id, title, option_signature, sku, barcode, currency, price_minor,
+                    compare_at_price_minor, image_url, status, option_values_json
+             FROM product_variants WHERE product_id IN (${placeholders}) AND status = 'active' ORDER BY created_at ASC`
+          ).bind(...chunk).all();
+
+          for (const v of varRes?.results || []) {
+            if (!variantsMap.has(v.product_id)) variantsMap.set(v.product_id, []);
+            variantsMap.get(v.product_id).push({
+              ...v,
+              price: v.price_minor ? v.price_minor / 100 : 0,
+              compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
+              option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
+            });
+          }
+        } catch (varErr) {
+          console.warn("Bulk product variants query failed:", varErr?.message);
+        }
+      }
+    }
+
     for (const p of products) {
       p.price_minor = p.price_minor != null ? Number(p.price_minor) : Math.round((Number(p.sale_price) || Number(p.price) || 0) * 100);
-      try {
-        const optRes = await env.DB.prepare(
-          "SELECT id, name, position, values_json FROM product_options WHERE product_id = ? ORDER BY position ASC, created_at ASC"
-        ).bind(p.id).all();
-        p.options = (optRes?.results || []).map(o => ({
-          id: o.id,
-          name: o.name,
-          position: o.position,
-          values: typeof o.values_json === "string" ? JSON.parse(o.values_json) : (o.values || [])
-        }));
-      } catch {
-        p.options = [];
-      }
-
-      try {
-        const varRes = await env.DB.prepare(
-          `SELECT id, title, option_signature, sku, barcode, currency, price_minor,
-                  compare_at_price_minor, image_url, status, option_values_json
-           FROM product_variants WHERE product_id = ? AND status = 'active' ORDER BY created_at ASC`
-        ).bind(p.id).all();
-        p.variants = (varRes?.results || []).map(v => ({
-          ...v,
-          price: v.price_minor ? v.price_minor / 100 : 0,
-          compare_at_price: v.compare_at_price_minor ? v.compare_at_price_minor / 100 : null,
-          option_values: typeof v.option_values_json === "string" ? JSON.parse(v.option_values_json) : (v.option_values || {})
-        }));
-      } catch {
-        p.variants = [];
-      }
-      p.has_variants = (p.variants || []).length > 0;
+      p.options = optionsMap.get(p.id) || [];
+      p.variants = variantsMap.get(p.id) || [];
+      p.has_variants = p.variants.length > 0;
     }
   } catch {}
 
