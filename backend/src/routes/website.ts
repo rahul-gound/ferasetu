@@ -344,6 +344,41 @@ router.post('/settings', (req: AuthenticatedRequest, res: Response): void => {
   res.json({ success: true, settings: updates });
 });
 
+// GET /api/website/site-notice
+router.get('/site-notice', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const userId = req.user!.id;
+    try {
+      db.prepare("ALTER TABLE users ADD COLUMN site_changed_notice TEXT").run();
+    } catch {}
+    const user = db.prepare('SELECT site_changed_notice FROM users WHERE id = ?').get(userId) as any;
+    let notice = null;
+    if (user?.site_changed_notice) {
+      try {
+        notice = typeof user.site_changed_notice === 'string' ? JSON.parse(user.site_changed_notice) : user.site_changed_notice;
+      } catch {
+        notice = { message: 'Your site is changed', details: user.site_changed_notice };
+      }
+    }
+    res.json({ success: true, notice });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/website/dismiss-site-notice
+router.post('/dismiss-site-notice', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const db = getDatabase();
+    const userId = req.user!.id;
+    db.prepare('UPDATE users SET site_changed_notice = NULL WHERE id = ?').run(userId);
+    res.json({ success: true, message: 'Site notice dismissed' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get website templates (5 launch-quality production themes)
 router.get('/templates', (_req: AuthenticatedRequest, res: Response): void => {
   const templates = [

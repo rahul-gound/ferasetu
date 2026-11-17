@@ -396,7 +396,7 @@ const DOCS_DATA: DocSection[] = [
         heading: 'Sovereign AI Infrastructure Invariant',
         paragraphs: [
           'Unlike generic chatbots that hallucinate or leak your business records to public training pools, FeraSetu AI runs through our isolated, OpenAI-compatible backend cluster (https://ai.fera-search.tech/v1).',
-          'We strictly enforce the Zero-Sarvam Invariant: our AI is branded exclusively as FeraSetu AI and communicates only with verified Cloudflare Worker serverless gateways.'
+          'We strictly enforce the Sovereign AI Invariant: our AI is branded exclusively as FeraSetu AI and communicates only with verified Cloudflare Worker serverless gateways.'
         ],
         tips: [
           'Shoppers can ask your storefront AI assistant questions like "Do you have gluten-free flour?" or "Which spices are in stock?", and it replies with direct catalog links.'

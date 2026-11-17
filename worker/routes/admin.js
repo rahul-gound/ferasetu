@@ -286,7 +286,7 @@ export async function handleAdminRoutes(request, env) {
             { name: "Cross-Origin Resource Sharing (CORS)", status: "ENFORCED", detail: "Strict allowlist restricted to verified ferasetu.com and dev origins" },
             { name: "Zero-Trust Edge IP Firewall", status: "ACTIVE", detail: "D1-backed synchronized blocklist with sub-millisecond edge rejection" },
             { name: "Rate-Limiting Armor", status: "ACTIVE", detail: "In-memory sliding window brute-force containment on auth routes" },
-            { name: "Zero-Sarvam AI Isolation", status: "VERIFIED", detail: "Direct cluster proxying to https://ai.fera-search.tech/v1 with secret isolation" }
+            { name: "Sovereign Fera AI Cluster Isolation", status: "VERIFIED", detail: "Direct cluster proxying to https://ai.fera-search.tech/v1 with secret isolation" }
           ],
           recentAlerts: recentAlertsResult.results || []
         }
@@ -781,8 +781,10 @@ export async function handleAdminRoutes(request, env) {
         const { results } = await env.DB.prepare(`
           SELECT 
             COALESCE(w.id, 'shop_' || u.id) as id,
+            u.id as user_id,
             COALESCE(u.business_name, w.name, u.name, 'My Shop') as shop_name,
             COALESCE(u.subdomain, 'store') as subdomain,
+            u.custom_domain,
             COALESCE(u.custom_domain, CASE WHEN u.subdomain IS NOT NULL THEN u.subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
             u.name as owner_name,
             u.email as owner_email,
@@ -802,8 +804,10 @@ export async function handleAdminRoutes(request, env) {
           const { results } = await env.DB.prepare(`
             SELECT 
               'shop_' || id as id,
+              id as user_id,
               COALESCE(business_name, name, 'My Shop') as shop_name,
               COALESCE(subdomain, 'store') as subdomain,
+              custom_domain,
               COALESCE(custom_domain, CASE WHEN subdomain IS NOT NULL THEN subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
               name as owner_name,
               email as owner_email,
@@ -820,6 +824,196 @@ export async function handleAdminRoutes(request, env) {
       }
 
       return json({ shops: shopsList, total, page, limit });
+    }
+
+    // UPDATE SHOP WEBSITE URL & NOTIFY SHOPKEEPER IN DASHBOARD
+    const shopUrlMatch = path.match(/^\/api\/admin\/shops\/([^/]+)\/url$/);
+    if (shopUrlMatch && (method === "PUT" || method === "PATCH" || method === "POST")) {
+      const adminEmail = await requireAdminAuth(request, env);
+      const targetId = decodeURIComponent(shopUrlMatch[1]);
+      const body = await readJsonBody(request);
+
+      const rawUrl = (body.website_url || body.url || body.subdomain || body.custom_domain || "").trim();
+      if (!rawUrl) {
+        throw new HttpError("Website URL or subdomain is required", 400);
+      }
+
+      // Ensure users and announcements table columns exist safely
+      try {
+        await env.DB.prepare("ALTER TABLE users ADD COLUMN site_changed_notice TEXT").run();
+      } catch {}
+      try {
+        await env.DB.prepare("ALTER TABLE announcements ADD COLUMN target_user_id TEXT").run();
+      } catch {}
+
+      // Identify user ID
+      let userId = null;
+      if (targetId.startsWith("shop_")) {
+        userId = targetId.slice(5);
+      } else {
+        const uRow = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(targetId).first();
+        if (uRow) {
+          userId = uRow.id;
+        } else {
+          const wRow = await env.DB.prepare("SELECT user_id FROM websites WHERE id = ?").bind(targetId).first();
+          if (wRow) {
+            userId = wRow.user_id;
+          } else {
+            const sRow = await env.DB.prepare("SELECT organization_id FROM shops WHERE id = ?").bind(targetId).first();
+            if (sRow) {
+              const memRow = await env.DB.prepare("SELECT user_id FROM organization_members WHERE organization_id = ? AND role = 'owner'").bind(sRow.organization_id).first();
+              if (memRow) userId = memRow.user_id;
+            }
+          }
+        }
+      }
+
+      if (!userId) {
+        throw new HttpError("Shop not found", 404);
+      }
+
+      const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+      if (!user) {
+        throw new HttpError("Shop user not found", 404);
+      }
+
+      // Parse and sanitize URL
+      let clean = rawUrl.replace(/^https?:\/\//i, "").replace(/\/+$/, "").trim().toLowerCase();
+      clean = clean.split("/")[0]; // Strip any subpath
+
+      let subdomain = null;
+      let customDomain = null;
+
+      if (clean.endsWith(".ferasetu.com")) {
+        subdomain = clean.replace(/\.ferasetu\.com$/i, "").trim();
+      } else if (clean.endsWith(".fera-search.tech")) {
+        subdomain = clean.replace(/\.fera-search\.tech$/i, "").trim();
+      } else if (!clean.includes(".")) {
+        subdomain = clean.replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+      } else {
+        // It's a custom domain
+        customDomain = clean.replace(/[^a-z0-9.-]/g, "");
+        if (body.subdomain) {
+          subdomain = body.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+        }
+      }
+
+      if (subdomain) {
+        subdomain = subdomain.toLowerCase();
+        const subCollision = await env.DB.prepare("SELECT id FROM users WHERE LOWER(subdomain) = ? AND id != ?").bind(subdomain, userId).first();
+        if (subCollision) {
+          throw new HttpError(`The subdomain '${subdomain}.ferasetu.com' is already registered to another shopkeeper.`, 409);
+        }
+      }
+
+      if (customDomain) {
+        customDomain = customDomain.toLowerCase();
+        const cdCollision = await env.DB.prepare("SELECT id FROM users WHERE LOWER(custom_domain) = ? AND id != ?").bind(customDomain, userId).first();
+        if (cdCollision) {
+          throw new HttpError(`The custom domain '${customDomain}' is already registered to another shopkeeper.`, 409);
+        }
+      }
+
+      const finalSubdomain = subdomain || user.subdomain || 'store';
+      const finalHostname = customDomain || `${finalSubdomain}.ferasetu.com`;
+      const newUrl = `https://${finalHostname}`;
+      const previousUrl = user.custom_domain 
+        ? `https://${user.custom_domain}` 
+        : `https://${user.subdomain || 'store'}.ferasetu.com`;
+
+      const now = new Date().toISOString();
+      const noticePayload = {
+        id: `notice_${crypto.randomUUID()}`,
+        type: "site_changed",
+        message: "Your site is changed",
+        details: `Your website address has been changed to ${newUrl} by platform administrator. All incoming customer links and orders are live at this updated address.`,
+        new_url: newUrl,
+        previous_url: previousUrl,
+        subdomain: finalSubdomain,
+        custom_domain: customDomain,
+        changed_at: now,
+        unread: true
+      };
+
+      await env.DB.prepare(`
+        UPDATE users 
+        SET subdomain = ?,
+            custom_domain = ?,
+            hostname = ?,
+            site_changed_notice = ?,
+            updated_at = ?
+        WHERE id = ?
+      `).bind(finalSubdomain, customDomain, finalHostname, JSON.stringify(noticePayload), now, userId).run();
+
+      // Update organizations store_slug if applicable
+      try {
+        await env.DB.prepare(`
+          UPDATE organizations 
+          SET store_slug = ?,
+              updated_at = ?
+          WHERE id IN (SELECT organization_id FROM organization_members WHERE user_id = ?)
+        `).bind(finalSubdomain, now, userId).run();
+      } catch (orgErr) {
+        console.warn("Could not update organizations store_slug:", orgErr);
+      }
+
+      // Update shops table if exists
+      try {
+        await env.DB.prepare(`
+          UPDATE shops 
+          SET store_slug = ?,
+              hostname = ?,
+              updated_at = ?
+          WHERE organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = ?)
+        `).bind(finalSubdomain, finalHostname, now, userId).run();
+      } catch (sErr) {
+        console.warn("Could not update shops table:", sErr);
+      }
+
+      // Add announcement for merchant updates center
+      try {
+        const annId = `ann_${crypto.randomUUID()}`;
+        await env.DB.prepare(`
+          INSERT INTO announcements (
+            id, title, content, category, badge_label, action_url, action_label,
+            target_plan, is_pinned, is_active, target_user_id, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'all', 1, 1, ?, ?)
+        `).bind(
+          annId,
+          "Your site is changed",
+          `Your store address has been updated to ${newUrl}. Your web storefront is now live at this address.`,
+          "update",
+          "Site Updated",
+          newUrl,
+          "Visit Store",
+          userId,
+          now
+        ).run();
+      } catch (annErr) {
+        console.warn("Could not insert announcement:", annErr);
+      }
+
+      await logAdminAction(env, adminEmail, "UPDATE_WEBSITE_URL", "shops", userId, {
+        previousUrl,
+        newUrl,
+        subdomain: finalSubdomain,
+        customDomain
+      });
+
+      return json({
+        success: true,
+        message: "Website URL updated successfully. The shopkeeper will receive an alert on their dashboard.",
+        shop: {
+          id: targetId,
+          user_id: userId,
+          shop_name: user.business_name || user.name || "My Shop",
+          subdomain: finalSubdomain,
+          custom_domain: customDomain,
+          hostname: finalHostname,
+          new_url: newUrl,
+          notice: noticePayload
+        }
+      });
     }
 
     // ORDERS

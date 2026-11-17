@@ -579,7 +579,7 @@ export default function OrdersPage() {
           <button
             type="button"
             onClick={() => setShowAddOrderModal(true)}
-            className="btn btn-primary inline-flex items-center gap-2 text-xs font-bold cursor-pointer shadow-sm hover:shadow"
+            className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg bg-[#0052FF] text-white text-sm font-semibold shadow-sm hover:bg-[#0047E0] transition-colors cursor-pointer"
             title="Create order for customer or generate a 1-click WhatsApp checkout link"
           >
             <Plus size={16} strokeWidth={2} />
@@ -589,7 +589,7 @@ export default function OrdersPage() {
             type="button"
             onClick={handleExportOrdersCsv}
             disabled={exportingCsv || orders.length === 0}
-            className="btn btn-secondary inline-flex items-center gap-2 text-xs font-bold cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-lg border border-[#E6E8EC] bg-white text-[#0B1220] text-sm font-medium hover:bg-[#F7F8FA] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title="Download CSV of all customer orders and contact numbers (Data Sovereignty Guarantee)"
           >
             <Download size={15} />

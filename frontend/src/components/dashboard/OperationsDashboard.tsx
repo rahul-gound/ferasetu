@@ -46,9 +46,11 @@ import {
   Percent,
   Users,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Globe
 } from 'lucide-react';
 
+import api from '../../services/api';
 import SettlementModal from './SettlementModal';
 import PrinterStatusModal from './PrinterStatusModal';
 import QuickStockModal from './QuickStockModal';
@@ -238,6 +240,48 @@ export default function OperationsDashboard({
       setToastNotification(null);
     }, 4500);
   }, []);
+
+  // ── Site Changed Notification (from Admin website URL edit) ───────────────
+  const [siteChangedNotice, setSiteChangedNotice] = useState<any>(() => {
+    if (!user?.site_changed_notice) return null;
+    try {
+      return typeof user.site_changed_notice === 'string'
+        ? JSON.parse(user.site_changed_notice)
+        : user.site_changed_notice;
+    } catch {
+      return { message: 'Your site is changed', details: String(user.site_changed_notice), new_url: storeUrl };
+    }
+  });
+  const [copiedNewUrl, setCopiedNewUrl] = useState(false);
+
+  useEffect(() => {
+    if (!siteChangedNotice) {
+      api.get('/website/site-notice')
+        .then((res: any) => {
+          if (res.data?.notice) {
+            setSiteChangedNotice(res.data.notice);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const handleDismissSiteNotice = async () => {
+    setSiteChangedNotice(null);
+    try {
+      await api.post('/website/dismiss-site-notice');
+    } catch (err) {
+      console.warn('Could not dismiss site notice on server:', err);
+    }
+  };
+
+  const handleCopyNewUrl = (url: string) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopiedNewUrl(true);
+    showToast('New store website link copied!');
+    setTimeout(() => setCopiedNewUrl(false), 2000);
+  };
 
   // ── Keyboard Shortcuts (⌘K, C, I, Q, Esc) ─────────────────────────────────
   useEffect(() => {
@@ -897,6 +941,69 @@ export default function OperationsDashboard({
     >
       {/* ── Main Container ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        {/* ── SITE CHANGED NOTIFICATION BANNER (ADMIN UPDATED WEBSITE URL) ── */}
+        {siteChangedNotice && (
+          <div 
+            role="alert"
+            className="p-4 sm:p-5 rounded-2xl border-2 border-orange-400 bg-gradient-to-r from-orange-50 via-amber-50/70 to-orange-50 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-orange-950/40 text-slate-900 dark:text-slate-100 shadow-sm transition-all animate-fade-in"
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+                  <Globe size={20} className="animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <h3 className="font-black text-base tracking-tight text-slate-900 dark:text-white">
+                      {siteChangedNotice.message || 'Your site is changed'}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-100 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700">
+                      Platform Update
+                    </span>
+                    {siteChangedNotice.changed_at && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        • {new Date(siteChangedNotice.changed_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 max-w-2xl leading-relaxed">
+                    {siteChangedNotice.details || `Your store website address has been updated to ${siteChangedNotice.new_url}. All incoming customer links and orders are live at this updated address.`}
+                  </p>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-orange-200 dark:border-orange-800 text-xs font-mono font-bold text-orange-600 dark:text-orange-400">
+                    <Globe size={12} />
+                    <span>{siteChangedNotice.new_url}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                <a
+                  href={siteChangedNotice.new_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-orange-600/20"
+                >
+                  <ExternalLink size={14} /> Visit New Site
+                </a>
+                <button
+                  onClick={() => handleCopyNewUrl(siteChangedNotice.new_url)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  {copiedNewUrl ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                  <span>{copiedNewUrl ? 'Copied' : 'Copy'}</span>
+                </button>
+                <button
+                  onClick={handleDismissSiteNotice}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Dismiss notice"
+                  aria-label="Dismiss notice"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── DEMO WORKSPACE NOTICE BANNER (IF DEMO) ── */}
         {isDemoEnvironment && (
@@ -1897,7 +2004,7 @@ export default function OperationsDashboard({
                 }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'pay_later' && !isAllCaughtUpManualPreview
-                    ? 'bg-purple-600 text-white shadow-sm'
+                    ? 'bg-[#0052FF] text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -1906,7 +2013,7 @@ export default function OperationsDashboard({
                   className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono-tabular ${
                     activeTab === 'pay_later' && !isAllCaughtUpManualPreview
                       ? 'bg-white/20 text-white'
-                      : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                      : 'bg-purple-500/10 text-[#0052FF] dark:text-purple-400'
                   }`}
                 >
                   {payLaterOrders.length}

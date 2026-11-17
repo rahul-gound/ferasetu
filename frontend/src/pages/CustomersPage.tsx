@@ -340,9 +340,9 @@ export default function CustomersPage() {
         <div className="bg-white rounded-2xl border border-[#E5EAF1] p-4 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700">Repeat Buyers</span>
-            <ShoppingBag size={16} className="text-purple-600" />
+            <ShoppingBag size={16} className="text-[#0052FF]" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-purple-600">
+          <div className="text-2xl sm:text-3xl font-black text-[#0052FF]">
             {stats.repeat_buyers}
           </div>
           <p className="text-[11px] text-[#667085] mt-1">Placed 2+ verified orders</p>

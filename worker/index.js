@@ -2185,6 +2185,39 @@ async function getReferralsHandler(request, env) {
   }
 }
 
+
+async function adjustProductStock(id, request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  const body = await readJsonBody(request);
+  const delta = Number(body.quantity_delta) || 0;
+  
+  const product = await env.DB.prepare(
+    "SELECT id, stock, stock_quantity FROM products WHERE id = ? AND (organization_id = ? OR user_id = ?)"
+  ).bind(id, ctx.organizationId, ctx.user.$id).first();
+
+  if (!product) throw new HttpError("Product not found", 404);
+
+  const currentStock = Number(product.stock_quantity ?? product.stock ?? 0);
+  const newStock = Math.max(0, currentStock + delta);
+  const now = new Date().toISOString();
+
+  await env.DB.prepare(
+    "UPDATE products SET stock = ?, stock_quantity = ?, updated_at = ? WHERE id = ?"
+  ).bind(newStock, newStock, now, id).run();
+
+  return json({
+    success: true,
+    product_id: id,
+    previous_stock: currentStock,
+    new_stock: newStock,
+    delta,
+    facility: body.facility || 'default',
+    reason: body.reason || 'manual_adjustment',
+    authorized_by: body.authorized_by || ctx.user.name || 'Store Owner',
+    updated_at: now
+  }, 200, {}, request);
+}
+
 async function listProducts(request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const url = new URL(request.url);
@@ -4464,6 +4497,8 @@ async function ensureTables(db) {
     await safeAddColumn('users', 'trial_started_at TEXT');
     await safeAddColumn('users', 'trial_used INTEGER NOT NULL DEFAULT 0');
     await safeAddColumn('users', 'cancel_at_period_end INTEGER DEFAULT 0');
+    await safeAddColumn('users', 'site_changed_notice TEXT');
+    await safeAddColumn('announcements', 'target_user_id TEXT');
 
     await safeAddColumn('organizations', 'district TEXT');
     await safeAddColumn('organizations', 'country TEXT');
@@ -10554,6 +10589,28 @@ function getWebsiteTemplates(request, env) {
   return json({ templates }, 200, {}, request);
 }
 
+async function getSiteNoticeHandler(request, env) {
+  await ensureTables(env.DB);
+  const me = await getAuthenticatedUser(request, env);
+  const user = await env.DB.prepare("SELECT site_changed_notice FROM users WHERE id = ?").bind(me.$id).first();
+  let notice = null;
+  if (user?.site_changed_notice) {
+    try {
+      notice = typeof user.site_changed_notice === 'string' ? JSON.parse(user.site_changed_notice) : user.site_changed_notice;
+    } catch {
+      notice = { message: "Your site is changed", details: user.site_changed_notice };
+    }
+  }
+  return json({ success: true, notice }, 200, {}, request);
+}
+
+async function dismissSiteNoticeHandler(request, env) {
+  await ensureTables(env.DB);
+  const me = await getAuthenticatedUser(request, env);
+  await env.DB.prepare("UPDATE users SET site_changed_notice = NULL WHERE id = ?").bind(me.$id).run();
+  return json({ success: true, message: "Site notice dismissed" }, 200, {}, request);
+}
+
 // ---------------------------------------------------------------------------
 // Support Tickets Handlers
 // ---------------------------------------------------------------------------
@@ -11744,6 +11801,12 @@ async function route(request, env) {
   }
   if ((path === "/api/website/settings/ping-crawl" || path === "/website/settings/ping-crawl") && method === "POST") {
     return pingCrawlSearchEngines(request, env);
+  }
+  if (path === "/api/website/site-notice" && method === "GET") {
+    return getSiteNoticeHandler(request, env);
+  }
+  if (path === "/api/website/dismiss-site-notice" && method === "POST") {
+    return dismissSiteNoticeHandler(request, env);
   }
 
   // Unified Builder Endpoints (Drafts, Versions, Publishing, Connections, Assets & Secure Proxy)

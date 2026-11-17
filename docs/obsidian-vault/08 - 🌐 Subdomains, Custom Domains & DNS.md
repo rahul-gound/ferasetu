@@ -118,3 +118,26 @@ Merchants are never expected to know what CNAME, A records, or TTL mean. FeraSet
    - When the shopkeeper confirms at their registrar dashboard, FeraSetu's background verification radar automatically polls DNS records every 4 seconds.
    - Window focus listeners immediately trigger DoH checks when the user switches back, turning green with zero manual refresh required.
    - Fallback collapsible section available for manual IT entry (Hick's Law).
+
+---
+
+## 7. Admin Website URL Management & Shopkeeper Alert Protocol
+
+Platform administrators can directly modify a merchant's website URL (subdomain or custom domain) from the Admin Shops Workbench (`/admin/shops`):
+
+1. **Admin Control Point (`frontend/src/pages/AdminShopsPage.tsx`)**:
+   - Lists all platform stores with Shop Name, Owner, Products count, and Active Website URL.
+   - Features dedicated "Edit URL" action triggering an intuitive modal with live URL preview (`https://<slug>.ferasetu.com` or custom domain).
+   - Real-time uniqueness validation prevents collision with existing subdomains and custom domains.
+
+2. **Serverless Worker & Express Endpoints (`worker/routes/admin.js`, `backend/src/routes/admin.ts`)**:
+   - `PUT /api/admin/shops/:id/url`: Updates `users.subdomain`, `users.custom_domain`, and `users.hostname`, synchronizes `organizations.store_slug` and `shops.store_slug`, and logs an administrative audit trail (`UPDATE_WEBSITE_URL`).
+   - Persists durable notice payload in `users.site_changed_notice`.
+   - Inserts targeted announcement in `announcements` table (`target_user_id = user.id`, `title: "Your site is changed"`).
+
+3. **Shopkeeper Dashboard Instant Notification (`OperationsDashboard.tsx`)**:
+   - When the shopkeeper navigates to their dashboard (`/dashboard`), a high-visibility, calm alert banner is displayed:
+     `"Your site is changed"` — `"Your website address has been changed to <new_url> by platform administrator."`
+   - Includes 1-click **"Visit New Site"**, **"Copy Link"** with visual checkmark feedback, and dismiss action (`POST /api/website/dismiss-site-notice`).
+   - Also dispatched to the merchant's bell notification center (`FeraSetuUpdatesCenter.tsx`) for persistent historical reference.
+

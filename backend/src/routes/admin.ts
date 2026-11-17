@@ -335,8 +335,10 @@ router.get('/shops', (req: Request, res: Response) => {
       shopsList = db.prepare(`
         SELECT 
           COALESCE(w.id, 'shop_' || u.id) as id,
+          u.id as user_id,
           COALESCE(u.business_name, w.name, u.name, 'My Shop') as shop_name,
           COALESCE(u.subdomain, 'store') as subdomain,
+          u.custom_domain,
           COALESCE(u.custom_domain, CASE WHEN u.subdomain IS NOT NULL THEN u.subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
           u.name as owner_name,
           u.email as owner_email,
@@ -353,8 +355,10 @@ router.get('/shops', (req: Request, res: Response) => {
       shopsList = db.prepare(`
         SELECT 
           'shop_' || id as id,
+          id as user_id,
           COALESCE(business_name, name, 'My Shop') as shop_name,
           COALESCE(subdomain, 'store') as subdomain,
+          custom_domain,
           COALESCE(custom_domain, CASE WHEN subdomain IS NOT NULL THEN subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
           name as owner_name,
           email as owner_email,
@@ -370,6 +374,192 @@ router.get('/shops', (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error fetching admin shops:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Update shop website URL & notify shopkeeper in dashboard
+router.all('/shops/:id/url', adminOnly, (req: AdminRequest, res: Response): void => {
+  if (req.method !== 'PUT' && req.method !== 'PATCH' && req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    const db = getDatabase();
+    const targetId = req.params.id;
+    const body = req.body || {};
+    const rawUrl = (body.website_url || body.url || body.subdomain || body.custom_domain || '').trim();
+
+    if (!rawUrl) {
+      res.status(400).json({ error: 'Website URL or domain is required' });
+      return;
+    }
+
+    // Ensure columns exist safely in SQLite
+    try {
+      db.prepare("ALTER TABLE users ADD COLUMN site_changed_notice TEXT").run();
+    } catch {}
+    try {
+      db.prepare("ALTER TABLE announcements ADD COLUMN target_user_id TEXT").run();
+    } catch {}
+
+    let userId: string | null = null;
+    if (targetId.startsWith('shop_')) {
+      userId = targetId.slice(5);
+    } else {
+      const uRow = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId) as any;
+      if (uRow) {
+        userId = uRow.id;
+      } else {
+        const wRow = db.prepare('SELECT user_id FROM websites WHERE id = ?').get(targetId) as any;
+        if (wRow) {
+          userId = wRow.user_id;
+        } else {
+          const sRow = db.prepare('SELECT organization_id FROM shops WHERE id = ?').get(targetId) as any;
+          if (sRow) {
+            const memRow = db.prepare("SELECT user_id FROM organization_members WHERE organization_id = ? AND role = 'owner'").get(sRow.organization_id) as any;
+            if (memRow) userId = memRow.user_id;
+          }
+        }
+      }
+    }
+
+    if (!userId) {
+      res.status(404).json({ error: 'Shop owner not found' });
+      return;
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+    if (!user) {
+      res.status(404).json({ error: 'Shop user not found' });
+      return;
+    }
+
+    // Parse and sanitize URL
+    let clean = rawUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim().toLowerCase();
+    clean = clean.split('/')[0];
+
+    let subdomain: string | null = null;
+    let customDomain: string | null = null;
+
+    if (clean.endsWith('.ferasetu.com')) {
+      subdomain = clean.replace(/\.ferasetu\.com$/i, '').trim();
+    } else if (clean.endsWith('.fera-search.tech')) {
+      subdomain = clean.replace(/\.fera-search\.tech$/i, '').trim();
+    } else if (!clean.includes('.')) {
+      subdomain = clean.replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+    } else {
+      customDomain = clean.replace(/[^a-z0-9.-]/g, '');
+      if (body.subdomain) {
+        subdomain = body.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+      }
+    }
+
+    if (subdomain) {
+      subdomain = subdomain.toLowerCase();
+      const subCollision = db.prepare('SELECT id FROM users WHERE LOWER(subdomain) = ? AND id != ?').get(subdomain, userId) as any;
+      if (subCollision) {
+        res.status(409).json({ error: `The subdomain '${subdomain}.ferasetu.com' is already registered to another shopkeeper.` });
+        return;
+      }
+    }
+
+    if (customDomain) {
+      customDomain = customDomain.toLowerCase();
+      const cdCollision = db.prepare('SELECT id FROM users WHERE LOWER(custom_domain) = ? AND id != ?').get(customDomain, userId) as any;
+      if (cdCollision) {
+        res.status(409).json({ error: `The custom domain '${customDomain}' is already registered to another shopkeeper.` });
+        return;
+      }
+    }
+
+    const finalSubdomain = subdomain || user.subdomain || 'store';
+    const finalHostname = customDomain || `${finalSubdomain}.ferasetu.com`;
+    const newUrl = `https://${finalHostname}`;
+    const previousUrl = user.custom_domain 
+      ? `https://${user.custom_domain}` 
+      : `https://${user.subdomain || 'store'}.ferasetu.com`;
+
+    const now = new Date().toISOString();
+    const noticePayload = {
+      id: `notice_${uuidv4()}`,
+      type: 'site_changed',
+      message: 'Your site is changed',
+      details: `Your website address has been changed to ${newUrl} by platform administrator. All incoming customer links and orders are live at this updated address.`,
+      new_url: newUrl,
+      previous_url: previousUrl,
+      subdomain: finalSubdomain,
+      custom_domain: customDomain,
+      changed_at: now,
+      unread: true
+    };
+
+    db.prepare(`
+      UPDATE users 
+      SET subdomain = ?,
+          custom_domain = ?,
+          hostname = ?,
+          site_changed_notice = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).run(finalSubdomain, customDomain, finalHostname, JSON.stringify(noticePayload), now, userId);
+
+    try {
+      db.prepare(`
+        UPDATE organizations 
+        SET store_slug = ?,
+            updated_at = ?
+        WHERE id IN (SELECT organization_id FROM organization_members WHERE user_id = ?)
+      `).run(finalSubdomain, now, userId);
+    } catch {}
+
+    try {
+      db.prepare(`
+        UPDATE shops 
+        SET store_slug = ?,
+            hostname = ?,
+            updated_at = ?
+        WHERE organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = ?)
+      `).run(finalSubdomain, finalHostname, now, userId);
+    } catch {}
+
+    try {
+      const annId = `ann_${uuidv4()}`;
+      db.prepare(`
+        INSERT INTO announcements (
+          id, title, content, category, badge_label, action_url, action_label,
+          target_plan, is_pinned, is_active, target_user_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'all', 1, 1, ?, ?)
+      `).run(
+        annId,
+        'Your site is changed',
+        `Your store address has been updated to ${newUrl}. Your web storefront is now live at this address.`,
+        'update',
+        'Site Updated',
+        newUrl,
+        'Visit Store',
+        userId,
+        now
+      );
+    } catch {}
+
+    res.json({
+      success: true,
+      message: 'Website URL updated successfully. The shopkeeper will receive an alert on their dashboard.',
+      shop: {
+        id: targetId,
+        user_id: userId,
+        shop_name: user.business_name || user.name || 'My Shop',
+        subdomain: finalSubdomain,
+        custom_domain: customDomain,
+        hostname: finalHostname,
+        new_url: newUrl,
+        notice: noticePayload
+      }
+    });
+  } catch (err: any) {
+    console.error('Error updating shop website URL:', err);
+    res.status(500).json({ error: err.message || 'Failed to update website URL' });
   }
 });
 

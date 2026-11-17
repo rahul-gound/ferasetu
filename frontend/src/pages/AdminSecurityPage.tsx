@@ -140,7 +140,7 @@ export default function AdminSecurityPage() {
           { name: 'Cross-Origin Resource Sharing (CORS)', status: 'ENFORCED', detail: 'Strict allowlist restricted to verified ferasetu.com domains' },
           { name: 'Zero-Trust Edge IP Firewall', status: 'ACTIVE', detail: 'D1-backed synchronized blocklist with sub-millisecond edge rejection' },
           { name: 'Rate-Limiting Armor', status: 'ACTIVE', detail: 'In-memory sliding window brute-force containment on auth routes' },
-          { name: 'Zero-Sarvam AI Isolation', status: 'VERIFIED', detail: 'Direct cluster proxying to https://ai.fera-search.tech/v1 with secret isolation' }
+          { name: 'Sovereign Fera AI Cluster Isolation', status: 'VERIFIED', detail: 'Direct cluster proxying to https://ai.fera-search.tech/v1 with secret isolation' }
         ],
         recentAlerts: []
       });
@@ -820,13 +820,13 @@ export default function AdminSecurityPage() {
               ))}
             </div>
 
-            {/* Zero-Sarvam Hard Guarantee Card */}
+            {/* Sovereign AI Hard Guarantee Card */}
             <div className="bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0">
                 <ShieldCheck size={22} />
               </div>
               <div>
-                <h4 className="font-bold text-sm text-white">Zero-Sarvam AI Cluster Invariant</h4>
+                <h4 className="font-bold text-sm text-white">Sovereign Fera AI Cluster Invariant</h4>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                   FeraSetu backend communicates directly with the high-performance OpenAI-compatible cluster (<code className="text-orange-400">https://ai.fera-search.tech/v1</code>).
                   All API secrets (<code className="text-orange-400">API_AI</code>) remain securely enclosed within Cloudflare Workers edge environment and are never leaked to client bundles.

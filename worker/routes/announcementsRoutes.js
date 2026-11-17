@@ -104,9 +104,11 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
   if (path === "/api/announcements" || path === "/announcements") {
     if (method === "GET") {
       let userPlan = 'free';
+      let userId = '';
       try {
         const user = await getAuthenticatedUser(request, env);
         if (user?.plan) userPlan = user.plan;
+        if (user?.$id || user?.id) userId = user.$id || user.id;
       } catch {}
 
       const category = url.searchParams.get("category");
@@ -114,6 +116,10 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
 
       try {
         await ensureAnnouncementsSeeded(env.DB);
+        try {
+          await env.DB.prepare("ALTER TABLE announcements ADD COLUMN target_user_id TEXT").run();
+        } catch {}
+
         let query = `
           SELECT 
             id, title, content, 
@@ -126,9 +132,10 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
             created_at
           FROM announcements
           WHERE is_active = 1
+            AND (target_user_id IS NULL OR target_user_id = '' OR target_user_id = ?)
             AND (target_plan = 'all' OR target_plan = ? OR target_plan IS NULL)
         `;
-        const binds = [userPlan];
+        const binds = [userId, userPlan];
 
         if (category && category !== 'all') {
           query += ` AND category = ? `;
