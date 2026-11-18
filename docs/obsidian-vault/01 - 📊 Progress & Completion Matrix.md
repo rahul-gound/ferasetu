@@ -32,7 +32,7 @@
 - [x] Subdomain parser & tenant resolution (`worker/index.js`) — **100%**
 - [x] Strict CSP hash whitelist & CORS ingress wrapper for Email & Domain APIs (`worker/storefront.js`, `worker/index.js`) — **100%**
 - [x] Order cancellation & after-sales routing (`POST /api/orders/:id/cancel`, `POST /api/orders/public/:id/cancel`, `POST /api/orders/:id/refund`) with irreversible locking, inventory restocking, invoice voiding, and customer email alerts (`worker/index.js`) — **100%**
-- [x] Order delivery code handshake (`POST /api/orders/:id/verify-otp`) & permanent delivered status locking (`updateOrderStatus` blocks modification once `status === 'delivered'`) (`worker/index.js`) — **100%**
+- [x] Order delivery code handshake (`POST /api/orders/:id/verify-otp`) & permanent delivered status locking (`updateOrderStatus` blocks modification once `status === 'delivered'`): Fixed 15-minute expiration calculation in tests, corrected SQL parameter binding in worker/index.js, supported SHA-256 OTP hash verification, accepted delivery_code / deliveryCode aliases, and surfaced copyable handshake code on storefront confirmation banner (`worker/index.js`, `backend/src/routes/orders.ts`, `frontend/src/storefront/components/CartDrawer.tsx`) — **100%**
 - [x] Order return management & unrecoverable delivery fee operational loss analysis (`POST /api/orders/:id/return`, `/reject`, `/approve`) (`worker/index.js`) — **100%**
 - [x] D1 multi-tenant sharding & SQL migrations (`worker/sharding/`) — **95%**
 - [x] Cloudflare Custom Hostname SSL integration — **90%**

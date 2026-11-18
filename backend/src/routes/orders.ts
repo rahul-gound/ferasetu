@@ -915,16 +915,26 @@ router.post('/:id/verify-otp', async (req: AuthenticatedRequest, res: Response):
       return;
     }
 
-    const inputVal = String(otp || code || '').trim().toUpperCase();
+    const inputVal = String(otp || code || req.body.delivery_code || req.body.deliveryCode || '').trim().toUpperCase();
+    const cleanInput = String(otp || code || req.body.delivery_code || req.body.deliveryCode || '').trim();
     const actualDeliveryCode = (order.delivery_code || '').trim().toUpperCase();
     const actualOtp = (order.notes || '').match(/OTP:\s*([0-9]+)/i)?.[1];
     const actualCode = (order.notes || '').match(/Code:\s*([A-Z0-9]+)/i)?.[1];
+
+    let isHashedMatch = false;
+    if (order.payment_otp_hash) {
+      const hashed = crypto.createHash('sha256').update(cleanInput).digest('hex');
+      if (order.payment_otp_hash.toLowerCase() === hashed.toLowerCase()) {
+        isHashedMatch = true;
+      }
+    }
 
     const isValid = Boolean(
       inputVal && (
         inputVal === actualDeliveryCode ||
         inputVal === actualOtp ||
-        inputVal === actualCode
+        inputVal === actualCode ||
+        isHashedMatch
       )
     );
 

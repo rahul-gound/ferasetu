@@ -8517,86 +8517,108 @@ async function handlePublicCreateOrder(request, env, ctx) {
 
   // Ultra-fast order confirmation: Dispatch email asynchronously so storefront response is instant (<50ms)
   const hasCustomerEmail = Boolean(customerEmail && !customerEmail.endsWith('@customer.ferasetu.local') && customerEmail.includes('@'));
-  let emailSent = hasCustomerEmail;
-  let emailStatus = hasCustomerEmail ? 'QUEUED' : 'NO_EMAIL';
-  let emailMessage = hasCustomerEmail ? 'Order confirmed! Confirmation email queued.' : 'No customer email provided.';
+  // Quota validation & Customer Email OTP Dispatch using unified EmailService
+  let emailSent = false;
+  let emailStatus = 'NO_EMAIL';
+  let emailMessage = 'No customer email provided.';
 
-  const dispatchOrderNotifications = async () => {
-    if (hasCustomerEmail) {
-      try {
-        const orgName = tenant.organization?.name || tenant.shop?.name || storeSlug;
-        const storeSlugForSender = tenant.organization?.store_slug || storeSlug;
-        
-        const sendRes = await EmailService.sendCustomerEmail(env, {
-          organizationId: orgId,
-          customerEmail,
-          templateKey: 'order.confirmation',
-          locale: 'en',
-          data: {
-            order_id: orderId,
-            invoice_number: invoiceNumber,
-            otp: paymentOtp,
-            total: Number(total || 0) / 100,
-            currency: 'INR',
-            customer_name: customerName,
-            delivery_type: deliveryType,
-            items: resolvedItems.map(item => ({
-              name: item.title_snapshot || item.name || 'Product',
-              quantity: item.quantity,
-              price: item.unit_price_minor ? item.unit_price_minor / 100 : (item.price || 0),
-              total: item.total_minor ? item.total_minor / 100 : (item.total || 0)
-            }))
-          },
-          idempotencyKey: `order_confirmation:${orderId}`,
-          priority: 'HIGH',
-          storeSlug: storeSlugForSender,
-          orgName
-        });
+  if (customerEmail && !customerEmail.endsWith('@customer.ferasetu.local') && customerEmail.includes('@')) {
+    try {
+      const orgName = tenant.organization?.name || tenant.shop?.name || storeSlug;
+      const storeSlugForSender = tenant.organization?.store_slug || storeSlug;
+      
+      const sendRes = await EmailService.sendCustomerEmail(env, {
+        organizationId: orgId,
+        customerEmail,
+        templateKey: 'order.confirmation',
+        locale: 'en',
+        data: {
+          order_id: orderId,
+          invoice_number: invoiceNumber,
+          otp: paymentOtp,
+          total: Number(total || 0) / 100,
+          currency: 'INR',
+          customer_name: customerName,
+          delivery_type: deliveryType,
+          items: resolvedItems.map(item => ({
+            name: item.title_snapshot || item.name || 'Product',
+            quantity: item.quantity,
+            price: item.unit_price_minor ? item.unit_price_minor / 100 : (item.price || 0),
+            total: item.total_minor ? item.total_minor / 100 : (item.total || 0)
+          }))
+        },
+        idempotencyKey: `order_confirmation:${orderId}`,
+        priority: 'HIGH',
+        storeSlug: storeSlugForSender,
+        orgName
+      });
 
-        if (sendRes?.success) {
-          try {
-            await env.DB.prepare(
-              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
-               VALUES (?, ?, ?, ?, 'order_confirmation', 'sent', ?, ?)`
-            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, 'daily', now).run();
-            await env.DB.prepare(
-              "UPDATE orders SET email_sent = 1, email_status = 'SENT' WHERE id = ?"
-            ).bind(orderId).run();
-          } catch {}
-        } else {
-          try {
-            await env.DB.prepare(
-              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-               VALUES (?, ?, ?, ?, 'order_confirmation', 'failed_network', ?, ?, ?)`
-            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes?.reason || 'Send failed', 'daily', now).run();
-            await env.DB.prepare(
-              "UPDATE orders SET email_sent = 0, email_status = 'FAILED' WHERE id = ?"
-            ).bind(orderId).run();
-          } catch {}
-        }
-      } catch (sendErr) {
-        const isQuota = sendErr?.message?.includes('quota exhausted') || sendErr?.message?.includes('QUOTA_EXHAUSTED');
+      if (sendRes?.success) {
+        emailSent = true;
+        emailStatus = 'SENT';
+        emailMessage = 'Order confirmation sent to customer email.';
+        try {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_confirmation', 'sent', ?, ?)`
+          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, 'daily', now).run();
+          await env.DB.prepare(
+            "UPDATE orders SET email_sent = 1, email_status = 'SENT' WHERE id = ?"
+          ).bind(orderId).run();
+        } catch {}
+      } else {
+        emailSent = false;
+        emailStatus = 'FAILED';
+        emailMessage = 'Order created, but email dispatch failed: ' + (sendRes?.reason || 'Transport error');
         try {
           await env.DB.prepare(
             `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-             VALUES (?, ?, ?, ?, 'order_otp', ?, ?, 'none', ?)`
+             VALUES (?, ?, ?, ?, 'order_confirmation', 'failed_network', ?, ?, ?)`
+          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes?.reason || 'Send failed', 'daily', now).run();
+          await env.DB.prepare(
+            "UPDATE orders SET email_sent = 0, email_status = 'FAILED' WHERE id = ?"
+          ).bind(orderId).run();
+        } catch {}
+      }
+    } catch (sendErr) {
+      const isQuota = sendErr?.message?.includes('quota exhausted') || sendErr?.message?.includes('QUOTA_EXHAUSTED');
+      emailSent = false;
+      emailStatus = isQuota ? 'QUOTA_EXHAUSTED' : 'FAILED';
+      emailMessage = isQuota ? 'Order created. Merchant email quota exhausted.' : 'Order created, email notice error: ' + sendErr?.message;
+      try {
+        if (isQuota) {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_otp', 'failed_quota_exhausted', 'Store email quota exhausted', 'none', ?)`
           ).bind(
             `el_${crypto.randomUUID()}`,
             orgId,
             orderId,
             customerEmail,
-            isQuota ? 'failed_quota_exhausted' : 'failed_network',
+            now
+          ).run();
+        } else {
+          await env.DB.prepare(
+            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+             VALUES (?, ?, ?, ?, 'order_otp', 'failed', ?, 'none', ?)`
+          ).bind(
+            `el_${crypto.randomUUID()}`,
+            orgId,
+            orderId,
+            customerEmail,
             sendErr?.message || 'Exception',
             now
           ).run();
-          await env.DB.prepare(
-            "UPDATE orders SET email_sent = 0, email_status = ? WHERE id = ?"
-          ).bind(isQuota ? 'QUOTA_EXHAUSTED' : 'FAILED', orderId).run();
-        } catch {}
-      }
+        }
+        await env.DB.prepare(
+          "UPDATE orders SET email_sent = 0, email_status = ? WHERE id = ?"
+        ).bind(isQuota ? 'QUOTA_EXHAUSTED' : 'FAILED', orderId).run();
+      } catch {}
     }
+  }
 
-    // Congratulate merchant upon receiving their very first customer order
+  // Non-blocking first order congratulations check
+  const maybeSendFirstOrder = async () => {
     try {
       const orderCountRow = await env.DB.prepare(
         "SELECT COUNT(*) as count FROM orders WHERE organization_id = ?"
@@ -8617,9 +8639,9 @@ async function handlePublicCreateOrder(request, env, ctx) {
   };
 
   if (ctx && typeof ctx.waitUntil === 'function') {
-    ctx.waitUntil(dispatchOrderNotifications());
+    ctx.waitUntil(maybeSendFirstOrder());
   } else {
-    dispatchOrderNotifications().catch(err => console.warn("Background order notification error:", err?.message));
+    maybeSendFirstOrder().catch(() => {});
   }
 
   // Authoritative, secure response (NEVER return plaintext OTP)
@@ -8634,6 +8656,7 @@ async function handlePublicCreateOrder(request, env, ctx) {
       subtotal,
       deliveryFee,
       deliveryCode,
+      delivery_code: deliveryCode,
       status: 'pending',
       payment_status: 'unpaid',
       delivery_type: deliveryType,
@@ -9899,15 +9922,15 @@ async function updateOrderPayment(orderId, request, env) {
 async function verifyOrderOtp(orderId, request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
-  const otp = String(body.otp ?? body.code ?? "").trim();
+  const otp = String(body.otp ?? body.code ?? body.delivery_code ?? body.deliveryCode ?? "").trim();
   if (!otp) {
     throw new HttpError("OTP is required", 400);
   }
 
-  // Retrieve the order matching both id and organization_id
+  // Retrieve the order matching id across organization_id, shop_id, or user_id
   const order = await env.DB.prepare(
-    "SELECT * FROM orders WHERE id = ? AND organization_id = ?"
-  ).bind(orderId, ctx.organizationId).first();
+    "SELECT * FROM orders WHERE id = ? AND (organization_id = ? OR shop_id = ? OR user_id = ?)"
+  ).bind(orderId, ctx.organizationId, ctx.organizationId, ctx.userId).first();
 
   if (!order) {
     throw new HttpError("Order not found", 404);
@@ -9915,6 +9938,10 @@ async function verifyOrderOtp(orderId, request, env) {
 
   if (order.otp_used_at) {
     throw new HttpError("OTP has already been used", 400);
+  }
+
+  if (order.status === 'delivered') {
+    throw new HttpError("Order has already been verified and delivered", 400);
   }
 
   if (order.otp_expires_at && new Date(order.otp_expires_at).getTime() < Date.now()) {
@@ -9926,27 +9953,48 @@ async function verifyOrderOtp(orderId, request, env) {
   }
 
   // Validate OTP against this exact order record
+  const cleanInput = String(otp).trim();
+  const upperInput = cleanInput.toUpperCase();
   let isValidOtp = false;
-  if (order.payment_otp_hash) {
-    const textBuffer = new TextEncoder().encode(otp);
+
+  // 1. Delivery code match (case-insensitive)
+  if (order.delivery_code && String(order.delivery_code).trim().toUpperCase() === upperInput) {
+    isValidOtp = true;
+  }
+
+  // 2. Delivery code hash match
+  if (!isValidOtp && order.delivery_code_hash && String(order.delivery_code_hash).trim().toUpperCase() === upperInput) {
+    isValidOtp = true;
+  }
+
+  // 3. Payment OTP hash verification via SHA-256
+  if (!isValidOtp && order.payment_otp_hash) {
+    const textBuffer = new TextEncoder().encode(cleanInput);
     const hashBuffer = await crypto.subtle.digest("SHA-256", textBuffer);
     const hashed = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-    if (order.payment_otp_hash === hashed) {
+    if (String(order.payment_otp_hash).toLowerCase() === hashed.toLowerCase()) {
       isValidOtp = true;
     }
   }
-  if (!isValidOtp && order.delivery_code && order.delivery_code.toUpperCase() === otp.toUpperCase()) {
+
+  // 4. Plaintext payment_otp fallback if present
+  if (!isValidOtp && order.payment_otp && String(order.payment_otp).trim() === cleanInput) {
     isValidOtp = true;
   }
-  if (!isValidOtp && order.payment_otp && String(order.payment_otp) === otp) {
-    isValidOtp = true;
+
+  // 5. Notes fallback (legacy format e.g. Code: XYZ or OTP: 123456)
+  if (!isValidOtp && typeof order.notes === 'string') {
+    const notesCode = order.notes.match(/Code:\s*([A-Z0-9]+)/i)?.[1];
+    const notesOtp = order.notes.match(/OTP:\s*([0-9]+)/i)?.[1];
+    if (notesCode && notesCode.trim().toUpperCase() === upperInput) isValidOtp = true;
+    if (notesOtp && notesOtp.trim() === cleanInput) isValidOtp = true;
   }
 
   if (!isValidOtp) {
     const attempts = (order.otp_attempts || 0) + 1;
     await env.DB.prepare(
-      "UPDATE orders SET otp_attempts = ? WHERE id = ? AND organization_id = ?"
-    ).bind(attempts, orderId, ctx.organizationId).run();
+      "UPDATE orders SET otp_attempts = ? WHERE id = ? AND (organization_id = ? OR shop_id = ? OR user_id = ?)"
+    ).bind(attempts, orderId, ctx.organizationId, ctx.organizationId, ctx.userId).run();
     if (attempts >= 5) {
       throw new HttpError("Maximum OTP verification attempts exceeded. Please contact support.", 429);
     }
@@ -9956,7 +10004,7 @@ async function verifyOrderOtp(orderId, request, env) {
   const now = new Date().toISOString();
   const updateRes = await env.DB.prepare(
     "UPDATE orders SET status = 'delivered', otp_used_at = CURRENT_TIMESTAMP, updated_at = ? WHERE id = ? AND organization_id = ?"
-  ).bind(now, orderId, ctx.organizationId).run();
+  ).bind(now, orderId, order.organization_id || ctx.organizationId).run();
 
   const changes = updateRes?.meta?.changes ?? 0;
   if (changes !== 1) {

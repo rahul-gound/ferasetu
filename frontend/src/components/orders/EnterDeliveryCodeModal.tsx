@@ -52,6 +52,8 @@ export default function EnterDeliveryCodeModal({
       await api.post(`/orders/${order.id}/verify-otp`, {
         otp: cleanCode,
         code: cleanCode,
+        delivery_code: cleanCode,
+        deliveryCode: cleanCode,
       });
       toast.success('Delivery Verified! Order marked as Delivered.');
       setCode('');

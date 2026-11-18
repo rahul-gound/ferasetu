@@ -185,31 +185,34 @@ export default function CartDrawer() {
               </div>
             </div>
 
-            {/* OTP Security Notification Banner */}
-            <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-3.5 mb-4 text-left flex items-start gap-2.5">
-              <ShieldCheck size={18} className="text-blue-700 flex-shrink-0 mt-0.5" />
-              <div>
-                <div className="text-xs font-bold text-blue-900 mb-0.5">
-                  Order Verification OTP Sent
-                </div>
-                <p className="text-[11px] text-blue-800 leading-relaxed">
-                  {orderSuccess.customerEmail && !orderSuccess.customerEmail.includes('@customer.ferasetu.local') ? (
-                    <>
-                      A secret verification OTP has been emailed to <span className="font-semibold">{orderSuccess.customerEmail}</span>.
-                    </>
-                  ) : (
-                    <>
-                      A secret verification OTP has been emailed to your order contact address.
-                    </>
-                  )}{' '}
-                  Please keep this OTP confidential and share it with the merchant or delivery executive <span className="font-semibold">ONLY</span> upon receiving your items.
-                </p>
-                {orderSuccess.emailStatus === 'QUOTA_EXHAUSTED' && (
-                  <p className="text-[10px] text-amber-700 mt-1 font-medium">
-                    (Notice: Direct merchant verification active. Your order is confirmed.)
-                  </p>
-                )}
+            {/* OTP & Delivery Verification Banner */}
+            <div className="w-full bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
+              <div className="flex items-center gap-2 mb-1.5">
+                <ShieldCheck size={18} className="text-blue-700 flex-shrink-0" />
+                <span className="text-xs font-bold text-blue-950 uppercase tracking-wide">
+                  Doorstep Delivery OTP / Handshake Code
+                </span>
               </div>
+              {orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
+                <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-lg border border-blue-200 my-2">
+                  <span className="font-mono text-2xl font-black text-blue-900 tracking-widest">
+                    {orderSuccess.deliveryCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(orderSuccess.deliveryCode);
+                      alert('Delivery code copied to clipboard!');
+                    }}
+                    className="text-xs font-bold text-blue-700 hover:text-blue-900 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                  >
+                    Copy Code
+                  </button>
+                </div>
+              )}
+              <p className="text-[11px] text-blue-800 leading-relaxed">
+                Please keep this code confidential and share it with the shopkeeper or delivery partner <span className="font-semibold">ONLY</span> when receiving your order to confirm delivery.
+              </p>
             </div>
 
             {/* Order Summary Card */}
@@ -563,7 +566,7 @@ export default function CartDrawer() {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Mobile Number (for delivery OTP) *
+                  Mobile Number (for order & delivery verification) *
                 </label>
                 <input
                   type="tel"

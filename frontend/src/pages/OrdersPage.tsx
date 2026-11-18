@@ -1833,7 +1833,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Delivery / Pickup Codes */}
-              {selectedOrder.notes && selectedOrder.notes.includes('Code:') && (
+              {(selectedOrder.delivery_code || (selectedOrder.notes && (selectedOrder.notes.includes('Code:') || selectedOrder.notes.includes('OTP:')))) && (
                 <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid #E2E8F0' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
@@ -1844,14 +1844,34 @@ export default function OrdersPage() {
                     </div>
                     <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: '12px' }}>
                         <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>Payment OTP</div>
-                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#1E293B', letterSpacing: '1px' }}>
-                          {(typeof selectedOrder.notes === 'string' ? selectedOrder.notes.match(/OTP:\s*([0-9]+)/i)?.[1] : null) || '---'}
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: '#1E293B', letterSpacing: '0.5px', marginTop: '3px' }}>
+                          {(typeof selectedOrder.notes === 'string' ? selectedOrder.notes.match(/OTP:\s*([0-9]+)/i)?.[1] : null) || (selectedOrder.payment_otp_hash ? 'Active (SHA-256)' : '---')}
                         </div>
                     </div>
                   </div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', marginTop: '10px' }}>
-                    Ask the customer for the <b>{selectedOrder.delivery_type === 'delivery' ? 'Security Code' : 'OTP'}</b> to verify the handshake.
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #E2E8F0' }}>
+                    <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0 }}>
+                      Ask customer for the <b>{selectedOrder.delivery_type === 'delivery' ? 'Security Code' : 'OTP'}</b> to confirm delivery.
+                    </p>
+                    {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                      <button
+                        type="button"
+                        onClick={() => setOrderForDeliveryCode(selectedOrder)}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#0052FF',
+                          background: '#EFF6FF',
+                          border: '1px solid #BFDBFE',
+                          borderRadius: '8px',
+                          padding: '4px 10px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Enter Handshake Code
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
