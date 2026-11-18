@@ -8096,7 +8096,7 @@ async function handleGetEmailQuota(request, env) {
 // ---------------------------------------------------------------------------
 // Storefront & Order Handlers
 // ---------------------------------------------------------------------------
-async function handlePublicCreateOrder(request, env) {
+async function handlePublicCreateOrder(request, env, ctx) {
   const body = await readJsonBody(request);
   const customerName = body.customerName || body.customer_name;
   const customerPhone = body.customerPhone || body.customer_phone;
@@ -8515,124 +8515,111 @@ async function handlePublicCreateOrder(request, env) {
     console.warn("Invoice creation note:", invErr?.message);
   }
 
-  // Quota validation & Customer Email OTP Dispatch using unified EmailService
-  let emailSent = false;
-  let emailStatus = 'NO_EMAIL';
-  let emailMessage = 'No customer email provided.';
+  // Ultra-fast order confirmation: Dispatch email asynchronously so storefront response is instant (<50ms)
+  const hasCustomerEmail = Boolean(customerEmail && !customerEmail.endsWith('@customer.ferasetu.local') && customerEmail.includes('@'));
+  let emailSent = hasCustomerEmail;
+  let emailStatus = hasCustomerEmail ? 'QUEUED' : 'NO_EMAIL';
+  let emailMessage = hasCustomerEmail ? 'Order confirmed! Confirmation email queued.' : 'No customer email provided.';
 
-  if (customerEmail && !customerEmail.endsWith('@customer.ferasetu.local') && customerEmail.includes('@')) {
-    try {
-      const orgName = tenant.organization?.name || tenant.shop?.name || storeSlug;
-      const storeSlugForSender = tenant.organization?.store_slug || storeSlug;
-      
-      const sendRes = await EmailService.sendCustomerEmail(env, {
-        organizationId: orgId,
-        customerEmail,
-        templateKey: 'order.confirmation',
-        locale: 'en',
-        data: {
-          order_id: orderId,
-          invoice_number: invoiceNumber,
-          otp: paymentOtp,
-          total: Number(total || 0) / 100, // Convert to decimal for template
-          currency: 'INR',
-          customer_name: customerName,
-          delivery_type: deliveryType,
-          items: resolvedItems.map(item => ({
-            name: item.title_snapshot || item.name || 'Product',
-            quantity: item.quantity,
-            price: item.unit_price_minor ? item.unit_price_minor / 100 : (item.price || 0),
-            total: item.total_minor ? item.total_minor / 100 : (item.total || 0)
-          }))
-        },
-        idempotencyKey: `order_confirmation:${orderId}`,
-        priority: 'HIGH',
-        storeSlug: storeSlugForSender,
-        orgName
-      });
+  const dispatchOrderNotifications = async () => {
+    if (hasCustomerEmail) {
+      try {
+        const orgName = tenant.organization?.name || tenant.shop?.name || storeSlug;
+        const storeSlugForSender = tenant.organization?.store_slug || storeSlug;
+        
+        const sendRes = await EmailService.sendCustomerEmail(env, {
+          organizationId: orgId,
+          customerEmail,
+          templateKey: 'order.confirmation',
+          locale: 'en',
+          data: {
+            order_id: orderId,
+            invoice_number: invoiceNumber,
+            otp: paymentOtp,
+            total: Number(total || 0) / 100,
+            currency: 'INR',
+            customer_name: customerName,
+            delivery_type: deliveryType,
+            items: resolvedItems.map(item => ({
+              name: item.title_snapshot || item.name || 'Product',
+              quantity: item.quantity,
+              price: item.unit_price_minor ? item.unit_price_minor / 100 : (item.price || 0),
+              total: item.total_minor ? item.total_minor / 100 : (item.total || 0)
+            }))
+          },
+          idempotencyKey: `order_confirmation:${orderId}`,
+          priority: 'HIGH',
+          storeSlug: storeSlugForSender,
+          orgName
+        });
 
-      if (sendRes.success) {
-        emailSent = true;
-        emailStatus = 'SENT';
-        emailMessage = 'Order confirmation sent to customer email.';
-        try {
-          await env.DB.prepare(
-            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
-             VALUES (?, ?, ?, ?, 'order_confirmation', 'sent', ?, ?)`
-          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, 'daily', now).run();
-        } catch {}
-      } else {
-        emailSent = false;
-        emailStatus = 'FAILED';
-        emailMessage = 'Could not deliver confirmation email.';
+        if (sendRes?.success) {
+          try {
+            await env.DB.prepare(
+              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, consumed_source, created_at)
+               VALUES (?, ?, ?, ?, 'order_confirmation', 'sent', ?, ?)`
+            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, 'daily', now).run();
+            await env.DB.prepare(
+              "UPDATE orders SET email_sent = 1, email_status = 'SENT' WHERE id = ?"
+            ).bind(orderId).run();
+          } catch {}
+        } else {
+          try {
+            await env.DB.prepare(
+              `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
+               VALUES (?, ?, ?, ?, 'order_confirmation', 'failed_network', ?, ?, ?)`
+            ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes?.reason || 'Send failed', 'daily', now).run();
+            await env.DB.prepare(
+              "UPDATE orders SET email_sent = 0, email_status = 'FAILED' WHERE id = ?"
+            ).bind(orderId).run();
+          } catch {}
+        }
+      } catch (sendErr) {
+        const isQuota = sendErr?.message?.includes('quota exhausted') || sendErr?.message?.includes('QUOTA_EXHAUSTED');
         try {
           await env.DB.prepare(
             `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-             VALUES (?, ?, ?, ?, 'order_confirmation', 'failed_network', ?, ?, ?)`
-          ).bind(`el_${crypto.randomUUID()}`, orgId, orderId, customerEmail, sendRes.reason || 'Send failed', 'daily', now).run();
-        } catch {}
-      }
-    } catch (sendErr) {
-      const isQuota = sendErr?.message?.includes('quota exhausted') || sendErr?.message?.includes('QUOTA_EXHAUSTED');
-      emailSent = false;
-      emailStatus = isQuota ? 'QUOTA_EXHAUSTED' : 'FAILED';
-      emailMessage = isQuota 
-        ? 'Store daily email quota reached. Order confirmed without email.' 
-        : 'Could not deliver confirmation email.';
-      if (isQuota) {
-        try {
-          await env.DB.prepare(
-            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-             VALUES (?, ?, ?, ?, 'order_otp', 'failed_quota_exhausted', 'Daily store email quota exhausted', 'none', ?)`
+             VALUES (?, ?, ?, ?, 'order_otp', ?, ?, 'none', ?)`
           ).bind(
             `el_${crypto.randomUUID()}`,
             orgId,
             orderId,
             customerEmail,
-            now
-          ).run();
-        } catch {}
-      } else {
-        try {
-          await env.DB.prepare(
-            `INSERT INTO email_logs (id, organization_id, order_id, recipient_email, email_type, status, failure_reason, consumed_source, created_at)
-             VALUES (?, ?, ?, ?, 'order_otp', 'failed_network', ?, 'none', ?)`
-          ).bind(
-            `el_${crypto.randomUUID()}`,
-            orgId,
-            orderId,
-            customerEmail,
+            isQuota ? 'failed_quota_exhausted' : 'failed_network',
             sendErr?.message || 'Exception',
             now
           ).run();
+          await env.DB.prepare(
+            "UPDATE orders SET email_sent = 0, email_status = ? WHERE id = ?"
+          ).bind(isQuota ? 'QUOTA_EXHAUSTED' : 'FAILED', orderId).run();
         } catch {}
       }
     }
 
+    // Congratulate merchant upon receiving their very first customer order
     try {
-      await env.DB.prepare(
-        "UPDATE orders SET email_sent = ?, email_status = ? WHERE id = ?"
-      ).bind(emailSent ? 1 : 0, emailStatus, orderId).run();
-    } catch {}
-  }
-
-  // Congratulate merchant upon receiving their very first customer order
-  try {
-    const orderCountRow = await env.DB.prepare(
-      "SELECT COUNT(*) as count FROM orders WHERE organization_id = ?"
-    ).bind(orgId).first();
-    if (orderCountRow && Number(orderCountRow.count) === 1) {
-      await EmailService.sendFirstOrderCongratulatoryEmail(env, {
-        organizationId: orgId,
-        orderId: orderId,
-        total: total,
-        customerName: customerName,
-        storeSlug: tenant?.organization?.store_slug || storeSlug,
-        shopName: tenant?.organization?.name || tenant?.shop?.name || storeSlug
-      });
+      const orderCountRow = await env.DB.prepare(
+        "SELECT COUNT(*) as count FROM orders WHERE organization_id = ?"
+      ).bind(orgId).first();
+      if (orderCountRow && Number(orderCountRow.count) === 1) {
+        await EmailService.sendFirstOrderCongratulatoryEmail(env, {
+          organizationId: orgId,
+          orderId: orderId,
+          total: total,
+          customerName: customerName,
+          storeSlug: tenant?.organization?.store_slug || storeSlug,
+          shopName: tenant?.organization?.name || tenant?.shop?.name || storeSlug
+        });
+      }
+    } catch (firstOrderErr) {
+      console.warn("Could not check/send first order congratulatory email (non-blocking):", firstOrderErr?.message);
     }
-  } catch (firstOrderErr) {
-    console.warn("Could not check/send first order congratulatory email (non-blocking):", firstOrderErr?.message);
+  };
+
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(dispatchOrderNotifications());
+  } else {
+    dispatchOrderNotifications().catch(err => console.warn("Background order notification error:", err?.message));
   }
 
   // Authoritative, secure response (NEVER return plaintext OTP)
@@ -11372,7 +11359,7 @@ async function getPublicShop(shopName, request, env) {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
-async function route(request, env) {
+async function route(request, env, ctx) {
   const url = new URL(request.url);
   let path = url.pathname.replace(/\/+$/, "") || "/"; // strip trailing slashes
   if (path !== "/" && !path.startsWith("/api/")) {
@@ -11649,7 +11636,7 @@ async function route(request, env) {
 
   // Orders
   if ((path === "/api/orders/create" || path === "/api/orders/public/create") && method === "POST") {
-    return handlePublicCreateOrder(request, env);
+    return handlePublicCreateOrder(request, env, ctx);
   }
   if (path === "/api/orders/public/track" && method === "GET") {
     return handlePublicTrackOrders(request, env);
@@ -12274,7 +12261,7 @@ export default {
           if (!env.DB) {
             return errorResponse("Database not configured.", 503, undefined, request);
           }
-          return await route(request, env);
+          return await route(request, env, ctx);
         }
         return await proxyPagesAsset(request, env, ctx);
       }
@@ -12297,7 +12284,7 @@ export default {
 
         if (platformSite) {
           if (url.pathname.startsWith("/api/")) {
-            return await route(request, env);
+            return await route(request, env, ctx);
           }
           return await handlePlatformSiteRequest(request, env, ctx, platformSite);
         }
@@ -12310,7 +12297,7 @@ export default {
             if (!env.DB) {
               return errorResponse("Database not configured.", 503, undefined, request);
             }
-            return await route(request, env);
+            return await route(request, env, ctx);
           }
           return await proxyPagesAsset(request, env, ctx);
         }
@@ -12319,7 +12306,7 @@ export default {
           if (!env.DB) {
             return errorResponse("Database not configured.", 503, undefined, request);
           }
-          return await route(request, env);
+          return await route(request, env, ctx);
         }
 
         // Check if an active platform site is mapped to this reserved hostname
@@ -12349,7 +12336,7 @@ export default {
       if (hostClassification.type === "merchant") {
         // Direct API calls on the merchant subdomain
         if (url.pathname.startsWith("/api/")) {
-          return await route(request, env);
+          return await route(request, env, ctx);
         }
         return await handleStorefrontRequest(request, env, ctx, hostClassification);
       }
@@ -12376,7 +12363,7 @@ export default {
 
       if (effectiveCustomHost) {
         if (url.pathname.startsWith("/api/")) {
-          return await route(request, env);
+          return await route(request, env, ctx);
         }
         const customTenant = await resolveCustomDomainTenant(effectiveCustomHost, env);
         if (customTenant) {
@@ -12405,7 +12392,7 @@ export default {
       if (!env.DB) {
         const p = url.pathname;
         if (p === "/" || p === "/api/health" || p === "/api/v1/health" || p === "/api/geo" || p.startsWith("/api/geo/")) {
-          return await route(request, env);
+          return await route(request, env, ctx);
         }
         return errorResponse(
           "Database not configured. Set the D1 `database_id` in wrangler.toml and redeploy.",
@@ -12415,7 +12402,7 @@ export default {
         );
       }
 
-      return await route(request, env);
+      return await route(request, env, ctx);
     } catch (err) {
       if (err instanceof HttpError || (err && typeof err.status === 'number')) {
         return errorResponse(err.message, err.status, err.details, request);

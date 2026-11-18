@@ -326,8 +326,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   // ── 4+1 Daily Rhythm Anchors (Hick's Law - Zero Clutter) ──
 
-  // ── Graduated Direct Navigation (All Store Tools as First-Class Citizens) ──
-  const navItems: NavItem[] = useMemo(() => [
+  // ── 5 Daily Rhythm Anchors (Hick's Law - Core Shopkeeper Operating Stack) ──
+  const dailyNavItems: NavItem[] = useMemo(() => [
     { path: '/dashboard', icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
     {
       path: '/orders',
@@ -344,6 +344,24 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
       badgeColor: 'blue',
     },
+    { path: '/website-builder', icon: <Globe size={17} />, label: 'Storefront Studio' },
+  ], [totalOrdersCount, totalCustomersCount]);
+
+  // ── Categorized Drawer 1: Store Tools & Design ──
+  const toolsNavItems: NavItem[] = useMemo(() => [
+    { path: '/website-design', icon: <Palette size={17} />, label: 'Website & Design' },
+    { path: '/domains', icon: <Globe size={17} />, label: 'Domains & DNS' },
+    { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts & Coupons' },
+    { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
+    { path: '/transfers', icon: <Truck size={17} />, label: 'Stock Transfers' },
+    { path: '/gift-cards', icon: <Gift size={17} />, label: 'Gift Cards' },
+  ], []);
+
+  // ── Categorized Drawer 2: Finance & Growth ──
+  const financeNavItems: NavItem[] = useMemo(() => [
+    { path: '/payments', icon: <CreditCard size={17} />, label: 'Payments & Settlements' },
+    { path: '/analytics', icon: <BarChart3 size={17} />, label: 'Analytics' },
+    { path: '/marketing-and-seo', icon: <Megaphone size={17} />, label: 'Marketing & SEO' },
     {
       path: '/ferasetu-ai',
       icon: <Sparkles size={17} />,
@@ -351,15 +369,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       badge: 'AI',
       badgeColor: 'orange',
     },
-    { path: '/website-builder', icon: <Globe size={17} />, label: 'Storefront Builder' },
-    { path: '/website-design', icon: <Palette size={17} />, label: 'Website & Design' },
-    { path: '/domains', icon: <Globe size={17} />, label: 'Domains & DNS' },
-    { path: '/payments', icon: <CreditCard size={17} />, label: 'Payments & Settlements' },
-    { path: '/analytics', icon: <BarChart3 size={17} />, label: 'Analytics' },
-    { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts' },
-    { path: '/transfers', icon: <Truck size={17} />, label: 'Inventory Transfers' },
-    { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
-    { path: '/gift-cards', icon: <Gift size={17} />, label: 'Gift Cards' },
     { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
     {
       path: '/ai-credits',
@@ -368,14 +377,36 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       badge: user?.ai_credits_balance ?? 20,
       badgeColor: 'blue',
     },
-    { path: '/marketing-and-seo', icon: <Megaphone size={17} />, label: 'Marketing & SEO' },
-    { path: '/website-settings', icon: <Sliders size={17} />, label: 'SEO Settings' },
+  ], [user?.ai_credits_balance]);
+
+  // ── Categorized Drawer 3: Operations & Support ──
+  const opsNavItems: NavItem[] = useMemo(() => [
     { path: '/staff', icon: <ShieldCheck size={17} />, label: 'Staff & Access' },
-    { path: '/settings/email', icon: <Mail size={17} />, label: 'Custom Domains & Mail' },
-    { path: '/community', icon: <MessageSquareText size={17} />, label: 'Merchant Community' },
     { path: '/integrations', icon: <Server size={17} />, label: 'Integrations & Hub' },
+    { path: '/community', icon: <MessageSquareText size={17} />, label: 'Merchant Community' },
     { path: '/support', icon: <LifeBuoy size={17} />, label: 'Merchant Support' },
-  ], [totalOrdersCount, totalCustomersCount, user?.ai_credits_balance]);
+  ], []);
+
+  // Smart section auto-expansion based on active URL
+  const isToolsActive = useMemo(() => toolsNavItems.some(item => location.pathname.startsWith(item.path)), [toolsNavItems, location.pathname]);
+  const isFinanceActive = useMemo(() => financeNavItems.some(item => location.pathname.startsWith(item.path)), [financeNavItems, location.pathname]);
+  const isOpsActive = useMemo(() => opsNavItems.some(item => location.pathname.startsWith(item.path)), [opsNavItems, location.pathname]);
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    tools: false,
+    finance: false,
+    ops: false,
+  });
+
+  useEffect(() => {
+    if (isToolsActive) setOpenSections(prev => ({ ...prev, tools: true }));
+    if (isFinanceActive) setOpenSections(prev => ({ ...prev, finance: true }));
+    if (isOpsActive) setOpenSections(prev => ({ ...prev, ops: true }));
+  }, [isToolsActive, isFinanceActive, isOpsActive]);
+
+  const toggleSection = (section: 'tools' | 'finance' | 'ops') => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
 
 
@@ -698,8 +729,119 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
 
           return (
-            <div className="flex flex-col gap-0.5">
-              {navItems.map(renderItem)}
+            <div className="flex flex-col gap-1">
+              {/* Daily Anchors (Always Prominent - Hick's Law) */}
+              <div className="flex flex-col gap-0.5">
+                {dailyNavItems.map(renderItem)}
+              </div>
+
+              {/* Drawer 1: Store Tools */}
+              {isCollapsed ? (
+                <>
+                  <div className="my-1 border-t border-[#E5EAF1]/70 mx-2" />
+                  <div className="flex flex-col gap-0.5">
+                    {toolsNavItems.map(renderItem)}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-1 pt-1.5 border-t border-[#E5EAF1]/60">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('tools')}
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider text-[#8A94A6] uppercase hover:text-[#152238] hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span>Store Tools</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-[#8A94A6] bg-slate-100 px-1.5 py-0.2 rounded">
+                        {toolsNavItems.length}
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        className={`transition-transform duration-200 ${
+                          openSections.tools ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+                  {openSections.tools && (
+                    <div className="mt-0.5 flex flex-col gap-0.5 pl-1">
+                      {toolsNavItems.map(renderItem)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Drawer 2: Finance & Growth */}
+              {isCollapsed ? (
+                <>
+                  <div className="my-1 border-t border-[#E5EAF1]/70 mx-2" />
+                  <div className="flex flex-col gap-0.5">
+                    {financeNavItems.map(renderItem)}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-1 pt-1.5 border-t border-[#E5EAF1]/60">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('finance')}
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider text-[#8A94A6] uppercase hover:text-[#152238] hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span>Finance & Growth</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-[#8A94A6] bg-slate-100 px-1.5 py-0.2 rounded">
+                        {financeNavItems.length}
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        className={`transition-transform duration-200 ${
+                          openSections.finance ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+                  {openSections.finance && (
+                    <div className="mt-0.5 flex flex-col gap-0.5 pl-1">
+                      {financeNavItems.map(renderItem)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Drawer 3: Operations & Support */}
+              {isCollapsed ? (
+                <>
+                  <div className="my-1 border-t border-[#E5EAF1]/70 mx-2" />
+                  <div className="flex flex-col gap-0.5">
+                    {opsNavItems.map(renderItem)}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-1 pt-1.5 border-t border-[#E5EAF1]/60">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('ops')}
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider text-[#8A94A6] uppercase hover:text-[#152238] hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span>Operations</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-[#8A94A6] bg-slate-100 px-1.5 py-0.2 rounded">
+                        {opsNavItems.length}
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        className={`transition-transform duration-200 ${
+                          openSections.ops ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+                  {openSections.ops && (
+                    <div className="mt-0.5 flex flex-col gap-0.5 pl-1">
+                      {opsNavItems.map(renderItem)}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
 

@@ -117,81 +117,8 @@ export default function PaymentsPage() {
       });
     }
 
-    // Default seeded preview when merchant is fresh
-    return [
-      {
-        id: 'TXN-90214',
-        order_number: '#ORD-4491',
-        customer_name: 'Vikram S.',
-        customer_phone: '+91 98••••1234',
-        method: 'UPI • Google Pay',
-        gross_amount: 3850,
-        net_amount: 3850,
-        provider_ref: 'pay_O9rK1839',
-        status: 'captured',
-        timestamp: 'Today, 02:41 PM'
-      },
-      {
-        id: 'TXN-90213',
-        order_number: '#ORD-4490',
-        customer_name: 'Ananya Sharma',
-        customer_phone: '+91 94••••9811',
-        method: 'UPI • PhonePe',
-        gross_amount: 1250,
-        net_amount: 1250,
-        provider_ref: 'pay_O9rD4412',
-        status: 'captured',
-        timestamp: 'Today, 02:18 PM'
-      },
-      {
-        id: 'TXN-90212',
-        order_number: '#ORD-4489',
-        customer_name: 'Rajesh Verma',
-        customer_phone: '+91 97••••6502',
-        method: 'HDFC Debit Card',
-        gross_amount: 420,
-        net_amount: 420,
-        provider_ref: 'rzp_98a7cf11',
-        status: 'pending',
-        timestamp: 'Today, 01:52 PM'
-      },
-      {
-        id: 'TXN-90211',
-        order_number: '#ORD-4488',
-        customer_name: 'Pooja Nair',
-        customer_phone: '+91 91••••7741',
-        method: 'Paytm UPI QR',
-        gross_amount: 180,
-        net_amount: 180,
-        provider_ref: 'ptm_88741b80',
-        status: 'captured',
-        timestamp: 'Today, 01:14 PM'
-      },
-      {
-        id: 'TXN-90184',
-        order_number: '#ORD-4462',
-        customer_name: 'Devendra K.',
-        customer_phone: '+91 99••••4421',
-        method: 'UPI • Google Pay',
-        gross_amount: 1200,
-        net_amount: 0,
-        provider_ref: 'ref_992147ff',
-        status: 'refunded',
-        timestamp: 'Yesterday, 07:11 PM'
-      },
-      {
-        id: 'TXN-90172',
-        order_number: '#ORD-4458',
-        customer_name: 'Karan Chopra',
-        customer_phone: '+91 96••••3301',
-        method: 'SBI Netbanking',
-        gross_amount: 2150,
-        net_amount: 0,
-        provider_ref: 'err_bank_timeout',
-        status: 'failed',
-        timestamp: 'Nov 07, 08:44 PM'
-      }
-    ];
+    // Zero fake data: when store is fresh, return real empty list
+    return [];
   }, [ordersList]);
 
   // Telemetry aggregates
@@ -638,19 +565,29 @@ export default function PaymentsPage() {
               </div>
               <div className="space-y-1 flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-on-surface">Settlement #SET-8819</span>
-                  <span className="text-base font-bold text-on-surface tabular-nums">₹34,500</span>
+                  <span className="text-sm font-semibold text-on-surface">Direct Bank Settlements</span>
+                  <span className="text-base font-bold text-on-surface tabular-nums">
+                    ₹{totalCapturedAmount.toLocaleString('en-IN')}
+                  </span>
                 </div>
-                <p className="text-xs text-secondary">Credited to ICICI Bank &bull; Today, 06:30 AM</p>
+                <p className="text-xs text-secondary">
+                  {totalCapturedAmount > 0
+                    ? '100% Settled directly • 0% platform fee'
+                    : 'No settled transactions yet • Live settlement starts with your first order'}
+                </p>
                 <div className="pt-1 flex items-center justify-between text-xs">
-                  <span className="text-secondary font-mono text-[11px]">UTR: ICICR5202611080019</span>
-                  <button
-                    type="button"
-                    onClick={() => toast.success('Settlement receipt downloaded')}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Download Receipt
-                  </button>
+                  <span className="text-secondary font-mono text-[11px]">
+                    {totalCapturedAmount > 0 ? 'Mode: Direct NPCI UPI Sweep' : 'Linked Account: Verified & Ready'}
+                  </span>
+                  {totalCapturedAmount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => toast.success('Settlement summary exported')}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Export Summary
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -664,7 +601,7 @@ export default function PaymentsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-on-surface">Current Cycle Inflow (T+1)</span>
                   <span className="text-base font-bold text-primary tabular-nums">
-                    ₹{(inPayoutQueueAmount || 18420).toLocaleString('en-IN')}
+                    ₹{inPayoutQueueAmount.toLocaleString('en-IN')}
                   </span>
                 </div>
                 <p className="text-xs text-secondary">Scheduled Clearing &bull; Tomorrow by 09:00 AM</p>
@@ -746,7 +683,20 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 text-xs text-on-surface">
-                {filteredTransactions.map(txn => (
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-12 px-4 text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0052FF] flex items-center justify-center mx-auto mb-3">
+                        <CreditCard size={24} />
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-900">No payment records found</h3>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                        Completed orders and customer payments appear here automatically. Every rupee settles directly into your shop account with 0% platform deductions.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map(txn => (
                   <tr key={txn.id} className="hover:bg-surface-container-low/60 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-medium text-on-surface">
                       {txn.id}
@@ -812,7 +762,7 @@ export default function PaymentsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
