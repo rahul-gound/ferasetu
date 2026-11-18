@@ -102,7 +102,7 @@ export default function DashboardPage() {
 
   const updateStockMutation = useMutation({
     mutationFn: ({ productId, stock_quantity }: { productId: string; stock_quantity: number }) =>
-      api.patch(/products/, { stock_quantity }),
+      api.put(`/products/${productId}`, { stock_quantity, stock: stock_quantity }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },

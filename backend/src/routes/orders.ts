@@ -205,10 +205,19 @@ router.post('/create',
         totalMinor: itemTotalMinor,
       });
 
-      // Update stock safely
-      if (product.stock_quantity > 0) {
-        db.prepare('UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?')
-          .run(quantity, product.id);
+      // Update stock safely with atomic concurrency guard
+      if (product.stock_quantity !== undefined) {
+        if (product.stock_quantity < quantity) {
+          res.status(400).json({ error: `Insufficient stock for product: ${product.name}` });
+          return;
+        }
+        const updateRes = db.prepare(
+          'UPDATE products SET stock_quantity = max(0, stock_quantity - ?), stock = max(0, stock - ?) WHERE id = ? AND (stock_quantity >= ? OR stock >= ?)'
+        ).run(quantity, quantity, product.id, quantity, quantity);
+        if (updateRes.changes === 0) {
+          res.status(400).json({ error: `Insufficient stock for product: ${product.name}` });
+          return;
+        }
       }
     }
 

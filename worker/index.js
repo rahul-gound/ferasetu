@@ -113,6 +113,7 @@ import { handleAnnouncementsRoutes } from "./routes/announcementsRoutes.js";
 import { handleCustomerSegmentsRoutes } from "./routes/customerSegmentsRoutes.js";
 import { handleGiftCardsRoutes } from "./routes/giftCardsRoutes.js";
 import { handleTransfersRoutes } from "./routes/transfersRoutes.js";
+import { handleIntegrationsRoutes } from "./routes/integrationsRoutes.js";
 import { isProduction } from "./utils/env.js";
 
 // ---------------------------------------------------------------------------
@@ -5032,6 +5033,35 @@ async function ensureTables(db) {
     `);
     await safeExec(`CREATE INDEX IF NOT EXISTS idx_firewall_ip ON ip_firewall_rules(ip);`);
 
+    // Merchant Outbound Webhooks table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS merchant_webhooks (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        url TEXT NOT NULL,
+        events TEXT NOT NULL,
+        secret TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_webhooks_org ON merchant_webhooks(organization_id);`);
+
+    // Integration Requests table
+    await safeExec(`
+      CREATE TABLE IF NOT EXISTS integration_requests (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id TEXT,
+        service_name TEXT NOT NULL,
+        notes TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await safeExec(`CREATE INDEX IF NOT EXISTS idx_integration_requests_org ON integration_requests(organization_id);`);
+
     // Verify that organizations table actually exists in D1
     try {
       if (typeof db.prepare === 'function') {
@@ -8290,6 +8320,10 @@ async function handlePublicCreateOrder(request, env, ctx) {
         }
       } catch {}
 
+      if (priceInfo.product.is_active === 0 || priceInfo.product.status === 'archived') {
+        throw new HttpError(`Product is not currently available for purchase: ${priceInfo.product.name || priceInfo.product.title}`, 400);
+      }
+
       const availableStock = Math.max(
         Number(priceInfo.product.stock) || 0,
         Number(priceInfo.product.stock_quantity) || 0
@@ -8298,9 +8332,14 @@ async function handlePublicCreateOrder(request, env, ctx) {
         throw new HttpError(`Insufficient stock for product: ${priceInfo.product.name || priceInfo.product.title}`, 400);
       }
 
-      await env.DB.prepare(
-        "UPDATE products SET stock = stock - ?, stock_quantity = stock_quantity - ? WHERE id = ?"
-      ).bind(qty, qty, priceInfo.product.id).run();
+      // Concurrency guard: atomic compare-and-swap decrement preventing overselling
+      const stockUpdateRes = await env.DB.prepare(
+        "UPDATE products SET stock = max(0, stock - ?), stock_quantity = max(0, stock_quantity - ?) WHERE id = ? AND (stock >= ? OR stock_quantity >= ?)"
+      ).bind(qty, qty, priceInfo.product.id, qty, qty).run();
+
+      if (stockUpdateRes && typeof stockUpdateRes.meta?.changes === 'number' && stockUpdateRes.meta.changes === 0) {
+        throw new HttpError(`Insufficient stock for product: ${priceInfo.product.name || priceInfo.product.title}`, 400);
+      }
     }
   }
 
@@ -11670,7 +11709,7 @@ async function route(request, env, ctx) {
   if (path.startsWith("/api/products/")) {
     const id = path.slice("/api/products/".length);
     if (method === "GET") return getProduct(id, request, env);
-    if (method === "PUT") return updateProduct(id, request, env);
+    if (method === "PUT" || method === "PATCH") return updateProduct(id, request, env);
     if (method === "DELETE") return deleteProduct(id, request, env);
     throw new HttpError("Method not allowed", 405);
   }
@@ -12031,6 +12070,12 @@ async function route(request, env, ctx) {
   if (path.startsWith("/api/transfers") || path.startsWith("/transfers")) {
     const trRes = await handleTransfersRoutes(request, env, { json, errorResponse, requireOrgContext, readJsonBody, HttpError });
     if (trRes) return withCors(trRes, request, env);
+  }
+
+  // Integrations & Webhooks Hub Endpoints
+  if (path.startsWith("/api/integrations") || path.startsWith("/integrations")) {
+    const intRes = await handleIntegrationsRoutes(path, method, request, env, { json, errorResponse, requireOrgContext, readJsonBody, HttpError });
+    if (intRes) return withCors(intRes, request, env);
   }
 
   // Meetings

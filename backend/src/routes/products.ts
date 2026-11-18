@@ -245,10 +245,8 @@ router.post('/',
   }
 );
 
-// Update product
-router.put('/:id',
-  upload.single('image'),
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// Update product (supports both PUT and PATCH for flexible client mutations)
+const updateProductHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     let uploadedFileId: string | null = null;
     try {
       const db = getDatabase();
@@ -318,6 +316,8 @@ router.put('/:id',
         }
         fields.push('stock_quantity = ?');
         values.push(stockQuantity);
+        fields.push('stock = ?');
+        values.push(stockQuantity);
       }
 
       if (req.body.is_active !== undefined) {
@@ -366,8 +366,10 @@ router.put('/:id',
       console.error('Product update error:', error);
       res.status(500).json({ error: error.message || 'Failed to update product' });
     }
-  }
-);
+  };
+
+router.put('/:id', upload.single('image'), updateProductHandler);
+router.patch('/:id', upload.single('image'), updateProductHandler);
 
 // Delete product
 router.delete('/:id', (req: AuthenticatedRequest, res: Response): void => {
