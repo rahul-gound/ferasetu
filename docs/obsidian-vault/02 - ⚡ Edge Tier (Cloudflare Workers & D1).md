@@ -26,6 +26,8 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 | **Admin Security & Access Defense** | `worker/routes/admin.js`, `worker/index.js`, `worker/utils/audit.js` | Edge IP Firewall (60s cache, D1-backed, sub-millisecond 403 IP drop), RFC 9116 security.txt, CSP/CORS audits, Admin Audit stream, Emergency Session Kill Switch |
 | **Email & SMTP Router** | `worker/routes/emailRoutes.js` | Multi-tenant sender identities, external SMTP sockets, transactional delivery |
 | **AI Edge Interceptor** | `worker/ai/` | Edge pre-filtering of AI prompts before calling OpenAI-compatible Fera AI backend cluster |
+| **Dynamic Translation & Community Async Pipeline** | `worker/ai/translationService.js`, `worker/routes/communityRoutes.js` | Dynamic context-aware translation engine (`POST /api/translate`), D1 translation caching (`content_translations`), and asynchronous community comments & questions translation pipeline (`/api/community/discussions`) with Discord-style channels, status updates (`PATCH /api/community/discussions/:id`), deletion moderation, and bidirectional translation (e.g. Telugu <-> English) |
+| **Real Admin Broadcast Notifications** | `worker/routes/announcementsRoutes.js` | Real admin announcements (`POST /api/announcements`, `DELETE /api/announcements/:id`, `GET /api/announcements`), zero fake seeds, 24-hour auto-vanish after seen |
 
 ## 3. Order Lifecycle, Delivery Code & After-Sales Edge Contracts
 - **`POST /api/orders/:id/cancel`**:

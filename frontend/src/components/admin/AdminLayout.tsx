@@ -38,6 +38,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'meetings', path: '/admin/meetings', icon: <Calendar size={20} strokeWidth={1.75} />, label: 'Consultations' },
     { id: 'orders', path: '/admin/orders', icon: <ShoppingBag size={20} strokeWidth={1.75} />, label: 'Global Orders' },
     { id: 'tickets', path: '/admin/tickets', icon: <LifeBuoy size={20} strokeWidth={1.75} />, label: 'Support Desk' },
+    { id: 'community', path: '/admin/community', icon: <MessageSquare size={20} strokeWidth={1.75} />, label: 'Community' },
+    { id: 'broadcasts', path: '/admin/broadcasts', icon: <Bell size={20} strokeWidth={1.75} />, label: 'Broadcasts' },
     { id: 'feedback', path: '/admin/feedback', icon: <MessageSquare size={20} strokeWidth={1.75} />, label: 'Merchant Feedback' },
     { id: 'errors', path: '/admin/errors', icon: <Bug size={20} strokeWidth={1.75} />, label: 'Error Tickets' },
     { id: 'security', path: '/admin/security', icon: <ShieldCheck size={20} strokeWidth={1.75} />, label: 'Security & Access' },

@@ -25,12 +25,14 @@
             "id": "ab638e0c6ff83549",
             "type": "leaf",
             "state": {
-              "type": "pdf",
+              "type": "markdown",
               "state": {
-                "file": "file:C:/Users/himanshu/OneDrive/Documents/Terminal exam paper.pdf"
+                "file": "file:C:/Users/himanshu/OneDrive/fera-shopkeeeper-web-testing-/docs/FERA_AI.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-file-text",
-              "title": "Terminal exam paper"
+              "icon": "lucide-file",
+              "title": "FERA_AI"
             }
           },
           {

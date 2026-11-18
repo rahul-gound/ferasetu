@@ -1,97 +1,36 @@
-// FeraSetu — Announcements & Platform Updates Routes
-// Cloudflare Worker Serverless Route Handler
+// FeraSetu — Real Admin Broadcast Announcements & Notifications Route Handler
+// Serverless Cloudflare Worker & D1 Router
+// Zero synthetic/fake announcements: only real notifications created by platform admin.
 
-export const INITIAL_ANNOUNCEMENTS = [
-  {
-    title: 'Visual Storefront Builder is live',
-    content: 'Design your online shop directly from your phone or computer. Arrange product displays, customize your banner, and adjust store colors with instant live previews.',
-    category: 'feature',
-    badge_label: 'New Feature',
-    action_url: '/website-builder',
-    action_label: 'Open Store Builder',
-    target_plan: 'all',
-    is_pinned: 1,
-    is_active: 1,
-  },
-  {
-    title: 'WhatsApp 1-Click checkout for your customers',
-    content: 'Customers can now tap one button on your web storefront to send their full order with delivery details directly to your WhatsApp. Keep your personal customer connection with zero intermediaries.',
-    category: 'feature',
-    badge_label: 'Top Feature',
-    action_url: '/orders',
-    action_label: 'View Orders',
-    target_plan: 'all',
-    is_pinned: 0,
-    is_active: 1,
-  },
-  {
-    title: "A note from FeraSetu: 0% marketplace commission always",
-    content: 'FeraSetu was built to protect local shopkeepers. We never take a percentage of your sales. 100% of customer payments go directly to your UPI or bank account.',
-    category: 'message',
-    badge_label: 'From FeraSetu',
-    action_url: '/dashboard',
-    action_label: 'Go to Dashboard',
-    target_plan: 'all',
-    is_pinned: 1,
-    is_active: 1,
-  },
-  {
-    title: 'Run your shop in your customer’s native language',
-    content: 'Your storefront now supports 48 Indic languages including Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, and Punjabi. Buyers can shop comfortably in their preferred language.',
-    category: 'update',
-    badge_label: 'Platform Update',
-    action_url: '/products',
-    action_label: 'View Products',
-    target_plan: 'all',
-    is_pinned: 0,
-    is_active: 1,
-  },
-  {
-    title: 'Fera AI drafts product titles & details in seconds',
-    content: 'Add new items to your catalog in seconds. Take a quick photo or type a short item name, and Fera AI generates ready-to-sell titles, descriptions, and regional tags.',
-    category: 'feature',
-    badge_label: 'Fera AI',
-    action_url: '/ferasetu-ai',
-    action_label: 'Try Fera AI',
-    target_plan: 'all',
-    is_pinned: 0,
-    is_active: 1,
-  },
-  {
-    title: 'Connect your own custom shop web address',
-    content: 'You can now link your own custom domain (e.g., yourstore.com or yourbrand.in) to your FeraSetu shop with automatic HTTPS encryption and mail-safe DNS record protection.',
-    category: 'update',
-    badge_label: 'Domain Upgrade',
-    action_url: '/settings/email',
-    action_label: 'Manage Domains',
-    target_plan: 'all',
-    is_pinned: 0,
-    is_active: 1,
-  },
-];
-
-export async function ensureAnnouncementsSeeded(db) {
+export async function ensureAnnouncementsTable(db) {
   if (!db || typeof db.prepare !== 'function') return;
   try {
-    const row = await db.prepare("SELECT COUNT(*) as count FROM announcements").first();
-    if (!row || Number(row.count) === 0) {
-      for (let idx = 0; idx < INITIAL_ANNOUNCEMENTS.length; idx++) {
-        const ann = INITIAL_ANNOUNCEMENTS[idx];
-        const id = `ann_${crypto.randomUUID()}`;
-        await db.prepare(`
-          INSERT INTO announcements (
-            id, title, content, category, badge_label, action_url, action_label,
-            target_plan, is_pinned, is_active, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '-' || ? || ' minutes'))
-        `).bind(
-          id, ann.title, ann.content, ann.category, ann.badge_label,
-          ann.action_url, ann.action_label, ann.target_plan, ann.is_pinned, ann.is_active,
-          idx * 15
-        ).run();
-      }
-    }
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS announcements (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'feature',
+        badge_label TEXT DEFAULT 'Announcement',
+        action_url TEXT,
+        action_label TEXT,
+        target_plan TEXT DEFAULT 'all',
+        target_user_id TEXT,
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        expires_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `).run();
+
+    try {
+      await db.prepare("ALTER TABLE announcements ADD COLUMN target_user_id TEXT").run();
+    } catch {}
+    try {
+      await db.prepare("ALTER TABLE announcements ADD COLUMN expires_at TEXT").run();
+    } catch {}
   } catch (err) {
-    console.warn("ensureAnnouncementsSeeded notice:", err?.message || err);
+    console.warn("ensureAnnouncementsTable warning:", err?.message || err);
   }
 }
 
@@ -101,6 +40,9 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const method = request.method.toUpperCase();
 
+  await ensureAnnouncementsTable(env.DB);
+
+  // 1. GET /api/announcements — List real admin-broadcast notifications
   if (path === "/api/announcements" || path === "/announcements") {
     if (method === "GET") {
       let userPlan = 'free';
@@ -115,11 +57,6 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
       const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 100);
 
       try {
-        await ensureAnnouncementsSeeded(env.DB);
-        try {
-          await env.DB.prepare("ALTER TABLE announcements ADD COLUMN target_user_id TEXT").run();
-        } catch {}
-
         let query = `
           SELECT 
             id, title, content, 
@@ -129,9 +66,11 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
             target_plan,
             COALESCE(is_pinned, 0) as is_pinned,
             is_active,
+            expires_at,
             created_at
           FROM announcements
           WHERE is_active = 1
+            AND (expires_at IS NULL OR expires_at > datetime('now'))
             AND (target_user_id IS NULL OR target_user_id = '' OR target_user_id = ?)
             AND (target_plan = 'all' OR target_plan = ? OR target_plan IS NULL)
         `;
@@ -152,16 +91,101 @@ export async function handleAnnouncementsRoutes(request, env, helpers) {
           count: (results || []).length
         }, 200, {}, request);
       } catch (err) {
-        console.warn("Failed to fetch announcements from DB, returning defaults:", err?.message || err);
+        console.warn("Failed to fetch announcements from DB:", err?.message || err);
         return json({
           success: true,
-          announcements: INITIAL_ANNOUNCEMENTS.map((a, i) => ({
-            ...a,
-            id: `ann_default_${i}`,
-            created_at: new Date(Date.now() - i * 900000).toISOString()
-          })),
-          count: INITIAL_ANNOUNCEMENTS.length
+          announcements: [],
+          count: 0
         }, 200, {}, request);
+      }
+    }
+
+    // 2. POST /api/announcements — Send new broadcast notification from Admin
+    if (method === "POST") {
+      try {
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return errorResponse("Invalid JSON payload", 400, undefined, request);
+        }
+
+        const {
+          title,
+          content,
+          category = 'feature',
+          badge_label = 'Admin Broadcast',
+          action_url = '',
+          action_label = '',
+          target_plan = 'all',
+          target_user_id = null,
+          is_pinned = 0,
+          expires_hours = 0, // 0 means no explicit expiry (user 24h vanish handles it)
+        } = body;
+
+        if (!title || !content) {
+          return errorResponse("Title and content are required", 400, undefined, request);
+        }
+
+        const id = `ann_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        let expiresAt = null;
+        if (Number(expires_hours) > 0) {
+          expiresAt = new Date(Date.now() + Number(expires_hours) * 3600000).toISOString();
+        }
+
+        await env.DB.prepare(`
+          INSERT INTO announcements (
+            id, title, content, category, badge_label, action_url, action_label,
+            target_plan, target_user_id, is_pinned, is_active, expires_at, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
+        `).bind(
+          id,
+          title.trim(),
+          content.trim(),
+          category,
+          badge_label.trim(),
+          action_url.trim() || null,
+          action_label.trim() || null,
+          target_plan || 'all',
+          target_user_id || null,
+          is_pinned ? 1 : 0,
+          expiresAt
+        ).run();
+
+        return json({
+          success: true,
+          message: "Notification broadcasted successfully",
+          announcement: {
+            id,
+            title,
+            content,
+            category,
+            badge_label,
+            action_url,
+            action_label,
+            target_plan,
+            is_pinned: is_pinned ? 1 : 0,
+            created_at: new Date().toISOString()
+          }
+        }, 201, {}, request);
+      } catch (err) {
+        console.error("Failed to create announcement:", err?.message || err);
+        return errorResponse("Failed to create announcement: " + (err?.message || err), 500, undefined, request);
+      }
+    }
+
+    return errorResponse("Method not allowed", 405, undefined, request);
+  }
+
+  // 3. DELETE /api/announcements/:id — Delete announcement
+  if (path.startsWith("/api/announcements/") || path.startsWith("/announcements/")) {
+    const id = path.split("/").pop();
+    if (method === "DELETE") {
+      try {
+        await env.DB.prepare("DELETE FROM announcements WHERE id = ?").bind(id).run();
+        return json({ success: true, message: "Announcement deleted", id }, 200, {}, request);
+      } catch (err) {
+        return errorResponse("Failed to delete announcement: " + (err?.message || err), 500, undefined, request);
       }
     }
     return errorResponse("Method not allowed", 405, undefined, request);

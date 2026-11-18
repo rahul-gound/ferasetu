@@ -31,6 +31,8 @@ export interface Announcement {
 }
 
 const STORAGE_KEY = 'ferasetu_read_announcements';
+const SEEN_TIMES_KEY = 'ferasetu_announcements_seen_timestamps';
+const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 hours after user has seen
 
 export function useFeraSetuUpdates() {
   const queryClient = useQueryClient();
@@ -43,6 +45,15 @@ export function useFeraSetuUpdates() {
     }
   });
 
+  const [seenTimes, setSeenTimes] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem(SEEN_TIMES_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const { data, isLoading, refetch } = useQuery<{ announcements: Announcement[] }>({
     queryKey: ['announcements'],
     queryFn: async () => {
@@ -50,95 +61,32 @@ export function useFeraSetuUpdates() {
         const res = await api.get('/announcements');
         return { announcements: res.data?.announcements || [] };
       } catch (err) {
-        console.warn('Failed to load announcements from server, using local fallback:', err);
-        return {
-          announcements: [
-            {
-              id: 'ann_builder',
-              title: 'Visual Storefront Builder is live',
-              content: 'Design your online shop directly from your phone or computer. Arrange product displays, customize your banner, and adjust store colors with instant live previews.',
-              category: 'feature',
-              badge_label: 'New Feature',
-              action_url: '/website-builder',
-              action_label: 'Open Store Builder',
-              is_pinned: 1,
-              is_active: 1,
-              created_at: new Date().toISOString(),
-            },
-            {
-              id: 'ann_whatsapp',
-              title: 'WhatsApp 1-Click checkout for your customers',
-              content: 'Customers can now tap one button on your web storefront to send their full order with delivery details directly to your WhatsApp. Keep your personal customer connection with zero intermediaries.',
-              category: 'feature',
-              badge_label: 'Top Feature',
-              action_url: '/orders',
-              action_label: 'View Orders',
-              is_pinned: 0,
-              is_active: 1,
-              created_at: new Date(Date.now() - 3600000).toISOString(),
-            },
-            {
-              id: 'ann_zero_commission',
-              title: 'A note from FeraSetu: 0% marketplace commission always',
-              content: 'FeraSetu was built to protect local shopkeepers. We never take a percentage of your sales. 100% of customer payments go directly to your UPI or bank account.',
-              category: 'message',
-              badge_label: 'From FeraSetu',
-              action_url: '/dashboard',
-              action_label: 'Go to Dashboard',
-              is_pinned: 1,
-              is_active: 1,
-              created_at: new Date(Date.now() - 7200000).toISOString(),
-            },
-            {
-              id: 'ann_languages',
-              title: 'Run your shop in your customer’s native language',
-              content: 'Your storefront now supports 48 Indic languages including Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, and Punjabi. Buyers can shop comfortably in their preferred language.',
-              category: 'update',
-              badge_label: 'Platform Update',
-              action_url: '/products',
-              action_label: 'View Products',
-              is_pinned: 0,
-              is_active: 1,
-              created_at: new Date(Date.now() - 86400000).toISOString(),
-            },
-            {
-              id: 'ann_ai_copy',
-              title: 'Fera AI drafts product titles & details in seconds',
-              content: 'Add new items to your catalog in seconds. Take a quick photo or type a short item name, and Fera AI generates ready-to-sell titles, descriptions, and regional tags.',
-              category: 'feature',
-              badge_label: 'Fera AI',
-              action_url: '/ferasetu-ai',
-              action_label: 'Try Fera AI',
-              is_pinned: 0,
-              is_active: 1,
-              created_at: new Date(Date.now() - 172800000).toISOString(),
-            },
-            {
-              id: 'ann_custom_domains',
-              title: 'Connect your own custom shop web address',
-              content: 'You can now link your own custom domain (e.g., yourstore.com or yourbrand.in) to your FeraSetu shop with automatic HTTPS encryption and mail-safe DNS record protection.',
-              category: 'update',
-              badge_label: 'Domain Upgrade',
-              action_url: '/settings/email',
-              action_label: 'Manage Domains',
-              is_pinned: 0,
-              is_active: 1,
-              created_at: new Date(Date.now() - 259200000).toISOString(),
-            },
-          ],
-        };
+        console.warn('Failed to load real announcements from server:', err);
+        // Strictly return empty array — zero synthetic/fake announcements
+        return { announcements: [] };
       }
     },
     staleTime: 60000,
   });
 
-  const announcements = useMemo(() => data?.announcements || [], [data]);
+  // Filter out announcements that have vanished (user saw it and > 24 hours have passed)
+  const announcements = useMemo(() => {
+    const raw = data?.announcements || [];
+    const now = Date.now();
+    return raw.filter((item) => {
+      const seenAt = seenTimes[item.id];
+      if (!seenAt) return true; // Not seen yet, kept visible
+      // Vanishes 1 day (24 hours) after user has seen it
+      return now - seenAt < ONE_DAY_MS;
+    });
+  }, [data, seenTimes]);
 
   const unreadCount = useMemo(() => {
     return announcements.filter(a => !readIds.has(a.id)).length;
   }, [announcements, readIds]);
 
   const markAsRead = (id: string) => {
+    const now = Date.now();
     setReadIds(prev => {
       const next = new Set(prev);
       next.add(id);
@@ -147,15 +95,36 @@ export function useFeraSetuUpdates() {
       } catch {}
       return next;
     });
+
+    setSeenTimes(prev => {
+      if (prev[id]) return prev;
+      const next = { ...prev, [id]: now };
+      try {
+        localStorage.setItem(SEEN_TIMES_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
   const markAllAsRead = () => {
+    const now = Date.now();
     const allIds = announcements.map(a => a.id);
-    const next = new Set(allIds);
-    setReadIds(next);
+    const nextRead = new Set(allIds);
+    setReadIds(nextRead);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(next)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(nextRead)));
     } catch {}
+
+    setSeenTimes(prev => {
+      const nextTimes = { ...prev };
+      allIds.forEach(id => {
+        if (!nextTimes[id]) nextTimes[id] = now;
+      });
+      try {
+        localStorage.setItem(SEEN_TIMES_KEY, JSON.stringify(nextTimes));
+      } catch {}
+      return nextTimes;
+    });
   };
 
   return {

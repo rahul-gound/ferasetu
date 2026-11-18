@@ -21,16 +21,24 @@ import {
   type Dictionary,
   type TranslationKey
 } from '../i18n';
+import {
+  getCachedTranslation,
+  translateTextAsync,
+  translateBatchAsync
+} from '../services/translationPipeline';
 
 interface LanguageContextType {
   language: string;
   setLanguage: (lang: string) => void;
   translate: (key: TranslationKey, vars?: Record<string, string | number>) => string;
+  tDynamic: (text: string, context?: string) => string;
+  translateAsync: (text: string, context?: string) => Promise<string>;
   getLocalizedLink: (path: string) => string;
   suggestedLanguage: string | null;
   suggestedStateName: string | null;
   dismissSuggestion: () => void;
   acceptSuggestion: () => void;
+  isTranslating: boolean;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -82,12 +90,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     en: fallbackDictionary
   });
 
-  // Suggestion state for privacy-conscious Google-Translate-style popup
+  // Suggestion & Auto-detection state
   const [suggestedLanguage, setSuggestedLanguage] = useState<string | null>(null);
   const [suggestedStateName, setSuggestedStateName] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [, setDynamicTick] = useState(0);
 
   const activeLanguage = isPublicRoute && isValidUrlLanguage ? resolveLanguageCode(urlLanguage) : localLanguage;
   const dictionary = dictionaries[activeLanguage] || fallbackDictionary;
+
+  // Track pending dynamic translations to trigger re-renders
+  const requestedTranslations = useRef(new Set<string>());
 
   useEffect(() => {
     const languageConfig = ENABLED_LANGUAGES.find(language => language.code === activeLanguage);
@@ -110,13 +123,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     };
   }, [activeLanguage, dictionaries]);
 
-  // Privacy-conscious smart geo detection:
-  // Only runs if user hasn't explicitly chosen and hasn't dismissed before
+  // Privacy-conscious smart auto-detection via /api/geo
   useEffect(() => {
     const hasExplicitChoice = localStorage.getItem(LANGUAGE_STORAGE_KEY) !== null;
     const isDismissed = localStorage.getItem(PROMPT_DISMISSED_KEY) === 'true';
 
-    if (hasExplicitChoice || isDismissed || user?.preferred_language) {
+    if (hasExplicitChoice || user?.preferred_language) {
       return;
     }
 
@@ -126,13 +138,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       .then(data => {
         if (!isMounted || !data || !data.suggestedLanguage) return;
         const resolved = resolveLanguageCode(data.suggestedLanguage);
-        if (resolved && resolved !== activeLanguage && isSupportedLanguage(resolved)) {
-          setSuggestedLanguage(resolved);
-          setSuggestedStateName(data.subdivision || data.name || null);
+        if (resolved && isSupportedLanguage(resolved)) {
+          // If browser is default en, but high-confidence regional locale detected, auto-suggest or set
+          if (resolved !== activeLanguage) {
+            setSuggestedLanguage(resolved);
+            setSuggestedStateName(data.subdivision || data.name || null);
+          }
         }
       })
       .catch(() => {
-        // Graceful fallback on network/offline failure
+        // Fallback gracefully on network error
       });
 
     return () => {
@@ -215,6 +230,40 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return text;
   }, [dictionary]);
 
+  // Context-aware dynamic translate helper
+  const tDynamic = useCallback((text: string, context = 'retail') => {
+    if (!text || activeLanguage === 'en') return text;
+
+    const cached = getCachedTranslation(text, activeLanguage, context);
+    if (cached !== null) return cached;
+
+    // Schedule async translation if not already in flight
+    const trackKey = `${activeLanguage}:${context}:${text}`;
+    if (!requestedTranslations.current.has(trackKey)) {
+      requestedTranslations.current.add(trackKey);
+      setIsTranslating(true);
+      translateTextAsync(text, activeLanguage, context)
+        .then(() => {
+          setDynamicTick(t => t + 1);
+        })
+        .finally(() => {
+          setIsTranslating(false);
+        });
+    }
+
+    return text; // Return English text while translation loads smoothly
+  }, [activeLanguage]);
+
+  const translateAsync = useCallback(async (text: string, context = 'retail') => {
+    if (!text || activeLanguage === 'en') return text;
+    setIsTranslating(true);
+    try {
+      return await translateTextAsync(text, activeLanguage, context);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [activeLanguage]);
+
   const getLocalizedLink = useCallback((path: string) => {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const cleanLinkPath = getCleanPath(normalizedPath);
@@ -228,12 +277,27 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     language: activeLanguage,
     setLanguage,
     translate,
+    tDynamic,
+    translateAsync,
     getLocalizedLink,
     suggestedLanguage,
     suggestedStateName,
     dismissSuggestion,
-    acceptSuggestion
-  }), [activeLanguage, setLanguage, translate, getLocalizedLink, suggestedLanguage, suggestedStateName, dismissSuggestion, acceptSuggestion]);
+    acceptSuggestion,
+    isTranslating
+  }), [
+    activeLanguage,
+    setLanguage,
+    translate,
+    tDynamic,
+    translateAsync,
+    getLocalizedLink,
+    suggestedLanguage,
+    suggestedStateName,
+    dismissSuggestion,
+    acceptSuggestion,
+    isTranslating
+  ]);
 
   return (
     <LanguageContext.Provider value={contextValue}>
@@ -248,3 +312,18 @@ export function useLanguage() {
   return context;
 }
 
+/**
+ * High-craft component that translates text dynamically into activeLanguage
+ */
+export function DynamicText({
+  text,
+  context = 'retail',
+  className = ''
+}: {
+  text: string;
+  context?: string;
+  className?: string;
+}) {
+  const { tDynamic } = useLanguage();
+  return <span className={className}>{tDynamic(text, context)}</span>;
+}

@@ -78,6 +78,8 @@ const AdminQAIssueDetailPage = lazy(() => import('./pages/AdminQAIssueDetailPage
 const AdminQASandboxPage = lazy(() => import('./pages/AdminQASandboxPage'));
 const AdminAICreditsPage = lazy(() => import('./pages/AdminAICreditsPage'));
 const AdminSecurityPage = lazy(() => import('./pages/AdminSecurityPage'));
+const AdminCommunityPage = lazy(() => import('./pages/AdminCommunityPage'));
+const AdminBroadcastsPage = lazy(() => import('./pages/AdminBroadcastsPage'));
 const AdminProtectedRoute = lazy(() => import('./components/admin/AdminProtectedRoute'));
 const Layout = lazy(() => import('./components/Layout'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
@@ -237,9 +239,6 @@ function AppRoutes() {
           <Route path="/domains" element={<DomainsPage />} />
           <Route path="/marketing-and-seo" element={<MarketingSeoPage />} />
           <Route path="/marketing-seo" element={<Navigate to="/marketing-and-seo" replace />} />
-          <Route path="/community" element={<CommunityPage />} />
-          <Route path="/help-and-community" element={<Navigate to="/community" replace />} />
-          <Route path="/merchant-community" element={<Navigate to="/community" replace />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/integrations-hub" element={<Navigate to="/integrations" replace />} />
           <Route path="/payments" element={<PaymentsPage />} />
@@ -277,6 +276,11 @@ function AppRoutes() {
         {/* Documentation Portal */}
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/docs/:section" element={<DocsPage />} />
+
+        {/* Merchant Community Knowledge Hub */}
+        <Route path="/community" element={<CommunityPage />} />
+        <Route path="/help-and-community" element={<Navigate to="/community" replace />} />
+        <Route path="/merchant-community" element={<Navigate to="/community" replace />} />
         
         {/* SEO landing pages & public pages */}
         <Route path="/pricing" element={<PricingPage />} />
@@ -325,6 +329,7 @@ function AppRoutes() {
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="signup" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="pricing" element={<PricingPage />} />
+          <Route path="community" element={<CommunityPage />} />
           <Route path="docs" element={<DocsPage />} />
           <Route path="docs/:section" element={<DocsPage />} />
           <Route path="online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
@@ -353,6 +358,8 @@ function AppRoutes() {
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="tickets" element={<AdminTicketsPage />} />
               <Route path="feedback" element={<AdminFeedbackPage />} />
+              <Route path="community" element={<AdminCommunityPage />} />
+              <Route path="broadcasts" element={<AdminBroadcastsPage />} />
               <Route path="errors" element={<AdminErrorLogsPage />} />
               <Route path="security" element={<AdminSecurityPage />} />
               <Route path="system" element={<AdminSystemPage />} />

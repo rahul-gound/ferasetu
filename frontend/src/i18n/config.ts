@@ -136,6 +136,8 @@ export const PUBLIC_ROUTES = [
   '/login',
   '/register',
   '/pricing',
+  '/community',
+  '/docs',
   '/online-dukaan-banaye',
   '/free-online-store',
   '/shopify-alternative-india',

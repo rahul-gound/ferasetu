@@ -32,6 +32,15 @@
 // ---------------------------------------------------------------------------
 import { handleAdminRoutes } from "./routes/admin.js";
 import { handleGeoRoute } from "./routes/geo.js";
+import {
+  handleTranslateRequest,
+  handleListCommunityDiscussions,
+  handleCreateCommunityDiscussion,
+  handleAddCommunityReply,
+  handleUpdateCommunityDiscussion,
+  handleDeleteCommunityDiscussion,
+  handleDeleteCommunityReply
+} from "./routes/communityRoutes.js";
 import { feraRouter } from "./ai/router.js";
 import {
   classifyHostname,
@@ -12094,6 +12103,38 @@ async function route(request, env, ctx) {
   if (path === "/api/voice/text-to-speech" && method === "POST") return handleVoiceTextToSpeech(request, env);
   if (path === "/api/v1/health" && method === "GET") {
     return json({ status: "ok", version: "2.0.0", service: "fera-ai", timestamp: new Date().toISOString() });
+  }
+
+  // Dynamic Context-Aware Translation & Community Async Pipeline
+  if ((path === "/api/translate" || path === "/api/v1/translate") && method === "POST") {
+    return handleTranslateRequest(request, env);
+  }
+  if (path === "/api/community/discussions" && method === "GET") {
+    return handleListCommunityDiscussions(request, env);
+  }
+  if (path === "/api/community/discussions" && method === "POST") {
+    return handleCreateCommunityDiscussion(request, env);
+  }
+  if (path.startsWith("/api/community/discussions/") && method === "PATCH") {
+    const parts = path.split("/");
+    const discussionId = parts[4];
+    return handleUpdateCommunityDiscussion(request, env, discussionId);
+  }
+  if (path.startsWith("/api/community/discussions/") && path.includes("/replies/") && method === "DELETE") {
+    const parts = path.split("/");
+    const discussionId = parts[4];
+    const replyId = parts[6];
+    return handleDeleteCommunityReply(request, env, discussionId, replyId);
+  }
+  if (path.startsWith("/api/community/discussions/") && method === "DELETE") {
+    const parts = path.split("/");
+    const discussionId = parts[4];
+    return handleDeleteCommunityDiscussion(request, env, discussionId);
+  }
+  if (path.startsWith("/api/community/discussions/") && path.endsWith("/replies") && method === "POST") {
+    const parts = path.split("/");
+    const discussionId = parts[4];
+    return handleAddCommunityReply(request, env, discussionId);
   }
 
   // Founding shopkeeper offer info — public endpoint, no auth required
