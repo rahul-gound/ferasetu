@@ -681,8 +681,29 @@ export default function CommunityPage() {
         {/* Discord-Inspired 3-Column / 2-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* Left: Discord Channels Sidebar (3 cols) */}
-          <aside className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-4 space-y-4">
+          {/* Mobile Channels Horizontal Pill Bar (Sticky fixed on mobile viewports) */}
+          <div className="lg:hidden col-span-12 sticky top-0 z-20 -mx-4 px-4 py-2 bg-[#F6F8FC]/95 backdrop-blur-sm border-y border-slate-200/80 flex items-center gap-2 overflow-x-auto">
+            {CHANNELS.map((ch) => {
+              const isActive = selectedChannel === ch.id;
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => setSelectedChannel(ch.id)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-orange-500 text-white shadow-xs font-bold'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Hash size={13} className={isActive ? 'text-white' : 'text-slate-400'} />
+                  <span>{ch.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Left: Discord Channels Sidebar (3 cols) — Sticky & Fixed in view */}
+          <aside className="hidden lg:block lg:col-span-3 sticky top-4 self-start bg-white rounded-3xl border border-slate-200/90 shadow-xs p-4 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto">
             <div>
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
                 Channels

@@ -387,15 +387,21 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     { path: '/support', icon: <LifeBuoy size={17} />, label: 'Merchant Support' },
   ], []);
 
-  // Smart section auto-expansion based on active URL
+  // Smart section auto-expansion based on active URL + persistent memory
   const isToolsActive = useMemo(() => toolsNavItems.some(item => location.pathname.startsWith(item.path)), [toolsNavItems, location.pathname]);
   const isFinanceActive = useMemo(() => financeNavItems.some(item => location.pathname.startsWith(item.path)), [financeNavItems, location.pathname]);
   const isOpsActive = useMemo(() => opsNavItems.some(item => location.pathname.startsWith(item.path)), [opsNavItems, location.pathname]);
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    tools: false,
-    finance: false,
-    ops: false,
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('fera_nav_sections');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      tools: true,
+      finance: true,
+      ops: true,
+    };
   });
 
   useEffect(() => {
@@ -405,7 +411,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [isToolsActive, isFinanceActive, isOpsActive]);
 
   const toggleSection = (section: 'tools' | 'finance' | 'ops') => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections(prev => {
+      const updated = { ...prev, [section]: !prev[section] };
+      try {
+        localStorage.setItem('fera_nav_sections', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
 
@@ -582,7 +594,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
           onClick={() => setIsCollapsed(!isCollapsed)}
 
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E5EAF1] bg-white text-[#667085] hover:bg-slate-50 hover:text-[#152238] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] cursor-pointer shrink-0"
+          className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg border border-[#E5EAF1] bg-white text-[#667085] hover:bg-slate-50 hover:text-[#152238] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] cursor-pointer shrink-0"
 
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 

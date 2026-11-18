@@ -114,6 +114,16 @@ const PlatformIntegrations = lazy(() => import('./pages/platform-sites/PlatformI
 const PlatformAuditLogView = lazy(() => import('./pages/platform-sites/PlatformAuditLogView'));
 const PlatformSitesSettings = lazy(() => import('./pages/platform-sites/PlatformSitesSettings'));
 
+function CommunityPageWrapper() {
+  return (
+    <ErrorBoundary>
+      <Layout>
+        <CommunityPage />
+      </Layout>
+    </ErrorBoundary>
+  );
+}
+
 function LanguageRouteGuard() {
   const { lang } = useParams<{ lang: string }>();
   if (lang === 'en') {
@@ -278,7 +288,7 @@ function AppRoutes() {
         <Route path="/docs/:section" element={<DocsPage />} />
 
         {/* Merchant Community Knowledge Hub */}
-        <Route path="/community" element={<CommunityPage />} />
+        <Route path="/community" element={<CommunityPageWrapper />} />
         <Route path="/help-and-community" element={<Navigate to="/community" replace />} />
         <Route path="/merchant-community" element={<Navigate to="/community" replace />} />
         
@@ -292,6 +302,48 @@ function AppRoutes() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/compare" element={<CompareIndexPage />} />
         <Route path="/compare/:slug" element={<CompetitorComparisonPage />} />
+
+        {/* Admin Routes — Defined with explicit static segments so /admin/community (score 20) beats /:lang/community (score 13) */}
+        <Route path="/admin" element={<ErrorBoundary><AdminLogin /></ErrorBoundary>} />
+        <Route path="/admin" element={<ErrorBoundary><AdminProtectedRoute><Outlet /></AdminProtectedRoute></ErrorBoundary>}>
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="ai-credits" element={<AdminAICreditsPage />} />
+          <Route path="ai-usage" element={<AdminAICreditsPage />} />
+          <Route path="shops" element={<AdminShopsPage />} />
+          <Route path="meetings" element={<AdminMeetingsPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="tickets" element={<AdminTicketsPage />} />
+          <Route path="feedback" element={<AdminFeedbackPage />} />
+          <Route path="community" element={<AdminCommunityPage />} />
+          <Route path="broadcasts" element={<AdminBroadcastsPage />} />
+          <Route path="errors" element={<AdminErrorLogsPage />} />
+          <Route path="security" element={<AdminSecurityPage />} />
+          <Route path="system" element={<AdminSystemPage />} />
+          <Route path="qa" element={<AdminQAPage />} />
+          <Route path="qa/runs/:runId" element={<AdminQARunDetailPage />} />
+          <Route path="qa/issues/:issueId" element={<AdminQAIssueDetailPage />} />
+          <Route path="qa/sandbox" element={<AdminQASandboxPage />} />
+          <Route path="platform-sites" element={<Navigate to="/platform-sites" replace />} />
+          <Route path="platform-sites/*" element={<Navigate to="/platform-sites" replace />} />
+          <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+        </Route>
+
+        {/* Platform Sites — Internal Infrastructure & AI Website Management */}
+        <Route path="/platform-sites" element={<PlatformSitesRouteGuard><PlatformSitesLayout /></PlatformSitesRouteGuard>}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<PlatformSitesOverview />} />
+          <Route path="websites" element={<PlatformSitesList />} />
+          <Route path="websites/:siteId/*" element={<PlatformSiteDetailPage />} />
+          <Route path="deployments" element={<PlatformDeploymentsList />} />
+          <Route path="domains" element={<PlatformDomainsRegistry />} />
+          <Route path="ai-studio" element={<PlatformAiStudio />} />
+          <Route path="usage" element={<PlatformUsageAnalytics />} />
+          <Route path="integrations" element={<PlatformIntegrations />} />
+          <Route path="activity" element={<PlatformAuditLogView />} />
+          <Route path="settings" element={<PlatformSitesSettings />} />
+          <Route path="*" element={<Navigate to="overview" replace />} />
+        </Route>
 
         {/* Legacy Regional & Default English Redirects to Canonical Clean URLs */}
         <Route path="/en" element={<Navigate to="/" replace />} />
@@ -329,7 +381,7 @@ function AppRoutes() {
           <Route path="register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="signup" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
           <Route path="pricing" element={<PricingPage />} />
-          <Route path="community" element={<CommunityPage />} />
+          <Route path="community" element={<CommunityPageWrapper />} />
           <Route path="docs" element={<DocsPage />} />
           <Route path="docs/:section" element={<DocsPage />} />
           <Route path="online-dukaan-banaye" element={<OnlineDukaanBanaye />} />
@@ -341,54 +393,6 @@ function AppRoutes() {
           <Route path="compare" element={<CompareIndexPage />} />
           <Route path="compare/:slug" element={<CompetitorComparisonPage />} />
           <Route path="*" element={<NotFoundPage />} />
-        </Route>
-
-        {/* Admin Routes */}
-        <Route path="/admin" element={<ErrorBoundary><AdminLogin /></ErrorBoundary>} />
-        <Route path="/admin/*" element={
-          <ErrorBoundary>
-          <AdminProtectedRoute>
-            <Routes>
-              <Route path="dashboard" element={<AdminDashboardPage />} />
-              <Route path="users" element={<AdminUsersPage />} />
-              <Route path="ai-credits" element={<AdminAICreditsPage />} />
-              <Route path="ai-usage" element={<AdminAICreditsPage />} />
-              <Route path="shops" element={<AdminShopsPage />} />
-              <Route path="meetings" element={<AdminMeetingsPage />} />
-              <Route path="orders" element={<AdminOrdersPage />} />
-              <Route path="tickets" element={<AdminTicketsPage />} />
-              <Route path="feedback" element={<AdminFeedbackPage />} />
-              <Route path="community" element={<AdminCommunityPage />} />
-              <Route path="broadcasts" element={<AdminBroadcastsPage />} />
-              <Route path="errors" element={<AdminErrorLogsPage />} />
-              <Route path="security" element={<AdminSecurityPage />} />
-              <Route path="system" element={<AdminSystemPage />} />
-              <Route path="qa" element={<AdminQAPage />} />
-              <Route path="qa/runs/:runId" element={<AdminQARunDetailPage />} />
-              <Route path="qa/issues/:issueId" element={<AdminQAIssueDetailPage />} />
-              <Route path="qa/sandbox" element={<AdminQASandboxPage />} />
-              <Route path="platform-sites" element={<Navigate to="/platform-sites" replace />} />
-              <Route path="platform-sites/*" element={<Navigate to="/platform-sites" replace />} />
-              <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-            </Routes>
-          </AdminProtectedRoute>
-          </ErrorBoundary>
-        } />
-
-        {/* Platform Sites — Internal Infrastructure & AI Website Management */}
-        <Route path="/platform-sites" element={<PlatformSitesRouteGuard><PlatformSitesLayout /></PlatformSitesRouteGuard>}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<PlatformSitesOverview />} />
-          <Route path="websites" element={<PlatformSitesList />} />
-          <Route path="websites/:siteId/*" element={<PlatformSiteDetailPage />} />
-          <Route path="deployments" element={<PlatformDeploymentsList />} />
-          <Route path="domains" element={<PlatformDomainsRegistry />} />
-          <Route path="ai-studio" element={<PlatformAiStudio />} />
-          <Route path="usage" element={<PlatformUsageAnalytics />} />
-          <Route path="integrations" element={<PlatformIntegrations />} />
-          <Route path="activity" element={<PlatformAuditLogView />} />
-          <Route path="settings" element={<PlatformSitesSettings />} />
-          <Route path="*" element={<Navigate to="overview" replace />} />
         </Route>
 
         {/* Verify Email Gate (Full Screen) */}
