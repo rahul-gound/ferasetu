@@ -9,6 +9,8 @@ compatibility_date = "2025-06-01"
 WORKOS_CLIENT_ID = "client_01KZRE47KGSPK84HEP9WNBG9YY"
 PAGES_ORIGIN = "https://ferasetu.com"
 ADMIN_USER_IDS = "user_01M2FQ94TPQ7GQ18WNZ68EN50B"
+WHATSAPP_CONNECTOR_URL = "https://wa.ferasetu.com"
+WHATSAPP_INTERNAL_SECRET = "ferasetu_wa_secret_2026"
 
 # D1 database binding.
 [[d1_databases]]

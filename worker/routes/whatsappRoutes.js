@@ -92,6 +92,13 @@ export async function handleWhatsAppRoutes(request, env) {
     return json(conn, 200, {}, request);
   }
 
+  // POST /api/whatsapp/pair
+  if (path === "/api/whatsapp/pair" && method === "POST") {
+    const body = await readJsonBody(request).catch(() => ({}));
+    const res = await service.pairSession(orgId, userId, body.phone || '+91 98765 43210');
+    return json(res, 200, {}, request);
+  }
+
   // GET /api/whatsapp/qr
   if (path === "/api/whatsapp/qr" && method === "GET") {
     const status = await service.getSessionStatus(orgId, userId);

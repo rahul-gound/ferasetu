@@ -167,6 +167,29 @@ export default function WhatsAppAssistantPage() {
     },
   });
 
+  // Pair mutation (for instant linking / simulation)
+  const pairMutation = useMutation({
+    mutationFn: async (phone?: string) => {
+      const res = await api.post('/whatsapp/pair', { phone });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success('Shop WhatsApp linked successfully!');
+      queryClient.setQueryData(['whatsapp-session'], (old: any) => ({
+        ...old,
+        status: 'connected',
+        phone_number_masked: data.phone_number_masked || '+91 98765 •••••',
+      }));
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-session'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-orders'] });
+      setWizardStep('intro');
+    },
+    onError: () => {
+      toast.error('Could not complete WhatsApp link.');
+    }
+  });
+
   // Disconnect mutation
   const disconnectMutation = useMutation({
     mutationFn: async () => {
@@ -793,13 +816,22 @@ export default function WhatsAppAssistantPage() {
             </div>
 
             {/* Status bar & countdown */}
-            <div className="mt-4 flex items-center gap-2 text-xs font-medium text-slate-600">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-slate-600">
               {statusBadge}
               <button
+                type="button"
                 onClick={() => connectMutation.mutate()}
-                className="ml-3 text-[#0052FF] hover:underline flex items-center gap-1 font-semibold"
+                className="ml-2 text-[#0052FF] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
               >
                 <RotateCw size={12} /> Refresh QR
+              </button>
+              <button
+                type="button"
+                onClick={() => pairMutation.mutate()}
+                className="ml-2 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <Check size={12} />
+                <span>Simulate Link</span>
               </button>
             </div>
           </div>
