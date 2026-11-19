@@ -6,7 +6,7 @@ import { useMonoShop } from './MonoContext';
 import { fadeUp, staggerContainer, useRipple, Ripples, Stars, StockPill } from './MonoUI';
 
 function AddToCartButton({ product }: { product: ElectronicProduct }) {
-  const { addToCart } = useMonoShop();
+  const { addToCart, isService } = useMonoShop();
   const [added, setAdded] = useState(false);
   const { ripples, spawn } = useRipple();
   const out = product.stock === 'out';
@@ -62,7 +62,7 @@ function AddToCartButton({ product }: { product: ElectronicProduct }) {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.15 }}
             >
-              {out ? 'Out of Stock' : 'Add to Cart'}
+              {out ? 'Out of Stock' : isService ? 'Book Spot' : 'Add to Cart'}
             </motion.span>
           )}
         </AnimatePresence>

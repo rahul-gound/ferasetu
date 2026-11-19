@@ -93,6 +93,8 @@ export interface StorefrontContextValue {
   currencySymbol: string;
   products: ShopProduct[];
   categories: string[];
+  isService?: boolean;
+  businessType?: 'retail' | 'service';
 
   // Cart
   cart: CartItem[];

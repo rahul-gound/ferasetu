@@ -5,7 +5,7 @@ import { useMonoShop } from './MonoContext';
 import { fadeUp, staggerContainer, OutlineButton, StockPill, scrollToId } from './MonoUI';
 
 export default function MonoFeatured() {
-  const { openQuickView, addToCart, formatPrice, products } = useMonoShop();
+  const { openQuickView, addToCart, formatPrice, products, isService } = useMonoShop();
   const product = products[0] || getElectronicProduct('wh-1000xm5');
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
@@ -75,7 +75,7 @@ export default function MonoFeatured() {
             Product Details
           </OutlineButton>
           <OutlineButton tone="gray" className="px-6 py-2.5 text-sm" onClick={() => addToCart(product.id)}>
-            Add to Cart
+            {isService ? 'Book Spot' : 'Add to Cart'}
           </OutlineButton>
         </motion.div>
       </div>

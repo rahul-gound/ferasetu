@@ -25,6 +25,7 @@ export default function ProductCard({
     removeFromCart,
     openProductModal,
     openWhatsAppInquiry,
+    isService,
   } = useStorefront();
   const [isHovered, setIsHovered] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -235,7 +236,7 @@ export default function ProductCard({
             >
               {isOutOfStock ? 'Sold Out' : (
                 <>
-                  <ShoppingBag size={14} /> Add to Bag
+                  <ShoppingBag size={14} /> {isService ? 'Book Spot' : 'Add to Bag'}
                 </>
               )}
             </button>
@@ -462,7 +463,7 @@ export default function ProductCard({
                 <span>Out of Stock</span>
               ) : (
                 <>
-                  <ShoppingBag size={14} /> Add
+                  <ShoppingBag size={14} /> {isService ? 'Book Spot' : 'Add'}
                 </>
               )}
             </button>

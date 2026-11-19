@@ -946,12 +946,17 @@ export default function WebsiteBuilderPage() {
                 theme={selectedThemeId}
                 themeId={selectedThemeId}
                 sections={sections}
+                isService={Boolean((user as any)?.is_service === 1 || (user as any)?.is_service === true || (user as any)?.business_type === 'service' || (user as any)?.category === 'coaching')}
+                businessType={((user as any)?.is_service === 1 || (user as any)?.business_type === 'service' || (user as any)?.category === 'coaching') ? 'service' : 'retail'}
                 shop={{
                   id: user?.id || 'demo-shop',
                   name: shopName || 'My Store',
                   description: 'Welcome to our online store',
                   phone: shopPhone || user?.phone || '',
                   logo_url: logoUrl,
+                  is_service: (user as any)?.is_service,
+                  business_type: (user as any)?.business_type,
+                  category: (user as any)?.category,
                 }}
                 shopName={shopName || 'My Store'}
                 shopId={user?.id || 'demo-shop'}

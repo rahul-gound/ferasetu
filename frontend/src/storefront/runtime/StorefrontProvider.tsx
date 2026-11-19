@@ -35,6 +35,8 @@ interface StorefrontProviderProps {
   currency?: string;
   currencySymbol?: string;
   products: ShopProduct[];
+  isService?: boolean;
+  businessType?: 'retail' | 'service';
   initialProductId?: string | null;
   initialOrderId?: string | null;
 }
@@ -48,6 +50,8 @@ export function StorefrontProvider({
   currency = 'INR',
   currencySymbol,
   products,
+  isService = false,
+  businessType = 'retail',
   initialProductId,
   initialOrderId,
 }: StorefrontProviderProps) {
@@ -792,10 +796,12 @@ export function StorefrontProvider({
         image_url: product.image_url || (product as any).media_key || '',
         action: 'whatsapp_inquiry'
       });
-      const text = `Namaste ${shopName}!\n\nI am interested in:\n📦 *${product.name}*\n💰 Price: ${activeSymbol}${price.toLocaleString(numberLocale)}\n\nIs this item currently available for delivery?`;
+      const text = isService
+        ? `Namaste ${shopName}!\n\nI am interested in booking:\n🧘 *${product.name}*\n💰 Fee: ${activeSymbol}${price.toLocaleString(numberLocale)}\n\nIs this class / session currently available for booking?`
+        : `Namaste ${shopName}!\n\nI am interested in:\n📦 *${product.name}*\n💰 Price: ${activeSymbol}${price.toLocaleString(numberLocale)}\n\nIs this item currently available for delivery?`;
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
     },
-    [shopName, shopPhone, activeSymbol, numberLocale, trackStoreEvent]
+    [shopName, shopPhone, activeSymbol, numberLocale, trackStoreEvent, isService]
   );
 
   const openWhatsAppCartOrder = useCallback(
@@ -813,16 +819,26 @@ export function StorefrontProvider({
         return `${idx + 1}. *${item.name}* (x${item.quantity}) — ${activeSymbol}${(price * item.quantity).toLocaleString(numberLocale)}`;
       });
 
-      const message =
-        `Namaste ${shopName}!\n\nI would like to place an order:\n\n` +
-        lines.join('\n') +
-        `\n\n💵 *Total: ${activeSymbol}${cartSubtotal.toLocaleString(numberLocale)}*` +
-        (notes ? `\n📝 Note: ${notes}` : '') +
-        `\n\nPlease confirm availability and payment details. Thank you!`;
+      let message = '';
+      if (isService) {
+        message =
+          `Namaste ${shopName}!\n\n*New Class / Session Booking*\n\n` +
+          lines.join('\n') +
+          `\n\n💵 *Total: ${activeSymbol}${cartSubtotal.toLocaleString(numberLocale)}*` +
+          (notes ? `\n\n📅 *Preferred Batch / Note:* ${notes}` : '') +
+          `\n\nPlease confirm availability and session schedule. Thank you!`;
+      } else {
+        message =
+          `Namaste ${shopName}!\n\n*New Delivery Order*\n\n` +
+          lines.join('\n') +
+          `\n\n💵 *Total: ${activeSymbol}${cartSubtotal.toLocaleString(numberLocale)}*` +
+          (notes ? `\n\n📝 Note: ${notes}` : '') +
+          `\n\nPlease confirm availability and payment details. Thank you!`;
+      }
 
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     },
-    [cart, cartSubtotal, shopName, shopPhone, activeSymbol, numberLocale]
+    [cart, cartSubtotal, shopName, shopPhone, activeSymbol, numberLocale, isService]
   );
 
   const contextValue: StorefrontContextValue = {
@@ -834,6 +850,8 @@ export function StorefrontProvider({
     currencySymbol: activeSymbol,
     products,
     categories,
+    isService: Boolean(isService),
+    businessType: isService ? 'service' : (businessType || 'retail'),
     cart,
     cartCount,
     cartSubtotal,

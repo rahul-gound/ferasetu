@@ -23,6 +23,7 @@ export default function ProductDetailModal() {
     openWhatsAppInquiry,
     products,
     openProductModal,
+    isService,
   } = useStorefront();
 
   const [quantity, setQuantity] = useState<number>(1);
@@ -291,7 +292,7 @@ export default function ProductDetailModal() {
                     <span>Out of Stock</span>
                   ) : (
                     <>
-                      <ShoppingBag size={17} /> Add to Cart
+                      <ShoppingBag size={17} /> {isService ? 'Book Spot' : 'Add to Cart'}
                     </>
                   )}
                 </button>
@@ -301,7 +302,7 @@ export default function ProductDetailModal() {
                   onClick={handleBuyNow}
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-[var(--theme-radius-button)] bg-slate-900 text-white font-bold text-sm hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isOutOfStock ? <span>Sold Out</span> : <span>Buy Now</span>}
+                  {isOutOfStock ? <span>Sold Out</span> : <span>{isService ? 'Join Class' : 'Buy Now'}</span>}
                 </button>
               </div>
 
@@ -311,7 +312,7 @@ export default function ProductDetailModal() {
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--theme-radius-button)] border-2 border-emerald-600 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/70 font-bold text-sm transition-colors"
               >
                 <MessageCircle size={17} className="text-emerald-600" />
-                Ask Question on WhatsApp
+                {isService ? 'Inquire About Class on WhatsApp' : 'Ask Question on WhatsApp'}
               </button>
             </div>
 

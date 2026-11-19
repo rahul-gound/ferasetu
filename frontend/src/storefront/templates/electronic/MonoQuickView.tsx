@@ -5,7 +5,7 @@ import { useMonoShop } from './MonoContext';
 import { PrimaryButton, QtyStepper, Stars, StockPill } from './MonoUI';
 
 export default function MonoQuickView() {
-  const { ui, openQuickView, addToCart, products, formatPrice } = useMonoShop();
+  const { ui, openQuickView, addToCart, products, formatPrice, isService } = useMonoShop();
   const product = ui.quickView ? products.find((p) => p.id === ui.quickView) : null;
   const [qty, setQty] = useState(1);
 
@@ -110,7 +110,7 @@ export default function MonoQuickView() {
                 }}
                 style={product.stock === 'out' ? { background: 'rgba(20,20,20,0.2)', cursor: 'not-allowed' } : undefined}
               >
-                {product.stock === 'out' ? 'Out of stock' : `Add ${qty} to cart`}
+                {product.stock === 'out' ? 'Out of stock' : isService ? `Book ${qty} Spot${qty > 1 ? 's' : ''}` : `Add ${qty} to cart`}
               </PrimaryButton>
 
               <div className="mt-4 flex items-center justify-center gap-5 text-[11px] text-ink/50">

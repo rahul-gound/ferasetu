@@ -244,8 +244,13 @@ export default function ShopPage() {
         const storeCurrency = (data!.shop as any)?.currency || (data!.website.config as any)?.currency || (shopMarket === 'US' ? 'USD' : shopMarket === 'EU' ? 'EUR' : 'INR');
         const storeCurrencySymbol = (data!.shop as any)?.currency_symbol || (data!.website.config as any)?.currency_symbol || (storeCurrency === 'USD' ? '$' : storeCurrency === 'EUR' ? '€' : '₹');
         const merchantLogo = (data!.shop as any).logo_url || (data as any)?.brand?.logo_url || (data!.website.config as any)?.logo || null;
+        const isService = Boolean((data!.shop as any)?.is_service === 1 || (data!.shop as any)?.is_service === true || (data!.shop as any)?.isService === true || (data!.shop as any)?.business_type === 'service' || (data!.shop as any)?.businessType === 'service' || (data!.shop as any)?.category === 'coaching' || (data!.website.config as any)?.is_service === true || (data!.website.config as any)?.isService === true || (data!.website.config as any)?.businessType === 'service' || (data!.website.config as any)?.category === 'coaching');
+
         return (
           <TemplateRenderer
+            isService={isService}
+            businessType={isService ? 'service' : 'retail'}
+            shop={data!.shop}
             sections={data!.website.sections}
             products={data!.products}
             shopName={data!.shop.name}

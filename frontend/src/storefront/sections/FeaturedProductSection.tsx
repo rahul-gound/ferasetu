@@ -14,7 +14,7 @@ export default function FeaturedProductSection({
   config = {},
   variant = 'spotlight',
 }: FeaturedProductSectionProps) {
-  const { products, openProductModal, addToCart } = useStorefront();
+  const { products, openProductModal, addToCart, isService } = useStorefront();
 
   const eyebrow = sanitizeText((config.eyebrow as string) || 'FLAGSHIP SPOTLIGHT');
   const customTitle = sanitizeText((config.title as string) || '');
@@ -89,7 +89,7 @@ export default function FeaturedProductSection({
               onClick={() => addToCart(product)}
               className="px-8 py-3.5 bg-[var(--theme-color-primary)] text-white hover:bg-[var(--theme-color-primary-hover)] font-bold text-xs uppercase tracking-wider rounded-[var(--theme-radius-button)] shadow-md transition-all flex items-center gap-2"
             >
-              <ShoppingBag size={15} /> Add to Cart
+              <ShoppingBag size={15} /> {isService ? 'Book Spot' : 'Add to Cart'}
             </button>
             <button
               type="button"

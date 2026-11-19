@@ -42,6 +42,7 @@ export default function CartDrawer() {
     clearOrderSuccess,
     openWhatsAppCartOrder,
     shopName,
+    isService,
     sharedOrderInfo,
     appliedDiscount,
     discountCodeInput,
@@ -98,14 +99,20 @@ export default function CartDrawer() {
       return;
     }
 
-    if (formData.deliveryType === 'delivery' && !formData.deliveryAddress.trim()) {
+    if (!isService && formData.deliveryType === 'delivery' && !formData.deliveryAddress.trim()) {
       setErrorMessage('Please enter your complete delivery address');
       return;
     }
 
-    const success = await submitOrder(formData);
+    const checkoutPayload = isService ? {
+      ...formData,
+      deliveryType: 'pickup' as const,
+      deliveryAddress: 'Studio / Online Session Booking',
+    } : formData;
+
+    const success = await submitOrder(checkoutPayload);
     if (!success) {
-      setErrorMessage('Failed to place order with store. Please check details or try WhatsApp ordering.');
+      setErrorMessage(`Failed to ${isService ? 'confirm booking' : 'place order'} with store. Please check details or try WhatsApp ordering.`);
     }
   };
 
@@ -128,9 +135,11 @@ export default function CartDrawer() {
               <ShoppingBag size={18} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Your Shopping Bag</h2>
+              <h2 className="text-base font-bold text-slate-900">
+                {isService ? 'Your Booked Sessions' : 'Your Shopping Bag'}
+              </h2>
               <span className="text-xs text-slate-500 font-medium">
-                {cartCount} item{cartCount !== 1 ? 's' : ''}
+                {cartCount} {isService ? 'booking' : 'item'}{cartCount !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
@@ -167,9 +176,13 @@ export default function CartDrawer() {
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 mt-2 shadow-inner">
               <CheckCircle2 size={38} />
             </div>
-            <h3 className="text-xl font-black text-slate-900 mb-1 tracking-tight">Order Confirmed!</h3>
+            <h3 className="text-xl font-black text-slate-900 mb-1 tracking-tight">
+              {isService ? 'Booking Confirmed!' : 'Order Confirmed!'}
+            </h3>
             <p className="text-xs text-slate-500 mb-4">
-              Thank you! Your order has been securely placed with the store.
+              {isService
+                ? `Thank you! Your session booking has been securely placed with ${shopName}.`
+                : 'Thank you! Your order has been securely placed with the store.'}
             </p>
 
             {/* Expected Next Step / Status Banner */}
@@ -177,20 +190,22 @@ export default function CartDrawer() {
               <Clock size={16} className="text-amber-700 flex-shrink-0 mt-0.5" />
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
-                  Status: Pending Merchant Confirmation
+                  {isService ? 'Status: Pending Coach / Studio Confirmation' : 'Status: Pending Merchant Confirmation'}
                 </div>
                 <div className="text-[11px] text-amber-700 leading-snug">
-                  The merchant has received your order and will prepare it shortly.
+                  {isService
+                    ? 'The instructor or studio has received your booking and will confirm your batch timing.'
+                    : 'The merchant has received your order and will prepare it shortly.'}
                 </div>
               </div>
             </div>
 
-            {/* OTP & Delivery Verification Banner */}
+            {/* OTP & Verification Banner */}
             <div className="w-full bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
               <div className="flex items-center gap-2 mb-1.5">
                 <ShieldCheck size={18} className="text-blue-700 flex-shrink-0" />
                 <span className="text-xs font-bold text-blue-950 uppercase tracking-wide">
-                  Doorstep Delivery OTP / Handshake Code
+                  {isService ? 'Session Check-in / Booking Security Code' : 'Doorstep Delivery OTP / Handshake Code'}
                 </span>
               </div>
               {orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
@@ -248,7 +263,7 @@ export default function CartDrawer() {
                   <span>{formatPrice(orderSuccess.total)}</span>
                 </div>
               )}
-              {orderSuccess.deliveryAddress && (
+              {!isService && orderSuccess.deliveryAddress && !orderSuccess.deliveryAddress.includes('Studio') && (
                 <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-600">
                   <span className="font-semibold text-slate-700">Delivery Address: </span>
                   {orderSuccess.deliveryAddress}
@@ -313,26 +328,28 @@ export default function CartDrawer() {
         ) : checkoutStep === 'cart' ? (
           /* Cart View */
           <>
-            {/* Free Shipping Progress Indicator */}
-            <div className="bg-emerald-50/70 border-b border-emerald-100 px-4 py-2.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-900 mb-1.5">
-                <span className="flex items-center gap-1.5">
-                  <Truck size={14} className="text-emerald-700" />
-                  {amountNeeded > 0 ? (
-                    <>Add {formatPrice(amountNeeded)} more for Free Shipping</>
-                  ) : (
-                    <>You&apos;ve unlocked Free Delivery! 🎉</>
-                  )}
-                </span>
-                <span className="text-[11px] font-bold">{freeShippingProgress}%</span>
+            {/* Free Shipping Progress Indicator (Retail Only) */}
+            {!isService && (
+              <div className="bg-emerald-50/70 border-b border-emerald-100 px-4 py-2.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-emerald-900 mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <Truck size={14} className="text-emerald-700" />
+                    {amountNeeded > 0 ? (
+                      <>Add {formatPrice(amountNeeded)} more for Free Shipping</>
+                    ) : (
+                      <>You&apos;ve unlocked Free Delivery! 🎉</>
+                    )}
+                  </span>
+                  <span className="text-[11px] font-bold">{freeShippingProgress}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-emerald-200/60 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-600 rounded-full transition-all duration-300"
+                    style={{ width: `${freeShippingProgress}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-emerald-200/60 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-600 rounded-full transition-all duration-300"
-                  style={{ width: `${freeShippingProgress}%` }}
-                />
-              </div>
-            </div>
+            )}
 
             {/* Line Items List */}
             <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100">
@@ -505,7 +522,7 @@ export default function CartDrawer() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Taxes and shipping confirmed at next step.
+                {isService ? 'Direct confirmation by instructor/studio.' : 'Taxes and shipping confirmed at next step.'}
               </p>
 
               <button
@@ -513,16 +530,16 @@ export default function CartDrawer() {
                 onClick={() => setCheckoutStep('checkout')}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--theme-radius-button)] bg-[var(--theme-color-primary)] text-white font-bold text-sm hover:bg-[var(--theme-color-primary-hover)] shadow-md transition-all"
               >
-                Proceed to Checkout <ArrowRight size={15} />
+                {isService ? 'Proceed to Booking' : 'Proceed to Checkout'} <ArrowRight size={15} />
               </button>
 
               <button
                 type="button"
-                onClick={() => openWhatsAppCartOrder()}
+                onClick={() => openWhatsAppCartOrder(formData.notes)}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-[var(--theme-radius-button)] border border-emerald-600 text-emerald-700 bg-white hover:bg-emerald-50 font-bold text-xs transition-colors"
               >
                 <MessageCircle size={15} className="text-emerald-600" />
-                Quick Checkout on WhatsApp
+                {isService ? 'Quick Booking on WhatsApp' : 'Quick Checkout on WhatsApp'}
               </button>
             </div>
           </>
@@ -566,14 +583,14 @@ export default function CartDrawer() {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Mobile Number (for order & delivery verification) *
+                  {isService ? 'WhatsApp Phone Number *' : 'Mobile Number (for order & delivery verification) *'}
                 </label>
                 <input
                   type="tel"
                   required
                   value={formData.customerPhone}
                   onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                  placeholder="10-digit mobile number"
+                  placeholder={isService ? '10-digit WhatsApp number' : '10-digit mobile number'}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded focus:border-slate-900 focus:outline-none"
                 />
               </div>
@@ -591,37 +608,39 @@ export default function CartDrawer() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Delivery Method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, deliveryType: 'delivery' })}
-                    className={`py-2 px-3 rounded text-xs font-bold border transition-colors ${
-                      formData.deliveryType === 'delivery'
-                        ? 'border-slate-900 bg-slate-900 text-white'
-                        : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    Home Delivery
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, deliveryType: 'pickup' })}
-                    className={`py-2 px-3 rounded text-xs font-bold border transition-colors ${
-                      formData.deliveryType === 'pickup'
-                        ? 'border-slate-900 bg-slate-900 text-white'
-                        : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    Store Pickup
-                  </button>
+              {!isService && (
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Delivery Method
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, deliveryType: 'delivery' })}
+                      className={`py-2 px-3 rounded text-xs font-bold border transition-colors ${
+                        formData.deliveryType === 'delivery'
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                    >
+                      Home Delivery
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, deliveryType: 'pickup' })}
+                      className={`py-2 px-3 rounded text-xs font-bold border transition-colors ${
+                        formData.deliveryType === 'pickup'
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                    >
+                      Store Pickup
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {formData.deliveryType === 'delivery' && (
+              {!isService && formData.deliveryType === 'delivery' && (
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
                     Delivery Address *
@@ -642,7 +661,7 @@ export default function CartDrawer() {
                   Payment Method
                 </label>
                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs font-semibold text-slate-800 flex items-center justify-between">
-                  <span>Cash on Delivery / UPI on Delivery</span>
+                  <span>{isService ? 'Pay at Studio / UPI / Online' : 'Cash on Delivery / UPI on Delivery'}</span>
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
                     Safe &amp; Verified
                   </span>
@@ -651,13 +670,13 @@ export default function CartDrawer() {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Special Instructions
+                  {isService ? 'Preferred Batch / Note (Optional)' : 'Special Instructions'}
                 </label>
                 <input
                   type="text"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="e.g. Ring bell, deliver after 4 PM"
+                  placeholder={isService ? 'e.g. Morning 7 AM batch, weekday evening, 1-on-1' : 'e.g. Ring bell, deliver after 4 PM'}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded focus:border-slate-900 focus:outline-none"
                 />
               </div>
@@ -669,16 +688,18 @@ export default function CartDrawer() {
                 <span>Subtotal</span>
                 <span className="font-semibold text-slate-900">{formatPrice(cartSubtotal)}</span>
               </div>
-              <div className="flex justify-between text-xs text-slate-600">
-                <span>Delivery</span>
-                <span>
-                  {formData.deliveryType === 'delivery'
-                    ? (appliedDiscount && appliedDiscount.shippingDiscount > 0
-                        ? <span className="text-emerald-700 font-bold">FREE <span className="line-through text-slate-400 font-normal">₹30</span></span>
-                        : formatPrice(30))
-                    : 'FREE (Pickup)'}
-                </span>
-              </div>
+              {!isService && (
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Delivery</span>
+                  <span>
+                    {formData.deliveryType === 'delivery'
+                      ? (appliedDiscount && appliedDiscount.shippingDiscount > 0
+                          ? <span className="text-emerald-700 font-bold">FREE <span className="line-through text-slate-400 font-normal">₹30</span></span>
+                          : formatPrice(30))
+                      : 'FREE (Pickup)'}
+                  </span>
+                </div>
+              )}
               {appliedDiscount && appliedDiscount.totalDiscount > 0 && (
                 <div className="flex justify-between text-xs text-emerald-700 font-medium">
                   <span className="flex items-center gap-1">
@@ -692,11 +713,13 @@ export default function CartDrawer() {
                 <span>Final Payable</span>
                 <span>
                   {formatPrice(
-                    appliedDiscount
-                      ? (formData.deliveryType === 'pickup'
-                          ? Math.max(0, appliedDiscount.finalPayable - (appliedDiscount.effectiveShipping || 0))
-                          : appliedDiscount.finalPayable)
-                      : (cartSubtotal + (formData.deliveryType === 'delivery' ? 30 : 0))
+                    isService
+                      ? (appliedDiscount ? appliedDiscount.finalPayable : cartSubtotal)
+                      : (appliedDiscount
+                          ? (formData.deliveryType === 'pickup'
+                              ? Math.max(0, appliedDiscount.finalPayable - (appliedDiscount.effectiveShipping || 0))
+                              : appliedDiscount.finalPayable)
+                          : (cartSubtotal + (formData.deliveryType === 'delivery' ? 30 : 0)))
                   )}
                 </span>
               </div>
@@ -708,13 +731,17 @@ export default function CartDrawer() {
                 disabled={isSubmittingOrder}
                 className="w-full py-3 px-4 rounded-[var(--theme-radius-button)] bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isSubmittingOrder ? 'Placing Order…' : `Confirm Order (${formatPrice(
-                  appliedDiscount
-                    ? (formData.deliveryType === 'pickup'
-                        ? Math.max(0, appliedDiscount.finalPayable - (appliedDiscount.effectiveShipping || 0))
-                        : appliedDiscount.finalPayable)
-                    : (cartSubtotal + (formData.deliveryType === 'delivery' ? 30 : 0))
-                )})`}
+                {isSubmittingOrder
+                  ? (isService ? 'Confirming Booking…' : 'Placing Order…')
+                  : (isService
+                      ? `Confirm Booking (${formatPrice(appliedDiscount ? appliedDiscount.finalPayable : cartSubtotal)})`
+                      : `Confirm Order (${formatPrice(
+                          appliedDiscount
+                            ? (formData.deliveryType === 'pickup'
+                                ? Math.max(0, appliedDiscount.finalPayable - (appliedDiscount.effectiveShipping || 0))
+                                : appliedDiscount.finalPayable)
+                            : (cartSubtotal + (formData.deliveryType === 'delivery' ? 30 : 0))
+                        )})`)}
               </button>
             </div>
           </form>

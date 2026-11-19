@@ -61,6 +61,8 @@ export interface TemplateRendererProps {
   };
   initialProductId?: string | null;
   initialOrderId?: string | null;
+  isService?: boolean;
+  businessType?: 'retail' | 'service';
   onSelectSection?: (sectionId: string) => void;
   selectedSectionId?: string | null;
   onRemoveSection?: (sectionId: string) => void;
@@ -89,6 +91,8 @@ export default function TemplateRenderer({
   shop,
   initialProductId,
   initialOrderId,
+  isService,
+  businessType,
   onSelectSection,
   selectedSectionId,
   onRemoveSection,
@@ -253,6 +257,16 @@ export default function TemplateRenderer({
     }
   };
 
+  const effectiveIsService = Boolean(
+    isService ||
+    (shop as any)?.is_service === 1 ||
+    (shop as any)?.is_service === true ||
+    (shop as any)?.isService === true ||
+    (shop as any)?.business_type === 'service' ||
+    (shop as any)?.businessType === 'service' ||
+    (shop as any)?.category === 'coaching'
+  );
+
   return (
     <StorefrontProvider
       shopId={effectiveShopId}
@@ -262,6 +276,8 @@ export default function TemplateRenderer({
       currency={currency}
       currencySymbol={currencySymbol}
       products={products}
+      isService={effectiveIsService}
+      businessType={effectiveIsService ? 'service' : (businessType || 'retail')}
       initialProductId={initialProductId}
       initialOrderId={initialOrderId}
     >

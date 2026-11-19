@@ -51,6 +51,7 @@ interface MonoContextValue {
   toast: (msg: string) => void;
   currencySymbol: string;
   shopName: string;
+  isService?: boolean;
   shopLogo?: string;
   formatPrice: (price: number) => string;
 }
@@ -333,6 +334,7 @@ export function MonoShopProvider({ children }: MonoShopProviderProps) {
     toast,
     currencySymbol,
     shopName,
+    isService: Boolean(parentStorefront?.isService),
     shopLogo,
     formatPrice,
   };

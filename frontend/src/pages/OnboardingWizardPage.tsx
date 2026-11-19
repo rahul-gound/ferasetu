@@ -83,15 +83,18 @@ interface RetailCategory {
   name: string;
   icon: string;
   desc: string;
+  isService?: boolean;
+  businessType?: 'retail' | 'service';
 }
 
 const RETAIL_CATEGORIES: RetailCategory[] = [
-  { id: 'grocery', name: 'Grocery & Kirana', icon: '🛒', desc: 'Daily essentials, packed foods, staples' },
-  { id: 'fashion', name: 'Fashion & Boutique', icon: '👗', desc: 'Apparel, sarees, kurtas, jewelry' },
-  { id: 'bakery', name: 'Bakery & Sweets', icon: '🍰', desc: 'Mithai, cakes, dairy, savories' },
-  { id: 'electronics', name: 'Electronics & Mobile', icon: '📱', desc: 'Gadgets, accessories, repairs' },
-  { id: 'artisan', name: 'Artisan & Handcrafted', icon: '🎨', desc: 'Handicrafts, pottery, decor' },
-  { id: 'general', name: 'General Retail', icon: '🏪', desc: 'Supermarket, stationery, hardware' },
+  { id: 'grocery', name: 'Grocery & Kirana', icon: '🛒', desc: 'Daily essentials, packed foods, staples', isService: false, businessType: 'retail' },
+  { id: 'fashion', name: 'Fashion & Boutique', icon: '👗', desc: 'Apparel, sarees, kurtas, jewelry', isService: false, businessType: 'retail' },
+  { id: 'bakery', name: 'Bakery & Sweets', icon: '🍰', desc: 'Mithai, cakes, dairy, savories', isService: false, businessType: 'retail' },
+  { id: 'electronics', name: 'Electronics & Mobile', icon: '📱', desc: 'Gadgets, accessories, repairs', isService: false, businessType: 'retail' },
+  { id: 'artisan', name: 'Artisan & Handcrafted', icon: '🎨', desc: 'Handicrafts, pottery, decor', isService: false, businessType: 'retail' },
+  { id: 'general', name: 'General Retail', icon: '🏪', desc: 'Supermarket, stationery, hardware', isService: false, businessType: 'retail' },
+  { id: 'coaching', name: 'Coaching & Consulting', icon: '🧘', desc: 'Yoga, fitness, classes & 1-on-1 sessions', isService: true, businessType: 'service' },
 ];
 
 const POPULAR_INDIAN_CITIES = [
@@ -103,6 +106,58 @@ const POPULAR_INDIAN_CITIES = [
   { city: 'Pune', state: 'Maharashtra' },
   { city: 'Kolkata', state: 'West Bengal' },
 ];
+
+const CITY_TO_STATE_MAP: Record<string, string> = {
+  mumbai: 'Maharashtra',
+  bombay: 'Maharashtra',
+  pune: 'Maharashtra',
+  nagpur: 'Maharashtra',
+  thane: 'Maharashtra',
+  nashik: 'Maharashtra',
+  delhi: 'Delhi',
+  'new delhi': 'Delhi',
+  bengaluru: 'Karnataka',
+  bangalore: 'Karnataka',
+  mysuru: 'Karnataka',
+  jaipur: 'Rajasthan',
+  jodhpur: 'Rajasthan',
+  udaipur: 'Rajasthan',
+  ahmedabad: 'Gujarat',
+  surat: 'Gujarat',
+  vadodara: 'Gujarat',
+  rajkot: 'Gujarat',
+  kolkata: 'West Bengal',
+  calcutta: 'West Bengal',
+  chennai: 'Tamil Nadu',
+  madras: 'Tamil Nadu',
+  coimbatore: 'Tamil Nadu',
+  hyderabad: 'Telangana',
+  secunderabad: 'Telangana',
+  lucknow: 'Uttar Pradesh',
+  kanpur: 'Uttar Pradesh',
+  noida: 'Uttar Pradesh',
+  varanasi: 'Uttar Pradesh',
+  chandigarh: 'Chandigarh',
+  bhopal: 'Madhya Pradesh',
+  indore: 'Madhya Pradesh',
+  patna: 'Bihar',
+  kochi: 'Kerala',
+  cochin: 'Kerala',
+  thiruvananthapuram: 'Kerala',
+  guwahati: 'Assam',
+  bhubaneswar: 'Odisha',
+  dehradun: 'Uttarakhand',
+  ranchi: 'Jharkhand',
+  raipur: 'Chhattisgarh',
+  amritsar: 'Punjab',
+  ludhiana: 'Punjab',
+  shimla: 'Himachal Pradesh',
+  panaji: 'Goa',
+  goa: 'Goa',
+  gurugram: 'Haryana',
+  gurgaon: 'Haryana',
+  faridabad: 'Haryana',
+};
 
 export default function OnboardingWizardPage() {
   const navigate = useNavigate();
@@ -195,9 +250,22 @@ export default function OnboardingWizardPage() {
   };
 
   const handleSelectCityPreset = (presetCity: string, presetState: string) => {
+    if (region !== 'IN') {
+      setRegion('IN');
+      setCountry('India');
+    }
     setCity(presetCity);
     setDistrict(presetCity);
     setState(presetState);
+  };
+
+  const handleCityChange = (newCity: string) => {
+    setCity(newCity);
+    setDistrict(newCity);
+    const normalized = newCity.trim().toLowerCase();
+    if (CITY_TO_STATE_MAP[normalized]) {
+      setState(CITY_TO_STATE_MAP[normalized]);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -250,6 +318,10 @@ export default function OnboardingWizardPage() {
     const finalState = effectiveState.trim() || 'Maharashtra';
     const finalCountry = country.trim() || (region === 'IN' ? 'India' : region === 'US' ? 'United States' : 'Germany');
 
+    const selectedCatObj = RETAIL_CATEGORIES.find((c) => c.id === selectedCategory);
+    const isService = Boolean(selectedCatObj?.isService || selectedCategory === 'coaching');
+    const businessType: 'retail' | 'service' = isService ? 'service' : 'retail';
+
     setSubmitting(true);
     try {
       const payload = {
@@ -262,6 +334,10 @@ export default function OnboardingWizardPage() {
         market: region,
         profile_picture: effectiveAvatar,
         category: selectedCategory,
+        isService,
+        is_service: isService,
+        businessType,
+        business_type: businessType,
         invitations: [],
       };
 
@@ -385,7 +461,7 @@ export default function OnboardingWizardPage() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
                     What do you sell?
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                     {RETAIL_CATEGORIES.map((cat) => {
                       const isSelected = selectedCategory === cat.id;
                       return (
@@ -393,19 +469,25 @@ export default function OnboardingWizardPage() {
                           key={cat.id}
                           type="button"
                           onClick={() => setSelectedCategory(cat.id)}
+                          data-testid={`category-card-${cat.id}`}
                           className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
                               ? 'border-[#0052FF] bg-blue-50/70 shadow-sm ring-1 ring-[#0052FF]'
                               : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xl">{cat.icon}</span>
-                            {isSelected && <Check size={14} className="text-[#0052FF]" />}
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xl">{cat.icon}</span>
+                              {isSelected && <Check size={14} className="text-[#0052FF]" />}
+                            </div>
+                            <span className={`text-xs font-bold block ${isSelected ? 'text-[#0052FF]' : 'text-slate-800'}`}>
+                              {cat.name}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-normal leading-tight mt-1 block">
+                              {cat.desc}
+                            </span>
                           </div>
-                          <span className={`text-xs font-bold ${isSelected ? 'text-[#0052FF]' : 'text-slate-800'}`}>
-                            {cat.name}
-                          </span>
                         </button>
                       );
                     })}
@@ -457,10 +539,7 @@ export default function OnboardingWizardPage() {
                           type="text"
                           required
                           value={city}
-                          onChange={(e) => {
-                            setCity(e.target.value);
-                            setDistrict(e.target.value);
-                          }}
+                          onChange={(e) => handleCityChange(e.target.value)}
                           placeholder="City / Town (e.g. Boisar, Mumbai)"
                           className="px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#0052FF] text-slate-900 text-sm font-semibold"
                         />
@@ -483,9 +562,10 @@ export default function OnboardingWizardPage() {
                             key={c.city}
                             type="button"
                             onClick={() => handleSelectCityPreset(c.city, c.state)}
-                            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-colors ${
-                              city.toLowerCase() === c.city.toLowerCase()
-                                ? 'bg-blue-100 text-[#0052FF] font-bold'
+                            data-testid={`city-chip-${c.city.toLowerCase()}`}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                              city.toLowerCase() === c.city.toLowerCase() && state === c.state
+                                ? 'bg-blue-100 text-[#0052FF] font-bold ring-1 ring-[#0052FF]/30'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                           >

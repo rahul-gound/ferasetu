@@ -793,6 +793,10 @@ async function createOrganizationHandler(request, env) {
   const plan = 'trial';
   const planExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
+  const isService = Boolean(body.isService || body.is_service || body.businessType === 'service' || body.business_type === 'service' || body.category === 'coaching');
+  const businessType = isService ? 'service' : 'retail';
+  const category = typeof body.category === 'string' && body.category.trim() ? body.category.trim() : (isService ? 'coaching' : 'grocery');
+
   // Check if user already owns an organization
   let existingOrg = null;
   try {
@@ -912,6 +916,9 @@ async function createOrganizationHandler(request, env) {
 
   try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN district TEXT").run(); } catch {}
   try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN country TEXT").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN is_service INTEGER NOT NULL DEFAULT 0").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN business_type TEXT NOT NULL DEFAULT 'retail'").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE organizations ADD COLUMN category TEXT").run(); } catch {}
 
   try {
     await env.DB.prepare(`
@@ -938,6 +945,9 @@ async function createOrganizationHandler(request, env) {
         store_slug TEXT UNIQUE NOT NULL,
         hostname TEXT UNIQUE,
         status TEXT NOT NULL DEFAULT 'active',
+        is_service INTEGER NOT NULL DEFAULT 0,
+        business_type TEXT NOT NULL DEFAULT 'retail',
+        category TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -946,14 +956,18 @@ async function createOrganizationHandler(request, env) {
     console.error("Direct shops table creation error:", shopTableErr);
   }
 
+  try { await env.DB.prepare("ALTER TABLE shops ADD COLUMN is_service INTEGER NOT NULL DEFAULT 0").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE shops ADD COLUMN business_type TEXT NOT NULL DEFAULT 'retail'").run(); } catch {}
+  try { await env.DB.prepare("ALTER TABLE shops ADD COLUMN category TEXT").run(); } catch {}
+
   // Insert organization with self-healing table creation on error
   try {
     await env.DB.prepare(`
       INSERT INTO organizations (
-        id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, is_service, business_type, category, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, now, now
+      orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, isService ? 1 : 0, businessType, category, now, now
     ).run();
   } catch (orgInsertErr) {
     console.warn("Retrying organization insert with fallback schema:", orgInsertErr);
@@ -972,6 +986,9 @@ async function createOrganizationHandler(request, env) {
           state TEXT,
           country TEXT,
           store_slug TEXT UNIQUE NOT NULL,
+          is_service INTEGER NOT NULL DEFAULT 0,
+          business_type TEXT NOT NULL DEFAULT 'retail',
+          category TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         )
@@ -981,10 +998,10 @@ async function createOrganizationHandler(request, env) {
     try {
       await env.DB.prepare(`
         INSERT INTO organizations (
-          id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, name, workos_organization_id, market, plan, address, city, district, state, country, store_slug, is_service, business_type, category, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
-        orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, now, now
+        orgId, name, workosOrgId, market, plan, address, city, district, state, country, storeSlug, isService ? 1 : 0, businessType, category, now, now
       ).run();
     } catch (orgInsertErr2) {
       try {
@@ -1016,11 +1033,18 @@ async function createOrganizationHandler(request, env) {
   // E. Create/reserve merchant shop/store record using the same FeraSetu organization ID
   try {
     await env.DB.prepare(`
-      INSERT OR REPLACE INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
-    `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
+      INSERT OR REPLACE INTO shops (id, organization_id, name, store_slug, hostname, status, is_service, business_type, category, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
+    `).bind(orgId, orgId, name, storeSlug, hostname, isService ? 1 : 0, businessType, category, now, now).run();
   } catch (shopInsertErr) {
-    console.warn("Warning inserting shop:", shopInsertErr);
+    try {
+      await env.DB.prepare(`
+        INSERT OR REPLACE INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+      `).bind(orgId, orgId, name, storeSlug, hostname, now, now).run();
+    } catch (innerShopErr) {
+      console.warn("Warning inserting shop:", innerShopErr);
+    }
   }
 
   // Assign shop to market shard server-authoritatively
@@ -1055,8 +1079,20 @@ async function createOrganizationHandler(request, env) {
       me.$id,
       orgId,
       name,
-      JSON.stringify({ shopName: name, city, district, state, country, phone: body.phone || '' }),
-      JSON.stringify({ preset: 'clean-grocer' }),
+      JSON.stringify({
+        shopName: name,
+        city,
+        district,
+        state,
+        country,
+        phone: body.phone || '',
+        is_service: isService,
+        isService,
+        business_type: businessType,
+        businessType,
+        category,
+      }),
+      JSON.stringify({ preset: isService ? 'clean-wellness' : 'clean-grocer' }),
       now,
       now
     ).run();
@@ -1212,6 +1248,11 @@ async function createOrganizationHandler(request, env) {
       state,
       country,
       store_slug: storeSlug,
+      is_service: isService ? 1 : 0,
+      isService,
+      business_type: businessType,
+      businessType,
+      category,
       ...(createdOrg || {}),
       role: 'owner',
     },
@@ -1223,9 +1264,20 @@ async function createOrganizationHandler(request, env) {
 
 async function getCurrentOrganizationHandler(request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
+  const isService = Boolean(
+    ctx.organization.is_service === 1 ||
+    ctx.organization.is_service === true ||
+    ctx.organization.business_type === 'service' ||
+    ctx.organization.category === 'coaching'
+  );
   return json({
     organization: {
       ...ctx.organization,
+      is_service: isService ? 1 : 0,
+      isService,
+      business_type: isService ? 'service' : 'retail',
+      businessType: isService ? 'service' : 'retail',
+      category: ctx.organization.category || (isService ? 'coaching' : 'grocery'),
       role: ctx.role,
       store_url: `https://${ctx.organization.store_slug}.ferasetu.com`,
     }
@@ -4828,6 +4880,17 @@ async function ensureTables(db) {
     await safeAddColumn('organizations', 'primary_color TEXT');
     await safeAddColumn('organizations', 'secondary_color TEXT');
     await safeAddColumn('organizations', 'social_image_url TEXT');
+    await safeAddColumn('organizations', 'is_service INTEGER NOT NULL DEFAULT 0');
+    await safeAddColumn('organizations', "business_type TEXT NOT NULL DEFAULT 'retail'");
+    await safeAddColumn('organizations', 'category TEXT');
+
+    // Shops & Users business type / service flag
+    await safeAddColumn('shops', 'is_service INTEGER NOT NULL DEFAULT 0');
+    await safeAddColumn('shops', "business_type TEXT NOT NULL DEFAULT 'retail'");
+    await safeAddColumn('shops', 'category TEXT');
+    await safeAddColumn('users', 'is_service INTEGER NOT NULL DEFAULT 0');
+    await safeAddColumn('users', "business_type TEXT NOT NULL DEFAULT 'retail'");
+    await safeAddColumn('users', 'category TEXT');
 
     // Merchant-owned operational locations
     await safeExec(`
@@ -11527,6 +11590,22 @@ async function getPublicShop(shopName, request, env) {
   const storeSlug = tenant?.organization?.store_slug || tenant?.shop?.store_slug || user?.subdomain || slugWithoutDomain;
   const hostname = tenant?.shop?.hostname || user?.hostname || (storeSlug ? `${storeSlug}.ferasetu.com` : null);
 
+  const isServiceStore = Boolean(
+    shopRow?.is_service === 1 ||
+    shopRow?.is_service === true ||
+    shopRow?.business_type === 'service' ||
+    orgRow?.is_service === 1 ||
+    orgRow?.is_service === true ||
+    orgRow?.business_type === 'service' ||
+    orgRow?.category === 'coaching' ||
+    config?.is_service === true ||
+    config?.isService === true ||
+    config?.businessType === 'service' ||
+    config?.category === 'coaching'
+  );
+  const storeBusinessType = isServiceStore ? 'service' : 'retail';
+  const storeCategory = orgRow?.category || shopRow?.category || config?.category || (isServiceStore ? 'coaching' : 'grocery');
+
   return json({
     shop: {
       id: effectiveOrgId,
@@ -11535,6 +11614,11 @@ async function getPublicShop(shopName, request, env) {
       name: merchantName,
       subdomain: storeSlug,
       hostname,
+      is_service: isServiceStore ? 1 : 0,
+      isService: isServiceStore,
+      business_type: storeBusinessType,
+      businessType: storeBusinessType,
+      category: storeCategory,
       logo_url: logoUrl,
       favicon_url: faviconUrl,
       primary_color: primaryColor,
