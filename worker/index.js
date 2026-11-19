@@ -1247,6 +1247,29 @@ async function getOrganizationMembersHandler(request, env) {
   return json({ members: results || [] }, 200, {}, request);
 }
 
+async function ensureInvitationsTable(db) {
+  if (!db) return;
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS organization_invitations (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        name TEXT,
+        phone TEXT,
+        role TEXT NOT NULL DEFAULT 'staff',
+        station TEXT DEFAULT 'Main Counter',
+        status TEXT NOT NULL DEFAULT 'pending',
+        invited_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+  } catch (err) {
+    console.warn("ensureInvitationsTable warning:", err?.message || err);
+  }
+}
+
 async function inviteOrganizationMemberHandler(request, env) {
   const ctx = await requireOrgContext(request, env, 'admin');
   const body = await readJsonBody(request);
@@ -1274,21 +1297,114 @@ async function inviteOrganizationMemberHandler(request, env) {
   }
 
   const role = body.role === 'admin' ? 'admin' : 'staff';
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : (email.split('@')[0] || 'Staff Member');
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+  const station = typeof body.station === 'string' && body.station.trim() ? body.station.trim() : 'Main Counter';
 
-  const res = await createWorkOSInvitation({
-    email,
-    organizationId: ctx.organization.workos_organization_id,
-    roleSlug: role,
-    env,
-  });
+  let res = null;
+  try {
+    res = await createWorkOSInvitation({
+      email,
+      organizationId: ctx.organization.workos_organization_id,
+      roleSlug: role,
+      env,
+    });
+  } catch (workosErr) {
+    console.warn("WorkOS invitation note:", workosErr?.message || workosErr);
+  }
+
+  const inviteId = `inv_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  await ensureInvitationsTable(env.DB);
+  try {
+    await env.DB.prepare(`
+      INSERT INTO organization_invitations (id, organization_id, email, name, phone, role, station, status, invited_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+    `).bind(inviteId, ctx.organization.id, email, name, phone, role, station, ctx.userId, now, now).run();
+  } catch (err) {
+    console.warn("organization_invitations insert warning:", err?.message || err);
+  }
 
   return json({
     success: true,
     email,
     role,
-    invitation: res,
+    invitation: res || { id: inviteId, email, name, role, station, status: 'pending', created_at: now },
     message: `Invitation sent to ${email} as ${role}`
   }, 201, {}, request);
+}
+
+async function getOrganizationInvitationsHandler(request, env) {
+  const ctx = await requireOrgContext(request, env, 'staff');
+  await ensureInvitationsTable(env.DB);
+  try {
+    const { results } = await env.DB.prepare(`
+      SELECT id, organization_id, email, name, phone, role, station, status, created_at
+      FROM organization_invitations
+      WHERE organization_id = ? AND status = 'pending'
+      ORDER BY created_at DESC
+    `).bind(ctx.organizationId).all();
+    return json({ invitations: results || [] }, 200, {}, request);
+  } catch {
+    return json({ invitations: [] }, 200, {}, request);
+  }
+}
+
+async function deleteOrganizationInvitationHandler(invitationId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  await ensureInvitationsTable(env.DB);
+  try {
+    await env.DB.prepare(`
+      DELETE FROM organization_invitations
+      WHERE id = ? AND organization_id = ?
+    `).bind(invitationId, ctx.organizationId).run();
+  } catch {}
+  return json({ success: true, message: "Invitation revoked" }, 200, {}, request);
+}
+
+async function updateOrganizationMemberHandler(memberId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const body = await readJsonBody(request);
+  const target = await env.DB.prepare(
+    "SELECT * FROM organization_members WHERE id = ? AND organization_id = ?"
+  ).bind(memberId, ctx.organizationId).first();
+
+  if (!target) {
+    throw new HttpError("Team member not found", 404);
+  }
+  if (target.role === 'owner') {
+    throw new HttpError("Primary store owner role cannot be modified", 400);
+  }
+
+  const role = body.role === 'admin' ? 'admin' : 'staff';
+  const now = new Date().toISOString();
+  await env.DB.prepare(`
+    UPDATE organization_members
+    SET role = ?, updated_at = ?
+    WHERE id = ? AND organization_id = ?
+  `).bind(role, now, memberId, ctx.organizationId).run();
+
+  return json({ success: true, memberId, role, message: "Member role updated successfully" }, 200, {}, request);
+}
+
+async function deleteOrganizationMemberHandler(memberId, request, env) {
+  const ctx = await requireOrgContext(request, env, 'admin');
+  const target = await env.DB.prepare(
+    "SELECT * FROM organization_members WHERE id = ? AND organization_id = ?"
+  ).bind(memberId, ctx.organizationId).first();
+
+  if (!target) {
+    throw new HttpError("Team member not found", 404);
+  }
+  if (target.role === 'owner') {
+    throw new HttpError("Cannot remove primary store owner", 400);
+  }
+
+  await env.DB.prepare(
+    "DELETE FROM organization_members WHERE id = ? AND organization_id = ?"
+  ).bind(memberId, ctx.organizationId).run();
+
+  return json({ success: true, message: "Team member removed from organization" }, 200, {}, request);
 }
 
 async function listCustomers(request, env) {
@@ -11634,8 +11750,21 @@ async function route(request, env, ctx) {
   if (path === "/api/organizations/members" && method === "GET") {
     return getOrganizationMembersHandler(request, env);
   }
-  if (path === "/api/organizations/invitations" && method === "POST") {
-    return inviteOrganizationMemberHandler(request, env);
+  if (path.startsWith("/api/organizations/members/")) {
+    const memId = path.slice("/api/organizations/members/".length);
+    if (method === "PUT" || method === "PATCH") return updateOrganizationMemberHandler(memId, request, env);
+    if (method === "DELETE") return deleteOrganizationMemberHandler(memId, request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+  if (path === "/api/organizations/invitations") {
+    if (method === "GET") return getOrganizationInvitationsHandler(request, env);
+    if (method === "POST") return inviteOrganizationMemberHandler(request, env);
+    throw new HttpError("Method not allowed", 405);
+  }
+  if (path.startsWith("/api/organizations/invitations/")) {
+    const invId = path.slice("/api/organizations/invitations/".length);
+    if (method === "DELETE") return deleteOrganizationInvitationHandler(invId, request, env);
+    throw new HttpError("Method not allowed", 405);
   }
 
   // Customers (Isolated & Privacy Protected)

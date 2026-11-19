@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -24,239 +24,381 @@ import {
   Mail,
   MapPin,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  AlertCircle,
+  Copy,
+  ExternalLink,
+  Store,
+  Warehouse,
+  Receipt,
+  UserCheck,
+  Trash2,
+  RefreshCw,
+  MoreVertical
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import SEO from '../components/SEO';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '../components/ui/dialog';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 
-interface StaffMember {
+export interface StaffItem {
   id: string;
   name: string;
-  email_or_phone: string;
+  contact: string;
   initials: string;
-  role: string;
-  role_subtitle: string;
-  assigned_location: string;
-  location_detail: string;
-  scope: string;
-  status: 'active_owner' | 'active' | 'pending_invite';
-  last_session: string;
-  terminal: string;
+  role: 'owner' | 'admin' | 'staff' | 'cashier' | 'warehouse';
+  roleLabel: string;
+  roleDescription: string;
+  station: string;
+  scopeSummary: string;
+  status: 'active' | 'pending';
+  isOwner: boolean;
+  createdAt?: string;
+  lastActive?: string;
+  invitationId?: string;
 }
 
 export default function StaffPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'members' | 'roles' | 'locations' | 'audit'>('members');
+  const [activeTab, setActiveTab] = useState<'directory' | 'roles' | 'stations' | 'audit'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'store' | 'godown'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'owner' | 'admin' | 'cashier' | 'warehouse'>('all');
+
+  // Modal States
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<StaffItem | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<StaffItem | null>(null);
+  const [invitationToRevoke, setInvitationToRevoke] = useState<string | null>(null);
 
   // Invite Form State
   const [inviteName, setInviteName] = useState('');
   const [inviteContact, setInviteContact] = useState('');
-  const [inviteRole, setInviteRole] = useState('Counter Cashier');
-  const [inviteLocation, setInviteLocation] = useState('Main Retail Storefront');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'cashier' | 'warehouse'>('cashier');
+  const [inviteStation, setInviteStation] = useState('Main Billing Counter');
+  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
 
-  // Query real team members from organization members API
-  const { data: membersData, refetch: refetchMembers } = useQuery({
+  // 1. Fetch organization members
+  const { data: membersData, isLoading: isLoadingMembers, refetch: refetchMembers } = useQuery({
     queryKey: ['orgMembers'],
     queryFn: async () => {
       try {
         const res = await api.get('/organizations/members');
         return res.data?.members || [];
+      } catch (err) {
+        console.warn('Failed to fetch org members:', err);
+        return [];
+      }
+    }
+  });
+
+  // 2. Fetch pending invitations
+  const { data: invitationsData, refetch: refetchInvitations } = useQuery({
+    queryKey: ['orgInvitations'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/organizations/invitations');
+        return res.data?.invitations || [];
       } catch {
         return [];
       }
     }
   });
 
-  // Real store owner
+  // 3. Fetch store physical locations
+  const { data: locationsData } = useQuery({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/locations');
+        return res.data?.locations || [];
+      } catch {
+        return [];
+      }
+    }
+  });
+
+  // Available Stations list
+  const availableStations = useMemo(() => {
+    const list = ['Main Billing Counter', 'Central Godown / Warehouse', 'Online Fulfillment Desk'];
+    if (Array.isArray(locationsData) && locationsData.length > 0) {
+      locationsData.forEach((loc: any) => {
+        if (loc.name && !list.includes(loc.name)) {
+          list.push(loc.name);
+        }
+      });
+    }
+    return list;
+  }, [locationsData]);
+
+  // Authenticated Owner info
   const ownerName = user?.name || user?.business_name || 'Store Owner';
-  const ownerEmail = user?.email || 'owner@ferasetu.store';
-  const ownerInitials = (ownerName.split(' ').map(n => n[0]).join('') || 'SO').toUpperCase().slice(0, 2);
+  const ownerContact = user?.email || user?.phone || 'owner@ferasetu.store';
+  const ownerInitials = (ownerName.split(' ').map((n: string) => n[0]).join('') || 'SO').toUpperCase().slice(0, 2);
 
-  // Locally invited members state
-  const [invitedMembers, setInvitedMembers] = useState<StaffMember[]>([]);
-
-  // Grounded team members: authenticated owner + verified staff
-  const members: StaffMember[] = useMemo(() => {
-    const list: StaffMember[] = [
+  // Combined staff items list
+  const allStaff: StaffItem[] = useMemo(() => {
+    const list: StaffItem[] = [
       {
-        id: 'staff-owner',
+        id: 'owner-primary',
         name: ownerName,
-        email_or_phone: ownerEmail,
+        contact: ownerContact,
         initials: ownerInitials,
-        role: 'Store Owner',
-        role_subtitle: 'Super Admin Sovereignty',
-        assigned_location: 'All Locations',
-        location_detail: 'Storefront & Inventory',
-        scope: 'Full Sovereignty, Financial Payouts, Domain Keys, Staff Management',
-        status: 'active_owner',
-        last_session: 'Active Now',
-        terminal: 'Web Portal'
+        role: 'owner',
+        roleLabel: 'Store Owner',
+        roleDescription: 'Full Store Control & Bank Payouts',
+        station: 'All Store Locations',
+        scopeSummary: 'Banking, UPI Payouts, Catalog, Staff & Settings',
+        status: 'active',
+        isOwner: true,
+        lastActive: 'Active Now'
       }
     ];
 
+    // Add confirmed members
     if (Array.isArray(membersData)) {
       membersData.forEach((m: any) => {
-        if (m.email === ownerEmail || m.user_id === user?.id) return;
-        const name = m.name || m.email || 'Team Member';
+        if (m.user_id === user?.id || m.email === user?.email || m.role === 'owner') return;
+        const name = m.name || m.email?.split('@')[0] || 'Team Member';
         const inits = (name.split(' ').map((n: string) => n[0]).join('') || 'TM').toUpperCase().slice(0, 2);
+        const isManager = m.role === 'admin';
         list.push({
-          id: m.id || `staff-${m.user_id}`,
+          id: m.id || `mem-${m.user_id}`,
           name,
-          email_or_phone: m.email || '',
+          contact: m.email || m.phone || 'Store Terminal',
           initials: inits,
-          role: m.role === 'admin' ? 'Store Manager' : 'Counter Cashier',
-          role_subtitle: m.role === 'admin' ? 'Store Operations & Catalog' : 'POS Order Desk',
-          assigned_location: 'Main Retail Store',
-          location_detail: 'Storefront & Register',
-          scope: m.role === 'admin' ? 'Orders, Products, Stock Management' : 'Counter POS Billing & WhatsApp Dispatch',
+          role: isManager ? 'admin' : 'cashier',
+          roleLabel: isManager ? 'Store Manager' : 'Counter Cashier',
+          roleDescription: isManager ? 'Orders, Catalog & Stock Operations' : 'Counter POS Billing & WhatsApp Dispatch',
+          station: m.station || (isManager ? 'All Stations' : 'Main Billing Counter'),
+          scopeSummary: isManager ? 'Orders, Products, Customer Khata & Stock' : 'POS Barcode Billing, Receipts & Cash Collection',
           status: 'active',
-          last_session: m.created_at ? new Date(m.created_at).toLocaleDateString() : 'Active',
-          terminal: 'Register Terminal'
+          isOwner: false,
+          createdAt: m.created_at,
+          lastActive: 'Logged In'
         });
       });
     }
 
-    invitedMembers.forEach(im => {
-      if (!list.some(existing => existing.email_or_phone === im.email_or_phone)) {
-        list.push(im);
-      }
-    });
+    // Add pending invitations
+    if (Array.isArray(invitationsData)) {
+      invitationsData.forEach((inv: any) => {
+        const name = inv.name || inv.email?.split('@')[0] || 'Staff Member';
+        const inits = (name.split(' ').map((n: string) => n[0]).join('') || 'ST').toUpperCase().slice(0, 2);
+        const role = inv.role === 'admin' ? 'admin' : inv.role === 'warehouse' ? 'warehouse' : 'cashier';
+        list.push({
+          id: `inv-${inv.id}`,
+          name,
+          contact: inv.email || inv.phone || 'Contact pending',
+          initials: inits,
+          role,
+          roleLabel: role === 'admin' ? 'Store Manager (Invited)' : role === 'warehouse' ? 'Stock Keeper (Invited)' : 'Counter Cashier (Invited)',
+          roleDescription: 'Awaiting team member login',
+          station: inv.station || 'Main Billing Counter',
+          scopeSummary: 'Invitation Link Sent — Access ready upon join',
+          status: 'pending',
+          isOwner: false,
+          createdAt: inv.created_at,
+          invitationId: inv.id
+        });
+      });
+    }
 
     return list;
-  }, [membersData, ownerName, ownerEmail, ownerInitials, user?.id, invitedMembers]);
+  }, [membersData, invitationsData, ownerName, ownerContact, ownerInitials, user?.id, user?.email]);
 
   // Telemetry counts
-  const totalTeam = members.length;
-  const activeShift = members.filter(m => m.status === 'active' || m.status === 'active_owner').length;
-  const pendingApprovals = members.filter(m => m.status === 'pending_invite').length;
+  const totalCount = allStaff.length;
+  const activeCount = allStaff.filter(s => s.status === 'active').length;
+  const pendingCount = allStaff.filter(s => s.status === 'pending').length;
 
-  const filteredMembers = useMemo(() => {
-    return members.filter(m => {
-      if (roleFilter === 'store' && !m.assigned_location.toLowerCase().includes('store') && m.assigned_location !== 'All Locations') return false;
-      if (roleFilter === 'godown' && !m.assigned_location.toLowerCase().includes('godown') && m.assigned_location !== 'All Locations') return false;
-
+  // Filtered staff list
+  const filteredStaff = useMemo(() => {
+    return allStaff.filter(s => {
+      if (roleFilter !== 'all') {
+        if (roleFilter === 'owner' && !s.isOwner) return false;
+        if (roleFilter === 'admin' && s.role !== 'admin') return false;
+        if (roleFilter === 'cashier' && s.role !== 'cashier') return false;
+        if (roleFilter === 'warehouse' && s.role !== 'warehouse') return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
-          m.name.toLowerCase().includes(q) ||
-          m.email_or_phone.toLowerCase().includes(q) ||
-          m.role.toLowerCase().includes(q) ||
-          m.assigned_location.toLowerCase().includes(q)
+          s.name.toLowerCase().includes(q) ||
+          s.contact.toLowerCase().includes(q) ||
+          s.roleLabel.toLowerCase().includes(q) ||
+          s.station.toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [members, roleFilter, searchQuery]);
+  }, [allStaff, roleFilter, searchQuery]);
 
+  // Handle Send Invite
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteName.trim() || !inviteContact.trim()) {
-      toast.error('Please enter team member name and contact info.');
+    if (!inviteContact.trim()) {
+      toast.error('Please enter an email or phone number to send the invitation.');
       return;
     }
 
-    const email = inviteContact.trim();
-    if (email.includes('@')) {
-      try {
-        await api.post('/organizations/invitations', {
-          email,
-          role: inviteRole.toLowerCase().includes('manager') ? 'admin' : 'staff'
-        });
-      } catch (err: any) {
-        console.warn("Backend invitation dispatch note:", err?.message);
-      }
+    setIsSubmittingInvite(true);
+    try {
+      const email = inviteContact.includes('@') ? inviteContact.trim() : `${inviteContact.replace(/[^0-9]/g, '')}@sms.ferasetu.store`;
+      const phone = !inviteContact.includes('@') ? inviteContact.trim() : '';
+
+      await api.post('/organizations/invitations', {
+        email,
+        phone,
+        name: inviteName.trim() || undefined,
+        role: inviteRole,
+        station: inviteStation
+      });
+
+      toast.success(`Invitation sent to ${inviteName || inviteContact}!`);
+      setIsInviteModalOpen(false);
+      setInviteName('');
+      setInviteContact('');
+      setInviteRole('cashier');
+      setInviteStation('Main Billing Counter');
+      queryClient.invalidateQueries({ queryKey: ['orgInvitations'] });
+      queryClient.invalidateQueries({ queryKey: ['orgMembers'] });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to dispatch invitation';
+      toast.error(msg);
+    } finally {
+      setIsSubmittingInvite(false);
     }
-
-    const newMember: StaffMember = {
-      id: `staff-${Date.now()}`,
-      name: inviteName.trim(),
-      email_or_phone: inviteContact.trim(),
-      initials: inviteName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'TM',
-      role: inviteRole,
-      role_subtitle: 'Assigned Role Template',
-      assigned_location: inviteLocation,
-      location_detail: 'Designated Hub',
-      scope: 'Granular least-privilege operations',
-      status: 'pending_invite',
-      last_session: 'Invitation Sent',
-      terminal: 'WhatsApp / SMS'
-    };
-
-    setInvitedMembers(prev => [...prev, newMember]);
-    setIsInviteModalOpen(false);
-    setInviteName('');
-    setInviteContact('');
-    toast.success(`Invitation dispatched to ${newMember.name}!`);
-    refetchMembers();
   };
 
+  // Handle Copy / Share WhatsApp Invite Link
+  const handleShareWhatsApp = (staff: StaffItem) => {
+    const storeSlug = user?.store_slug || 'store';
+    const storeUrl = `https://${storeSlug}.ferasetu.com`;
+    const message = `Namaste ${staff.name}! You are invited to join our store billing desk on FeraSetu as ${staff.roleLabel}. Open this link to sign in: ${storeUrl}/login`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(message);
+    toast.success('Invitation text copied! Opening WhatsApp...');
+
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // Handle Update Member Role / Station
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+
+    try {
+      if (editingMember.status === 'pending') {
+        toast.success(`Role preferences noted for ${editingMember.name}`);
+      } else {
+        await api.patch(`/organizations/members/${editingMember.id}`, {
+          role: editingMember.role,
+          station: editingMember.station
+        });
+        toast.success(`Permissions updated for ${editingMember.name}!`);
+        queryClient.invalidateQueries({ queryKey: ['orgMembers'] });
+      }
+      setEditingMember(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update member');
+    }
+  };
+
+  // Handle Remove Member
+  const handleConfirmRemove = async () => {
+    if (!memberToRemove) return;
+    try {
+      if (memberToRemove.status === 'pending' && memberToRemove.invitationId) {
+        await api.delete(`/organizations/invitations/${memberToRemove.invitationId}`);
+        toast.success(`Invitation revoked for ${memberToRemove.name}`);
+        queryClient.invalidateQueries({ queryKey: ['orgInvitations'] });
+      } else {
+        await api.delete(`/organizations/members/${memberToRemove.id}`);
+        toast.success(`${memberToRemove.name} removed from store staff`);
+        queryClient.invalidateQueries({ queryKey: ['orgMembers'] });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to remove staff member');
+    } finally {
+      setMemberToRemove(null);
+    }
+  };
+
+  // Handle Export CSV
   const handleExportCsv = () => {
-    const headers = ['Name', 'Contact', 'Role', 'Assigned Unit', 'Scope', 'Status', 'Last Session'];
-    const rows = filteredMembers.map(m => [
-      `"${m.name}"`,
-      `"${m.email_or_phone}"`,
-      `"${m.role}"`,
-      `"${m.assigned_location}"`,
-      `"${m.scope}"`,
-      m.status,
-      m.last_session
+    const headers = ['Staff Name', 'Contact Details', 'Assigned Role', 'Physical Station', 'Permissions Scope', 'Status'];
+    const rows = filteredStaff.map(s => [
+      `"${s.name}"`,
+      `"${s.contact}"`,
+      `"${s.roleLabel}"`,
+      `"${s.station}"`,
+      `"${s.scopeSummary}"`,
+      `"${s.status === 'active' ? 'Active' : 'Pending Invite'}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `staff_directory_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `store_staff_directory_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Staff ledger exported to CSV!');
+    toast.success('Staff ledger downloaded as CSV');
   };
 
   return (
-    <div className="w-full min-h-screen bg-surface pb-16">
+    <div className="w-full min-h-screen bg-slate-50/50 pb-20">
       <SEO
         title="Staff & Access Management — Team Directory | FeraSetu"
-        description="Manage store team members, assign physical locations, and enforce least-privilege operational permissions."
+        description="Invite counter cashiers, managers, and stock keepers with least-privilege permissions, keeping your bank payouts safe."
       />
 
-      <div className="max-w-[1280px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-[1240px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* Workspace Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-secondary uppercase tracking-wider">
-              <span>Operations Console</span>
-              <span className="text-outline">/</span>
-              <span className="text-on-surface font-semibold">Access Governance</span>
+        {/* Workspace Breadcrumbs & Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pb-2 border-b border-slate-200/80">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
+              <span>Store Operations</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-900 font-semibold">Team &amp; Access Control</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-on-surface tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
               Staff &amp; Access Management
             </h1>
-            <p className="text-sm text-secondary max-w-2xl">
-              Bring your team together, assign physical store stations, and enforce granular operational permissions under sovereign verification.
+            <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
+              Bring your counter cashiers, shop managers, and warehouse staff together. Delegate billing and inventory safely — your bank accounts and payout profits stay 100% private to you.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             <button
               type="button"
-              onClick={() => setActiveTab('roles')}
-              className="h-10 px-4 rounded-lg bg-surface-container-lowest text-on-surface border border-outline-variant/30 hover:bg-surface-container-low transition-colors text-xs sm:text-sm font-medium flex items-center gap-2 shadow-xs"
+              onClick={handleExportCsv}
+              className="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium flex items-center gap-2 transition-all shadow-xs cursor-pointer"
             >
-              <ShieldCheck size={16} className="text-secondary" />
-              <span>Role Templates &amp; Policies</span>
+              <Download size={15} className="text-slate-500" />
+              <span>Export Ledger</span>
             </button>
             <button
               type="button"
               onClick={() => setIsInviteModalOpen(true)}
-              className="h-10 px-4 rounded-lg bg-primary-container text-on-primary hover:bg-primary transition-colors text-xs sm:text-sm font-medium flex items-center gap-2 shadow-xs"
+              className="h-10 px-5 rounded-xl bg-[#0052FF] hover:bg-[#0040CC] active:scale-[0.98] text-white text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
             >
               <UserPlus size={16} />
               <span>+ Invite Team Member</span>
@@ -264,313 +406,384 @@ export default function StaffPage() {
           </div>
         </div>
 
-        {/* Telemetry Metric Strip */}
+        {/* Confidence & Telemetry Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Metric 1 */}
-          <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-secondary">
-              <span className="text-xs font-semibold uppercase tracking-wider">Total Team</span>
-              <Users size={18} />
+          {/* Stat 1 */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Store Team</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0052FF] flex items-center justify-center">
+                <Users size={16} />
+              </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-on-surface tabular-nums">{totalTeam}</span>
-              <span className="text-xs text-secondary">Registered</span>
+              <span className="text-3xl font-extrabold text-slate-900 tabular-nums">{totalCount}</span>
+              <span className="text-xs text-slate-500">Members</span>
             </div>
-            <div className="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-xs text-secondary">
-              <span>1 Sovereign Owner</span>
-              <span>{totalTeam - 1} Floor Staff</span>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>1 Primary Owner</span>
+              <span className="font-medium text-slate-700">{totalCount - 1} Delegated</span>
             </div>
           </div>
 
-          {/* Metric 2 */}
-          <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-secondary">Active Shift</span>
-              <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide">
+          {/* Stat 2 */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Shifts</span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                LIVE
+                Live Ready
               </span>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-on-surface tabular-nums">{activeShift}</span>
-              <span className="text-xs text-secondary">Devices active</span>
+              <span className="text-3xl font-extrabold text-slate-900 tabular-nums">{activeCount}</span>
+              <span className="text-xs text-slate-500">Terminals active</span>
             </div>
-            <div className="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-xs text-secondary">
-              <span>Store POS + Godown</span>
-              <span className="text-primary font-medium">Synced</span>
-            </div>
-          </div>
-
-          {/* Metric 3 */}
-          <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Pending Approvals</span>
-              <Clock size={18} className="text-amber-700" />
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-amber-900 tabular-nums">{pendingApprovals}</span>
-              <span className="text-xs text-amber-800 font-medium">Awaiting Join</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-xs text-secondary">
-              <span className="truncate">{members.find(m => m.status === 'pending_invite')?.name || 'Staff Member'}</span>
-              <span className="text-amber-800 font-medium">48h Expire</span>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Counter POS &amp; Register</span>
+              <span className="text-emerald-700 font-medium">Synchronized</span>
             </div>
           </div>
 
-          {/* Metric 4 */}
-          <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-secondary">Security Posture</span>
-              <Lock size={18} className="text-primary" />
+          {/* Stat 3 */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Invites</span>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                <Clock size={16} />
+              </div>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-xl font-bold text-on-surface">Enforced</span>
-              <span className="text-xs text-secondary">Least-Privilege</span>
+              <span className="text-3xl font-extrabold text-amber-700 tabular-nums">{pendingCount}</span>
+              <span className="text-xs text-amber-700 font-medium">Awaiting Join</span>
             </div>
-            <div className="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-xs text-secondary">
-              <span>OTP Guard: Bank/Keys</span>
-              <span className="text-emerald-700 font-semibold">100% Locked</span>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>WhatsApp / Email Links</span>
+              <span className="text-amber-700 font-medium">{pendingCount > 0 ? 'Ready to Resend' : 'All Joined'}</span>
+            </div>
+          </div>
+
+          {/* Stat 4 */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Bank &amp; Payout Guard</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Lock size={16} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-xl font-bold text-slate-900">Owner Only</span>
+              <span className="text-xs text-emerald-700 font-semibold">100% Protected</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Bank details &amp; UPI payouts</span>
+              <span className="text-slate-700 font-medium">Never visible to staff</span>
             </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center justify-between border-b border-outline-variant/30 overflow-x-auto scrollbar-none">
-          <div className="flex items-center gap-1">
+        {/* Tab Navigation Segmented Bar */}
+        <div className="flex items-center justify-between border-b border-slate-200/80 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab('members')}
-              className={`px-4 py-2.5 rounded-t-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-all ${
-                activeTab === 'members'
-                  ? 'bg-surface-container text-primary border-b-2 border-primary font-semibold'
-                  : 'text-secondary hover:text-on-surface'
+              onClick={() => setActiveTab('directory')}
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+                activeTab === 'directory'
+                  ? 'border-[#0052FF] text-[#0052FF]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Users size={16} />
-              <span>Team Members</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[11px] bg-primary/10 text-primary font-bold">
-                {members.length}
+              <span>Team Directory</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-[#0052FF]">
+                {allStaff.length}
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('roles')}
-              className={`px-4 py-2.5 rounded-t-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-all ${
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
                 activeTab === 'roles'
-                  ? 'bg-surface-container text-primary border-b-2 border-primary font-semibold'
-                  : 'text-secondary hover:text-on-surface'
+                  ? 'border-[#0052FF] text-[#0052FF]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <ShieldCheck size={16} />
-              <span>Roles &amp; Permissions Matrix</span>
+              <span>Roles &amp; Permissions Guide</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setActiveTab('locations')}
-              className={`px-4 py-2.5 rounded-t-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-all ${
-                activeTab === 'locations'
-                  ? 'bg-surface-container text-primary border-b-2 border-primary font-semibold'
-                  : 'text-secondary hover:text-on-surface'
+              onClick={() => setActiveTab('stations')}
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+                activeTab === 'stations'
+                  ? 'border-[#0052FF] text-[#0052FF]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              <MapPin size={16} />
-              <span>Location Assignments</span>
+              <Store size={16} />
+              <span>Station Assignments</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('audit')}
-              className={`px-4 py-2.5 rounded-t-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-all ${
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
                 activeTab === 'audit'
-                  ? 'bg-surface-container text-primary border-b-2 border-primary font-semibold'
-                  : 'text-secondary hover:text-on-surface'
+                  ? 'border-[#0052FF] text-[#0052FF]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <History size={16} />
-              <span>Administrative Audit Log</span>
+              <span>Access &amp; Security Log</span>
             </button>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 pb-2">
-            <span className="text-xs text-secondary">Store Scope:</span>
-            <span className="text-xs font-semibold px-2 py-0.5 bg-surface-container-high text-on-surface rounded">
-              2 Physical Facilities
+          <div className="hidden md:flex items-center gap-2 pb-3 text-xs text-slate-500">
+            <span>Least-Privilege Principle:</span>
+            <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+              Active &amp; Enforced
             </span>
           </div>
         </div>
 
-        {/* TAB 1: TEAM MEMBERS DIRECTORY */}
-        {activeTab === 'members' && (
-          <div className="flex flex-col space-y-4">
-            {/* Search and Filter Bar */}
-            <div className="bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/30 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-2 flex-1 max-w-md">
-                <Search size={16} className="text-secondary ml-1" />
+        {/* TAB 1: TEAM DIRECTORY */}
+        {activeTab === 'directory' && (
+          <div className="space-y-4">
+            
+            {/* Filter and Search Bar */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter staff by name, phone, or assigned station..."
-                  className="w-full h-9 px-3 bg-surface-container-low rounded-lg border border-outline-variant/30 text-xs text-on-surface placeholder:text-secondary focus:outline-none focus:bg-surface-container-lowest"
+                  placeholder="Search by name, contact, or station..."
+                  className="w-full h-9 pl-9 pr-8 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#0052FF] transition-all"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-secondary">Scope:</span>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                <span className="text-xs text-slate-500 mr-1 shrink-0">Role:</span>
                 <button
                   type="button"
                   onClick={() => setRoleFilter('all')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    roleFilter === 'all' ? 'bg-surface-container text-primary font-semibold' : 'text-secondary hover:text-on-surface'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                    roleFilter === 'all'
+                      ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  All Roles
+                  All ({allStaff.length})
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRoleFilter('store')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    roleFilter === 'store' ? 'bg-surface-container text-primary font-semibold' : 'text-secondary hover:text-on-surface'
+                  onClick={() => setRoleFilter('owner')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                    roleFilter === 'owner'
+                      ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  Storefront Only
+                  Store Owner
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRoleFilter('godown')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    roleFilter === 'godown' ? 'bg-surface-container text-primary font-semibold' : 'text-secondary hover:text-on-surface'
+                  onClick={() => setRoleFilter('admin')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                    roleFilter === 'admin'
+                      ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  Godown Only
+                  Managers
                 </button>
-                <div className="h-4 w-[1px] bg-outline-variant/30 mx-1" />
                 <button
                   type="button"
-                  onClick={handleExportCsv}
-                  className="px-2.5 py-1 rounded-md border border-outline-variant/30 hover:bg-surface-container-low text-on-surface-variant text-xs font-medium flex items-center gap-1 transition-colors"
+                  onClick={() => setRoleFilter('cashier')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                    roleFilter === 'cashier'
+                      ? 'bg-emerald-600 text-white font-semibold shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
                 >
-                  <Download size={14} />
-                  <span>Export Sheet</span>
+                  Cashiers / POS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('warehouse')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                    roleFilter === 'warehouse'
+                      ? 'bg-amber-700 text-white font-semibold shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Stock Keepers
                 </button>
               </div>
             </div>
 
-            {/* Tabular Directory Ledger */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden shadow-xs">
+            {/* Staff Directory Table */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-outline-variant/30 bg-surface-container-low/50 text-xs font-semibold uppercase tracking-wider text-secondary">
-                      <th className="py-3 px-4">Member Identification</th>
-                      <th className="py-3 px-4">Role Template</th>
-                      <th className="py-3 px-4">Assigned Physical Unit</th>
-                      <th className="py-3 px-4">Operational Scope</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Last Session</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                    <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Team Member</th>
+                      <th className="py-3.5 px-4">Role &amp; Responsibilities</th>
+                      <th className="py-3.5 px-4">Assigned Station</th>
+                      <th className="py-3.5 px-4">Security Scope</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-6 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-outline-variant/20 text-xs text-on-surface">
-                    {filteredMembers.map(member => (
-                      <tr key={member.id} className="hover:bg-surface-container-low/40 transition-colors">
-                        <td className="py-3.5 px-4">
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                    {filteredStaff.map((staff) => (
+                      <tr key={staff.id} className="hover:bg-slate-50/60 transition-colors">
+                        
+                        {/* Member Identity */}
+                        <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary text-xs font-bold flex items-center justify-center shrink-0">
-                              {member.initials}
+                            <div
+                              className={`w-10 h-10 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 ${
+                                staff.isOwner
+                                  ? 'bg-slate-900 text-white shadow-xs'
+                                  : staff.role === 'admin'
+                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                                  : staff.role === 'warehouse'
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200/60'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                              }`}
+                            >
+                              {staff.initials}
                             </div>
                             <div className="flex flex-col min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-on-surface truncate">{member.name}</span>
-                                {member.status === 'active_owner' && (
-                                  <ShieldCheck size={14} className="text-primary shrink-0" title="Store Owner Key" />
+                                <span className="font-bold text-slate-900 truncate text-sm">
+                                  {staff.name}
+                                </span>
+                                {staff.isOwner && (
+                                  <span
+                                    title="Primary Store Owner"
+                                    className="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded"
+                                  >
+                                    <ShieldCheck size={11} className="text-[#0052FF]" />
+                                    Owner
+                                  </span>
                                 )}
                               </div>
-                              <span className="text-secondary text-[11px] truncate">{member.email_or_phone}</span>
+                              <span className="text-slate-500 text-xs truncate">{staff.contact}</span>
                             </div>
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-on-surface">{member.role}</span>
-                            <span className="text-secondary text-[11px]">{member.role_subtitle}</span>
+                        {/* Role Details */}
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span
+                              className={`inline-flex items-center w-fit px-2 py-0.5 rounded-md font-semibold text-xs ${
+                                staff.isOwner
+                                  ? 'bg-slate-900 text-white'
+                                  : staff.role === 'admin'
+                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                                  : staff.role === 'warehouse'
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200/60'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                              }`}
+                            >
+                              {staff.roleLabel}
+                            </span>
+                            <span className="text-[11px] text-slate-500 leading-tight">
+                              {staff.roleDescription}
+                            </span>
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${
-                              member.assigned_location === 'All Locations' ? 'bg-primary' : 'bg-secondary'
-                            }`} />
-                            <span className="font-medium text-on-surface">{member.assigned_location}</span>
+                        {/* Station */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-1.5 text-slate-800 font-medium">
+                            <MapPin size={13} className="text-slate-400 shrink-0" />
+                            <span className="truncate">{staff.station}</span>
                           </div>
-                          <span className="text-secondary text-[11px] block">{member.location_detail}</span>
                         </td>
 
-                        <td className="py-3.5 px-4 max-w-xs">
-                          <span className="text-on-surface-variant line-clamp-2 leading-relaxed">
-                            {member.scope}
+                        {/* Scope */}
+                        <td className="py-4 px-4 max-w-xs">
+                          <span className="text-slate-600 line-clamp-2 leading-relaxed text-[11px]">
+                            {staff.scopeSummary}
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-4">
-                          {member.status === 'active_owner' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                              Active (Owner)
-                            </span>
-                          )}
-                          {member.status === 'active' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800">
+                        {/* Status */}
+                        <td className="py-4 px-4">
+                          {staff.status === 'active' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                               Active
                             </span>
-                          )}
-                          {member.status === 'pending_invite' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                              Pending Invite (48h)
+                              Pending Invite
                             </span>
                           )}
                         </td>
 
-                        <td className="py-3.5 px-4 text-right">
-                          <span className="font-semibold text-on-surface">{member.last_session}</span>
-                          <span className="block text-secondary text-[11px]">{member.terminal}</span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          {member.status === 'pending_invite' ? (
-                            <button
-                              type="button"
-                              onClick={() => toast.success(`Invitation re-sent to ${member.email_or_phone}`)}
-                              className="px-2.5 py-1 rounded bg-surface-container text-primary hover:bg-surface-container-high transition-colors font-medium text-xs inline-flex items-center gap-1"
-                            >
-                              <Send size={12} />
-                              <span>Resend</span>
-                            </button>
-                          ) : member.status === 'active_owner' ? (
-                            <span className="text-secondary text-[11px] font-mono">Immutable</span>
-                          ) : (
-                            <div className="inline-flex items-center gap-1">
+                        {/* Actions */}
+                        <td className="py-4 px-6 text-right">
+                          {staff.isOwner ? (
+                            <span className="text-xs text-slate-400 font-medium italic">
+                              Immutable Super Admin
+                            </span>
+                          ) : staff.status === 'pending' ? (
+                            <div className="inline-flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => toast.success(`Configuring policies for ${member.name}`)}
-                                className="p-1.5 rounded hover:bg-surface-container text-secondary hover:text-primary transition-colors"
-                                title="Adjust Roles"
+                                onClick={() => handleShareWhatsApp(staff)}
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60 font-semibold text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                                title="Share invitation message via WhatsApp"
                               >
-                                <Sliders size={16} />
+                                <Send size={12} />
+                                <span>WhatsApp Link</span>
                               </button>
                               <button
                                 type="button"
-                                onClick={() => toast.success(`Revoked session for ${member.name}`)}
-                                className="p-1.5 rounded hover:bg-surface-container text-secondary hover:text-rose-600 transition-colors"
-                                title="Sign Out Session"
+                                onClick={() => setMemberToRemove(staff)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Revoke invitation"
                               >
-                                <LogOut size={16} />
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setEditingMember(staff)}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                              >
+                                <Sliders size={13} className="text-slate-500" />
+                                <span>Edit Role</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setMemberToRemove(staff)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Remove staff member"
+                              >
+                                <Trash2 size={15} />
                               </button>
                             </div>
                           )}
@@ -580,25 +793,30 @@ export default function StaffPage() {
                   </tbody>
                 </table>
               </div>
-              {members.length === 1 && (
-                <div className="p-5 bg-surface-container-low/50 border-t border-outline-variant/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0052FF] flex items-center justify-center shrink-0">
-                      <Users size={20} />
+
+              {/* Zero State if only Owner */}
+              {allStaff.length === 1 && (
+                <div className="p-8 sm:p-10 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0052FF] flex items-center justify-center shrink-0">
+                      <Users size={24} />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-on-surface">No additional staff members yet</h4>
-                      <p className="text-[11px] text-secondary">
-                        You are currently the sole administrator. Invite cashiers or managers with custom access control to delegate store operations safely.
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Ready to add your counter boys, billing cashiers, or godown staff?
+                      </h4>
+                      <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+                        Delegating store tasks takes 30 seconds. They sign in from their own phone or tablet to scan barcodes and create bills — without seeing your bank account, payout logs, or profit margins.
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsInviteModalOpen(true)}
-                    className="px-3.5 py-1.5 rounded-lg bg-[#0052FF] text-white text-xs font-semibold hover:bg-[#0040CC] transition-colors shrink-0 cursor-pointer"
+                    className="h-10 px-5 rounded-xl bg-[#0052FF] hover:bg-[#0040CC] active:scale-[0.98] text-white text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all shadow-sm shrink-0 cursor-pointer"
                   >
-                    + Invite Staff Member
+                    <UserPlus size={16} />
+                    <span>+ Invite First Staff Member</span>
                   </button>
                 </div>
               )}
@@ -606,148 +824,381 @@ export default function StaffPage() {
           </div>
         )}
 
-        {/* TAB 2: ROLES & PERMISSIONS MATRIX */}
+        {/* TAB 2: ROLES & PERMISSIONS GUIDE */}
         {activeTab === 'roles' && (
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-6 shadow-xs space-y-4">
+          <div className="space-y-6">
+            
+            {/* Role Cards Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              
+              {/* Role 1: Store Manager */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                      Manager Access
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mt-4">Store Manager</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Ideal for your trusted head manager who runs daily shop operations, updates products, and resolves customer orders.
+                  </p>
+                  
+                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs">
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Manage orders, packing, and dispatch</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Add new products &amp; update prices</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Customer roster &amp; Khata ledger balance</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-600">
+                      <X size={14} className="text-rose-500 shrink-0" />
+                      <span>Cannot modify bank accounts or payouts</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-600">
+                      <X size={14} className="text-rose-500 shrink-0" />
+                      <span>Cannot delete store or transfer ownership</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteRole('admin');
+                    setIsInviteModalOpen(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                >
+                  Invite Store Manager
+                </button>
+              </div>
+
+              {/* Role 2: Counter Cashier */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <Receipt size={20} />
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                      Counter POS Billing
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mt-4">Counter Cashier</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Designed for your front desk billing staff. Optimized for rapid barcode scanning, accepting UPI/cash, and printing receipts.
+                  </p>
+                  
+                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs">
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Fast POS order creation &amp; barcode scan</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Accept Cash &amp; Dynamic UPI QR payments</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Print thermal receipts &amp; WhatsApp slips</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-600">
+                      <X size={14} className="text-rose-500 shrink-0" />
+                      <span>Zero access to wholesale margins or profit</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-600">
+                      <X size={14} className="text-rose-500 shrink-0" />
+                      <span>Zero access to bank accounts or settings</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteRole('cashier');
+                    setIsInviteModalOpen(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold border border-emerald-200/60 transition-colors cursor-pointer"
+                >
+                  Invite Counter Cashier
+                </button>
+              </div>
+
+              {/* Role 3: Warehouse & Stock Keeper */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center">
+                      <Warehouse size={20} />
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/60">
+                      Godown &amp; Stock
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mt-4">Stock Keeper</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Designed for godown managers and warehouse boys who receive supplier goods and manage inventory transfers.
+                  </p>
+                  
+                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs">
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Receive stock from supplier challans</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Adjust stock levels &amp; count inventory</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>Initiate inter-facility stock transfers</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-600">
+                      <X size={14} className="text-rose-500 shrink-0" />
+                      <span>Cannot view sales revenue or customer details</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-600">
+                      <X size={14} className="text-rose-500 shrink-0" />
+                      <span>Cannot access bank accounts or payouts</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteRole('warehouse');
+                    setIsInviteModalOpen(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200/60 transition-colors cursor-pointer"
+                >
+                  Invite Stock Keeper
+                </button>
+              </div>
+
+            </div>
+
+            {/* Matrix Comparison Table */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Capabilities Comparison Matrix</h3>
+                <p className="text-xs text-slate-500">
+                  Granular permission enforcement across store operations, payments, and system controls.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-200">
+                      <th className="py-3 px-4">Capability &amp; Operation</th>
+                      <th className="py-3 px-4 text-center">Store Owner (You)</th>
+                      <th className="py-3 px-4 text-center">Store Manager</th>
+                      <th className="py-3 px-4 text-center">Counter Cashier</th>
+                      <th className="py-3 px-4 text-center">Stock Keeper</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-800">
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">Counter POS Billing &amp; Invoices</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-slate-300">&mdash;</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">Product Catalog &amp; Retail Pricing</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-slate-400">View Only</td>
+                      <td className="py-3 px-4 text-center text-slate-400">View Only</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">Stock Inward &amp; Godown Transfers</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-slate-300">&mdash;</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">Customer Orders &amp; Khata Ledgers</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-semibold">&check; Counter Only</td>
+                      <td className="py-3 px-4 text-center text-slate-300">&mdash;</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">Bank Accounts, UPI &amp; Payouts</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Owner Only</td>
+                      <td className="py-3 px-4 text-center text-rose-600 font-semibold">&cross; Blocked</td>
+                      <td className="py-3 px-4 text-center text-rose-600 font-semibold">&cross; Blocked</td>
+                      <td className="py-3 px-4 text-center text-rose-600 font-semibold">&cross; Blocked</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">Domain Settings &amp; Store Deletion</td>
+                      <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Owner Only</td>
+                      <td className="py-3 px-4 text-center text-rose-600 font-semibold">&cross; Blocked</td>
+                      <td className="py-3 px-4 text-center text-rose-600 font-semibold">&cross; Blocked</td>
+                      <td className="py-3 px-4 text-center text-rose-600 font-semibold">&cross; Blocked</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 3: STATION ASSIGNMENTS */}
+        {activeTab === 'stations' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Station 1 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0052FF] flex items-center justify-center">
+                    <Store size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Main Retail Counter</h3>
+                    <p className="text-xs text-slate-500">Front billing desk &amp; register printer</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-[#0052FF]">
+                  {allStaff.filter(s => s.station.toLowerCase().includes('counter') || s.isOwner).length} Personnel
+                </span>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                {allStaff
+                  .filter(s => s.station.toLowerCase().includes('counter') || s.isOwner)
+                  .map(s => (
+                    <div key={s.id} className="p-3 rounded-xl bg-slate-50 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-[11px] flex items-center justify-center text-slate-800">
+                          {s.initials}
+                        </span>
+                        <div>
+                          <span className="font-semibold text-slate-900 block">{s.name}</span>
+                          <span className="text-[11px] text-slate-500">{s.roleLabel}</span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                        Terminal Active
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Station 2 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center">
+                    <Warehouse size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Central Godown Hub</h3>
+                    <p className="text-xs text-slate-500">Inventory intake &amp; bulk transfers</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800">
+                  {allStaff.filter(s => s.station.toLowerCase().includes('godown') || s.station.toLowerCase().includes('warehouse') || s.isOwner).length} Personnel
+                </span>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                {allStaff
+                  .filter(s => s.station.toLowerCase().includes('godown') || s.station.toLowerCase().includes('warehouse') || s.isOwner)
+                  .map(s => (
+                    <div key={s.id} className="p-3 rounded-xl bg-slate-50 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-[11px] flex items-center justify-center text-slate-800">
+                          {s.initials}
+                        </span>
+                        <div>
+                          <span className="font-semibold text-slate-900 block">{s.name}</span>
+                          <span className="text-[11px] text-slate-500">{s.roleLabel}</span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        Receiving Dock
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: ACCESS & SECURITY AUDIT LOG */}
+        {activeTab === 'audit' && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-4">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-on-surface">Roles &amp; Sovereign Permissions Matrix</h2>
-              <p className="text-xs text-secondary">
-                Enforce least-privilege access across orders, inventory, payouts, and system configurations.
+              <h3 className="text-base font-bold text-slate-900">Security &amp; Staff Activity Feed</h3>
+              <p className="text-xs text-slate-500">
+                Transparent activity ledger for staff logins, dispatched invitations, and permission updates.
               </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-surface-container-low text-secondary font-semibold uppercase tracking-wider border-b border-outline-variant/20">
-                    <th className="py-3 px-4">Operational Capability</th>
-                    <th className="py-3 px-4 text-center">Store Owner</th>
-                    <th className="py-3 px-4 text-center">Godown Manager</th>
-                    <th className="py-3 px-4 text-center">Counter Cashier</th>
-                    <th className="py-3 px-4 text-center">Fulfillment Staff</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/20 text-on-surface">
-                  <tr>
-                    <td className="py-3 px-4 font-semibold">Counter POS &amp; Order Billing</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
-                    <td className="py-3 px-4 text-center text-secondary">&mdash;</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
-                    <td className="py-3 px-4 text-center text-secondary">&mdash;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 px-4 font-semibold">Stock Inward &amp; Godown Transfers</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Full</td>
-                    <td className="py-3 px-4 text-center text-secondary">&mdash;</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-semibold">&check; View Only</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 px-4 font-semibold">Bank Accounts, UPI &amp; Payout Sweep</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Sovereign</td>
-                    <td className="py-3 px-4 text-center text-rose-700 font-bold">&cross; Blocked</td>
-                    <td className="py-3 px-4 text-center text-rose-700 font-bold">&cross; Blocked</td>
-                    <td className="py-3 px-4 text-center text-rose-700 font-bold">&cross; Blocked</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 px-4 font-semibold">Custom Domains &amp; DNS Keys</td>
-                    <td className="py-3 px-4 text-center text-emerald-700 font-bold">&check; Sovereign</td>
-                    <td className="py-3 px-4 text-center text-rose-700 font-bold">&cross; Blocked</td>
-                    <td className="py-3 px-4 text-center text-rose-700 font-bold">&cross; Blocked</td>
-                    <td className="py-3 px-4 text-center text-rose-700 font-bold">&cross; Blocked</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: LOCATION ASSIGNMENTS */}
-        {activeTab === 'locations' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Building2 size={20} className="text-primary" />
-                  <h3 className="text-sm font-semibold text-on-surface">Main Retail Storefront</h3>
+            <div className="space-y-2.5 text-xs">
+              <div className="p-3.5 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900 block">
+                      Store Owner session verified ({ownerName})
+                    </span>
+                    <span className="text-slate-500 text-[11px]">Primary admin sovereignty confirmed</span>
+                  </div>
                 </div>
-                <span className="text-xs bg-surface-container text-primary px-2 py-0.5 rounded font-semibold">
-                  3 Assigned
-                </span>
-              </div>
-              <p className="text-xs text-secondary">Assigned personnel have active billing and register desk privileges.</p>
-              <div className="space-y-2 pt-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
-                  <span className="font-semibold text-on-surface">{ownerName} (Owner)</span>
-                  <span className="text-emerald-700 font-medium">Terminal #1</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
-                  <span className="font-semibold text-on-surface">Priya Sharma (Cashier)</span>
-                  <span className="text-emerald-700 font-medium">Register Tablet</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
-                  <span className="font-semibold text-on-surface">Ramesh Yadav (Packing)</span>
-                  <span className="text-amber-800 font-medium">Pending Join</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Building2 size={20} className="text-secondary" />
-                  <h3 className="text-sm font-semibold text-on-surface">Central Godown Hub</h3>
-                </div>
-                <span className="text-xs bg-surface-container-high text-secondary px-2 py-0.5 rounded font-semibold">
-                  2 Assigned
-                </span>
-              </div>
-              <p className="text-xs text-secondary">Personnel authorized to accept supplier challans and dispatch transfers.</p>
-              <div className="space-y-2 pt-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
-                  <span className="font-semibold text-on-surface">{ownerName} (Owner)</span>
-                  <span className="text-emerald-700 font-medium">All Units</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
-                  <span className="font-semibold text-on-surface">Rajesh Kumar (Depot Lead)</span>
-                  <span className="text-emerald-700 font-medium">Handheld #4</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: AUDIT LOG */}
-        {activeTab === 'audit' && (
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-6 shadow-xs space-y-3">
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-on-surface">Administrative Security &amp; Access Log</h2>
-              <p className="text-xs text-secondary">Cryptographic audit trail of all staff authentication and permission updates.</p>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="p-3 bg-surface-container-low rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-emerald-600" />
-                  <span className="font-medium text-on-surface">Store Owner terminal session authenticated</span>
-                </div>
-                <span className="text-secondary">Today, 08:00 AM &bull; IP 49.36.128.4</span>
+                <span className="text-slate-400 text-xs">Active Session</span>
               </div>
 
-              <div className="p-3 bg-surface-container-low rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Send size={16} className="text-primary" />
-                  <span className="font-medium text-on-surface">Dispatched SMS invitation to Ramesh Yadav (+91 98201 44820)</span>
+              {pendingCount > 0 && (
+                <div className="p-3.5 bg-amber-50/60 rounded-xl flex items-center justify-between border border-amber-200/60">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                      <Send size={16} />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-900 block">
+                        {pendingCount} Staff Invitation{pendingCount > 1 ? 's' : ''} Dispatched
+                      </span>
+                      <span className="text-slate-500 text-[11px]">Awaiting acceptance from invited team members</span>
+                    </div>
+                  </div>
+                  <span className="text-amber-700 font-semibold text-xs">Pending Join</span>
                 </div>
-                <span className="text-secondary">Yesterday, 04:30 PM &bull; Console</span>
-              </div>
+              )}
 
-              <div className="p-3 bg-surface-container-low rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Key size={16} className="text-secondary" />
-                  <span className="font-medium text-on-surface">Cashier role policy refreshed: POS restricted to Vasai node</span>
+              <div className="p-3.5 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0052FF] flex items-center justify-center shrink-0">
+                    <Lock size={16} />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900 block">
+                      Bank &amp; UPI Settlement Security Enforced
+                    </span>
+                    <span className="text-slate-500 text-[11px]">Staff restricted from seeing bank account numbers or withdrawal keys</span>
+                  </div>
                 </div>
-                <span className="text-secondary">Nov 06, 02:15 PM &bull; Sovereign Key</span>
+                <span className="text-emerald-700 font-semibold text-xs">Always Active</span>
               </div>
             </div>
           </div>
@@ -755,97 +1206,263 @@ export default function StaffPage() {
 
       </div>
 
-      {/* Invite Member Modal */}
-      {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <form onSubmit={handleSendInvite} className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 border border-outline-variant/30 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
-              <div>
-                <h3 className="text-base font-bold text-on-surface">Invite Team Member</h3>
-                <p className="text-xs text-secondary">Send sovereign WhatsApp / SMS invite link with designated role.</p>
+      {/* ──────────────────────────────────────────────────────────── */}
+      {/* MODAL 1: INVITE TEAM MEMBER MODAL */}
+      {/* ──────────────────────────────────────────────────────────── */}
+      <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+        <DialogContent className="max-w-lg p-6 bg-white rounded-2xl shadow-xl border border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Invite a Team Member
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Assign a role and designated counter station. They will receive an instant login link via email or WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSendInvite} className="space-y-4 pt-2">
+            
+            {/* Field: Name */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                required
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="e.g. Ramesh Patel"
+                className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#0052FF] transition-all"
+              />
+            </div>
+
+            {/* Field: Contact */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                WhatsApp Phone or Email Address
+              </label>
+              <input
+                type="text"
+                required
+                value={inviteContact}
+                onChange={(e) => setInviteContact(e.target.value)}
+                placeholder="+91 98765 43210 or cashier@gmail.com"
+                className="w-full h-10 px-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#0052FF] transition-all"
+              />
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Enter their WhatsApp number to send the invite directly via WhatsApp.
+              </span>
+            </div>
+
+            {/* Field: Role Selector (3 visual cards) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">
+                Select Store Role
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                
+                {/* Option 1: Cashier */}
+                <div
+                  onClick={() => setInviteRole('cashier')}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    inviteRole === 'cashier'
+                      ? 'border-[#0052FF] bg-blue-50/50 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <Receipt size={16} className={inviteRole === 'cashier' ? 'text-[#0052FF]' : 'text-slate-500'} />
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                      inviteRole === 'cashier' ? 'border-[#0052FF] bg-[#0052FF]' : 'border-slate-300'
+                    }`}>
+                      {inviteRole === 'cashier' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                  </div>
+                  <h5 className="text-xs font-bold text-slate-900">Cashier / POS</h5>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Counter billing &amp; receipts only</p>
+                </div>
+
+                {/* Option 2: Manager */}
+                <div
+                  onClick={() => setInviteRole('admin')}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    inviteRole === 'admin'
+                      ? 'border-[#0052FF] bg-blue-50/50 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <ShieldCheck size={16} className={inviteRole === 'admin' ? 'text-[#0052FF]' : 'text-slate-500'} />
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                      inviteRole === 'admin' ? 'border-[#0052FF] bg-[#0052FF]' : 'border-slate-300'
+                    }`}>
+                      {inviteRole === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                  </div>
+                  <h5 className="text-xs font-bold text-slate-900">Store Manager</h5>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Orders, products &amp; stock</p>
+                </div>
+
+                {/* Option 3: Warehouse */}
+                <div
+                  onClick={() => setInviteRole('warehouse')}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    inviteRole === 'warehouse'
+                      ? 'border-[#0052FF] bg-blue-50/50 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <Warehouse size={16} className={inviteRole === 'warehouse' ? 'text-[#0052FF]' : 'text-slate-500'} />
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                      inviteRole === 'warehouse' ? 'border-[#0052FF] bg-[#0052FF]' : 'border-slate-300'
+                    }`}>
+                      {inviteRole === 'warehouse' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                  </div>
+                  <h5 className="text-xs font-bold text-slate-900">Stock Keeper</h5>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Godown intake &amp; count</p>
+                </div>
+
               </div>
-              <button
-                type="button"
-                onClick={() => setIsInviteModalOpen(false)}
-                className="text-secondary hover:text-on-surface p-1"
+            </div>
+
+            {/* Field: Station */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Assigned Station
+              </label>
+              <select
+                value={inviteStation}
+                onChange={(e) => setInviteStation(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:outline-none focus:bg-white focus:border-[#0052FF]"
               >
-                <X size={20} />
-              </button>
+                {availableStations.map(station => (
+                  <option key={station} value={station}>{station}</option>
+                ))}
+              </select>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-secondary font-medium mb-1">Full Legal Name</label>
-                <input
-                  type="text"
-                  required
-                  value={inviteName}
-                  onChange={(e) => setInviteName(e.target.value)}
-                  placeholder="e.g. Suresh Patel"
-                  className="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface border border-outline-variant/30 focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-secondary font-medium mb-1">WhatsApp Mobile or Email</label>
-                <input
-                  type="text"
-                  required
-                  value={inviteContact}
-                  onChange={(e) => setInviteContact(e.target.value)}
-                  placeholder="+91 98765 43210 or staff@gmail.com"
-                  className="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface border border-outline-variant/30 focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-secondary font-medium mb-1">Role Template</label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface border border-outline-variant/30 focus:outline-none"
-                  >
-                    <option>Counter Cashier</option>
-                    <option>Godown Manager</option>
-                    <option>Fulfillment Associate</option>
-                    <option>Store Assistant</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-secondary font-medium mb-1">Primary Physical Location</label>
-                  <select
-                    value={inviteLocation}
-                    onChange={(e) => setInviteLocation(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface border border-outline-variant/30 focus:outline-none"
-                  >
-                    <option>Main Retail Storefront</option>
-                    <option>Central Godown Hub</option>
-                    <option>All Locations</option>
-                  </select>
-                </div>
-              </div>
+            {/* Bank Protection Assurance Banner */}
+            <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60 flex items-start gap-2.5 text-xs text-emerald-800">
+              <Lock size={15} className="text-emerald-700 shrink-0 mt-0.5" />
+              <span>
+                <strong>0% Bank Exposure:</strong> Staff accounts can never view your bank account number, UPI settlement ledger, or profit margins.
+              </span>
             </div>
 
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant/20">
+            <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row items-center justify-between gap-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setIsInviteModalOpen(false)}
-                className="h-10 px-4 rounded-lg bg-surface-container text-on-surface text-xs font-medium hover:bg-surface-container-high transition-colors"
+                className="w-full sm:w-auto h-10 px-4 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="h-10 px-5 rounded-lg bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors flex items-center gap-1.5"
-              >
-                <Send size={14} />
-                <span>Dispatch Invitation</span>
-              </button>
-            </div>
+              
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="submit"
+                  disabled={isSubmittingInvite}
+                  className="w-full sm:w-auto h-10 px-5 rounded-xl bg-[#0052FF] hover:bg-[#0040CC] active:scale-[0.98] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingInvite ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Send size={14} />
+                  )}
+                  <span>{isSubmittingInvite ? 'Dispatching...' : 'Send Invitation'}</span>
+                </button>
+              </div>
+            </DialogFooter>
+
           </form>
-        </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ──────────────────────────────────────────────────────────── */}
+      {/* MODAL 2: EDIT ROLE / STATION */}
+      {/* ──────────────────────────────────────────────────────────── */}
+      {editingMember && (
+        <Dialog open={Boolean(editingMember)} onOpenChange={(open) => !open && setEditingMember(null)}>
+          <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-slate-200">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Edit Access: {editingMember.name}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Update assigned role template or physical store station.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleUpdateMember} className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Designated Role
+                </label>
+                <select
+                  value={editingMember.role}
+                  onChange={(e) => setEditingMember({ ...editingMember, role: e.target.value as any })}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:outline-none focus:bg-white focus:border-[#0052FF]"
+                >
+                  <option value="cashier">Counter Cashier (POS &amp; Receipts)</option>
+                  <option value="admin">Store Manager (Catalog &amp; Orders)</option>
+                  <option value="warehouse">Stock Keeper (Godown Intake)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Physical Station
+                </label>
+                <select
+                  value={editingMember.station}
+                  onChange={(e) => setEditingMember({ ...editingMember, station: e.target.value })}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:outline-none focus:bg-white focus:border-[#0052FF]"
+                >
+                  {availableStations.map(station => (
+                    <option key={station} value={station}>{station}</option>
+                  ))}
+                </select>
+              </div>
+
+              <DialogFooter className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  className="h-10 px-4 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="h-10 px-5 rounded-xl bg-[#0052FF] hover:bg-[#0040CC] text-white text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
+
+      {/* ──────────────────────────────────────────────────────────── */}
+      {/* MODAL 3: CONFIRM REMOVE STAFF MEMBER */}
+      {/* ──────────────────────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={Boolean(memberToRemove)}
+        onOpenChange={(open) => !open && setMemberToRemove(null)}
+        title={memberToRemove?.status === 'pending' ? 'Revoke Staff Invitation?' : `Remove ${memberToRemove?.name}?`}
+        description={
+          memberToRemove?.status === 'pending'
+            ? `Are you sure you want to cancel the pending invitation to ${memberToRemove?.name} (${memberToRemove?.contact})? The invite link will expire immediately.`
+            : `Are you sure you want to remove ${memberToRemove?.name} from your store team? They will immediately lose access to the billing terminal and catalog.`
+        }
+        confirmLabel={memberToRemove?.status === 'pending' ? 'Revoke Invite' : 'Remove Staff Member'}
+        variant="destructive"
+        onConfirm={handleConfirmRemove}
+      />
 
     </div>
   );

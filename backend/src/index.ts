@@ -34,6 +34,7 @@ import announcementsRoutes from './routes/announcements';
 import giftCardsRoutes from './routes/giftCards';
 import transfersRoutes from './routes/transfers';
 import integrationsRoutes from './routes/integrations';
+import organizationsRoutes from './routes/organizations';
 import { errorHandler } from './middleware/errorHandler';
 import { createRateLimiter } from './middleware/rateLimiter';
 import fs from 'fs';
@@ -270,6 +271,7 @@ app.use('/api/announcements', announcementsRoutes);
 app.use('/api/gift-cards', giftCardsRoutes);
 app.use('/api/transfers', transfersRoutes);
 app.use('/api/integrations', integrationsRoutes);
+app.use('/api/organizations', organizationsRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

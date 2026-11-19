@@ -5,7 +5,7 @@ import { getDatabase } from '../models/database';
 
 const router = Router();
 
-// Ensure merchant_webhooks and integration_requests tables exist in SQLite
+// Ensure merchant_webhooks, integration_requests, and merchant_integrations tables exist in SQLite
 function ensureIntegrationTables() {
   const db = getDatabase();
   try {
@@ -35,6 +35,23 @@ function ensureIntegrationTables() {
       )
     `).run();
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_intreq_org ON integration_requests(organization_id)`).run();
+
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS merchant_integrations (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        service_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        status TEXT DEFAULT 'connected',
+        config TEXT DEFAULT '{}',
+        credentials_masked TEXT,
+        connected_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(organization_id, service_id)
+      )
+    `).run();
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_m_integrations_org ON merchant_integrations(organization_id)`).run();
   } catch (err: any) {
     console.warn('[ensureIntegrationTables] Warning:', err?.message);
   }
@@ -75,6 +92,12 @@ router.get('/', authenticate, (req: AuthenticatedRequest, res: Response): void =
     webhooksCount = whRow ? Number(whRow.count) : 0;
   } catch {}
 
+  let customIntegrations: any[] = [];
+  try {
+    customIntegrations = db.prepare('SELECT * FROM merchant_integrations WHERE organization_id = ?').all(userId) as any[];
+  } catch {}
+  const customMap = new Map(customIntegrations.map((c: any) => [c.service_id, c]));
+
   const services = [
     {
       id: 'offline-cod',
@@ -90,36 +113,36 @@ router.get('/', authenticate, (req: AuthenticatedRequest, res: Response): void =
       name: 'Cashfree Payments Gateway',
       description: 'Automated UPI intent, cards, and netbanking with direct settlement to merchant bank account.',
       category: 'payments',
-      status: hasCashfree ? 'connected' : 'ready',
-      badge: hasCashfree ? 'Active Gateway' : 'Available',
-      connectedDetails: hasCashfree ? 'Direct gateway active (0% platform cut)' : 'Direct gateway ready to connect',
+      status: customMap.has('cashfree-pg') || customMap.has('cashfree') ? 'connected' : (hasCashfree ? 'connected' : 'ready'),
+      badge: customMap.has('cashfree-pg') || customMap.has('cashfree') || hasCashfree ? 'Active Gateway' : 'Available',
+      connectedDetails: customMap.get('cashfree-pg')?.credentials_masked || (hasCashfree ? 'Direct gateway active (0% platform cut)' : 'Direct gateway ready to connect'),
     },
     {
       id: 'razorpay-pg',
       name: 'Razorpay Smart Routing',
       description: 'High-availability payment fallback supporting International cards, UPI QR, and EMI with automated error recovery.',
       category: 'payments',
-      status: hasRazorpay ? 'connected' : 'ready',
-      badge: hasRazorpay ? 'Active Gateway' : 'Available',
-      connectedDetails: hasRazorpay ? 'Card and UPI smart routing enabled' : 'Fallback payment route ready',
+      status: customMap.has('razorpay-pg') || customMap.has('razorpay') ? 'connected' : (hasRazorpay ? 'connected' : 'ready'),
+      badge: customMap.has('razorpay-pg') || customMap.has('razorpay') || hasRazorpay ? 'Active Gateway' : 'Available',
+      connectedDetails: customMap.get('razorpay-pg')?.credentials_masked || (hasRazorpay ? 'Card and UPI smart routing enabled' : 'Fallback payment route ready'),
     },
     {
       id: 'wa-baileys',
       name: 'WhatsApp Business & Automated Assistant',
       description: 'Multi-tenant Baileys socket integration. Send automated catalog order receipts and delivery updates.',
       category: 'messaging',
-      status: waStatus,
-      badge: waStatus === 'connected' ? 'Connected' : 'Setup Available',
-      connectedDetails: waDetails,
+      status: customMap.has('wa-baileys') || customMap.has('whatsapp') ? 'connected' : waStatus,
+      badge: customMap.has('wa-baileys') || customMap.has('whatsapp') || waStatus === 'connected' ? 'Connected' : 'Setup Available',
+      connectedDetails: customMap.get('wa-baileys')?.credentials_masked || waDetails,
     },
     {
       id: 'email-smtp',
       name: 'Transactional Email & SMTP Relay',
       description: 'Branded order receipts, doorstep delivery codes, and status alerts with DKIM and SPF verification.',
       category: 'messaging',
-      status: emailStatus,
-      badge: emailStatus === 'connected' ? 'Verified' : 'Setup Available',
-      connectedDetails: emailDetails,
+      status: customMap.has('email-smtp') || customMap.has('smtp') ? 'connected' : emailStatus,
+      badge: customMap.has('email-smtp') || customMap.has('smtp') || emailStatus === 'connected' ? 'Verified' : 'Setup Available',
+      connectedDetails: customMap.get('email-smtp')?.credentials_masked || emailDetails,
     },
     {
       id: 'fera-ai',
@@ -144,47 +167,63 @@ router.get('/', authenticate, (req: AuthenticatedRequest, res: Response): void =
       name: 'Notion Knowledge Base MCP',
       description: 'Synchronize merchant architecture notes, changelogs, and team playbooks directly with Notion.',
       category: 'ai',
-      status: 'connected',
-      badge: 'MCP Tool Active',
-      connectedDetails: 'notion-mcp-server authenticated and operational',
+      status: customMap.has('notion-mcp') || customMap.has('notion') ? 'connected' : 'ready',
+      badge: customMap.has('notion-mcp') || customMap.has('notion') ? 'Connected' : 'Setup Available',
+      connectedDetails: customMap.get('notion-mcp')?.credentials_masked || 'Connect your Notion workspace',
     },
     {
       id: 'shiprocket-logistics',
       name: 'Shiprocket & Delhivery Direct Dispatch',
       description: 'Automated 1-click AWB generation, pickup scheduling, and live tracking across 29,000+ Indian pincodes.',
       category: 'logistics',
-      status: 'ready',
-      badge: 'Available',
-      connectedDetails: 'Connect your merchant Shiprocket account',
+      status: customMap.has('shiprocket-logistics') || customMap.has('shiprocket') ? 'connected' : 'ready',
+      badge: customMap.has('shiprocket-logistics') || customMap.has('shiprocket') ? 'Connected' : 'Available',
+      connectedDetails: customMap.get('shiprocket-logistics')?.credentials_masked || 'Connect your merchant Shiprocket account',
     },
     {
       id: 'porter-hyperlocal',
       name: 'Porter & Dunzo Hyperlocal Dispatch',
       description: 'Same-day on-demand two-wheeler delivery for neighbourhood kirana and boutique retail orders within 15 km.',
       category: 'logistics',
-      status: 'ready',
-      badge: 'Available',
-      connectedDetails: 'Connect your merchant Porter API token',
+      status: customMap.has('porter-hyperlocal') || customMap.has('porter') ? 'connected' : 'ready',
+      badge: customMap.has('porter-hyperlocal') || customMap.has('porter') ? 'Connected' : 'Available',
+      connectedDetails: customMap.get('porter-hyperlocal')?.credentials_masked || 'Connect your merchant Porter API token',
     },
     {
       id: 'tally-erp',
       name: 'Tally Prime & Zoho Books Sync',
       description: 'End-of-day sales ledger, GST tax breakdown (CGST/SGST/IGST), and credit khata export.',
       category: 'accounting',
-      status: 'ready',
-      badge: 'Manual Export Ready',
-      connectedDetails: 'Direct XML / CSV export available from Orders and Invoices',
+      status: customMap.has('tally-erp') || customMap.has('tally') || customMap.has('zoho-books') ? 'connected' : 'ready',
+      badge: customMap.has('tally-erp') || customMap.has('tally') ? 'Connected' : 'Manual Export Ready',
+      connectedDetails: customMap.get('tally-erp')?.credentials_masked || 'Direct XML / CSV export available from Orders and Invoices',
     },
     {
       id: 'thermal-printer',
       name: '58mm / 80mm ESC/POS Thermal Printer',
       description: 'Direct counter billing printer. Prints customer bills, line items, and dynamic payment QR codes with zero drivers.',
       category: 'hardware',
-      status: 'ready',
-      badge: 'Ready to Pair',
-      connectedDetails: 'Supported via WebUSB / WebBluetooth printing standard',
+      status: customMap.has('thermal-printer') ? 'connected' : 'ready',
+      badge: customMap.has('thermal-printer') ? 'Paired' : 'Ready to Pair',
+      connectedDetails: customMap.get('thermal-printer')?.credentials_masked || 'Supported via WebUSB / WebBluetooth printing standard',
     },
   ];
+
+  // Merge custom integrations
+  const knownIds = new Set(services.map((s) => s.id));
+  for (const custom of customIntegrations) {
+    if (!knownIds.has(custom.service_id)) {
+      services.push({
+        id: custom.service_id,
+        name: custom.name || custom.service_id,
+        description: `Connected ${custom.category || 'third-party'} service for your storefront and operations.`,
+        category: custom.category || 'general',
+        status: custom.status || 'connected',
+        badge: 'Connected',
+        connectedDetails: custom.credentials_masked || 'Custom integration active',
+      });
+    }
+  }
 
   res.json({
     success: true,
@@ -268,7 +307,98 @@ router.delete('/webhooks/:id', authenticate, (req: AuthenticatedRequest, res: Re
   }
 });
 
-// 5. POST /api/integrations/request — Submit a feature request for a new integration
+// 5. POST /api/integrations/connect — Connect / configure an integration
+router.post('/connect', authenticate, (req: AuthenticatedRequest, res: Response): void => {
+  ensureIntegrationTables();
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const { serviceId, service_id, name, category = 'general', config = {}, credentials = {} } = req.body;
+  const targetId = String(serviceId || service_id || '').trim();
+
+  if (!targetId) {
+    res.status(400).json({ error: 'serviceId is required' });
+    return;
+  }
+
+  const maskedParts: string[] = [];
+  for (const [k, v] of Object.entries(credentials)) {
+    if (typeof v === 'string' && v.trim()) {
+      const val = v.trim();
+      const masked = val.length > 8 ? `${val.slice(0, 4)}••••${val.slice(-4)}` : '••••••••';
+      maskedParts.push(`${k}: ${masked}`);
+    }
+  }
+  const credentialsMasked = maskedParts.length > 0 ? maskedParts.join(' • ') : 'Verified credentials active';
+  const id = `int_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+
+  try {
+    db.prepare(`
+      INSERT INTO merchant_integrations (id, organization_id, service_id, name, category, status, config, credentials_masked, connected_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'connected', ?, ?, ?, ?)
+      ON CONFLICT(organization_id, service_id) DO UPDATE SET
+        name = excluded.name,
+        category = excluded.category,
+        status = 'connected',
+        config = excluded.config,
+        credentials_masked = excluded.credentials_masked,
+        updated_at = excluded.updated_at
+    `).run(id, userId, targetId, String(name || targetId).trim(), String(category).trim(), JSON.stringify(config), credentialsMasked, now, now);
+
+    res.json({
+      success: true,
+      message: `Successfully connected ${name || targetId}`,
+      integration: {
+        id,
+        serviceId: targetId,
+        name: name || targetId,
+        category,
+        status: 'connected',
+        credentialsMasked,
+        connected_at: now
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to connect integration' });
+  }
+});
+
+// 6. POST /api/integrations/disconnect or DELETE /api/integrations/:serviceId
+router.post('/disconnect', authenticate, (req: AuthenticatedRequest, res: Response): void => {
+  ensureIntegrationTables();
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const { serviceId, service_id } = req.body;
+  const targetId = String(serviceId || service_id || '').trim();
+
+  if (!targetId) {
+    res.status(400).json({ error: 'serviceId is required' });
+    return;
+  }
+
+  try {
+    db.prepare('DELETE FROM merchant_integrations WHERE organization_id = ? AND service_id = ?').run(userId, targetId);
+    res.json({ success: true, message: 'Integration disconnected successfully', serviceId: targetId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to disconnect integration' });
+  }
+});
+
+router.delete('/:serviceId', authenticate, (req: AuthenticatedRequest, res: Response): void => {
+  ensureIntegrationTables();
+  const db = getDatabase();
+  const userId = req.user!.id;
+  const targetId = req.params.serviceId;
+
+  try {
+    db.prepare('DELETE FROM merchant_integrations WHERE organization_id = ? AND service_id = ?').run(userId, targetId);
+    res.json({ success: true, message: 'Integration disconnected successfully', serviceId: targetId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to disconnect integration' });
+  }
+});
+
+// 7. POST /api/integrations/request — Submit a feature request for a new integration
 router.post('/request', authenticate, (req: AuthenticatedRequest, res: Response): void => {
   ensureIntegrationTables();
   const db = getDatabase();

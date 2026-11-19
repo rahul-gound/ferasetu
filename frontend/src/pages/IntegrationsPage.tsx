@@ -32,6 +32,8 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import SEO from '../components/SEO';
 import { useAuth } from '../contexts/AuthContext';
+import { getIntegrationLogo } from '../components/integrations/IntegrationLogos';
+import AddIntegrationModal, { INTEGRATION_CATALOG } from '../components/integrations/AddIntegrationModal';
 
 interface IntegrationService {
   id: string;
@@ -62,6 +64,7 @@ export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [requestServiceName, setRequestServiceName] = useState('');
   const [requestNotes, setRequestNotes] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
@@ -140,6 +143,21 @@ export default function IntegrationsPage() {
     },
   });
 
+  // 6. Disconnect Integration Mutation
+  const disconnectMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      const res = await api.post('/integrations/disconnect', { serviceId });
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Integration disconnected');
+      queryClient.invalidateQueries({ queryKey: ['integrations-status'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to disconnect integration');
+    },
+  });
+
   // Action mapping for known subsystem hubs
   const services: IntegrationService[] = useMemo(() => {
     const raw: IntegrationService[] = integrationsData?.services || [];
@@ -162,6 +180,13 @@ export default function IntegrationsPage() {
       return s;
     });
   }, [integrationsData]);
+
+  // Set of actively connected service IDs
+  const connectedServiceIds = useMemo(() => {
+    return new Set(services.filter((s) => s.status === 'connected').map((s) => s.id));
+  }, [services]);
+
+  const [selectedConfiguringAppId, setSelectedConfiguringAppId] = useState<string | null>(null);
 
   // Filtered Services
   const filteredServices = useMemo(() => {
@@ -222,13 +247,17 @@ export default function IntegrationsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             <button
               type="button"
-              onClick={() => setShowRequestModal(true)}
-              className="min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-all"
+              onClick={() => {
+                setSelectedConfiguringAppId(null);
+                setShowAddModal(true);
+              }}
+              className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center gap-2 cursor-pointer"
             >
-              Request Integration
+              <Plus size={16} />
+              <span>Add Integration</span>
             </button>
             <button
               type="button"
@@ -236,10 +265,17 @@ export default function IntegrationsPage() {
                 setCreatedWebhookSecret(null);
                 setShowWebhookModal(true);
               }}
-              className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-all flex items-center gap-2 cursor-pointer"
             >
               <Key size={15} />
-              <span>Add Webhook / API Key</span>
+              <span>Add Webhook</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRequestModal(true)}
+              className="min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-all cursor-pointer"
+            >
+              Request Other
             </button>
           </div>
         </header>
@@ -548,13 +584,23 @@ export default function IntegrationsPage() {
             return (
               <div
                 key={service.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs space-y-4"
+                className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all shadow-xs space-y-4"
               >
                 <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-black text-slate-900 dark:text-white">
-                      {service.name}
-                    </span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="shrink-0 rounded-2xl overflow-hidden shadow-2xs">
+                        {getIntegrationLogo(service.id, 46)}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
+                          {service.name}
+                        </h4>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {service.category}
+                        </span>
+                      </div>
+                    </div>
 
                     {service.badge && (
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase shrink-0 ${
@@ -567,40 +613,73 @@ export default function IntegrationsPage() {
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
                     {service.description}
                   </p>
 
                   {service.connectedDetails && (
                     <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[11px] text-slate-600 dark:text-slate-400 font-mono flex items-center gap-2">
                       <CheckCircle2 size={14} className={isConnected ? "text-emerald-500 shrink-0" : "text-slate-400 shrink-0"} />
-                      <span>{service.connectedDetails}</span>
+                      <span className="truncate">{service.connectedDetails}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    {service.category}
+                    {isConnected ? 'Connected' : 'Available'}
                   </span>
 
-                  {service.actionUrl ? (
-                    <Link
-                      to={service.actionUrl}
-                      className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold bg-[#0052FF] hover:bg-blue-700 text-white flex items-center gap-1.5 transition-colors"
-                    >
-                      <span>Manage</span>
-                      <ArrowRight size={13} />
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setGuideModalService(service)}
-                      className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 transition-colors"
-                    >
-                      Setup Guide
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isConnected ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Disconnect ${service.name}?`)) {
+                              disconnectMutation.mutate(service.id);
+                            }
+                          }}
+                          className="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+                          title="Disconnect Integration"
+                        >
+                          Disconnect
+                        </button>
+                        {service.actionUrl ? (
+                          <Link
+                            to={service.actionUrl}
+                            className="min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#0052FF] hover:bg-blue-700 text-white flex items-center gap-1.5 transition-colors shadow-2xs"
+                          >
+                            <span>Manage</span>
+                            <ArrowRight size={13} />
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedConfiguringAppId(service.id);
+                              setShowAddModal(true);
+                            }}
+                            className="min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Configure</span>
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedConfiguringAppId(service.id);
+                          setShowAddModal(true);
+                        }}
+                        className="min-h-[38px] px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-50 dark:bg-blue-900/30 hover:bg-[#0052FF] text-[#0052FF] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} />
+                        <span>Connect</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -794,6 +873,17 @@ export default function IntegrationsPage() {
           </div>
         </div>
       )}
+      {/* ── ADD INTEGRATION MODAL ──────────────────────────────────────────── */}
+      <AddIntegrationModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setSelectedConfiguringAppId(null);
+        }}
+        connectedServiceIds={connectedServiceIds}
+        initialSelectedAppId={selectedConfiguringAppId}
+        onIntegrationAdded={() => refetchIntegrations()}
+      />
     </>
   );
 }
