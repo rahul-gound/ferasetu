@@ -31,6 +31,9 @@
 
 // ---------------------------------------------------------------------------
 import { handleAdminRoutes } from "./routes/admin.js";
+import { RealtimeHubDO } from "./realtime/RealtimeHubDO.js";
+import { publishRealtimeEvent } from "./realtime/realtimeService.js";
+import { handleRealtimeWebSocketUpgrade, handleRealtimeReconcile } from "./realtime/realtimeRoutes.js";
 import { handleGeoRoute } from "./routes/geo.js";
 import {
   handleTranslateRequest,
@@ -2785,6 +2788,18 @@ async function createProduct(request, env) {
     }
   }
 
+  try {
+    await publishRealtimeEvent(env, null, {
+      organizationId: ctx.organizationId,
+      eventType: 'product:created',
+      resourceId: product.id,
+      audience: 'public',
+      payload: { id: product.id, name: product.name, price: product.price, stock: product.stock, status: product.is_active ? 'active' : 'draft' },
+    });
+  } catch (pubErr) {
+    console.warn("publishRealtimeEvent create warning:", pubErr?.message || pubErr);
+  }
+
   return json({
     product: {
       ...product,
@@ -3052,6 +3067,25 @@ async function createOrder(request, env) {
     }
   } catch (firstOrderErr) {
     console.warn("Could not check/send first order congratulatory email (non-blocking):", firstOrderErr?.message);
+  }
+
+  try {
+    await publishRealtimeEvent(env, null, {
+      organizationId: ctx.organizationId,
+      eventType: 'order:created',
+      resourceId: order.id,
+      audience: 'merchant',
+      payload: { id: order.id, total: order.total, customer_name: order.customer_name },
+    });
+
+    await publishRealtimeEvent(env, null, {
+      organizationId: ctx.organizationId,
+      eventType: 'product:stock_changed',
+      audience: 'public',
+      payload: { order_id: order.id },
+    });
+  } catch (pubErr) {
+    console.warn("publishRealtimeEvent createOrder warning:", pubErr?.message || pubErr);
   }
 
   return json({ order }, 201);
@@ -7794,6 +7828,25 @@ async function updateProduct(id, request, env) {
     has_variants: updatedVariants.length > 0,
   };
 
+  try {
+    await publishRealtimeEvent(env, null, {
+      organizationId: ctx.organizationId,
+      eventType: (body.stock !== undefined || body.stock_quantity !== undefined) ? 'product:stock_changed' : 'product:updated',
+      resourceId: id,
+      audience: 'public',
+      payload: {
+        id,
+        name: formattedProduct.name,
+        price: formattedProduct.price,
+        stock: formattedProduct.stock,
+        status: formattedProduct.status,
+        is_active: formattedProduct.is_active,
+      },
+    });
+  } catch (pubErr) {
+    console.warn("publishRealtimeEvent update warning:", pubErr?.message || pubErr);
+  }
+
   return json({
     ...formattedProduct,
     product: formattedProduct,
@@ -7822,6 +7875,19 @@ async function deleteProduct(id, request, env) {
     }
   }
   if (res?.meta?.changes === 0) throw new HttpError("Product not found", 404);
+
+  try {
+    await publishRealtimeEvent(env, null, {
+      organizationId: ctx.organizationId,
+      eventType: 'product:deleted',
+      resourceId: id,
+      audience: 'public',
+      payload: { id },
+    });
+  } catch (pubErr) {
+    console.warn("publishRealtimeEvent delete warning:", pubErr?.message || pubErr);
+  }
+
   return json({ success: true }, 200, {}, request);
 }
 
@@ -8871,6 +8937,25 @@ async function handlePublicCreateOrder(request, env, ctx) {
     maybeSendFirstOrder().catch(() => {});
   }
 
+  try {
+    await publishRealtimeEvent(env, null, {
+      organizationId: orgId,
+      eventType: 'order:created',
+      resourceId: orderId,
+      audience: 'merchant',
+      payload: { id: orderId, total: finalTotal, customer_name: customerName },
+    });
+
+    await publishRealtimeEvent(env, null, {
+      organizationId: orgId,
+      eventType: 'product:stock_changed',
+      audience: 'public',
+      payload: { order_id: orderId, affected_products: resolvedItems.map(i => i.productId) },
+    });
+  } catch (pubErr) {
+    console.warn("publishRealtimeEvent public createOrder warning:", pubErr?.message || pubErr);
+  }
+
   // Authoritative, secure response (NEVER return plaintext OTP)
   return json({
     success: true,
@@ -9614,6 +9699,27 @@ async function updateOrderStatus(orderId, request, env) {
         console.warn(`[updateOrderStatus] Failed to send ${status} email:`, emailErr?.message);
       }
     }
+  }
+
+  try {
+    await publishRealtimeEvent(env, null, {
+      organizationId: ctx.organizationId,
+      eventType: 'order:status_changed',
+      resourceId: orderId,
+      audience: 'merchant',
+      payload: { id: orderId, status },
+    });
+
+    if (status === 'cancelled') {
+      await publishRealtimeEvent(env, null, {
+        organizationId: ctx.organizationId,
+        eventType: 'product:stock_changed',
+        audience: 'public',
+        payload: { order_id: orderId },
+      });
+    }
+  } catch (pubErr) {
+    console.warn("publishRealtimeEvent order status warning:", pubErr?.message || pubErr);
   }
 
   return json({ success: true, status }, 200, {}, request);
@@ -11760,6 +11866,21 @@ async function route(request, env, ctx) {
     await ensureTables(env.DB);
   }
 
+  // Realtime WebSocket & Reconciliation
+  if (path === "/api/realtime/ws") {
+    return handleRealtimeWebSocketUpgrade(request, env, ctx, {
+      resolveStorefrontTenant,
+      requireOrgContext,
+      getAuthenticatedUser,
+    });
+  }
+  if (path === "/api/realtime/reconcile" && method === "GET") {
+    return handleRealtimeReconcile(request, env, ctx, {
+      resolveStorefrontTenant,
+      requireOrgContext,
+    });
+  }
+
   // Public shop metadata endpoint
   if (path.startsWith("/api/website/public/")) {
     if (method === "GET") {
@@ -12780,6 +12901,7 @@ export function _resetTablesInitialized() {
 }
 
 export {
+  RealtimeHubDO,
   assignTenantToShard,
   getShardForShop,
   getTenantDatabase,

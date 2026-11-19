@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRealtimeSync } from '../services/realtimeSync';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import type { PublicShopData } from '../types/template';
@@ -50,28 +51,50 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchShopData = useCallback((silent = false) => {
+    if (!shopName) return;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+    axios.get<PublicShopData>(`${API}/website/public/${shopName}`)
+      .then(res => {
+        setData(res.data);
+      })
+      .catch(err => {
+        if (!silent) {
+          if (axios.isAxiosError(err) && err.response?.status === 404) {
+            setError('Shop not found');
+          } else {
+            setError('Unable to load shop. Please try again.');
+          }
+        }
+      })
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
+  }, [shopName]);
+
   useEffect(() => {
     if (!shopName) {
       setLoading(false);
       setError('Shop name not provided. Please check the URL or specify a shop.');
       return;
     }
+    fetchShopData(false);
+  }, [shopName, fetchShopData]);
 
-    setLoading(true);
-    setError(null);
-    axios.get<PublicShopData>(`${API}/website/public/${shopName}`)
-      .then(res => {
-        setData(res.data);
-      })
-      .catch(err => {
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          setError('Shop not found');
-        } else {
-          setError('Unable to load shop. Please try again.');
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [shopName]);
+  // Real-time synchronization for storefront visitors
+  useRealtimeSync({
+    channel: 'storefront',
+    shopName,
+    onEvent: (event) => {
+      // Whenever stock, price, availability, or products change in D1, update silently without full reload
+      if (event.event_type.startsWith('product:')) {
+        fetchShopData(true);
+      }
+    },
+  });
 
   // Track real visitor storefront footfall
   useEffect(() => {

@@ -87,6 +87,7 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useRealtimeSync } from '../services/realtimeSync';
 
 import { useAiAssistant } from '../contexts/AiAssistantContext';
 
@@ -135,6 +136,12 @@ interface NavGroup {
 export default function Layout({ children }: { children?: React.ReactNode }) {
 
   const { user, logout } = useAuth();
+
+  // Real-time synchronization for authenticated merchant dashboard
+  useRealtimeSync({
+    channel: 'dashboard',
+    enabled: Boolean(user),
+  });
 
   const { translate } = useLanguage();
 

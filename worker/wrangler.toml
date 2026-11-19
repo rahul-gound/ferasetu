@@ -18,6 +18,16 @@ binding = "DB"
 database_name = "fera-shopkeeper"
 database_id = "ac0e07fa-8183-4a99-b744-c095027f61d6"
 
+# Durable Object for Realtime Synchronization
+[durable_objects]
+bindings = [
+  { name = "REALTIME_HUB", class_name = "RealtimeHubDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RealtimeHubDO"]
+
 # Observability configuration
 [observability]
 enabled = true
