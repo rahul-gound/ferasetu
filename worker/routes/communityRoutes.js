@@ -34,8 +34,8 @@ export const SEED_DISCUSSIONS = [
     category: 'Announcements',
     title: 'FeraSetu 0% Commission Direct Settlement Engine & Multi-Store Inventory Launch',
     body: 'We have deployed the new T+0 direct UPI bank sweep mechanism. All merchant sales now route directly into your linked ICICI/HDFC bank account with zero platform toll or holding periods.',
-    author: 'FeraSetu Core Team',
-    storeName: 'Platform Engineering',
+    author: 'FeraSetu Team',
+    storeName: 'FeraSetu Team',
     locality: 'Bengaluru / Mumbai',
     sourceLang: 'en',
     status: 'implemented',
@@ -138,14 +138,14 @@ export const SEED_DISCUSSIONS = [
     replies: [
       {
         id: 'rep-4-1',
-        author: 'FeraSetu Admin',
-        storeName: 'Core Platform Engineering',
+        author: 'FeraSetu Team',
+        storeName: 'FeraSetu Team',
         text: 'This feature has been approved! We are wiring it directly into the Bluetooth thermal printer & soundbox pipeline in the next release to make it better and zero-latency.',
         sourceLang: 'en',
         time: '18 hours ago',
         isVerified: true,
         isAdmin: true,
-        adminBadge: 'Core Team',
+        adminBadge: 'FeraSetu Team',
       },
     ],
   },
@@ -456,7 +456,12 @@ export async function handleCreateCommunityDiscussion(request, env) {
     locality = 'Local Area',
     category = 'Payments & Soundbox',
     channel = 'general',
-    userLang = 'en'
+    userLang = 'en',
+    isAdmin = false,
+    adminBadge = '',
+    isStaffVerified = false,
+    isPinned = false,
+    status = 'open'
   } = body;
 
   if (!title || !desc) {
@@ -469,23 +474,30 @@ export async function handleCreateCommunityDiscussion(request, env) {
   // Detect language of post (e.g. Telugu 'te' if user typed in Telugu)
   const detectedLang = detectTextLanguage(title + ' ' + desc, userLang);
 
+  const isOfficialTeam = Boolean(isAdmin || author === 'FeraSetu Team' || author === 'FeraSetu Admin');
+  const postAuthor = isOfficialTeam ? 'FeraSetu Team' : author;
+  const postStoreName = isOfficialTeam ? 'FeraSetu Team' : storeName;
+  const postLocality = isOfficialTeam ? 'FeraSetu HQ' : locality;
+  const postPinned = Boolean(isPinned || (isOfficialTeam && channel === 'announcements'));
+  const postStatus = isOfficialTeam && (channel === 'announcements' || isPinned) ? 'implemented' : (status || 'open');
+
   const newPost = {
     id: `disc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     channel: channel || 'general',
     category,
     title: title.trim(),
     body: desc.trim(),
-    author,
-    storeName,
-    locality,
+    author: postAuthor,
+    storeName: postStoreName,
+    locality: postLocality,
     sourceLang: detectedLang,
-    status: 'open',
+    status: postStatus,
     adminNote: null,
     createdAt: 'Just now',
     upvotes: 1,
     replyCount: 0,
-    isStaffVerified: false,
-    isPinned: false,
+    isStaffVerified: Boolean(isOfficialTeam || isStaffVerified),
+    isPinned: postPinned,
     hasUserUpvoted: true,
     replies: []
   };
@@ -560,17 +572,22 @@ export async function handleAddCommunityReply(request, env, discussionId) {
   // Detect language of reply
   const detectedLang = detectTextLanguage(text, userLang);
 
+  const isOfficialTeam = Boolean(isAdmin || author === 'FeraSetu Team' || author === 'FeraSetu Admin' || author === 'FeraSetu Core Team');
+  const replyAuthor = isOfficialTeam ? 'FeraSetu Team' : author;
+  const replyStore = isOfficialTeam ? 'FeraSetu Team' : storeName;
+  const replyBadge = isOfficialTeam ? (adminBadge || 'FeraSetu Team') : undefined;
+
   const replyId = `rep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const newReply = {
     id: replyId,
-    author: isAdmin ? (author || 'FeraSetu Admin') : author,
-    storeName: isAdmin ? 'Platform Team' : storeName,
+    author: replyAuthor,
+    storeName: replyStore,
     text: text.trim(),
     sourceLang: detectedLang,
     time: 'Just now',
-    isVerified: Boolean(isAdmin),
-    isAdmin: Boolean(isAdmin),
-    adminBadge: isAdmin ? (adminBadge || 'Admin • Core Team') : undefined,
+    isVerified: isOfficialTeam,
+    isAdmin: isOfficialTeam,
+    adminBadge: replyBadge,
   };
 
   if (!disc.replies) disc.replies = [];

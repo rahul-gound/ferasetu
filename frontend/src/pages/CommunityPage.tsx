@@ -26,6 +26,7 @@ import {
   Hash,
   ChevronRight,
   Sparkle,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -88,8 +89,8 @@ export const INITIAL_DISCUSSIONS: DiscussionItem[] = [
     category: 'Announcements',
     title: 'FeraSetu 0% Commission Direct Settlement Engine & Multi-Store Inventory Launch',
     body: 'We have deployed the new T+0 direct UPI bank sweep mechanism. All merchant sales now route directly into your linked ICICI/HDFC bank account with zero platform toll or holding periods.',
-    author: 'FeraSetu Core Team',
-    storeName: 'Platform Engineering',
+    author: 'FeraSetu Team',
+    storeName: 'FeraSetu Team',
     locality: 'Bengaluru / Mumbai',
     sourceLang: 'en',
     status: 'implemented',
@@ -132,14 +133,14 @@ export const INITIAL_DISCUSSIONS: DiscussionItem[] = [
     replies: [
       {
         id: 'rep-2-1',
-        author: 'FeraSetu Admin',
-        storeName: 'Platform Engineering',
+        author: 'FeraSetu Team',
+        storeName: 'FeraSetu Team',
         text: 'This feature has been officially approved! We are designing it to announce both total amount and itemized name in Telugu and Hindi automatically.',
         time: '2 hours ago',
         sourceLang: 'en',
         isVerified: true,
         isAdmin: true,
-        adminBadge: 'Core Team',
+        adminBadge: 'FeraSetu Team',
       },
       {
         id: 'rep-2-2',
@@ -216,10 +217,20 @@ interface DiscussionTranslation {
   replies: Record<number, string>;
 }
 
-export default function CommunityPage() {
+interface CommunityPageProps {
+  isAdmin?: boolean;
+}
+
+export default function CommunityPage({ isAdmin = false }: CommunityPageProps) {
   const { user } = useAuth();
   // Language selected during onboarding or from profile (e.g. 'en', 'te', 'hi', 'ta', 'es')
   const { language, tDynamic } = useLanguage();
+
+  const isEffectiveAdmin = Boolean(
+    isAdmin ||
+    user?.role === 'admin' ||
+    (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))
+  );
 
   const [discussions, setDiscussions] = useState<DiscussionItem[]>(() => {
     try {
@@ -453,12 +464,87 @@ export default function CommunityPage() {
     );
   };
 
+  // Admin Moderation: Status Update
+  const handleUpdateStatus = async (discId: string, newStatus: DiscussionItem['status']) => {
+    if (!newStatus) return;
+    setDiscussions((prev) =>
+      prev.map((d) => (d.id === discId ? { ...d, status: newStatus, isStaffVerified: true } : d))
+    );
+    if (activeThread?.id === discId) {
+      setActiveThread((prev) => (prev ? { ...prev, status: newStatus, isStaffVerified: true } : null));
+    }
+    toast.success(`Feature status set to ${newStatus}`);
+    try {
+      await api.patch(`/community/discussions/${discId}`, {
+        status: newStatus,
+        isStaffVerified: true,
+      });
+    } catch (err) {
+      console.warn('Backend update notice:', err);
+    }
+  };
+
+  // Admin Moderation: Toggle Pin
+  const handleTogglePin = async (discId: string, nextPinned: boolean) => {
+    setDiscussions((prev) =>
+      prev.map((d) => (d.id === discId ? { ...d, isPinned: nextPinned } : d))
+    );
+    if (activeThread?.id === discId) {
+      setActiveThread((prev) => (prev ? { ...prev, isPinned: nextPinned } : null));
+    }
+    toast.success(nextPinned ? 'Topic pinned to top' : 'Topic unpinned');
+    try {
+      await api.patch(`/community/discussions/${discId}`, { isPinned: nextPinned });
+    } catch (err) {
+      console.warn('Backend pin update notice:', err);
+    }
+  };
+
+  // Admin Moderation: Delete Discussion
+  const handleDeleteDiscussion = async (discId: string) => {
+    if (!window.confirm('Delete this community discussion?')) return;
+    setDiscussions((prev) => prev.filter((d) => d.id !== discId));
+    if (activeThread?.id === discId) {
+      setActiveThread(null);
+    }
+    toast.success('Discussion topic removed');
+    try {
+      await api.delete(`/community/discussions/${discId}`);
+    } catch (err) {
+      console.warn('Backend delete notice:', err);
+    }
+  };
+
+  // Admin Moderation: Delete Reply
+  const handleDeleteReply = async (discId: string, replyId?: string) => {
+    if (!replyId) return;
+    if (!window.confirm('Delete this comment?')) return;
+    setDiscussions((prev) =>
+      prev.map((d) => {
+        if (d.id === discId && d.replies) {
+          return {
+            ...d,
+            replies: d.replies.filter((r) => r.id !== replyId),
+            replyCount: Math.max(0, (d.replyCount || 1) - 1),
+          };
+        }
+        return d;
+      })
+    );
+    toast.success('Comment removed');
+    try {
+      await api.delete(`/community/discussions/${discId}/replies/${replyId}`);
+    } catch (err) {
+      console.warn('Backend delete reply notice:', err);
+    }
+  };
+
   // Add Reply Action
   const handleAddReply = async (discussionId: string) => {
     if (!replyText.trim()) return;
 
-    const userAuthor = user?.name || 'Shopkeeper';
-    const userStore = user?.business_name || 'My Local Store';
+    const userAuthor = isEffectiveAdmin ? 'FeraSetu Team' : (user?.name || 'Shopkeeper');
+    const userStore = isEffectiveAdmin ? 'FeraSetu Team' : (user?.business_name || 'My Local Store');
     const text = replyText.trim();
     const repLang = detectScriptLanguage(text, language);
 
@@ -469,8 +555,9 @@ export default function CommunityPage() {
       text,
       time: 'Just now',
       sourceLang: repLang,
-      isVerified: Boolean(user?.is_verified),
-      isAdmin: false,
+      isVerified: Boolean(isEffectiveAdmin || user?.is_verified),
+      isAdmin: Boolean(isEffectiveAdmin),
+      adminBadge: isEffectiveAdmin ? 'FeraSetu Team' : undefined,
     };
 
     setDiscussions((prev) =>
@@ -487,7 +574,11 @@ export default function CommunityPage() {
     );
 
     setReplyText('');
-    toast.success('Your reply has been posted to the community thread!');
+    toast.success(
+      isEffectiveAdmin
+        ? 'Official response posted as FeraSetu Team!'
+        : 'Your reply has been posted to the community thread!'
+    );
 
     // Post to backend asynchronously
     try {
@@ -496,8 +587,12 @@ export default function CommunityPage() {
         author: userAuthor,
         storeName: userStore,
         userLang: repLang,
+        isAdmin: Boolean(isEffectiveAdmin),
+        adminBadge: isEffectiveAdmin ? 'FeraSetu Team' : undefined,
       });
-    } catch {}
+    } catch (err) {
+      console.warn('Failed to sync reply with backend', err);
+    }
   };
 
   // Create Post Action
@@ -512,20 +607,27 @@ export default function CommunityPage() {
     const body = newBody.trim();
     const postLang = detectScriptLanguage(title + ' ' + body, language);
 
+    const authorName = isEffectiveAdmin ? 'FeraSetu Team' : (user?.name || 'Local Retailer');
+    const storeName = isEffectiveAdmin ? 'FeraSetu Team' : (user?.business_name || 'My Store');
+    const locality = isEffectiveAdmin ? 'FeraSetu HQ' : (user?.city || 'Local Area');
+    const isPinnedPost = Boolean(isEffectiveAdmin && newChannel === 'announcements');
+
     const newPost: DiscussionItem = {
       id: `disc-${Date.now()}`,
       channel: newChannel,
       category: newCategory,
       title,
       body,
-      author: user?.name || 'Local Retailer',
-      storeName: user?.business_name || 'My Store',
-      locality: user?.city || 'Local Area',
+      author: authorName,
+      storeName,
+      locality,
       sourceLang: postLang,
-      status: 'open',
+      status: isEffectiveAdmin && newChannel === 'announcements' ? 'implemented' : 'open',
       createdAt: 'Just now',
       upvotes: 1,
       replyCount: 0,
+      isStaffVerified: Boolean(isEffectiveAdmin || user?.is_verified),
+      isPinned: isPinnedPost,
       hasUserUpvoted: true,
       replies: [],
     };
@@ -534,7 +636,11 @@ export default function CommunityPage() {
     setShowNewPostModal(false);
     setNewTitle('');
     setNewBody('');
-    toast.success('Your discussion has been shared across the merchant network!');
+    toast.success(
+      isEffectiveAdmin
+        ? 'Official team topic published to community!'
+        : 'Your discussion has been shared across the merchant network!'
+    );
 
     try {
       await api.post('/community/discussions', {
@@ -542,12 +648,17 @@ export default function CommunityPage() {
         body,
         category: newCategory,
         channel: newChannel,
-        author: newPost.author,
-        storeName: newPost.storeName,
-        locality: newPost.locality,
+        author: authorName,
+        storeName,
+        locality,
         userLang: postLang,
+        isAdmin: Boolean(isEffectiveAdmin),
+        isStaffVerified: Boolean(isEffectiveAdmin),
+        isPinned: isPinnedPost,
       });
-    } catch {}
+    } catch (err) {
+      console.warn('Failed to sync post with backend', err);
+    }
   };
 
   // Filter discussions
@@ -626,16 +737,26 @@ export default function CommunityPage() {
         {/* Top Header */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-slate-500 mb-1">
+            <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-slate-500 mb-1 flex-wrap">
               <span>FeraSetu Global Network</span>
               <span>/</span>
-              <span className="text-orange-600 font-bold">Discord-Style Community</span>
+              <span className="text-orange-600 font-bold">
+                {isEffectiveAdmin ? 'Admin Moderation & Team Hub' : 'Discord-Style Community'}
+              </span>
+              {isEffectiveAdmin && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-300 ml-1">
+                  <ShieldCheck size={12} className="text-orange-600" />
+                  Posting as FeraSetu Team
+                </span>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Merchant Community & Feature Exchange
+              {isEffectiveAdmin ? 'Community & Feature Approvals' : 'Merchant Community & Feature Exchange'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
-              Connect directly with independent shopkeepers across India and worldwide. Auto-translates between Telugu, Hindi, English, and 48 languages in real time.
+              {isEffectiveAdmin
+                ? 'Engage with shopkeepers, answer discussions as the official FeraSetu Team, approve features with roadmap notes, and manage topics.'
+                : 'Connect directly with independent shopkeepers across India and worldwide. Auto-translates between Telugu, Hindi, English, and 48 languages in real time.'}
             </p>
           </div>
 
@@ -645,7 +766,7 @@ export default function CommunityPage() {
               className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all flex items-center gap-2 cursor-pointer min-h-[44px]"
             >
               <Plus size={16} />
-              <span>Suggest Feature / Ask Question</span>
+              <span>{isEffectiveAdmin ? 'Post Official Team Topic' : 'Suggest Feature / Ask Question'}</span>
             </button>
           </div>
         </header>
@@ -910,6 +1031,54 @@ export default function CommunityPage() {
                         </div>
                       </div>
 
+                      {/* Admin Quick Moderation Row */}
+                      {isEffectiveAdmin && (
+                        <div
+                          className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              Status:
+                            </span>
+                            <select
+                              value={disc.status || 'open'}
+                              onChange={(e) => handleUpdateStatus(disc.id, e.target.value as any)}
+                              className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-slate-200 bg-white text-slate-800 cursor-pointer shadow-2xs"
+                            >
+                              <option value="open">Open Topic</option>
+                              <option value="approved">Feature Approved</option>
+                              <option value="planned">Planned</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="implemented">Shipped / Live</option>
+                              <option value="under_review">Under Review</option>
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePin(disc.id, !disc.isPinned)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 border transition cursor-pointer ${
+                                disc.isPinned
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              <Pin size={11} />
+                              <span>{disc.isPinned ? 'Pinned' : 'Pin'}</span>
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDiscussion(disc.id)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 flex items-center gap-1 transition cursor-pointer ml-auto"
+                          >
+                            <Trash2 size={11} />
+                            <span>Delete Topic</span>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Expanded Thread Drawer / Discord Comments */}
                       {isThreadOpen && (
                         <div
@@ -945,14 +1114,26 @@ export default function CommunityPage() {
                                       <div className="flex items-center gap-2">
                                         <span className="font-bold text-slate-900">{rep.author}</span>
                                         <span className="text-slate-400 font-normal">({rep.storeName})</span>
-                                        {rep.isAdmin && (
-                                          <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-md text-[10px] font-bold bg-orange-500 text-white">
+                                        {(rep.isAdmin || rep.author === 'FeraSetu Team' || rep.adminBadge) && (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange-500 text-white">
                                             <ShieldCheck size={10} />
-                                            Admin Core Team
+                                            {rep.adminBadge || 'FeraSetu Team'}
                                           </span>
                                         )}
                                       </div>
-                                      <span className="text-[10px] text-slate-400">{rep.time}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-slate-400">{rep.time}</span>
+                                        {isEffectiveAdmin && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteReply(disc.id, rep.id)}
+                                            className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition cursor-pointer"
+                                            title="Delete comment"
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
 
                                     <p className="text-xs sm:text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
@@ -985,7 +1166,11 @@ export default function CommunityPage() {
                               type="text"
                               value={replyText}
                               onChange={(e) => setReplyText(e.target.value)}
-                              placeholder={`Reply to #${disc.channel || 'discussion'} in ${language.toUpperCase()}...`}
+                              placeholder={
+                                isEffectiveAdmin
+                                  ? `Post official comment as FeraSetu Team...`
+                                  : `Reply to #${disc.channel || 'discussion'} in ${language.toUpperCase()}...`
+                              }
                               className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') handleAddReply(disc.id);
@@ -998,7 +1183,7 @@ export default function CommunityPage() {
                               className="px-5 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition disabled:opacity-40 cursor-pointer flex items-center gap-1.5"
                             >
                               <Send size={14} />
-                              <span>Reply</span>
+                              <span>{isEffectiveAdmin ? 'Reply as FeraSetu Team' : 'Reply'}</span>
                             </button>
                           </div>
                         </div>
@@ -1019,7 +1204,7 @@ export default function CommunityPage() {
             <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h3 className="text-base font-bold text-slate-900">
-                  Suggest Feature or Ask Question
+                  {isEffectiveAdmin ? 'Post Official Topic as FeraSetu Team' : 'Suggest Feature or Ask Question'}
                 </h3>
                 <button onClick={() => setShowNewPostModal(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">
                   ✕
@@ -1040,11 +1225,14 @@ export default function CommunityPage() {
                     }}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white text-slate-900"
                   >
-                    <option value="feature-requests">#feature-requests (Request new tools)</option>
-                    <option value="questions-and-help">#questions-and-help (Setup & troubleshooting)</option>
-                    <option value="payments">#payments (UPI & Soundbox)</option>
-                    <option value="domains">#domains (Custom URLs & DNS)</option>
-                    <option value="general">#general (General retailer discussion)</option>
+                    {isEffectiveAdmin && (
+                      <option value="announcements">📢 #announcements (Official team announcements)</option>
+                    )}
+                    <option value="feature-requests">💡 #feature-requests (Request new tools)</option>
+                    <option value="questions-and-help">❓ #questions-and-help (Setup & troubleshooting)</option>
+                    <option value="payments">💳 #payments (UPI & Soundbox)</option>
+                    <option value="domains">🌐 #domains (Custom URLs & DNS)</option>
+                    <option value="general">💬 #general (General retailer discussion)</option>
                   </select>
                 </div>
 
@@ -1057,7 +1245,11 @@ export default function CommunityPage() {
                     required
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="e.g. Can we have automated weekly WhatsApp customer credit summaries?"
+                    placeholder={
+                      isEffectiveAdmin
+                        ? 'e.g. Announcement: New Instant Soundbox & Bluetooth Printer Integration'
+                        : 'e.g. Can we have automated weekly WhatsApp customer credit summaries?'
+                    }
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900"
                   />
                 </div>
@@ -1071,7 +1263,11 @@ export default function CommunityPage() {
                     rows={4}
                     value={newBody}
                     onChange={(e) => setNewBody(e.target.value)}
-                    placeholder="Describe how this feature works for your shop. You can write in your native language comfortable for you..."
+                    placeholder={
+                      isEffectiveAdmin
+                        ? 'Describe the update or official response for all shopkeepers...'
+                        : 'Describe how this feature works for your shop. You can write in your native language comfortable for you...'
+                    }
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 resize-none"
                   />
                 </div>
@@ -1088,7 +1284,7 @@ export default function CommunityPage() {
                     type="submit"
                     className="px-5 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition"
                   >
-                    Publish to Community
+                    {isEffectiveAdmin ? 'Publish as FeraSetu Team' : 'Publish to Community'}
                   </button>
                 </div>
               </form>

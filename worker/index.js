@@ -12441,34 +12441,41 @@ async function route(request, env, ctx) {
 
   // Dynamic Context-Aware Translation & Community Async Pipeline
   if ((path === "/api/translate" || path === "/api/v1/translate") && method === "POST") {
-    return handleTranslateRequest(request, env);
+    const res = await handleTranslateRequest(request, env);
+    return withCors(res, request, env);
   }
   if (path === "/api/community/discussions" && method === "GET") {
-    return handleListCommunityDiscussions(request, env);
+    const res = await handleListCommunityDiscussions(request, env);
+    return withCors(res, request, env);
   }
   if (path === "/api/community/discussions" && method === "POST") {
-    return handleCreateCommunityDiscussion(request, env);
+    const res = await handleCreateCommunityDiscussion(request, env);
+    return withCors(res, request, env);
   }
   if (path.startsWith("/api/community/discussions/") && method === "PATCH") {
     const parts = path.split("/");
     const discussionId = parts[4];
-    return handleUpdateCommunityDiscussion(request, env, discussionId);
+    const res = await handleUpdateCommunityDiscussion(request, env, discussionId);
+    return withCors(res, request, env);
   }
   if (path.startsWith("/api/community/discussions/") && path.includes("/replies/") && method === "DELETE") {
     const parts = path.split("/");
     const discussionId = parts[4];
     const replyId = parts[6];
-    return handleDeleteCommunityReply(request, env, discussionId, replyId);
+    const res = await handleDeleteCommunityReply(request, env, discussionId, replyId);
+    return withCors(res, request, env);
   }
   if (path.startsWith("/api/community/discussions/") && method === "DELETE") {
     const parts = path.split("/");
     const discussionId = parts[4];
-    return handleDeleteCommunityDiscussion(request, env, discussionId);
+    const res = await handleDeleteCommunityDiscussion(request, env, discussionId);
+    return withCors(res, request, env);
   }
   if (path.startsWith("/api/community/discussions/") && path.endsWith("/replies") && method === "POST") {
     const parts = path.split("/");
     const discussionId = parts[4];
-    return handleAddCommunityReply(request, env, discussionId);
+    const res = await handleAddCommunityReply(request, env, discussionId);
+    return withCors(res, request, env);
   }
 
   // Founding shopkeeper offer info — public endpoint, no auth required
