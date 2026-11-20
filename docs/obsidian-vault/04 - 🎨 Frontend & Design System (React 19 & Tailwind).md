@@ -15,6 +15,7 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 - **No Heavy 3D Bloat:** Zero Three.js or canvas shaders on transaction pages.
 - **Uniform Icons:** `lucide-react` with `size={18}` / `size={20}` and `strokeWidth={1.75}`.
 - **High Contrast:** High readability under outdoor sunlight (`text-slate-900`/`text-slate-700`).
+- **Impeccable Design Engine (`pbakaus/impeccable`):** Mandatory design vocabulary, `PRODUCT.md`, `DESIGN.md`, deterministic 62-rule anti-slop detector (`impeccable detect`), and quality floor (`craft-floor.md`) active for all frontend screens.
 
 ## 2. Key Modules & Pages
 
