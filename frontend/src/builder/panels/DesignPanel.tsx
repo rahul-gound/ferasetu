@@ -76,6 +76,7 @@ export const AVAILABLE_BLOCKS = [
 
 const CURATED_IMAGE_PRESETS = [
   { label: '🍏 Groceries & Fresh Produce', url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80' },
+  { label: '🏋️‍♂️ Gym, Fitness & Strength Club', url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=80' },
   { label: '👗 Boutique & Fashion', url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&q=80' },
   { label: '📱 Electronics & Tech', url: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=1600&q=80' },
   { label: '☕ Cafe, Chai & Bakery', url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1600&q=80' },

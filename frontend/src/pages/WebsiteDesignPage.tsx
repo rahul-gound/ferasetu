@@ -81,6 +81,17 @@ const CURATED_THEMES: ThemeItem[] = [
     tags: ['Maker Story Block', 'Provenance Tags', 'Warm Khadi Tones'],
     imageUrl: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=800&q=80',
   },
+  {
+    id: 'gym',
+    name: 'Iron Club',
+    version: 'v2.5.0',
+    category: 'Athletics & Gym',
+    tagline: 'High-contrast athletic design for gyms, combat & fitness clubs',
+    description: 'Disciplined, bold and high-impact. Engineered for gym owners, strength clubs, and fitness studios with timetable schedules, pass tiers, and pro shop.',
+    badge: 'Athletic & Strength',
+    tags: ['Class Timetable', 'Membership Passes', 'Facility Tour', 'Pro Shop'],
+    imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=85',
+  },
 ];
 
 export default function WebsiteDesignPage() {
@@ -566,7 +577,7 @@ export default function WebsiteDesignPage() {
             <div className="flex items-center gap-2 text-xs font-bold text-blue-700">
               <span className="uppercase tracking-wider">Independent Merchant Engine</span>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-              <span className="text-slate-500 font-medium">5 Curated Architectures</span>
+              <span className="text-slate-500 font-medium">6 Curated Architectures</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               Themes Built for Independence

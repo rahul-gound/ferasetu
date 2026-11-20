@@ -34,6 +34,7 @@ import InCanvasInspectorModal from '../../builder/modals/InCanvasInspectorModal'
 
 // Dedicated Templates
 import MonoElectronicTemplate from '../../storefront/templates/electronic/MonoElectronicTemplate';
+import IronGymTemplate from '../../storefront/templates/gym/IronGymTemplate';
 import { GripVertical, Wand2, ChevronUp, ChevronDown, Copy, Trash2, Plus, Sparkles, Sliders } from 'lucide-react';
 
 export interface TemplateRendererProps {
@@ -300,8 +301,10 @@ export default function TemplateRenderer({
           </div>
         )}
 
-        {/* If Electronic / Mono Electronic theme is selected, render its signature dual-column layout */}
-        {resolvedTheme.id === 'electronic' ? (
+        {/* If Gym / Athletic theme is selected, render its signature performance athletic layout */}
+        {resolvedTheme.id === 'gym' ? (
+          <IronGymTemplate />
+        ) : resolvedTheme.id === 'electronic' ? (
           <MonoElectronicTemplate />
         ) : (
           <div className="relative">

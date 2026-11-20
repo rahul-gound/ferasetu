@@ -13,6 +13,45 @@ export default function TrustStripSection({
   variant = 'commerce-badges',
 }: TrustStripSectionProps) {
   // ─────────────────────────────────────────────────────────────
+  // 0. ATHLETIC GUARANTEE VARIANT (Gym & Strength Clubs)
+  // ─────────────────────────────────────────────────────────────
+  if (variant === 'athletic-guarantee') {
+    const items = [
+      {
+        icon: <ShieldCheck size={22} className="text-[#D4FF00]" />,
+        title: sanitizeText((config.badge1Title as string) || 'Zero Contract Lock-In'),
+        subtitle: sanitizeText((config.badge1Subtitle as string) || 'Cancel or freeze anytime in 1 click'),
+      },
+      {
+        icon: <Award size={22} className="text-[#D4FF00]" />,
+        title: sanitizeText((config.badge2Title as string) || 'Certified CSCS Coaches'),
+        subtitle: sanitizeText((config.badge2Subtitle as string) || 'Direct floor supervision every session'),
+      },
+      {
+        icon: <Truck size={22} className="text-[#D4FF00]" />,
+        title: sanitizeText((config.badge3Title as string) || 'Eleiko Calibrated Steel'),
+        subtitle: sanitizeText((config.badge3Subtitle as string) || 'Competition specs & Olympic platforms'),
+      },
+    ];
+
+    return (
+      <section className="py-8 sm:py-12 px-4 sm:px-6 bg-[#0D0F14] border-b border-white/10 text-white">
+        <div className="max-w-[var(--theme-max-width)] mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+          {items.map((item, idx) => (
+            <div key={idx} className="flex flex-col items-center p-5 bg-[#14161F] border border-white/5 rounded-xs">
+              <div className="mb-3 p-2.5 rounded-xs bg-black/50 border border-white/10">{item.icon}</div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-white mb-1 font-display">
+                {item.title}
+              </h3>
+              <p className="text-xs text-neutral-400 font-mono max-w-xs">{item.subtitle}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // 1. LUXURY GUARANTEE VARIANT (Atelier)
   // ─────────────────────────────────────────────────────────────
   if (variant === 'luxury-guarantee') {

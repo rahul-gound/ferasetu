@@ -1311,6 +1311,163 @@ export const ELECTRONIC_THEME: ThemeDefinition = {
   ],
 };
 
+export const GYM_THEME: ThemeDefinition = {
+  id: 'gym',
+  version: 1,
+  name: 'Iron Athletic Club',
+  tagline: 'High-Performance Strength, Conditioning & Athletic Training',
+  description:
+    'Forged for strength gyms, CrossFit boxes, combat sports clubs, athletic training facilities, personal coaching studios, and gym merchandise. Features membership tier matrix, live class schedule, facility equipment specs, and direct pass booking.',
+  idealFor: [
+    'Strength & Powerlifting Gyms',
+    'CrossFit & Functional Fitness',
+    'Boxing & Combat Clubs',
+    'Personal Training Studios',
+    'Athletic Apparel & Supplements',
+  ],
+  aspectRatio: '16/9',
+  colors: {
+    primary: '#D4FF00',
+    primaryHover: '#BCE600',
+    accent: '#FF4500',
+    accentHover: '#E03D00',
+    background: '#090A0D',
+    surface: '#12141A',
+    surfaceElevated: '#181B24',
+    text: '#F3F4F6',
+    textMuted: '#9CA3AF',
+    textSubtle: '#6B7280',
+    border: 'rgba(255, 255, 255, 0.1)',
+    borderSubtle: 'rgba(255, 255, 255, 0.05)',
+    badgeBg: '#D4FF00',
+    badgeText: '#090A0D',
+    saleBadgeBg: '#EF4444',
+    saleBadgeText: '#FFFFFF',
+  },
+  typography: {
+    display: 'clamp(2.5rem, 5vw, 4.25rem)',
+    heading: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+    subheading: 'clamp(1rem, 1.8vw, 1.25rem)',
+    body: '0.9375rem',
+    bodySmall: '0.8125rem',
+    label: '0.75rem',
+    caption: '0.6875rem',
+    price: '1.25rem',
+    navigation: '0.875rem',
+    fontFamilyHeading: "'Impact', 'Oswald', -apple-system, BlinkMacSystemFont, sans-serif",
+    fontFamilyBody: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    headingWeight: '900',
+    bodyWeight: '400',
+    letterSpacingHeading: '0.02em',
+    textTransformHeading: 'uppercase',
+  },
+  spacing: {
+    ...BASE_SPACING_TOKENS,
+    sectionPadding: 'clamp(48px, 8vw, 96px)',
+    cardGap: '28px',
+  },
+  radius: {
+    none: '0px',
+    sm: '2px',
+    md: '4px',
+    lg: '6px',
+    pill: '9999px',
+    card: '4px',
+    button: '2px',
+    input: '4px',
+  },
+  elevation: {
+    surface0: '#090A0D',
+    surface1: '#12141A',
+    surface2: '#181B24',
+    floating: '#181B24',
+    modal: '#12141A',
+    shadowCard: '0 4px 20px rgba(0, 0, 0, 0.6)',
+    shadowCardHover: '0 12px 36px rgba(0, 0, 0, 0.8)',
+    shadowDropdown: '0 16px 40px rgba(0, 0, 0, 0.7)',
+    shadowModal: '0 24px 60px rgba(0, 0, 0, 0.9)',
+  },
+  motion: BASE_MOTION_TOKENS,
+  cardVariant: 'athletic',
+  headerVariant: 'athletic',
+  heroVariant: 'athletic',
+  footerVariant: 'athletic',
+  defaultSections: [
+    {
+      id: 'announcement-1',
+      type: 'announcement',
+      variant: 'ticker',
+      enabled: true,
+      config: {
+        text: '⚡ WINTER STRENGTH PASSES LIVE · 0% JOINING FEES THIS WEEK · 24/7 KEYCARD ACCESS',
+      },
+    },
+    {
+      id: 'header-1',
+      type: 'header',
+      variant: 'athletic',
+      enabled: true,
+      config: {},
+    },
+    {
+      id: 'hero-1',
+      type: 'hero',
+      variant: 'athletic',
+      enabled: true,
+      config: {
+        eyebrow: 'INDEPENDENT IRON STANDARD',
+        headline: 'RAW IRON. CLEAN COACHING. ZERO COMPROMISE.',
+        subheadline:
+          'Built for lifters, athletes, and anyone done with crowded commercial health clubs. Calibrated plates, Olympic platforms, and high-performance coaching that gets out of your way.',
+        ctaText: 'Claim Free Day Pass',
+        imageUrl:
+          'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=85',
+      },
+    },
+    {
+      id: 'trust-strip-1',
+      type: 'trust-strip',
+      variant: 'athletic-guarantee',
+      enabled: true,
+      config: {
+        badge1Title: 'Zero Contract Lock-in',
+        badge1Subtitle: 'Cancel or freeze anytime in 1 click',
+        badge2Title: 'Certified CSCS Coaches',
+        badge2Subtitle: 'Direct floor supervision every session',
+        badge3Title: 'Eleiko Calibrated Steel',
+        badge3Subtitle: 'Competition specs & Olympic platforms',
+      },
+    },
+    {
+      id: 'category-grid-1',
+      type: 'category-grid',
+      variant: 'pill-slider',
+      enabled: true,
+      config: {
+        title: 'Passes, Coaching & Pro Shop',
+      },
+    },
+    {
+      id: 'product-grid-1',
+      type: 'product-grid',
+      variant: 'athletic',
+      enabled: true,
+      config: {
+        title: 'Memberships & Gear',
+        subtitle: 'Select a pass or order competition equipment for pickup',
+        columns: 4,
+      },
+    },
+    {
+      id: 'footer-1',
+      type: 'footer',
+      variant: 'athletic',
+      enabled: true,
+      config: {},
+    },
+  ],
+};
+
 export const THEME_REGISTRY: Record<ThemeId, ThemeDefinition> = {
   atelier: ATELIER_THEME,
   market: MARKET_THEME,
@@ -1321,9 +1478,11 @@ export const THEME_REGISTRY: Record<ThemeId, ThemeDefinition> = {
   home: HOME_THEME,
   dine: DINE_THEME,
   electronic: ELECTRONIC_THEME,
+  gym: GYM_THEME,
 };
 
 export const THEMES_LIST: ThemeDefinition[] = [
+  GYM_THEME,
   ATELIER_THEME,
   MARKET_THEME,
   ELECTRONIC_THEME,
@@ -1343,6 +1502,7 @@ export interface ThemePresetSummary {
 }
 
 export const THEME_PRESETS: ThemePresetSummary[] = [
+  { id: 'gym', name: 'Iron Athletic Club', desc: 'Heavyweight strength gym, CrossFit & combat sports club with day passes & class schedule', color: '#D4FF00' },
   { id: 'electronic', name: 'Mono Electronic', desc: 'Hardware store with 3D tilt hero, spec compare matrix & quick view', color: '#E4572E' },
   { id: 'market', name: 'Market Retail', desc: 'Fast, vibrant dynamic commerce with badge highlights', color: '#0F172A' },
   { id: 'atelier', name: 'Atelier Luxury', desc: 'Refined editorial serif typography with serene neutrals', color: '#121212' },

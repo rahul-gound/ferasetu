@@ -1,12 +1,12 @@
 import type { TypographyTokens, SpacingTokens, RadiusTokens, ElevationTokens, MotionTokens } from './tokens';
 
-export type ThemeId = 'atelier' | 'market' | 'mono' | 'bold' | 'artisan' | 'studio' | 'home' | 'dine' | 'electronic';
+export type ThemeId = 'atelier' | 'market' | 'mono' | 'bold' | 'artisan' | 'studio' | 'home' | 'dine' | 'electronic' | 'gym';
 
-export type CardVariant = 'editorial' | 'clean' | 'mono' | 'bold' | 'artisan';
-export type HeaderVariant = 'editorial' | 'commerce' | 'minimal' | 'bold' | 'artisan';
-export type HeroVariant = 'split' | 'editorial' | 'product-focused' | 'commerce-banner' | 'minimal' | 'artisan-story';
-export type FooterVariant = 'editorial' | 'commerce' | 'minimal' | 'bold' | 'artisan';
-export type TrustStripVariant = 'commerce-badges' | 'artisan-values' | 'luxury-guarantee';
+export type CardVariant = 'editorial' | 'clean' | 'mono' | 'bold' | 'artisan' | 'athletic';
+export type HeaderVariant = 'editorial' | 'commerce' | 'minimal' | 'bold' | 'artisan' | 'athletic';
+export type HeroVariant = 'split' | 'editorial' | 'product-focused' | 'commerce-banner' | 'minimal' | 'artisan-story' | 'athletic';
+export type FooterVariant = 'editorial' | 'commerce' | 'minimal' | 'bold' | 'artisan' | 'athletic';
+export type TrustStripVariant = 'commerce-badges' | 'artisan-values' | 'luxury-guarantee' | 'athletic-guarantee';
 export type AnnouncementVariant = 'ticker' | 'static-center' | 'split-promos' | 'minimal';
 
 export type ModernSectionType =

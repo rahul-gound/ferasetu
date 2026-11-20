@@ -64,6 +64,16 @@ export function resolveStorefrontTheme(
       normalized === 'electronics'
     ) {
       normalized = 'electronic';
+    } else if (
+      normalized === 'fitness' ||
+      normalized === 'crossfit' ||
+      normalized === 'strength' ||
+      normalized === 'iron' ||
+      normalized === 'athletic' ||
+      normalized === 'athletics' ||
+      normalized === 'workout'
+    ) {
+      normalized = 'gym';
     } else if (normalized === 'general' || normalized === 'default') {
       normalized = 'market';
     }

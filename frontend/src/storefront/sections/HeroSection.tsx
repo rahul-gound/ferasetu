@@ -30,6 +30,55 @@ export default function HeroSection({
   const featuredProduct = products[0] || null;
 
   // ─────────────────────────────────────────────────────────────
+  // 0. ATHLETIC HERO (Gym & High Performance Sports)
+  // ─────────────────────────────────────────────────────────────
+  if (variant === 'athletic') {
+    return (
+      <section className="relative min-h-[560px] flex items-center py-16 sm:py-24 px-4 sm:px-8 bg-[#090A0D] text-white border-b border-white/10 overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img
+            src={resolveMediaUrl(imageUrl) || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&q=85'}
+            alt="Athletic Training Floor"
+            className="w-full h-full object-cover object-center filter brightness-[0.4] contrast-[1.15]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#090A0D] via-[#090A0D]/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#090A0D] via-[#090A0D]/80 to-transparent" />
+        </div>
+
+        <div className="relative z-10 max-w-5xl mx-auto w-full space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xs bg-black/60 border border-[#D4FF00]/40 text-[#D4FF00] text-xs font-mono font-bold tracking-widest uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#D4FF00] animate-pulse" />
+            {eyebrow || 'ATHLETIC CLUB STANDARD'}
+          </div>
+
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tight text-white leading-[0.95] font-display">
+            {headline}
+          </h1>
+
+          <p className="text-sm sm:text-base text-neutral-300 max-w-xl font-normal leading-relaxed">
+            {subheadline}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-4 pt-2">
+            <a
+              href={ctaHref}
+              className="min-h-[48px] px-8 py-3 rounded-xs bg-[#D4FF00] hover:bg-[#BCE600] active:scale-95 text-[#090A0D] font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all"
+            >
+              <span>{ctaText}</span>
+              <ArrowRight size={15} strokeWidth={2.5} />
+            </a>
+
+            <div className="flex items-center gap-4 text-xs font-mono text-neutral-400 pl-2">
+              <span>● 24/7 RFID DOOR ACCESS</span>
+              <span>● NO CONTRACT LOCK-IN</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // 1. EDITORIAL HERO (Atelier: Quiet luxury, generous whitespace)
   // ─────────────────────────────────────────────────────────────
   if (variant === 'editorial') {
