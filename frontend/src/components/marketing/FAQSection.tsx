@@ -115,9 +115,9 @@ export default function FAQSection({
                 >
                   <span className="font-bold text-sm sm:text-base leading-snug">{faq.question}</span>
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-200 ${
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-transform duration-300 ease-out ${
                       isOpen
-                        ? 'bg-blue-600 border-blue-600 text-white rotate-45'
+                        ? 'bg-[#0052FF] border-[#0052FF] text-white rotate-45'
                         : dark
                         ? 'bg-slate-700 border-slate-600 text-slate-300'
                         : 'bg-slate-50 border-slate-200 text-slate-500'
@@ -127,17 +127,23 @@ export default function FAQSection({
                   </div>
                 </button>
 
-                {isOpen && (
-                  <div
-                    className={`px-5 sm:px-6 pb-5 pt-1 text-sm leading-relaxed border-t ${
-                      dark
-                        ? 'text-slate-300 border-slate-700/60'
-                        : 'text-slate-600 border-slate-100'
-                    }`}
-                  >
-                    {faq.answer}
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-500 ease-out ${
+                    isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div
+                      className={`px-5 sm:px-6 pb-5 pt-2 text-sm leading-relaxed border-t ${
+                        dark
+                          ? 'text-slate-300 border-slate-700/60'
+                          : 'text-slate-600 border-slate-100'
+                      }`}
+                    >
+                      {faq.answer}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}

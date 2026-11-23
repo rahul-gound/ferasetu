@@ -177,7 +177,7 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => handleStart('hero_primary')}
-                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-full bg-[#EA580C] hover:bg-[#C2410C] active:bg-[#9A3412] text-white font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/20 shadow-[0_5px_0_0_#9A3412,0_10px_20px_rgba(234,88,12,0.3)] hover:shadow-[0_6px_0_0_#9A3412,0_14px_24px_rgba(234,88,12,0.4)] hover:-translate-y-0.5 active:translate-y-1.5 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                   >
                     <span>Bring my business online</span>
                     <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
@@ -185,7 +185,7 @@ export default function LandingPage() {
 
                   <a
                     href="#fero-agent"
-                    className="w-full sm:w-auto min-h-[52px] px-7 py-3.5 rounded-full bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-950 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2 shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0"
+                    className="w-full sm:w-auto min-h-[52px] px-7 py-3.5 rounded-full bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-950 font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_3px_0_0_#e2e8f0,0_4px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_0_0_#cbd5e1,0_6px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_0px_0_0_#cbd5e1,inset_0_1px_3px_rgba(0,0,0,0.05)] select-none"
                   >
                     <ShieldCheck size={18} className="text-[#0052FF]" />
                     <span>Store Intelligence</span>
@@ -386,15 +386,6 @@ export default function LandingPage() {
                         </td>
                       </tr>
                       <tr className="comparison-row">
-                        <td className="px-5 py-4 font-bold text-slate-900">Storefront Identity</td>
-                        <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
-                          Your brand &amp; products only. Zero competitor ads
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">
-                          Competitor and sponsored ads placed on your listings
-                        </td>
-                      </tr>
-                      <tr className="comparison-row">
                         <td className="px-5 py-4 font-bold text-slate-900">Payout Mechanism</td>
                         <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
                           Direct settlement into your business bank account
@@ -551,11 +542,27 @@ export default function LandingPage() {
           {/* ================================================================
             SECTION 10 — FINAL CTA: DIRECT COMMERCE
           ================================================================ */}
-          <section className="py-20 md:py-28 bg-slate-950 text-white relative overflow-hidden border-t border-slate-800">
-            <div className="max-w-[800px] mx-auto px-4 sm:px-6 text-center relative z-10">
+          <section className="py-24 md:py-32 bg-[#060D1F] text-white relative overflow-hidden border-t border-slate-800/80">
+            {/* Subtle Blueprint Geometry Lattice */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.06]"
+              style={{
+                backgroundImage: 'linear-gradient(to right, #38bdf8 1px, transparent 1px), linear-gradient(to bottom, #38bdf8 1px, transparent 1px)',
+                backgroundSize: '40px 40px',
+              }}
+              aria-hidden="true"
+            />
+            
+            {/* Soft Radial Center Light */}
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#0052FF]/15 blur-[100px] rounded-full pointer-events-none"
+              aria-hidden="true"
+            />
 
-              {/* Direct Commerce Trust Badge */}
-              <div className="mb-6 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 shadow-sm">
+            <div className="max-w-[820px] mx-auto px-4 sm:px-6 text-center relative z-10">
+
+              {/* Direct Commerce Trust Badge with Micro-interaction */}
+              <div className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 hover:border-emerald-500/40 transition-colors duration-200 shadow-sm cursor-default">
                 <ShieldCheck size={16} className="text-emerald-400" />
                 <span className="text-xs font-medium text-slate-300">
                   Independent store · Direct bank settlements · 0% commission
@@ -566,15 +573,16 @@ export default function LandingPage() {
                 Bring your business online. Keep it yours.
               </h2>
 
-              <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-xl mx-auto leading-relaxed font-normal">
+              <p className="text-lg sm:text-xl text-slate-300 mb-9 max-w-xl mx-auto leading-relaxed font-normal">
                 Direct customer orders, instant bank deposits, and automated store monitoring without giving away your hard-earned margins.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 max-w-md mx-auto">
+              {/* Rounded-Rectangle CTA Button with 3D Tactile Press */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-9 max-w-md mx-auto">
                 <button
                   type="button"
                   onClick={() => handleStart('final_cta')}
-                  className="group w-full sm:w-auto px-8 py-4 rounded-full bg-[#EA580C] hover:bg-[#C2410C] active:bg-[#9A3412] text-white font-semibold text-base transition-all duration-200 shadow-xl shadow-orange-500/25 hover:shadow-orange-500/35 flex items-center justify-center gap-2.5 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                  className="group w-full sm:w-auto px-9 py-4 rounded-2xl bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/20 shadow-[0_5px_0_0_#9A3412,0_10px_22px_rgba(234,88,12,0.35)] hover:shadow-[0_6px_0_0_#9A3412,0_14px_26px_rgba(234,88,12,0.45)] hover:-translate-y-0.5 active:translate-y-1.5 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                 >
                   <span>Bring my business online</span>
                   <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
@@ -582,13 +590,15 @@ export default function LandingPage() {
               </div>
 
               <div className="text-xs sm:text-sm text-slate-400 font-medium flex flex-wrap items-center justify-center gap-2.5">
-                <span className="bg-slate-900 px-3 py-1 rounded-md border border-slate-800 text-slate-300">
+                <span className="bg-slate-900/90 px-3.5 py-1.5 rounded-lg border border-slate-800 text-slate-300 hover:border-slate-700 transition-colors">
                   {market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}
                 </span>
                 <span className="text-slate-700">•</span>
-                <span className="bg-slate-900 px-3 py-1 rounded-md border border-slate-800 text-slate-300">No credit card to start</span>
+                <span className="bg-slate-900/90 px-3.5 py-1.5 rounded-lg border border-slate-800 text-slate-300 hover:border-slate-700 transition-colors">
+                  No credit card to start
+                </span>
                 <span className="text-slate-700">•</span>
-                <span className="bg-slate-900 px-3 py-1 rounded-md border border-orange-500/30 text-orange-300 font-medium">
+                <span className="bg-slate-900/90 px-3.5 py-1.5 rounded-lg border border-orange-500/30 text-orange-300 font-medium hover:border-orange-500/50 transition-colors">
                   0% FeraSetu platform commission
                 </span>
               </div>
