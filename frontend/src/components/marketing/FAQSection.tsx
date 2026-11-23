@@ -74,21 +74,12 @@ export default function FAQSection({
 
   return (
     <section
-      className={`py-20 md:py-24 ${dark ? 'bg-slate-900 border-t border-slate-800' : 'bg-slate-50/70 border-t border-slate-200'}`}
+      id="faq"
+      className={`py-20 md:py-28 scroll-mt-24 ${dark ? 'bg-slate-900 border-t border-slate-800' : 'bg-slate-50/70 border-t border-slate-200'}`}
       aria-label="Frequently asked questions"
     >
       <div className="max-w-[800px] mx-auto px-6">
         <div className="text-center mb-12">
-          <div
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mb-4 border ${
-              dark
-                ? 'bg-slate-800 border-slate-700 text-blue-300'
-                : 'bg-white border-slate-200 text-slate-700 shadow-sm'
-            }`}
-          >
-            <HelpCircle size={13} className="text-blue-600" aria-hidden="true" />
-            <span>Frequently Asked Questions</span>
-          </div>
           <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight mb-3 ${dark ? 'text-white' : 'text-slate-900'}`}>
             {title}
           </h2>

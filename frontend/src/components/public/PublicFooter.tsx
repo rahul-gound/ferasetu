@@ -32,10 +32,6 @@ export default function PublicFooter() {
                 className="h-9 sm:h-10 w-auto max-w-[150px] object-contain opacity-95"
               />
             </Link>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[11px] font-semibold text-slate-700 mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-              <span>Independent Commerce</span>
-            </div>
             <p className="text-sm text-slate-700 font-semibold max-w-xs leading-relaxed mb-3">
               “Your business is yours. The internet should be too.”
             </p>

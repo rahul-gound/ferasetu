@@ -28,7 +28,6 @@ import FeroGuardianSection from '../components/marketing/FeroGuardianSection';
 import CommissionCalculatorMatrix from '../components/marketing/CommissionCalculatorMatrix';
 import HowItWorksFeraAIShowcase from '../components/marketing/HowItWorksFeraAIShowcase';
 import SEO from '../components/SEO';
-import SplitText from '../components/ui/SplitText';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -159,25 +158,15 @@ export default function LandingPage() {
           ================================================================ */}
           <section
             id="hero"
-            className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden bg-white border-b border-slate-200/80"
+            className="relative pt-16 pb-16 md:pt-24 md:pb-28 overflow-hidden bg-white border-b border-slate-200/80 scroll-mt-24"
           >
             <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
               
-              {/* Eyebrow, Main Headline & Core Proposition */}
-              <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm font-semibold mb-6 shadow-md">
-                  <span className="flex h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
-                  <span className="font-mono text-[11px] font-bold tracking-wider uppercase text-[#F59E0B]">
-                    0% Platform Commission · Direct Bank Settlement
-                  </span>
-                </div>
-
-                <SplitText
-                  text="Your business is yours."
-                  highlightText="The internet should be too."
-                  highlightClassName="text-[#0052FF] block sm:inline"
-                  className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.08] mb-6"
-                />
+              {/* Main Headline & Core Proposition */}
+              <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-12">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-950 tracking-tight leading-[1.08] mb-6">
+                  Your business is yours. The internet should be too.
+                </h1>
 
                 <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
                   FeraSetu gives you an independent online store with direct customer orders and instant bank settlement. Built inside is <strong>Fero</strong> — your autonomous 24/7 AI agent that monitors inventory, audits payouts, and advises your next move.
@@ -196,34 +185,34 @@ export default function LandingPage() {
 
                   <a
                     href="#fero-agent"
-                    className="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-bold text-base hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-2 shadow-xs"
+                    className="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-base hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-2 shadow-xs"
                   >
-                    <Sparkles size={16} className="text-[#F59E0B]" />
-                    <span>Meet Fero AI Agent</span>
+                    <ShieldCheck size={18} className="text-[#0052FF]" />
+                    <span>Store Intelligence</span>
                   </a>
                 </div>
 
                 {/* Trust Invariants */}
-                <div className="text-xs sm:text-sm text-slate-500 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                    <CheckCircle2 size={14} className="text-blue-600" aria-hidden="true" />
+                <div className="text-xs sm:text-sm text-slate-600 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <CheckCircle2 size={15} className="text-emerald-600" aria-hidden="true" />
                     <span>{market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}</span>
                   </span>
                   <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                    <CheckCircle2 size={14} className="text-blue-600" aria-hidden="true" />
+                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <CheckCircle2 size={15} className="text-emerald-600" aria-hidden="true" />
                     <span>No credit card to start</span>
                   </span>
                   <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="inline-flex items-center gap-1.5 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200 text-orange-950 font-semibold">
-                    <ShieldCheck size={14} className="text-orange-600" aria-hidden="true" />
+                  <span className="inline-flex items-center gap-1.5 bg-orange-50/70 px-3 py-1.5 rounded-lg border border-orange-200 text-orange-950 font-semibold">
+                    <ShieldCheck size={15} className="text-orange-600" aria-hidden="true" />
                     <span>0% FeraSetu platform commission</span>
                   </span>
                 </div>
               </div>
 
               {/* Product Proof & Live Interactive Loop */}
-              <div id="product-proof">
+              <div id="product-proof" className="scroll-mt-24">
                 <HeroConnectedJourney
                   market={market}
                   onExplorePlans={() => {
@@ -263,7 +252,7 @@ export default function LandingPage() {
           {/* ================================================================
             SECTION 5 — 0% COMMISSION CALCULATOR & SAVINGS MATRIX
           ================================================================ */}
-          <section id="commission-calculator" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
+          <section id="commission-calculator" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200 scroll-mt-24">
             <CommissionCalculatorMatrix
               market={market}
               onStart={() => handleStart('calculator_cta')}
@@ -274,19 +263,15 @@ export default function LandingPage() {
           {/* ================================================================
             SECTION 6 — WHY FERASETU: HONEST OPERATIONAL BELIEFS
           ================================================================ */}
-          <section id="why" className="py-20 md:py-24 bg-white border-b border-slate-200">
+          <section id="why" className="py-20 md:py-28 bg-white border-b border-slate-200 scroll-mt-24">
             <div className="max-w-[900px] mx-auto px-4 sm:px-6">
 
               {/* Header */}
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-800 text-xs font-bold uppercase tracking-wider mb-4 border border-orange-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                  <span>WHY FERASETU EXISTS</span>
-                </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-6">
+              <div className="text-center mb-10">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-5">
                   You already built the hard part.
                 </h2>
-                <p className="text-base sm:text-lg text-slate-700 leading-relaxed font-normal max-w-2xl mx-auto">
+                <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl mx-auto">
                   A physical store takes real work: finding inventory, earning neighbor trust, and opening the door every single morning. Putting that store online should be dependable software, not a toll booth taking 15% to 25% of your turnover or walling off your customers. We built FeraSetu so shopkeepers sell online without giving away their business.
                 </p>
               </div>
@@ -345,13 +330,10 @@ export default function LandingPage() {
           {/* ================================================================
             SECTION 7 — COMPARISON: FLAT SOFTWARE VS. PERCENTAGE TOLLS
           ================================================================ */}
-          <section id="comparison" className="py-20 md:py-24 bg-slate-50 border-b border-slate-200">
+          <section id="comparison" className="py-20 md:py-28 bg-slate-50 border-b border-slate-200 scroll-mt-24">
             <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
               <div className="text-center max-w-2xl mx-auto mb-12">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
-                  <span>HONEST COMPARISON</span>
-                </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
                   Flat software vs. percentage tolls.
                 </h2>
                 <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
@@ -361,15 +343,15 @@ export default function LandingPage() {
 
               {/* Comparison Matrix Table */}
               <div className="max-w-4xl mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto -mx-1 sm:mx-0">
+                  <table className="w-full text-left text-sm min-w-[620px]">
                     <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider">
                       <tr>
                         <th scope="col" className="px-5 py-4 w-1/4">Commercial Dimension</th>
-                        <th scope="col" className="px-5 py-4 w-1/3 bg-blue-50/70 text-blue-900 font-black border-x border-blue-100">
+                        <th scope="col" className="px-5 py-4 w-1/3 bg-blue-50/70 text-blue-900 font-bold border-x border-blue-100">
                           <div className="flex items-center justify-between">
                             <span>FeraSetu Commerce</span>
-                            <span className="px-2 py-0.5 rounded bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider">
+                            <span className="px-2 py-0.5 rounded bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider">
                               0% Toll
                             </span>
                           </div>
@@ -424,7 +406,7 @@ export default function LandingPage() {
                       <tr className="comparison-row">
                         <td className="px-5 py-4 font-bold text-slate-900">Autonomous Shop Monitoring</td>
                         <td className="px-5 py-4 bg-blue-50/30 text-blue-900 font-semibold border-x border-blue-100">
-                          Fero AI Agent audits deposits, watches stock &amp; suggests moves
+                          Fero Store Intelligence audits deposits, watches stock &amp; suggests moves
                         </td>
                         <td className="px-5 py-4 text-slate-600">
                           Algorithms push ads to your buyers instead of helping you
@@ -447,15 +429,11 @@ export default function LandingPage() {
           {/* ================================================================
             SECTION 8 — PREDICTABLE PRICING
           ================================================================ */}
-          <section id="pricing" className="py-20 md:py-24 bg-white border-b border-slate-200" aria-label="FeraSetu pricing plans">
+          <section id="pricing" className="py-20 md:py-28 bg-white border-b border-slate-200 scroll-mt-24" aria-label="FeraSetu pricing plans">
             <div className="max-w-[1100px] mx-auto px-4 sm:px-6">
               <div className="text-center max-w-2xl mx-auto mb-12">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
-                  <span>PREDICTABLE PRICING</span>
-                </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                  Simple software subscription.<br />
-                  <span className="text-blue-600">0% sales commission.</span>
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
+                  Simple software subscription. 0% sales commission.
                 </h2>
                 <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
                   FeraSetu charges a predictable subscription. We charge <strong>0% platform commission</strong> on your sales.
@@ -475,12 +453,12 @@ export default function LandingPage() {
                       key={plan.id}
                       className={`rounded-2xl p-6 sm:p-7 flex flex-col relative transition-all duration-200 ${
                         isPopular
-                          ? 'bg-white border-2 border-orange-500 shadow-xl shadow-orange-500/10'
+                          ? 'bg-white border-2 border-[#0052FF] shadow-lg shadow-blue-500/10'
                           : 'bg-white border border-slate-200 shadow-sm hover:border-slate-300'
                       }`}
                     >
                       {isPopular && (
-                        <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-orange-500 text-white text-[11px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                        <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-[#0052FF] text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
                           <Zap size={11} aria-hidden="true" />
                           <span>Most Popular</span>
                         </div>
@@ -489,7 +467,7 @@ export default function LandingPage() {
                       <div className="mb-6">
                         <div className="flex items-center gap-2 mb-1.5">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-xs ${
-                            isPopular ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-slate-50 border-slate-200 text-slate-700'
+                            isPopular ? 'bg-blue-50 border-blue-200 text-[#0052FF]' : 'bg-slate-50 border-slate-200 text-slate-700'
                           }`}>
                             <PlanIcon size={16} aria-hidden="true" />
                           </div>
@@ -501,14 +479,14 @@ export default function LandingPage() {
 
                         <div className="mt-5 pb-5 border-b border-slate-100">
                           <div className="flex items-baseline gap-1">
-                            <span className="text-4xl font-black text-slate-900 font-mono tabular-nums">
+                            <span className="text-4xl font-extrabold text-slate-900 tabular-nums">
                               {formatPrice(plan.price.monthly)}
                             </span>
                             <span className="text-sm text-slate-500 font-semibold">
                               {plan.price.monthly === 0 ? 'forever' : '/month'}
                             </span>
                           </div>
-                          <div className="text-xs text-blue-700 font-semibold mt-1">
+                          <div className="text-xs text-slate-500 font-medium mt-1.5">
                             {market === 'IN' && plan.price.monthly === 0
                               ? 'Permanent Free Plan · No credit card required'
                               : `${config.trialDays || 14}-day free trial · Cancel anytime`}
@@ -518,7 +496,7 @@ export default function LandingPage() {
                         <ul className="text-sm space-y-3 mt-5 text-slate-700">
                           {plan.features.filter(f => typeof f === 'string' || f.included).slice(0, 6).map((f, i) => (
                             <li key={i} className="flex items-start gap-2.5">
-                              <Check size={15} className={`shrink-0 mt-0.5 ${isPopular ? 'text-orange-600 font-bold' : 'text-slate-500'}`} aria-hidden="true" />
+                              <Check size={15} className={`shrink-0 mt-0.5 ${isPopular ? 'text-[#0052FF] font-bold' : 'text-slate-500'}`} aria-hidden="true" />
                               <span className="leading-snug text-xs sm:text-sm">{typeof f === 'string' ? f : f.label}</span>
                             </li>
                           ))}
@@ -531,7 +509,7 @@ export default function LandingPage() {
                           onClick={() => handleStart(`plan_${plan.id}`)}
                           className={`group w-full py-3 rounded-xl font-bold text-center text-sm transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 hover:-translate-y-0.5 ${
                             isPopular
-                              ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/25'
+                              ? 'bg-[#0052FF] hover:bg-[#0047E0] text-white shadow-md shadow-blue-500/25'
                               : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
                           }`}
                         >
@@ -571,31 +549,25 @@ export default function LandingPage() {
 
 
           {/* ================================================================
-            SECTION 10 — FINAL CTA: THE SOVEREIGN SUMMONS
+            SECTION 10 — FINAL CTA: DIRECT COMMERCE
           ================================================================ */}
-          <section className="py-20 md:py-28 bg-slate-900 text-white relative overflow-hidden border-t border-slate-800">
+          <section className="py-20 md:py-28 bg-slate-950 text-white relative overflow-hidden border-t border-slate-800">
             <div className="max-w-[800px] mx-auto px-4 sm:px-6 text-center relative z-10">
 
-              {/* Fero AI Companion Pill */}
-              <div className="mb-6 inline-flex items-center gap-3 p-1.5 pr-4 rounded-full bg-slate-800/90 border border-slate-700 shadow-md">
-                <img
-                  src="/pictures/fero-mascot.webp"
-                  alt="Fero — Autonomous AI Store Monitor"
-                  className="w-10 h-10 rounded-full object-cover object-top border-2 border-[#F59E0B]"
-                  loading="lazy"
-                />
-                <span className="font-mono text-xs font-bold text-[#F59E0B] uppercase tracking-wider">
-                  Fero AI Monitors Your Shop 24/7 · 0% Platform Toll
+              {/* Direct Commerce Trust Badge */}
+              <div className="mb-6 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 shadow-sm">
+                <ShieldCheck size={16} className="text-emerald-400" />
+                <span className="text-xs font-medium text-slate-300">
+                  Independent store · Direct bank settlements · 0% commission
                 </span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-5">
-                Bring your business online.<br />
-                <span className="text-orange-400">Keep it yours.</span>
+                Bring your business online. Keep it yours.
               </h2>
 
               <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-xl mx-auto leading-relaxed font-normal">
-                Direct customer orders. 0% FeraSetu platform commission. Your own branded web address with Fero monitoring your store.
+                Direct customer orders, instant bank deposits, and automated store monitoring without giving away your hard-earned margins.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 max-w-md mx-auto">
@@ -610,13 +582,13 @@ export default function LandingPage() {
               </div>
 
               <div className="text-xs sm:text-sm text-slate-400 font-medium flex flex-wrap items-center justify-center gap-2.5">
-                <span className="bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+                <span className="bg-slate-900 px-3 py-1 rounded-md border border-slate-800 text-slate-300">
                   {market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}
                 </span>
-                <span className="text-slate-600">•</span>
-                <span className="bg-slate-800 px-2.5 py-1 rounded border border-slate-700">No credit card to start</span>
-                <span className="text-slate-600">•</span>
-                <span className="bg-slate-800 px-2.5 py-1 rounded border border-orange-500/30 text-orange-300 font-semibold">
+                <span className="text-slate-700">•</span>
+                <span className="bg-slate-900 px-3 py-1 rounded-md border border-slate-800 text-slate-300">No credit card to start</span>
+                <span className="text-slate-700">•</span>
+                <span className="bg-slate-900 px-3 py-1 rounded-md border border-orange-500/30 text-orange-300 font-medium">
                   0% FeraSetu platform commission
                 </span>
               </div>

@@ -26,18 +26,10 @@ export default function GymHero() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Main Left Content Column */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Urgent Eyebrow Badge */}
-            <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-sm bg-black/60 border border-[#D4FF00]/40 backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full bg-[#D4FF00] animate-pulse" />
-              <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#D4FF00]">
-                {shopName ? `${shopName.toUpperCase()} · SOVEREIGN ATHLETIC CLUB` : 'THE INDEPENDENT IRON STANDARD'}
-              </span>
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight text-white leading-[0.95] font-display">
               RAW IRON. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-neutral-100 to-neutral-400">
+              <span className="text-white">
                 CLEAN COACHING.
               </span> <br />
               <span className="text-[#D4FF00]">ZERO COMPROMISE.</span>

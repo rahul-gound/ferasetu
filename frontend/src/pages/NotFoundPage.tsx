@@ -241,13 +241,7 @@ export default function NotFoundPage() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="w-full max-w-3xl mx-auto flex flex-col items-center text-center">
 
-          {/* Top Status Breadcrumb */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-semibold mb-6 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span>Store Route 404 • Quiet Lane in the Bazaar</span>
-          </div>
-
-          {/* Central Hero Interaction: Fero Guardian & Interactive Shopkeeper Counter Bell */}
+          {/* Central Hero Interaction: Store Intelligence & Counter Bell */}
           <div className="relative mb-6 flex flex-col items-center">
             <div className="flex items-center justify-center gap-5 sm:gap-7">
               {/* Fero Mascot Guardian */}
@@ -467,18 +461,18 @@ export default function NotFoundPage() {
 
             <Link
               to="/ferasetu-ai"
-              className="p-4 rounded-2xl border border-slate-200/80 bg-white hover:border-purple-300 hover:bg-purple-50/20 transition-all duration-150 group shadow-2xs"
+              className="p-4 rounded-2xl border border-slate-200/80 bg-white hover:border-blue-300 hover:bg-blue-50/20 transition-all duration-150 group shadow-2xs"
             >
               <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 group-hover:scale-105 transition-transform">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-[#0052FF] group-hover:scale-105 transition-transform">
                   <Sparkles size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition-colors">
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#0052FF] transition-colors">
                     FeraSetu AI Studio
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                    Instant catalog generation and smart merchant copywriting.
+                    Catalog assistance and smart merchant copywriting.
                   </p>
                 </div>
               </div>

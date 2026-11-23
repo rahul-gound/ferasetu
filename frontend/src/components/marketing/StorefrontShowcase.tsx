@@ -365,30 +365,26 @@ export default function StorefrontShowcase() {
     <section
       ref={sectionRef}
       id="storefront-showcase"
-      className="relative bg-white border-b border-slate-200"
+      className="relative bg-white border-b border-slate-200 scroll-mt-24 py-16 md:py-24"
     >
       <div
-        className="w-full max-w-[1340px] mx-auto px-4 sm:px-6 py-12 md:py-16 flex flex-col justify-between"
+        className="w-full max-w-[1340px] mx-auto px-4 sm:px-6 flex flex-col justify-between"
       >
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-2 border border-blue-200">
-              <Sparkles size={13} className="text-blue-600" aria-hidden="true" />
-              <span>LIVE MERCHANT CONDUITS</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
               Real storefronts. Independent ownership.
             </h2>
-            <p className="text-sm sm:text-base text-slate-600 mt-1 max-w-2xl font-normal">
+            <p className="text-base text-slate-600 mt-2 max-w-2xl font-normal">
               Explore how independent shops and local makers take orders directly with zero platform tax.
             </p>
           </div>
 
           {/* Stepper Controls & Active Indicator */}
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-              Store <span className="text-blue-600">{activeCard + 1}</span> of {SHOWCASE_STORES.length}
+            <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              Store <span className="text-[#0052FF] font-bold">{activeCard + 1}</span> of {SHOWCASE_STORES.length}
             </span>
             <div className="flex items-center gap-1.5">
               <button
@@ -441,28 +437,22 @@ export default function StorefrontShowcase() {
                   onClick={() => handleScrollToCard(idx)}
                   className={`storefront-card group w-[360px] sm:w-[410px] shrink-0 rounded-2xl border flex flex-col justify-between transition-all duration-300 cursor-pointer select-none overflow-hidden ${
                     isCurrent
-                      ? 'bg-white border-blue-600 shadow-xl ring-2 ring-blue-600/10 scale-[1.01]'
-                      : 'bg-white/95 border-slate-200 hover:border-slate-300 hover:bg-white shadow-sm hover:shadow-md'
+                      ? 'bg-white border-[#0052FF] shadow-lg ring-2 ring-[#0052FF]/10 scale-[1.01]'
+                      : 'bg-white/95 border-slate-200 hover:border-slate-300 hover:bg-white shadow-sm'
                   }`}
                 >
-                  {/* BROWSER WINDOW TITLEBAR CHROME */}
-                  <div className="bg-slate-100/90 px-3.5 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                    </div>
-
+                  {/* CLEAN STORE HEADER CHROME */}
+                  <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200/80 flex items-center justify-between text-xs">
                     {/* Verified SSL URL Bar */}
-                    <div className="bg-white px-3 py-1 rounded-md border border-slate-200 text-slate-700 font-mono text-[11px] flex items-center gap-1.5 truncate max-w-[210px] shadow-xs">
-                      <Lock size={10} className="text-emerald-600 shrink-0" aria-hidden="true" />
-                      <span className="font-semibold text-slate-900 truncate">{store.url}</span>
+                    <div className="text-slate-600 text-xs flex items-center gap-1.5 truncate max-w-[240px]">
+                      <Lock size={12} className="text-emerald-600 shrink-0" aria-hidden="true" />
+                      <span className="font-medium text-slate-800 truncate">{store.url}</span>
                     </div>
 
                     {/* Live Indicator */}
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Live</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                      <span>Live Store</span>
                     </span>
                   </div>
 

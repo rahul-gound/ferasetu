@@ -16,6 +16,7 @@ Aligned with the **FeraSetu Human UI/UX & Global Shopkeeper Rule** (`GEMINI.md`)
 - **Uniform Icons:** `lucide-react` with `size={18}` / `size={20}` and `strokeWidth={1.75}`.
 - **High Contrast:** High readability under outdoor sunlight (`text-slate-900`/`text-slate-700`).
 - **Impeccable Design Engine (`pbakaus/impeccable`):** Mandatory design vocabulary, `PRODUCT.md`, `DESIGN.md`, deterministic 62-rule anti-slop detector (`impeccable detect`), and quality floor (`craft-floor.md`) active for all frontend screens.
+- **Anthropic Frontend Design Skill (`.agents/skills/frontend-design/`):** Official Agent Skills standard skill installed from `anthropics/skills`. Guides intentional art direction, elimination of generic AI-generated 3D assets/blur orbs, eradication of single-word color accents and tracked-out all-caps labels, consistent Lucide iconography, and subject-grounded retail craft.
 
 ## 2. Key Modules & Pages
 

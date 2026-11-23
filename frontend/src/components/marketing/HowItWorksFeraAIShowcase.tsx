@@ -15,7 +15,6 @@ import {
   Building2,
   Smartphone
 } from 'lucide-react';
-import FeroMascot from '../ui/FeroMascot';
 
 interface HowItWorksFeraAIShowcaseProps {
   onStart?: () => void;
@@ -61,22 +60,15 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
   ];
 
   return (
-    <section id="how-it-works-showcase" className="py-16 md:py-24 bg-white border-b border-slate-200/80">
+    <section id="how-it-works-showcase" className="py-20 md:py-28 bg-white border-b border-slate-200/80 scroll-mt-24">
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
         {/* Section Header */}
         <div className="max-w-3xl mx-auto text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-950 text-xs sm:text-sm font-semibold mb-4 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-[#0052FF]" />
-            <span className="font-mono text-[11px] font-black tracking-wider uppercase text-[#0052FF]">
-              3-STEP SOVEREIGN COMMERCE CIRCUIT
-            </span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight mb-4">
-            How FeraSetu powers independent merchants worldwide.
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
+            How FeraSetu powers independent merchants.
           </h2>
           <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            From the initial storefront launch to autonomous daily customer fulfillment—without sacrificing your profits to marketplace commissions.
+            From your storefront launch to daily customer fulfillment—without giving up your profits to marketplace commissions.
           </p>
         </div>
 
@@ -89,23 +81,23 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
               <div
                 key={item.step}
                 onClick={() => setActiveStep(idx)}
-                className={`group rounded-3xl p-6 sm:p-7 border transition-all duration-200 cursor-pointer text-left relative flex flex-col justify-between ${
+                className={`group rounded-2xl p-6 sm:p-7 border transition-all duration-200 cursor-pointer text-left relative flex flex-col justify-between ${
                   isCurrent
-                    ? 'border-[#0052FF] bg-[#F8FAFC] shadow-ambient-md -translate-y-1'
-                    : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-ambient'
+                    ? 'border-[#0052FF] bg-[#F8FAFC] shadow-md -translate-y-0.5'
+                    : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-mono text-2xl font-black text-slate-300 group-hover:text-slate-900 transition-colors">
-                      {item.step}
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      Step {idx + 1}
                     </span>
                     <span
-                      className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
                         idx === 0
                           ? 'bg-blue-50 text-[#0052FF] border-blue-200'
                           : idx === 1
-                          ? 'bg-amber-50 text-[#F59E0B] border-amber-200'
+                          ? 'bg-amber-50 text-[#EA580C] border-amber-200'
                           : 'bg-emerald-50 text-[#10B981] border-emerald-200'
                       }`}
                     >
@@ -113,13 +105,13 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2.5 mb-2">
                     <div
                       className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
                         idx === 0
                           ? 'bg-blue-100 text-[#0052FF]'
                           : idx === 1
-                          ? 'bg-amber-100 text-[#F59E0B]'
+                          ? 'bg-amber-100 text-[#EA580C]'
                           : 'bg-emerald-100 text-[#10B981]'
                       }`}
                     >
@@ -144,20 +136,16 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
         </div>
 
         {/* ======================================================== */}
-        {/* Fera AI Multi-Agent Command Copilot Interactive Showcase */}
+        {/* Fera AI Operations Copilot Interactive Showcase */}
         {/* ======================================================== */}
-        <div className="rounded-3xl border border-slate-200/90 bg-[#0A0F1D] text-white p-6 sm:p-10 shadow-2xl overflow-hidden relative">
-          {/* Subtle Glow Spheres */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-[#0052FF]/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#F59E0B]/15 rounded-full blur-3xl pointer-events-none" />
-
+        <div className="rounded-3xl border border-slate-800 bg-[#0A0F1D] text-white p-6 sm:p-10 shadow-xl overflow-hidden relative">
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Left Copy: Multi-Agent AI System */}
+            {/* Left Copy: AI System */}
             <div className="lg:col-span-5 text-left space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold border border-white/15">
-                <Sparkles size={14} className="text-[#F59E0B]" />
-                <span className="font-mono text-[11px] uppercase tracking-wider text-[#F59E0B]">
-                  Fera AI Multi-Agent Cluster
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-medium border border-white/15">
+                <Bot size={14} className="text-amber-400" />
+                <span className="text-xs text-amber-300">
+                  Fera AI Retail Cluster
                 </span>
               </div>
 
@@ -171,7 +159,7 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
 
               {/* Interactive Task Tabs */}
               <div className="space-y-2 pt-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block">
+                <span className="text-xs text-slate-400 block font-medium">
                   Select a live autonomous task:
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -186,9 +174,9 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
                         key={task.id}
                         type="button"
                         onClick={() => setActiveCopilotTask(task.id)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border ${
                           activeCopilotTask === task.id
-                            ? 'bg-[#0052FF] text-white border-[#4D7CFF] shadow-glow-sovereign'
+                            ? 'bg-[#0052FF] text-white border-blue-400 shadow-md'
                             : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
                         }`}
                       >
@@ -201,17 +189,19 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
               </div>
             </div>
 
-            {/* Right: The Fera AI Command Console with Dual Glow Border */}
+            {/* Right: The Fera AI Command Console */}
             <div className="lg:col-span-7">
-              <div className="rounded-2xl border border-[#0052FF]/40 bg-[#111827] p-5 shadow-2xl ai-copilot-thinking relative">
+              <div className="rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl relative">
                 {/* Copilot Header */}
                 <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
                   <div className="flex items-center gap-2.5">
-                    <FeroMascot size={32} showBadge={false} />
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold">
+                      <Bot size={16} />
+                    </div>
                     <div>
                       <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <span>Fera AI Sovereign Co-Pilot</span>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] bg-[#10B981]/20 text-[#10B981] font-mono uppercase">
+                        <span>Fera AI Co-Pilot</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-medium">
                           Live Agent
                         </span>
                       </div>
@@ -219,7 +209,7 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-mono text-[#F59E0B] bg-[#F59E0B]/10 px-2 py-0.5 rounded border border-[#F59E0B]/20">
+                  <span className="text-[11px] text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20 font-medium">
                     Executing store task...
                   </span>
                 </div>

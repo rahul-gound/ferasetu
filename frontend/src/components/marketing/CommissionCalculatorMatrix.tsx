@@ -46,62 +46,52 @@ export default function CommissionCalculatorMatrix({ market = 'IN', onStart }: C
   };
 
   return (
-    <section id="commission-calculator" className="py-16 md:py-24 bg-[#F8FAFC] border-y border-slate-200/80">
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
-        {/* Section Header */}
-        <div className="max-w-3xl mx-auto text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200/90 text-amber-950 text-xs sm:text-sm font-semibold mb-4 shadow-2xs">
-            <Coins size={15} className="text-[#F59E0B]" />
-            <span className="font-mono text-[11px] font-black tracking-wider uppercase text-amber-800">
-              COMMISSION TRANSPARENCY CALCULATOR
-            </span>
-            <span className="text-amber-300">|</span>
-            <span className="font-extrabold text-[#F59E0B]">0% Platform Toll</span>
-          </div>
+    <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
+      {/* Section Header */}
+      <div className="max-w-3xl mx-auto text-center mb-12 sm:mb-14">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
+          Calculate what marketplace commissions cost you.
+        </h2>
+        <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          Every rupee or dollar earned from customer goodwill belongs in your store. Compare traditional marketplace commissions against direct sovereign ownership.
+        </p>
+      </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight mb-4">
-            Calculate your relief from marketplace exploitation.
-          </h2>
-          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Every rupee or dollar you earn from customer trust should stay in your store and family. See how much traditional marketplaces confiscate from your business every single year.
-          </p>
-        </div>
-
-        {/* Interactive Calculator + Matrix Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* ======================================================== */}
-          {/* LEFT: Dynamic Slider & Real Annual Savings (Col 1-5)      */}
-          {/* ======================================================== */}
-          <div className="lg:col-span-5 rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-ambient space-y-6">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor={sliderId} className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Your Monthly Store Sales
-                </label>
-                <span className="font-mono text-xl sm:text-2xl font-black text-[#0052FF] tabular-nums">
-                  {formatAmount(monthlySales)}
-                </span>
-              </div>
-
-              {/* Slider Input */}
-              <input
-                id={sliderId}
-                type="range"
-                min={minSales}
-                max={maxSales}
-                step={stepSales}
-                value={monthlySales}
-                onChange={(e) => setMonthlySales(Number(e.target.value))}
-                className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0052FF]"
-                aria-label="Monthly Sales Volume Slider"
-              />
-
-              <div className="flex justify-between text-[11px] text-slate-400 font-mono mt-1.5">
-                <span>{formatAmount(minSales)}/mo</span>
-                <span>{formatAmount(maxSales / 2)}/mo</span>
-                <span>{formatAmount(maxSales)}/mo</span>
-              </div>
+      {/* Interactive Calculator + Matrix Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* ======================================================== */}
+        {/* LEFT: Dynamic Slider & Real Annual Savings (Col 1-5)      */}
+        {/* ======================================================== */}
+        <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor={sliderId} className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Monthly Store Sales
+              </label>
+              <span className="text-2xl sm:text-3xl font-extrabold text-[#0052FF] tabular-nums">
+                {formatAmount(monthlySales)}
+              </span>
             </div>
+
+            {/* Slider Input */}
+            <input
+              id={sliderId}
+              type="range"
+              min={minSales}
+              max={maxSales}
+              step={stepSales}
+              value={monthlySales}
+              onChange={(e) => setMonthlySales(Number(e.target.value))}
+              className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0052FF]"
+              aria-label="Monthly Sales Volume Slider"
+            />
+
+            <div className="flex justify-between text-xs text-slate-500 font-medium mt-1.5 tabular-nums">
+              <span>{formatAmount(minSales)}/mo</span>
+              <span>{formatAmount(maxSales / 2)}/mo</span>
+              <span>{formatAmount(maxSales)}/mo</span>
+            </div>
+          </div>
 
             {/* Marketplace Toll Rate Selector */}
             <div>
@@ -269,6 +259,5 @@ export default function CommissionCalculatorMatrix({ market = 'IN', onStart }: C
           </div>
         </div>
       </div>
-    </section>
   );
 }

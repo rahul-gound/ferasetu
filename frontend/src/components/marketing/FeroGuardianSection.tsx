@@ -133,86 +133,98 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
   return (
     <section
       id="fero-agent"
-      className="py-20 md:py-28 bg-white border-b border-slate-200 relative overflow-hidden"
-      aria-label="Meet Fero, Autonomous AI Shopkeeper Agent"
+      className="py-20 md:py-28 bg-white border-b border-slate-200 relative overflow-hidden scroll-mt-24"
+      aria-label="Fero Autonomous Store Intelligence"
     >
-      {/* Subtle Background Ambience */}
-      <div className="absolute top-10 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 left-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6 relative z-10">
         
         {/* Section Header */}
         <div className="max-w-3xl mx-auto text-center mb-14 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold mb-4 shadow-sm border border-slate-800">
-            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-            <span className="font-mono text-[11px] font-bold text-[#F59E0B] uppercase tracking-wider">
-              AUTONOMOUS AI SHOPKEEPER AGENT
-            </span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.12] mb-5">
-            Meet Fero.<br />
-            <span className="text-[#0052FF]">The AI agent that monitors your shop.</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.12] mb-5">
+            Meet Fero. Built-in store intelligence that protects your margin.
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl mx-auto">
-            FeraSetu is your independent 0% commission storefront. Fero is the intelligent AI co-pilot who watches over it. Fero monitors your stock, audits bank deposits, and delivers clear suggestions so your shop runs smoothly.
+            FeraSetu is your independent 0% commission storefront. Fero is the intelligent operations co-pilot built inside: monitoring stock levels, verifying direct bank deposits, and surfacing clear merchant actions.
           </p>
         </div>
 
         {/* 2-Column Main Showcase Card */}
-        <div className="rounded-3xl border border-slate-200/90 bg-slate-50/50 p-6 sm:p-10 lg:p-12 shadow-xl shadow-slate-900/5">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-6 sm:p-10 lg:p-12 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
-            {/* Column 1: Fero Portrait with Live Tablet HUD (Col 1-5) */}
-            <div className="lg:col-span-5 flex flex-col items-center">
-              <div className="relative w-full max-w-[360px] group">
+            {/* Column 1: Store Telemetry & Operations Console (Col 1-5) */}
+            <div className="lg:col-span-5 flex flex-col">
+              <div className="w-full rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
                 
-                {/* Subtle Amber/Blue Radial Aura */}
-                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-[#0052FF]/20 via-[#F59E0B]/25 to-[#10B981]/20 blur-md opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
-
-                {/* Portrait Card */}
-                <div className="relative rounded-2xl overflow-hidden border-2 border-[#F59E0B]/70 bg-white shadow-2xl">
-                  <picture>
-                    <source srcSet="/pictures/fero-mascot.webp" type="image/webp" />
-                    <img
-                      src="/pictures/fero-mascot.jpg"
-                      alt="Fero — Autonomous AI shopkeeper agent holding tablet"
-                      className="w-full h-auto object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
-                      loading="lazy"
-                    />
-                  </picture>
-
-                  {/* Fero's Live Tablet Screen Overlay */}
-                  <div className="absolute bottom-3 left-3 right-3 p-3.5 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 text-white shadow-xl">
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="font-mono font-bold text-[#F59E0B] flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
-                        Fero Active Monitor
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono text-[10px] font-bold">
-                        14 Products Synced
-                      </span>
+                {/* Console Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
+                      <Store size={18} className="text-blue-500" />
                     </div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900">Store Telemetry Console</div>
+                      <div className="text-[11px] text-slate-500 font-mono">sharma.ferasetu.com</div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active Monitor
+                  </span>
+                </div>
 
-                    <p className="text-[11px] text-slate-300 leading-snug font-sans">
-                      "I verified 14 UPI orders settled directly to your bank account with ₹0 platform cut. Cold-pressed oil needs restock."
-                    </p>
+                {/* Real Operational Metrics Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="text-[11px] font-medium text-slate-500 mb-1">Bank Conduit</div>
+                    <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <CheckCircle2 size={15} className="text-emerald-600" />
+                      <span>Direct 100%</span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">0% platform toll</div>
                   </div>
 
-                  {/* Corner Badge */}
-                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-[#10B981] text-white text-[10px] font-mono font-black shadow-md border border-white flex items-center gap-1">
-                    <ShieldCheck size={12} />
-                    <span>0% COMMISSION AUDIT</span>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="text-[11px] font-medium text-slate-500 mb-1">Catalog Watch</div>
+                    <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <Package size={15} className="text-blue-600" />
+                      <span>14 SKUs Synced</span>
+                    </div>
+                    <div className="text-[10px] text-amber-700 font-medium mt-0.5">1 low stock alert</div>
                   </div>
                 </div>
+
+                {/* Live Merchant Audit Briefing */}
+                <div className="p-4 rounded-xl bg-slate-900 text-white shadow-xs">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="font-semibold text-amber-400 flex items-center gap-1.5">
+                      <ShieldCheck size={14} className="text-emerald-400" />
+                      Automated Deposit Audit
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Real-time verification
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    "I verified 14 UPI customer orders deposited directly into your bank account. Total platform fee charged: ₹0.00. Cold-pressed mustard oil is running low — restock draft prepared."
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <RefreshCw size={12} className="text-slate-400" />
+                    <span>Auto-syncs every 60 seconds</span>
+                  </span>
+                  <span className="font-medium text-slate-700">0% commission guarantee</span>
+                </div>
+
               </div>
 
               {/* Character Role Tag */}
-              <div className="mt-4 text-center">
-                <span className="font-bold text-base text-slate-900 block">Fero</span>
-                <span className="text-xs text-slate-500">Autonomous Store AI Agent · FeraSetu</span>
+              <div className="mt-3 text-center">
+                <span className="text-xs font-semibold text-slate-700">Fero Store Intelligence</span>
+                <span className="text-xs text-slate-400 ml-1.5">· Built into every FeraSetu store</span>
               </div>
             </div>
 
@@ -221,21 +233,21 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
               
               <div className="mb-5">
                 <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                    Fero's Real-Time Shop Monitor
-                  </h3>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                     Live Store Telemetry
+                  </h3>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                    Real-Time Feed
                   </span>
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed font-normal">
-                  Fero watches your store telemetry in real time. Click a channel below to see how Fero alerts and advises you.
+                  Real-time monitoring across inventory, deposits, and repeat buyers.
                 </p>
               </div>
 
               {/* Generative Interactive Monitor Channel Tabs */}
-              <div className="flex flex-wrap gap-2 mb-4 p-1 rounded-xl bg-slate-200/70 text-xs font-bold">
+              <div className="flex flex-wrap gap-2 mb-4 p-1 rounded-xl bg-slate-200/70 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setActiveTab('feed')}
@@ -245,7 +257,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Bell size={13} className={activeTab === 'feed' ? 'text-[#0052FF]' : ''} />
+                  <Bell size={15} className={activeTab === 'feed' ? 'text-[#0052FF]' : ''} />
                   <span>Live Feed</span>
                 </button>
                 <button
@@ -257,7 +269,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Package size={13} className={activeTab === 'inventory' ? 'text-amber-600' : ''} />
+                  <Package size={15} className={activeTab === 'inventory' ? 'text-amber-600' : ''} />
                   <span>Stock Watch</span>
                 </button>
                 <button
@@ -269,7 +281,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Building2 size={13} className={activeTab === 'settlement' ? 'text-emerald-600' : ''} />
+                  <Building2 size={15} className={activeTab === 'settlement' ? 'text-emerald-600' : ''} />
                   <span>Payout Audit</span>
                 </button>
                 <button
@@ -281,7 +293,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <TrendingUp size={13} className={activeTab === 'suggestions' ? 'text-purple-600' : ''} />
+                  <TrendingUp size={15} className={activeTab === 'suggestions' ? 'text-purple-600' : ''} />
                   <span>Store Advice</span>
                 </button>
               </div>
@@ -291,43 +303,43 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 {alerts[activeTab].map((item) => (
                   <div
                     key={item.id}
-                    className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all text-left"
+                    className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-all text-left"
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2">
                         {item.type === 'inventory' ? (
-                          <div className="w-6 h-6 rounded-md bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
-                            <AlertTriangle size={13} />
+                          <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
+                            <AlertTriangle size={15} />
                           </div>
                         ) : item.type === 'settlement' ? (
-                          <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
-                            <CheckCircle2 size={13} />
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+                            <CheckCircle2 size={15} />
                           </div>
                         ) : (
-                          <div className="w-6 h-6 rounded-md bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
-                            <Sparkles size={13} />
+                          <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
+                            <Sparkles size={15} />
                           </div>
                         )}
                         <h4 className="font-bold text-xs sm:text-sm text-slate-900">{item.title}</h4>
                       </div>
 
                       {item.highlight && (
-                        <span className="font-mono text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
+                        <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shrink-0">
                           {item.highlight}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-xs text-slate-600 leading-relaxed font-normal ml-8 mb-2">
+                    <p className="text-xs text-slate-600 leading-relaxed font-normal ml-9 mb-2">
                       {item.detail}
                     </p>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono ml-8 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono ml-9 pt-1.5 border-t border-slate-100">
                       <span>{item.time}</span>
                       {item.actionLabel && (
-                        <span className="text-[#0052FF] font-bold font-sans hover:underline cursor-pointer flex items-center gap-1">
+                        <span className="text-[#0052FF] font-semibold font-sans hover:underline cursor-pointer flex items-center gap-1">
                           {item.actionLabel}
-                          <ChevronRight size={11} />
+                          <ChevronRight size={13} />
                         </span>
                       )}
                     </div>
