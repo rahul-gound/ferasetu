@@ -43,9 +43,11 @@ erDiagram
 | **Discount Redemptions** | D1 Edge SQL | `id`, `discount_id`, `discount_code_id`, `order_id`, `organization_id`, `customer_id`, `customer_phone`, `customer_email`, `discount_amount_minor`, `redeemed_at` |
 
 ## 3. Migration Files
-- `worker/migrations/`: SQL migration files for Cloudflare D1 (0001 through 0022).
+- `worker/migrations/`: SQL migration files for Cloudflare D1 (0001 through 0026).
   - `0019_unified_website_builder.sql`: Website drafts, immutable versions, connections vault, and media asset staging flags.
   - `0020_custom_storefront_domains.sql`: Custom domains, automated DNS verification, SSL status tracking.
   - `0022_discounts_engine.sql`: Complete D1 tables for promotional discounts, bulk coupon codes, and atomic checkout order redemption logs.
+  - `0025_realtime_events_outbox.sql`: Realtime events transactional outbox.
+  - `0026_order_cancellation_columns.sql`: Adds cancellation audit columns (`cancellation_status`, `cancellation_reason`, `cancelled_at`, `cancelled_by`, `return_status`) to `orders`.
 - `backend/src/models/`: TypeScript interfaces and Mongoose/SQL query definitions.
 

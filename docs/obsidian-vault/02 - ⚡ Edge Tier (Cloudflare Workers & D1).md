@@ -34,7 +34,7 @@ The Edge Tier sits in front of all buyer-facing traffic and selected shopkeeper 
 - **`POST /api/orders/:id/cancel`**:
   - Merchant staff authorization via `requireOrgContext(request, env, 'staff')`.
   - Irreversible status check: Rejects already-cancelled orders with `400 Bad Request`.
-  - Sets `status = 'cancelled'`, `cancellation_status = 'cancelled'`, `cancellation_reason`, `cancelled_at`, `cancelled_by = 'merchant'`.
+  - Self-healing schema protection (`ensureOrderCancellationColumns` + Migration 0026): Sets `status = 'cancelled'`, `cancellation_status = 'cancelled'`, `cancellation_reason`, `cancelled_at`, `cancelled_by = 'merchant'`. Includes automatic fallback to base status update if columns are pending migration.
   - Automatically updates invoices in D1: `UPDATE invoices SET status = 'voided' WHERE order_id = ?`.
   - Automatically restores inventory stock for tracked catalog products.
   - Automatically dispatches customer transactional cancellation email (`order.cancelled` template).

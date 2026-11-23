@@ -109,15 +109,15 @@ export default function FAQSection({
                   type="button"
                   onClick={() => toggle(i)}
                   aria-expanded={isOpen}
-                  className={`w-full text-left px-5 sm:px-6 py-4 sm:py-4.5 flex items-center justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl cursor-pointer ${
+                  className={`w-full text-left px-5 sm:px-6 py-4 sm:py-4.5 flex items-center justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] rounded-xl cursor-pointer active:scale-[0.995] active:translate-y-0.5 transition-all duration-200 select-none ${
                     dark ? 'text-white' : 'text-slate-900'
                   }`}
                 >
                   <span className="font-bold text-sm sm:text-base leading-snug">{faq.question}</span>
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-transform duration-300 ease-out ${
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${
                       isOpen
-                        ? 'bg-[#0052FF] border-[#0052FF] text-white rotate-45'
+                        ? 'bg-[#0052FF] border-[#0052FF] text-white rotate-45 shadow-[0_2px_8px_rgba(0,82,255,0.25)]'
                         : dark
                         ? 'bg-slate-700 border-slate-600 text-slate-300'
                         : 'bg-slate-50 border-slate-200 text-slate-500'
@@ -128,13 +128,15 @@ export default function FAQSection({
                 </button>
 
                 <div
-                  className={`grid transition-[grid-template-rows,opacity] duration-500 ease-out ${
+                  className={`grid transition-[grid-template-rows,opacity] duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${
                     isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
                   }`}
                 >
                   <div className="overflow-hidden">
                     <div
-                      className={`px-5 sm:px-6 pb-5 pt-2 text-sm leading-relaxed border-t ${
+                      className={`px-5 sm:px-6 pb-5 pt-2 text-sm leading-relaxed border-t transition-transform duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${
+                        isOpen ? 'translate-y-0' : '-translate-y-1'
+                      } ${
                         dark
                           ? 'text-slate-300 border-slate-700/60'
                           : 'text-slate-600 border-slate-100'

@@ -1,20 +1,23 @@
 ---
 name: FeraSetu Design System
-description: Calm, high-trust, human-first commerce interface for global independent retail shopkeepers
+description: Calm, high-trust, human-first commerce infrastructure for global independent retail shopkeepers
 colors:
   primary: "#0052FF"
   primary-hover: "#0047E0"
+  primary-active: "#003BB5"
   primary-light: "#EFF6FF"
   accent: "#EA580C"
   accent-hover: "#C2410C"
+  accent-active: "#9A3412"
   accent-light: "#FFF7ED"
   neutral-bg: "#FFFFFF"
   surface-muted: "#F8FAFC"
   surface-card: "#FFFFFF"
   border-subtle: "#F1F5F9"
   border-default: "#E2E8F0"
+  border-strong: "#CBD5E1"
   text-primary: "#0F172A"
-  text-secondary: "#334155"
+  text-secondary: "#475569"
   text-muted: "#64748B"
   success: "#10B981"
   success-bg: "#ECFDF5"
@@ -50,7 +53,9 @@ typography:
 rounded:
   sm: "6px"
   md: "10px"
-  lg: "16px"
+  lg: "12px"
+  xl: "14px"
+  "2xl": "16px"
   full: "9999px"
 spacing:
   xs: "4px"
@@ -58,73 +63,99 @@ spacing:
   md: "16px"
   lg: "24px"
   xl: "32px"
-  2xl: "48px"
+  "2xl": "48px"
 components:
   button-primary:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.neutral-bg}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.xl}"
     padding: "12px 24px"
+    minHeight: "48px"
+    boxShadow: "0 2px 4px rgba(0,82,255,0.15), 0 1px 2px rgba(0,0,0,0.06)"
+    activeTransform: "translateY(1.5px) scale(0.985)"
   button-primary-hover:
     backgroundColor: "{colors.primary-hover}"
+    boxShadow: "0 6px 16px rgba(0,82,255,0.22)"
 ---
 
-# Design System
+# FeraSetu — Premium Design Constitution & Implementation
 
 <!-- impeccable:design-schema 1 -->
 
-## Overview
-FeraSetu's design language prioritizes **calm trust, generous breathing room, authoritative typography, and zero technical jargon** for independent global shopkeepers. Retail shop environments are busy, harsh, and stressful; our interface must act as an oasis of quiet clarity, legibility, and effortless control.
+## 1. Brand Philosophy & Identity
+- **Core Mantra:** *"Your business is yours. The internet should be too."*
+- **Brand Personality:** Premium, Independent, Confident, Professional, Human, Trustworthy, Modern but Timeless, Commercially Credible.
+- **Audience:** The Global Independent Shopkeeper (kirana stores, bodegas, boutiques, neighborhood merchants across 48+ regions).
+- **Core Value:** 0% marketplace commission, direct bank settlements, zero technical jargon.
 
-## Colors & Art Direction
-- **Primary Sovereign Blue (`#0052FF`):** Confident, institutional reliability and principal brand color.
-- **Pure White Background (`#FFFFFF`):** High-clarity canvas providing expansive breathing room.
-- **Restrained Saffron/Orange Accent (`#EA580C` / `#E8590C`):** Warmth, energy, and commerce callouts without visual noise.
-- **Deep Slate Typography (`#0F172A` / `#334155`):** High-contrast sunlight readability; never use faint gray text for critical numbers or transaction data.
-- **Surface Foundations (`#FFFFFF` / `#F8FAFC`):** Generous, clean backgrounds that create security and visual stability.
-- **Status Tints:** Emerald (`#10B981`) for settlements and live connectivity; Amber (`#F59E0B`) for low-stock triage; Crimson (`#EF4444`) for urgent merchant actions.
+### Color Palette
+- **Primary Sovereign Blue (`#0052FF`):** Confident institutional reliability. Primary action color.
+- **Pure White Canvas (`#FFFFFF`):** High-clarity ground providing expansive breathing room.
+- **Restrained Saffron/Orange Accent (`#EA580C` / `#C2410C`):** Warm commerce accents and energy. Never decorative clutter.
+- **Deep Slate Typography (`#0F172A` / `#475569`):** High-contrast sunlight legibility under harsh shop lights.
+- **Surface Foundations (`#FFFFFF` / `#F8FAFC`):** Generous, clean backgrounds that create trust and visual stability.
+- **Zero Neon / Purple Slop Invariant:** Never introduce random purple, violet, or neon gradients. No decorative color blobs.
 
-## Typography
-- Native system UI font stack (`system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`) ensures instant rendering and platform-familiar legibility.
-- Headings speak for themselves: **strictly no repetitive eyebrow pills or kickers** with pulsing dots above headings.
-- Tabular figures (`tabular-nums`) for all monetary amounts, inventory counts, and timestamps. Avoid stylized blocky monospace masquerading as "technical" data.
-- High visual hierarchy: 1 distinct heading per viewport with intentional line height and tracking.
+---
 
-## Layout & Space Rhythm
-- **Generous Whitespace:** Minimum container padding `p-6` to `p-10`, grid gaps `gap-6` to `gap-8`, section spacing `py-20 md:py-28`.
-- **Hick's Law:** Limit primary decisions to 1 or 2 per screen.
-- **Fitts's Law:** Mobile touch targets must be at least 48x48px and anchored in the natural bottom thumb zone.
-- **Anti-Nesting (Card-in-Card Prevention):** Never embed bordered cards inside bordered cards. Differentiate nested zones with soft surface tint shifts (`bg-slate-50`), whitespace, or subtle border dividers (`border-slate-100`).
-- **Anchor Offset Invariant:** All anchored sections must include `scroll-mt-24` to prevent fixed navbar occlusion.
+## 2. Premium Tactile Button Design System
+*Core Invariant: I LOVE premium rounded-corner buttons with subtle shadows. When a user taps a button, it should physically feel like it presses inward.*
 
-## Elevation & Depth
-- Flat, clean structural boundaries with soft, hardware-accelerated ambient drop shadows (`shadow-sm`, `shadow-md`).
-- Never use harsh dark glows, artificial colored neo-brutalist borders, or generic purple-blue gradients.
+### A. Shape & Corner Radii
+- **Primary Buttons:** 12–14px (`rounded-xl`).
+- **Large CTA Buttons:** 14–16px (`rounded-2xl` or smooth rounded capsules where specified).
+- **Compact Controls:** 9–12px (`rounded-lg` / `rounded-xl`).
+- **Icon-Only Buttons:** 10–12px (`rounded-xl`).
+- **Pills (`rounded-full`):** Reserved for live status tags, filters, chips, and specialized CTA pills.
+- Avoid overly sharp square buttons; maintain a unified, friendly, premium curvature.
 
-## Shapes
-- Modest, friendly radii: `rounded-xl` (12px) for cards, `rounded-lg` (8px) for buttons/inputs, `rounded-full` for status indicators and avatar rings.
-- Symmetrical, balanced geometric layout rhythm.
+### B. Dimensions & Touch Ergonomics
+- **Primary Button Height:** 48–52px (standard touch zone).
+- **Standard Button Height:** 44–48px.
+- **Compact Button Height:** 38–42px (dense desktop tables).
+- **Horizontal Padding:** 18–26px.
+- **Icon-Text Gap:** 8px (`gap-2`).
+- **Fitts's Law Invariant:** Touch targets must be at least 44–48px on mobile viewports.
 
-## Components
-- **shadcn/ui Primitives:** Base all buttons, dialogs, dropdowns, and tables on accessible Radix/shadcn primitives.
-- **Lenis Smooth Scroll:** Butter-smooth inertial scrolling on marketing and dashboard routes.
-- **GSAP:** Orchestrated timeline entrances without layout thrashing (`translate3d`, `opacity`).
-- **Uniform Icons:** `lucide-react` with consistent stroke weight (`strokeWidth={1.75}`) and sizing.
-- **No Mascots or AI Slop:** Store intelligence (Fero) is represented exclusively as an authoritative, elegant architectural emblem/badge—never as a 3D-rendered mascot or cartoon animal.
+### C. Layered Subtle Shadows
+- **Primary Sovereign Button:**
+  - Resting: `shadow-[0_2px_4px_rgba(0,82,255,0.16),0_1px_2px_rgba(0,0,0,0.06)]`
+  - Hover: `shadow-[0_6px_16px_rgba(0,82,255,0.24),0_2px_4px_rgba(0,0,0,0.06)]`
+  - Pressed: `shadow-[0_1px_2px_rgba(0,82,255,0.12),inset_0_2px_4px_rgba(0,0,0,0.18)]`
+- **Secondary / Outline Button:**
+  - Resting: `shadow-[0_1px_2px_rgba(0,0,0,0.04)]` with crisp border (`border-slate-200`)
+  - Hover: `shadow-[0_4px_12px_rgba(0,0,0,0.06)]` with darkened border (`border-slate-300`)
+  - Pressed: `shadow-inner` with `bg-slate-100`
+- **Prohibited:** Giant black shadows, neon halos, constant pulsing outlines, or plastic glassmorphism.
 
-## Do's and Don'ts
-### Do:
-- Provide instant visual feedback (<400ms Doherty threshold).
-- Display currency symbols and decimal formats cleanly with tabular numerals.
-- Ensure 48px touch targets for mobile shopkeepers operating behind counters.
-- Provide instant undo toasts for critical operational actions.
-- Let headings speak for themselves with confident typography.
+### D. Physical Inward Press Interaction
+- **Resting:** Base position, subtle ambient shadow.
+- **Hover:** Gentle lift (`hover:-translate-y-0.5`), slightly deepened shadow, smooth color shift.
+- **Pressed (`:active`):**
+  - Physically travels downward 1–2px (`active:translate-y-0.5` or `active:translate-y-1`).
+  - Subtle inward compression scale: `active:scale-[0.985]`.
+  - Outer shadow compresses and tightens; subtle inset shadow activates.
+  - Transition duration: 150–200ms ease-out.
+- **Touch Parity:** Touch devices receive the active depression immediately without requiring hover states.
+- **Reduced Motion:** Respects `prefers-reduced-motion` by reducing transform travel while maintaining color and border feedback.
 
-### Don't:
-- Don't use AI-generated mascots, cartoon characters, or 3D character illustrations.
-- Don't place kicker or eyebrow pills with pulsing dots above section headings.
-- Don't nest bordered cards within bordered cards.
-- Don't use generic purple/blue AI gradients or Inter-default cliches.
-- Don't load Three.js, Canvas shaders, or heavy 3D scripts on transactional screens.
-- Don't use synthetic AI hype words ("revolutionary", "empower your workflow", "cutting-edge").
-- Don't ever show "Powered by Sarvam" or mention Sarvam AI.
+### E. Coherent Button Variant Matrix
+1. **Primary (`default`):** Sovereign Blue (`bg-[#0052FF]`), white text, layered depth, active inward depression.
+2. **Accent / Commerce (`brand`):** Saffron Orange (`bg-[#EA580C]`), white text, warm depth, active mechanical press.
+3. **Secondary (`outline`):** White background, crisp `border-slate-200`, dark slate text, subtle depth.
+4. **Tertiary (`ghost`):** Minimal slate button, subtle background tint on hover, clean active press.
+5. **Destructive (`destructive`):** Restrained crimson (`bg-rose-600`), white text, clear active feedback.
+6. **Icon-Only (`icon`):** 44x44px minimum touch target, centered Lucide icon (`strokeWidth={1.75}`).
+7. **Loading (`loading`):** Preserves button geometry, disables click events, renders calm inline spinner.
+8. **Disabled (`disabled`):** Muted opacity (50%), pointer events disabled, no misleading hover/press animation.
+
+---
+
+## 3. Global UI Rules & Anti-Slop Standards
+- **Typography:** System UI font stack (`system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`). Tabular numerals (`tabular-nums`) for currency, prices, inventory, and timestamps.
+- **Headings:** Bold and self-evident. Strictly NO pulsing dot eyebrow kickers or repetitive micro-badges above headings.
+- **Accordion & Drawer Motion:** Premium slow expansion (`duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]`) giving a calm, deliberate, dopamine-releasing fluidity instead of abrupt snapping.
+- **Anti-Nesting Rule:** Never nest bordered cards within bordered cards. Use soft background shifts (`bg-slate-50`), whitespace, or borderless dividers.
+- **Form Controls:** Inputs and buttons share identical heights, border radii, and focus ring metrics.
+- **Error & 404 Pages:** Witty, empathetic, shopkeeper-friendly copy that values the customer, reassures data safety, and avoids dry corporate jargon.
+- **Zero Sarvam Invariant:** Never display or reference Sarvam AI anywhere. Powered exclusively by Sovereign FeraSetu AI (`https://ai.fera-search.tech/v1`).

@@ -203,8 +203,8 @@ export default function PricingCard({
       {/* Outcome */}
       <div style={{
         margin: '16px 0', padding: '12px 14px', borderRadius: 12,
-        background: plan.id === 'business' || plan.id === 'growth' ? 'rgba(37,99,235,0.06)' : 'rgba(100,116,139,0.06)',
-        borderLeft: `3px solid ${plan.id === 'business' || plan.id === 'growth' ? '#2563eb' : accentColor}`,
+        background: plan.id === 'business' || plan.id === 'growth' ? 'rgba(0,82,255,0.05)' : 'rgba(100,116,139,0.05)',
+        border: `1px solid ${plan.id === 'business' || plan.id === 'growth' ? 'rgba(0,82,255,0.15)' : 'rgba(100,116,139,0.12)'}`,
       }}>
         <p style={{ margin: 0, fontSize: 13, color: '#334155', fontWeight: 700, lineHeight: 1.5 }}>
           {plan.outcome}
@@ -256,31 +256,48 @@ export default function PricingCard({
         disabled={!!loading || isCurrentPlan || (isFree && isAuthenticated)}
         onClick={() => onSelect(plan)}
         aria-label={`${getButtonLabel()} — ${plan.displayName} plan`}
+        className="active:translate-y-0.5 active:scale-[0.985] select-none"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          width: '100%', minHeight: 50, borderRadius: 14, border: 'none',
+          width: '100%', minHeight: 52, borderRadius: 9999, border: 'none',
           background: isCurrentPlan || (isFree && isAuthenticated)
             ? '#e2e8f0'
             : plan.id === 'pro'
               ? '#0f172a'
-              : '#2563eb',
+              : '#0052FF',
           color: isCurrentPlan || (isFree && isAuthenticated) ? '#64748b' : '#fff',
           fontSize: 14, fontWeight: 800, cursor: isCurrentPlan || (isFree && isAuthenticated) ? 'not-allowed' : 'pointer',
-          transition: 'transform 0.2s ease, filter 0.2s ease',
+          transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease',
           boxShadow: isCurrentPlan || (isFree && isAuthenticated) ? 'none'
             : plan.id === 'pro'
-              ? '0 10px 24px rgba(15,23,42,0.2)'
-              : '0 10px 24px rgba(37,99,235,0.25)',
+              ? '0 4px 14px rgba(15,23,42,0.22), 0 1px 2px rgba(0,0,0,0.06)'
+              : '0 4px 16px rgba(0,82,255,0.26), 0 1px 2px rgba(0,0,0,0.06)',
         }}
         onMouseEnter={e => {
           if (!isCurrentPlan && !(isFree && isAuthenticated)) {
-            (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.08)';
+            (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.06)';
             (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
           }
         }}
         onMouseLeave={e => {
           (e.currentTarget as HTMLButtonElement).style.filter = 'none';
           (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+        }}
+        onMouseDown={e => {
+          if (!isCurrentPlan && !(isFree && isAuthenticated)) {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(1.5px) scale(0.985)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = plan.id === 'pro'
+              ? '0 1px 2px rgba(15,23,42,0.15), inset 0 2px 4px rgba(0,0,0,0.2)'
+              : '0 1px 2px rgba(0,82,255,0.15), inset 0 2px 4px rgba(0,0,0,0.2)';
+          }
+        }}
+        onMouseUp={e => {
+          if (!isCurrentPlan && !(isFree && isAuthenticated)) {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = plan.id === 'pro'
+              ? '0 4px 14px rgba(15,23,42,0.22), 0 1px 2px rgba(0,0,0,0.06)'
+              : '0 4px 16px rgba(0,82,255,0.26), 0 1px 2px rgba(0,0,0,0.06)';
+          }
         }}
       >
         {loading

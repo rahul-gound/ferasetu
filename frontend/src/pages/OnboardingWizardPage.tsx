@@ -293,6 +293,16 @@ export default function OnboardingWizardPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleRemoveImage = () => {
+    setProfilePicture(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    if (updateUser) {
+      updateUser({ profile_picture: '' });
+    }
+  };
+
   const handleCopyStoreLink = async () => {
     if (!createdData?.store_url) return;
     try {
@@ -427,6 +437,83 @@ export default function OnboardingWizardPage() {
               </div>
 
               <form onSubmit={handleSubmitFastLaunch} className="space-y-6">
+                {/* 0. Store Logo or Shopkeeper Photo */}
+                <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 sm:p-4.5 transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    {/* Avatar circle / click to upload */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 border-dashed border-slate-300 hover:border-[#0052FF] bg-white overflow-hidden flex items-center justify-center shrink-0 cursor-pointer group shadow-2xs transition-all mx-auto sm:mx-0"
+                      title="Click to upload logo or photo"
+                    >
+                      {profilePicture ? (
+                        <>
+                          <img
+                            src={profilePicture}
+                            alt="Store logo preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                            <Camera size={18} />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#0052FF] transition-colors p-2 text-center">
+                          <Camera size={22} className="mb-0.5" />
+                          <span className="text-[9px] font-bold uppercase tracking-wider">Logo</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description and Action Buttons */}
+                    <div className="flex-1 min-w-0 text-center sm:text-left">
+                      <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-900">
+                          Store Logo or Shop Photo
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-200/60 px-1.5 py-0.5 rounded">
+                          Optional
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed mb-2.5">
+                        Add your store logo or shopfront sign so customers recognize your business on WhatsApp and online.
+                      </p>
+
+                      <div className="flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-4 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95 active:translate-y-0.5"
+                        >
+                          <Camera size={13} className="text-[#0052FF]" />
+                          <span>{profilePicture ? 'Change Image' : 'Upload Image'}</span>
+                        </button>
+
+                        {profilePicture && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="px-3 py-1.5 rounded-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        )}
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          PNG, JPG, WebP up to 2MB
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </div>
+
                 {/* 1. Shop Name */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">

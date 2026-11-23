@@ -1229,227 +1229,79 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
 
             {/* Live Storefront Access Pill */}
-
             {storeSubdomain && (
-
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50/80 text-emerald-900 text-[11px] font-bold shadow-2xs">
-
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/90 text-emerald-900 text-xs font-semibold shadow-2xs shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-
                 <span className="truncate max-w-[120px] md:max-w-[180px] lg:max-w-[220px]">
-
                   {storeSubdomain}
-
                 </span>
-
                 <a
-
                   href={`https://${storeSubdomain}`}
-
                   target="_blank"
-
                   rel="noopener noreferrer"
-
-                  className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 transition-colors shrink-0"
-
+                  className="hover:text-emerald-950 p-1 rounded-full hover:bg-emerald-100 transition-colors shrink-0"
                   title="Visit Live Storefront"
-
                 >
-
                   <ExternalLink size={12} />
-
                 </a>
-
                 <button
-
                   type="button"
-
+                  data-unstyled="true"
                   onClick={() => {
-
                     navigator.clipboard.writeText(`https://${storeSubdomain}`);
-
                     toast.success('Store URL copied to clipboard!');
-
                   }}
-
-                  className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline ml-1 cursor-pointer shrink-0"
-
+                  className="text-[11px] text-emerald-700 hover:text-emerald-900 font-semibold underline ml-0.5 cursor-pointer shrink-0"
                   title="Copy Store Link"
-
                 >
-
                   Copy
-
                 </button>
-
               </div>
-
             )}
-
           </div>
 
-
-
           {/* Search bar with Ctrl+K shortcut */}
-
           <form
-
             onSubmit={(e) => {
-
               e.preventDefault();
-
               if (searchQuery.trim()) {
-
                 navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-
               }
-
             }}
-
-            className="flex-1 max-w-xs md:max-w-sm flex items-center gap-2 bg-[#F6F8FC] px-3.5 py-2 rounded-xl text-[#667085] text-xs sm:text-sm border border-[#E5EAF1] focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all"
-
+            className="flex-1 max-w-xs md:max-w-sm flex items-center gap-2 bg-[#F6F8FC] px-4 py-2 rounded-full text-[#667085] text-xs sm:text-sm border border-[#E5EAF1] focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all shrink min-w-0"
           >
-
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-400">
-
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-
             </svg>
-
             <input
-
               ref={searchInputRef}
-
               type="text"
-
               value={searchQuery}
-
               onChange={(e) => setSearchQuery(e.target.value)}
-
               placeholder="Search products, orders..."
-
               className="bg-transparent border-none outline-none text-[#152238] text-xs sm:text-sm w-full placeholder:text-[#667085]"
-
             />
-
             <kbd className="hidden lg:inline-flex text-[10px] font-mono font-bold bg-white border border-[#E5EAF1] px-1.5 py-0.5 rounded text-slate-400 shrink-0 shadow-2xs">
-
               Ctrl+K
-
             </kbd>
-
           </form>
 
-
-
-          <div className="ml-auto flex items-center gap-2.5">
-
-            {/* Transfers Beta Navbar Pill */}
-
-            <button
-
-              type="button"
-
-              onClick={() => navigate('/transfers/new')}
-
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 text-[12px] font-semibold transition-all shadow-2xs cursor-pointer group active:scale-[0.98]"
-
-              title="Create an Inventory Transfer (Beta)"
-
-              aria-label="Create an inventory transfer"
-
-            >
-
-              <Truck size={14} className="text-indigo-600 group-hover:scale-110 transition-transform" />
-
-              <span className="hidden sm:inline">Transfers</span>
-
-              <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
-
-                BETA
-
-              </span>
-
-            </button>
-
-
-
-            {/* Gift Cards Beta Navbar Pill */}
-
-            <button
-
-              type="button"
-
-              onClick={() => navigate('/gift-cards/new')}
-
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200/90 bg-amber-50/80 hover:bg-amber-100 text-amber-900 text-[12px] font-semibold transition-all shadow-2xs cursor-pointer group active:scale-[0.98]"
-
-              title="Create a Digital Gift Card product (Beta)"
-
-              aria-label="Create a digital gift card product"
-
-            >
-
-              <Gift size={14} className="text-amber-600 group-hover:scale-110 transition-transform" />
-
-              <span className="hidden sm:inline">Gift Cards</span>
-
-              <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
-
-                BETA
-
-              </span>
-
-            </button>
-
-
-
+          {/* Right Header Controls - Spacious & Premium */}
+          <div className="ml-auto flex items-center gap-3 sm:gap-4 shrink-0">
             {/* Ask AI Contextual Co-pilot Button */}
-
             <button
-
               type="button"
-
               onClick={toggleAssistant}
-
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[12px] font-semibold transition-all shadow-2xs cursor-pointer active:scale-95 ${
-
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-95 active:translate-y-0.5 ${
                 isAssistantOpen
-
                   ? 'border-blue-500 bg-blue-600 text-white shadow-blue-600/20'
-
-                  : 'border-blue-200/90 bg-blue-50/80 hover:bg-blue-100 text-[#0052FF]'
-
+                  : 'border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-[#0052FF]'
               }`}
-
               title="Toggle FeraSetu AI Store Co-pilot"
-
               aria-label="Toggle Fera AI Store Co-pilot"
-
             >
-
               <Sparkles size={14} className={isAssistantOpen ? 'animate-spin' : ''} />
-
               <span>Ask AI</span>
-
-            </button>
-
-
-
-            {/* Refer & Earn */}
-
-            <button
-
-              onClick={() => navigate('/refer-earn')}
-
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5EAF1] bg-white hover:bg-slate-50 text-[#0052FF] text-[12px] font-semibold transition-colors cursor-pointer"
-
-            >
-
-              <Gift size={14} />
-
-              <span>Refer & Earn</span>
-
             </button>
 
 

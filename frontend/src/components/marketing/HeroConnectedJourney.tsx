@@ -133,12 +133,12 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
                   type="button"
                   onClick={handleSimulateOrder}
                   disabled={simulationStep === 'transmitting'}
-                  className={`w-full py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-md ${
+                  className={`w-full py-3.5 px-4 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-180 cursor-pointer shadow-md select-none active:translate-y-0.5 active:scale-[0.985] ${
                     simulationStep === 'transmitting'
                       ? 'bg-amber-500 text-white animate-pulse'
                       : simulationStep === 'settled'
                       ? 'bg-slate-900 text-white hover:bg-slate-800'
-                      : 'bg-[#0052FF] text-white hover:bg-[#0047E0] hover:scale-[1.01] shadow-[#0052FF]/25'
+                      : 'bg-[#0052FF] text-white hover:bg-[#0047E0] hover:-translate-y-0.5 shadow-[#0052FF]/25'
                   }`}
                 >
                   {simulationStep === 'transmitting' ? (

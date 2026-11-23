@@ -4,32 +4,33 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-180 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:translate-y-0.5 active:scale-[0.985] select-none cursor-pointer",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-white shadow-sm hover:bg-primary/95 hover:shadow-md active:bg-primary/90",
+          "bg-[#0052FF] text-white shadow-[0_2px_4px_rgba(0,82,255,0.16),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-[#0047E0] hover:shadow-[0_6px_16px_rgba(0,82,255,0.24),0_2px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-[#003BB5] active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_2px_rgba(0,82,255,0.12),inset_0_2px_4px_rgba(0,0,0,0.18)]",
         brand:
-          "bg-brand text-white shadow-sm hover:bg-brand-600 hover:shadow-md active:bg-brand-700",
+          "bg-[#EA580C] text-white shadow-[0_2px_4px_rgba(234,88,12,0.2),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-[#C2410C] hover:shadow-[0_6px_16px_rgba(234,88,12,0.28),0_2px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-[#9A3412] active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_2px_rgba(234,88,12,0.14),inset_0_2px_4px_rgba(0,0,0,0.2)]",
         destructive:
-          "bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:bg-rose-800",
+          "bg-rose-600 text-white shadow-[0_2px_4px_rgba(225,29,72,0.2)] hover:bg-rose-700 hover:shadow-[0_6px_16px_rgba(225,29,72,0.25)] hover:-translate-y-0.5 active:bg-rose-800 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
         outline:
-          "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100",
+          "border border-slate-200/90 bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-slate-50 hover:border-slate-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-slate-100 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
         secondary:
-          "bg-slate-100 text-slate-900 hover:bg-slate-200 active:bg-slate-200/80",
+          "bg-slate-100 text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-slate-200/80 hover:-translate-y-0.5 active:bg-slate-200 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
         ghost:
-          "text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/70",
+          "text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/70 active:translate-y-0.5 active:scale-[0.985]",
         link:
-          "text-primary underline-offset-4 hover:underline",
+          "text-[#0052FF] underline-offset-4 hover:underline",
         whatsapp:
-          "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800",
+          "bg-emerald-600 text-white shadow-[0_2px_4px_rgba(5,150,105,0.2)] hover:bg-emerald-700 hover:shadow-[0_6px_16px_rgba(5,150,105,0.25)] hover:-translate-y-0.5 active:bg-emerald-800 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
       },
       size: {
-        default: "h-11 px-5 py-2.5 text-sm",
-        sm: "h-9 rounded-lg px-3.5 text-xs",
-        lg: "h-12 min-h-[48px] rounded-xl px-7 text-base font-semibold", // Ergonomic 48px touch target
-        icon: "h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl",
+        default: "h-11 px-6 py-2.5 text-sm rounded-full min-h-[44px]",
+        sm: "h-9 rounded-full px-4 text-xs",
+        lg: "h-12 min-h-[48px] rounded-full px-8 text-base font-semibold",
+        pill: "h-12 min-h-[48px] rounded-full px-8 text-base font-semibold",
+        icon: "h-11 w-11 min-h-[44px] min-w-[44px] rounded-full",
       },
     },
     defaultVariants: {

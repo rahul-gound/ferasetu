@@ -582,7 +582,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => handleStart('final_cta')}
-                  className="group w-full sm:w-auto px-9 py-4 rounded-2xl bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/20 shadow-[0_5px_0_0_#9A3412,0_10px_22px_rgba(234,88,12,0.35)] hover:shadow-[0_6px_0_0_#9A3412,0_14px_26px_rgba(234,88,12,0.45)] hover:-translate-y-0.5 active:translate-y-1.5 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                  className="group w-full sm:w-auto px-9 py-4 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/20 shadow-[0_5px_0_0_#9A3412,0_10px_22px_rgba(234,88,12,0.35)] hover:shadow-[0_6px_0_0_#9A3412,0_14px_26px_rgba(234,88,12,0.45)] hover:-translate-y-0.5 active:translate-y-1.5 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                 >
                   <span>Bring my business online</span>
                   <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />

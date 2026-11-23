@@ -9560,6 +9560,25 @@ async function getOrder(orderId, request, env) {
   return json(safeOrder, 200, {}, request);
 }
 
+async function ensureOrderCancellationColumns(db) {
+  if (!db) return;
+  try {
+    await db.prepare("ALTER TABLE orders ADD COLUMN cancellation_status TEXT NOT NULL DEFAULT 'none'").run();
+  } catch {}
+  try {
+    await db.prepare("ALTER TABLE orders ADD COLUMN cancellation_reason TEXT").run();
+  } catch {}
+  try {
+    await db.prepare("ALTER TABLE orders ADD COLUMN cancelled_at TEXT").run();
+  } catch {}
+  try {
+    await db.prepare("ALTER TABLE orders ADD COLUMN cancelled_by TEXT").run();
+  } catch {}
+  try {
+    await db.prepare("ALTER TABLE orders ADD COLUMN return_status TEXT NOT NULL DEFAULT 'none'").run();
+  } catch {}
+}
+
 async function updateOrderStatus(orderId, request, env) {
   const ctx = await requireOrgContext(request, env, 'staff');
   const body = await readJsonBody(request);
@@ -9586,16 +9605,27 @@ async function updateOrderStatus(orderId, request, env) {
   // If transitioning to cancelled, execute complete cancellation flow
   if (status === 'cancelled') {
     const reason = (typeof body.reason === 'string' && body.reason.trim()) ? body.reason.trim() : 'Merchant cancelled order';
-    await env.DB.prepare(`
-      UPDATE orders SET
-        status = 'cancelled',
-        cancellation_status = 'cancelled',
-        cancellation_reason = ?,
-        cancelled_at = ?,
-        cancelled_by = 'merchant',
-        updated_at = ?
-      WHERE id = ? AND organization_id = ?
-    `).bind(reason, now, now, orderId, ctx.organizationId).run();
+    await ensureOrderCancellationColumns(env.DB);
+    try {
+      await env.DB.prepare(`
+        UPDATE orders SET
+          status = 'cancelled',
+          cancellation_status = 'cancelled',
+          cancellation_reason = ?,
+          cancelled_at = ?,
+          cancelled_by = 'merchant',
+          updated_at = ?
+        WHERE id = ? AND organization_id = ?
+      `).bind(reason, now, now, orderId, ctx.organizationId).run();
+    } catch (colErr) {
+      console.warn("[updateOrderStatus] Full cancellation column update fallback:", colErr?.message);
+      await env.DB.prepare(`
+        UPDATE orders SET
+          status = 'cancelled',
+          updated_at = ?
+        WHERE id = ? AND organization_id = ?
+      `).bind(now, orderId, ctx.organizationId).run();
+    }
 
     // Void invoice in D1
     try {
@@ -9746,16 +9776,27 @@ async function cancelOrder(orderId, request, env) {
 
   const now = new Date().toISOString();
 
-  await env.DB.prepare(`
-    UPDATE orders SET
-      status = 'cancelled',
-      cancellation_status = 'cancelled',
-      cancellation_reason = ?,
-      cancelled_at = ?,
-      cancelled_by = 'merchant',
-      updated_at = ?
-    WHERE id = ? AND (organization_id = ? OR user_id = ?)
-  `).bind(reason, now, now, orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).run();
+  await ensureOrderCancellationColumns(env.DB);
+  try {
+    await env.DB.prepare(`
+      UPDATE orders SET
+        status = 'cancelled',
+        cancellation_status = 'cancelled',
+        cancellation_reason = ?,
+        cancelled_at = ?,
+        cancelled_by = 'merchant',
+        updated_at = ?
+      WHERE id = ? AND (organization_id = ? OR user_id = ?)
+    `).bind(reason, now, now, orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).run();
+  } catch (colErr) {
+    console.warn("[cancelOrder] Full cancellation column update fallback:", colErr?.message);
+    await env.DB.prepare(`
+      UPDATE orders SET
+        status = 'cancelled',
+        updated_at = ?
+      WHERE id = ? AND (organization_id = ? OR user_id = ?)
+    `).bind(now, orderId, ctx.organizationId, ctx.user?.$id || ctx.organizationId).run();
+  }
 
   // Void invoice in D1
   try {
@@ -9867,16 +9908,27 @@ async function handlePublicCancelOrder(orderId, request, env) {
   }
 
   const now = new Date().toISOString();
-  await env.DB.prepare(`
-    UPDATE orders SET
-      status = 'cancelled',
-      cancellation_status = 'cancelled',
-      cancellation_reason = ?,
-      cancelled_at = ?,
-      cancelled_by = 'customer',
-      updated_at = ?
-    WHERE id = ?
-  `).bind(reason, now, now, orderId).run();
+  await ensureOrderCancellationColumns(env.DB);
+  try {
+    await env.DB.prepare(`
+      UPDATE orders SET
+        status = 'cancelled',
+        cancellation_status = 'cancelled',
+        cancellation_reason = ?,
+        cancelled_at = ?,
+        cancelled_by = 'customer',
+        updated_at = ?
+      WHERE id = ?
+    `).bind(reason, now, now, orderId).run();
+  } catch (colErr) {
+    console.warn("[handlePublicCancelOrder] Full cancellation column update fallback:", colErr?.message);
+    await env.DB.prepare(`
+      UPDATE orders SET
+        status = 'cancelled',
+        updated_at = ?
+      WHERE id = ?
+    `).bind(now, orderId).run();
+  }
 
   try {
     await env.DB.prepare("UPDATE invoices SET status = 'voided', updated_at = ? WHERE order_id = ?").bind(now, orderId).run();

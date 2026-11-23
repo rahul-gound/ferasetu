@@ -78,7 +78,7 @@ export default function FinalCTA({
           {user ? (
             <Link
               to="/dashboard"
-              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 bg-orange-500 text-white shadow-orange-900/40 hover:bg-orange-600"
+              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all duration-180 hover:-translate-y-0.5 active:translate-y-1 active:scale-[0.985] active:shadow-inner bg-orange-500 text-white shadow-orange-900/40 hover:bg-orange-600 select-none cursor-pointer"
             >
               Go to Dashboard
               <ArrowRight size={16} />
@@ -87,7 +87,7 @@ export default function FinalCTA({
             <button
               type="button"
               onClick={() => register()}
-              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 cursor-pointer bg-orange-500 text-white shadow-orange-900/40 hover:bg-orange-600"
+              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all duration-180 hover:-translate-y-0.5 active:translate-y-1 active:scale-[0.985] active:shadow-inner cursor-pointer bg-orange-500 text-white shadow-orange-900/40 hover:bg-orange-600 select-none"
             >
               {primaryText}
               <ArrowRight size={16} />
@@ -95,7 +95,7 @@ export default function FinalCTA({
           ) : (
             <Link
               to={getLocalizedLink(primaryHref)}
-              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 bg-orange-500 text-white shadow-orange-900/40 hover:bg-orange-600"
+              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base shadow-xl flex items-center justify-center gap-2 transition-all duration-180 hover:-translate-y-0.5 active:translate-y-1 active:scale-[0.985] active:shadow-inner bg-orange-500 text-white shadow-orange-900/40 hover:bg-orange-600 select-none cursor-pointer"
             >
               {primaryText}
               <ArrowRight size={16} />
@@ -105,7 +105,7 @@ export default function FinalCTA({
           {secondaryText && (
             <Link
               to={getLocalizedLink(secondaryHref)}
-              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base transition-all flex items-center justify-center text-white/80 hover:text-white border border-white/30 hover:border-white/60 hover:bg-white/10"
+              className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-base transition-all duration-180 flex items-center justify-center text-white/80 hover:text-white border border-white/30 hover:border-white/60 hover:bg-white/10 active:translate-y-1 active:scale-[0.985] active:shadow-inner select-none cursor-pointer"
             >
               {secondaryText}
             </Link>

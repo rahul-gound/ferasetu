@@ -304,11 +304,11 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
               </div>
 
               {/* Segmented Channel Navigation */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-4 p-1 rounded-xl bg-slate-200/80 text-xs font-semibold">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-4 p-1.5 rounded-full bg-slate-200/80 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setActiveTab('feed')}
-                  className={`min-h-[38px] px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
                     activeTab === 'feed'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -320,7 +320,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 <button
                   type="button"
                   onClick={() => setActiveTab('settlement')}
-                  className={`min-h-[38px] px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
                     activeTab === 'settlement'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -332,7 +332,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 <button
                   type="button"
                   onClick={() => setActiveTab('inventory')}
-                  className={`min-h-[38px] px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
                     activeTab === 'inventory'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -344,7 +344,7 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 <button
                   type="button"
                   onClick={() => setActiveTab('suggestions')}
-                  className={`min-h-[38px] px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
                     activeTab === 'suggestions'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'

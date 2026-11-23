@@ -214,7 +214,7 @@ export default function PricingPage() {
             className="animate-slide-up"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 0,
-              background: '#f1f5f9', borderRadius: 14, padding: 4,
+              background: '#f1f5f9', borderRadius: 9999, padding: 4,
               position: 'relative',
             }}
             role="group"
@@ -227,7 +227,7 @@ export default function PricingPage() {
                 onClick={() => setBilling(cycle)}
                 aria-pressed={billing === cycle}
                 style={{
-                  padding: '10px 20px', borderRadius: 10, border: 'none',
+                  padding: '10px 22px', borderRadius: 9999, border: 'none',
                   background: billing === cycle ? '#fff' : 'transparent',
                   boxShadow: billing === cycle ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                   color: billing === cycle ? '#0f172a' : '#64748b',
@@ -455,14 +455,28 @@ export default function PricingPage() {
                 id="pricing-final-cta-free"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  padding: '14px 28px', borderRadius: 16,
+                  padding: '14px 32px', borderRadius: 9999,
                   background: '#2563EB', color: '#fff',
                   fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer',
-                  boxShadow: '0 10px 30px rgba(37,99,235,0.3)',
-                  transition: 'filter 0.2s ease',
+                  boxShadow: '0 4px 14px rgba(37,99,235,0.3)',
+                  transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'none'; }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.filter = 'none';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                }}
+                onMouseDown={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(1.5px) scale(0.985)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.2)';
+                }}
+                onMouseUp={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(37,99,235,0.3)';
+                }}
               >
                 {isIndia ? 'Start Free' : `Start ${config.trialDays}-Day Free Trial`}
                 <ArrowRight size={16} />
@@ -473,15 +487,27 @@ export default function PricingPage() {
                 id="pricing-final-cta-login"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  padding: '14px 28px', borderRadius: 16,
+                  padding: '14px 32px', borderRadius: 9999,
                   background: 'rgba(255,255,255,0.08)',
                   border: '1px solid rgba(255,255,255,0.15)',
                   color: '#fff',
                   fontWeight: 800, fontSize: 15, cursor: 'pointer',
-                  transition: 'background 0.2s ease',
+                  transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                }}
+                onMouseDown={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(1.5px) scale(0.985)';
+                }}
+                onMouseUp={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                }}
               >
                 Sign In
               </button>

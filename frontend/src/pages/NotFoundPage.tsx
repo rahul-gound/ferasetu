@@ -287,14 +287,14 @@ export default function NotFoundPage() {
             )}
           </div>
 
-          {/* Human, Warm Heading */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-            The shutter is down on this aisle.
+          {/* Witty, Customer-Valuing Heading */}
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-3">
+            Even the finest shop misplaces a jar!
           </h1>
 
-          {/* Empathetic Subtext */}
-          <p className="text-base sm:text-lg text-slate-600 max-w-xl mx-auto leading-relaxed mb-6">
-            Do not worry — no orders or products were lost. The page you are looking for might have been moved, renamed, or tucked away on a different shelf in our store.
+          {/* Crisp, Warm Subtext */}
+          <p className="text-base sm:text-lg text-slate-600 max-w-lg mx-auto leading-relaxed mb-6">
+            You're our favorite visitor, but this shelf is empty. Zero worries — your orders, catalog, and money are 100% safe. Let’s get you right back to business.
           </p>
 
           {/* Smart Typo Detection Banner (If user typed a close path) */}
@@ -325,17 +325,17 @@ export default function NotFoundPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full max-w-md mb-10">
             <Link
               to="/"
-              className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm sm:text-base px-6 py-3.5 shadow-md shadow-blue-600/20 transition-all min-h-[48px] cursor-pointer"
+              className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0052FF] hover:bg-[#0047E0] hover:-translate-y-0.5 text-white font-bold text-sm sm:text-base px-6 py-3.5 shadow-[0_2px_4px_rgba(0,82,255,0.16),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_rgba(0,82,255,0.24)] active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_2px_rgba(0,82,255,0.12),inset_0_2px_4px_rgba(0,0,0,0.18)] transition-all duration-180 min-h-[48px] cursor-pointer"
             >
               <Home size={18} />
-              <span>Back to FeraSetu Home</span>
+              <span>Back to Home</span>
               <ArrowRight size={16} />
             </Link>
 
             {user ? (
               <Link
                 to="/dashboard"
-                className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold text-sm sm:text-base px-6 py-3.5 shadow-sm transition-all min-h-[48px] cursor-pointer"
+                className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 hover:bg-slate-800 hover:-translate-y-0.5 text-white font-bold text-sm sm:text-base px-6 py-3.5 shadow-sm active:translate-y-0.5 active:scale-[0.985] active:shadow-inner transition-all duration-180 min-h-[48px] cursor-pointer"
               >
                 <LayoutDashboard size={18} />
                 <span>Open Dashboard</span>
@@ -343,9 +343,9 @@ export default function NotFoundPage() {
             ) : (
               <Link
                 to="/signup"
-                className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-800 font-bold text-sm sm:text-base px-6 py-3.5 transition-all min-h-[48px] cursor-pointer shadow-xs"
+                className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:-translate-y-0.5 text-slate-800 font-bold text-sm sm:text-base px-6 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] active:translate-y-0.5 active:scale-[0.985] active:shadow-inner transition-all duration-180 min-h-[48px] cursor-pointer"
               >
-                <Store size={18} className="text-orange-500" />
+                <Store size={18} className="text-[#EA580C]" />
                 <span>Start Free Store</span>
               </Link>
             )}

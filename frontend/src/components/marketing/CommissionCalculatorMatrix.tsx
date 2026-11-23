@@ -148,7 +148,7 @@ export default function CommissionCalculatorMatrix({ market: propMarket, onStart
                   key={rate}
                   type="button"
                   onClick={() => setMarketplaceTollRate(rate)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  className={`py-2 px-3 rounded-full text-xs font-bold transition-all cursor-pointer border active:translate-y-0.5 active:scale-[0.985] ${
                     marketplaceTollRate === rate
                       ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
