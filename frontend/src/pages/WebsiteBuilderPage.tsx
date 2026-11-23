@@ -779,8 +779,8 @@ export default function WebsiteBuilderPage() {
             title="AI Storefront Generator"
             className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'ai'
-                ? 'bg-gradient-to-br from-purple-600 to-pink-500 text-white shadow-md shadow-purple-500/30 ring-2 ring-purple-200'
-                : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50/80'
+                ? 'bg-[#0052FF] text-white shadow-md shadow-blue-500/20 ring-2 ring-blue-200'
+                : 'text-slate-600 hover:text-[#0052FF] hover:bg-blue-50/80'
             }`}
           >
             <Wand2 size={18} />
@@ -813,7 +813,7 @@ export default function WebsiteBuilderPage() {
               { id: 'logic', label: 'Workflows', icon: Zap, activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs' },
               { id: 'connections', label: 'Data', icon: Link2, activeBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs' },
               { id: 'assets', label: 'Assets', icon: ImageIconLucide, activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs' },
-              { id: 'ai', label: 'AI Generator', icon: Wand2, activeBg: 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-xs' },
+              { id: 'ai', label: 'AI Generator', icon: Wand2, activeBg: 'bg-[#0052FF] text-white shadow-xs' },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
