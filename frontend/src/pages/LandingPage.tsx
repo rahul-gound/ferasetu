@@ -177,15 +177,15 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => handleStart('hero_primary')}
-                    className="group w-full sm:w-auto min-h-[48px] px-7 py-3 rounded-xl bg-[#0052FF] text-white font-bold text-base hover:bg-[#0047E0] transition-all duration-150 hover:-translate-y-0.5 shadow-lg shadow-[#0052FF]/25 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] focus-visible:ring-offset-2"
+                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-full bg-[#EA580C] hover:bg-[#C2410C] active:bg-[#9A3412] text-white font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                   >
                     <span>Bring my business online</span>
-                    <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
+                    <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
                   </button>
 
                   <a
                     href="#fero-agent"
-                    className="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-base hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 transition-all duration-150 flex items-center justify-center gap-2 shadow-xs"
+                    className="w-full sm:w-auto min-h-[52px] px-7 py-3.5 rounded-full bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-950 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2 shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0"
                   >
                     <ShieldCheck size={18} className="text-[#0052FF]" />
                     <span>Store Intelligence</span>
@@ -574,10 +574,10 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => handleStart('final_cta')}
-                  className="group w-full sm:w-auto px-8 py-3.5 rounded-xl bg-orange-500 text-white font-bold text-base hover:bg-orange-600 transition-all duration-150 shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5"
+                  className="group w-full sm:w-auto px-8 py-4 rounded-full bg-[#EA580C] hover:bg-[#C2410C] active:bg-[#9A3412] text-white font-semibold text-base transition-all duration-200 shadow-xl shadow-orange-500/25 hover:shadow-orange-500/35 flex items-center justify-center gap-2.5 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span>Bring my business online</span>
-                  <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
+                  <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
                 </button>
               </div>
 
