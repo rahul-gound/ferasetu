@@ -151,7 +151,7 @@ export default function PlatformSiteDetailPage() {
     try {
       await platformSitesApi.deleteSite(site.id, deleteConfirmText);
       toast.success(`Platform site '${site.name}' archived.`);
-      navigate('/platform-sites/websites');
+      navigate('/admin/platform-sites/websites');
     } catch (err: any) {
       toast.error(err.message || 'Failed to archive site');
     } finally {
@@ -175,7 +175,7 @@ export default function PlatformSiteDetailPage() {
         <h3 className="text-base font-bold text-slate-900 mb-2">Platform Site Not Found</h3>
         <p className="text-xs text-slate-500 mb-4">The requested website could not be found or access is denied.</p>
         <button
-          onClick={() => navigate('/platform-sites/websites')}
+          onClick={() => navigate('/admin/platform-sites/websites')}
           className="px-4 py-2 bg-[#0052FF] text-white rounded-xl text-xs font-semibold"
         >
           Return to Websites
@@ -200,7 +200,7 @@ export default function PlatformSiteDetailPage() {
       {/* Top Breadcrumb & Status Bar */}
       <div>
         <button
-          onClick={() => navigate('/platform-sites/websites')}
+          onClick={() => navigate('/admin/platform-sites/websites')}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-2"
         >
           <ArrowLeft size={13} /> Back to Websites

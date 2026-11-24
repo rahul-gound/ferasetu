@@ -192,7 +192,7 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up">
               <KpiCard 
                 title="Total Revenue" 
-                value={`₹${data?.stats?.totalRevenue?.toLocaleString()}`} 
+                value={`₹${(data?.stats?.totalRevenue ?? 0).toLocaleString()}`} 
                 trend="Live" 
                 trendUp={true}
                 icon={<DollarSign className="text-emerald-500" />}
@@ -200,7 +200,7 @@ export default function AdminDashboardPage() {
               />
               <KpiCard 
                 title="Active Shopkeepers" 
-                value={data?.stats?.totalUsers} 
+                value={data?.stats?.totalUsers ?? 0} 
                 trend={`${data?.stats?.activeUsers || 0} active`} 
                 trendUp={true}
                 icon={<Users className="text-blue-500" />}
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
               />
               <KpiCard 
                 title="Global Orders" 
-                value={data?.stats?.totalOrders} 
+                value={data?.stats?.totalOrders ?? 0} 
                 trend={`${data?.stats?.totalProducts || 0} products`} 
                 trendUp={true}
                 icon={<ShoppingBag className="text-purple-500" />}
@@ -216,7 +216,7 @@ export default function AdminDashboardPage() {
               />
               <KpiCard 
                 title="Conversion Rate" 
-                value={`${data?.stats?.conversionRate}%`} 
+                value={`${data?.stats?.conversionRate ?? 0}%`} 
                 trend={`${data?.stats?.premiumUsers || 0} paid`} 
                 trendUp={true}
                 icon={<TrendingUp className="text-orange-500" />}

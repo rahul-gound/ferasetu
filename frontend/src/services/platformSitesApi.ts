@@ -8,7 +8,9 @@
 
 import { getStoredAdminToken } from './adminAuth';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const rawApi = import.meta.env.VITE_API_URL || '';
+// Strip trailing /api to ensure endpoints starting with /api do not form duplicate /api/api
+const BASE_URL = rawApi.replace(/\/api\/?$/, '').replace(/\/+$/, '');
 
 export interface PlatformEntitlement {
   status: 'authorized' | 'forbidden' | 'unauthorized';

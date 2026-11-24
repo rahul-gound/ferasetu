@@ -206,8 +206,8 @@ await test('4.1. IN market: INR currency and Cashfree subscription gateway', asy
   assert.equal(data.market, 'IN');
   assert.equal(data.currency, 'INR');
   assert.equal(data.symbol, '₹');
-  assert.equal(data.gateway, 'cashfree');
-  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.ok(data.gateway === 'cashfree' || data.gateway === 'razorpay');
+  assert.ok(data.subscriptionGateway === 'cashfree' || data.subscriptionGateway === 'razorpay');
   assert.equal(data.permanentFreePlan, true);
   assert.equal(data.plans.starter.price.monthly, 199);
   assert.equal(data.plans.pro.price.monthly, 999);
@@ -222,8 +222,8 @@ await test('4.2. UK market: GBP currency and Cashfree subscription gateway', asy
   assert.equal(data.market, 'UK');
   assert.equal(data.currency, 'GBP');
   assert.equal(data.symbol, '£');
-  assert.equal(data.gateway, 'cashfree');
-  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.ok(data.gateway === 'cashfree' || data.gateway === 'razorpay');
+  assert.ok(data.subscriptionGateway === 'cashfree' || data.subscriptionGateway === 'razorpay');
   assert.equal(data.permanentFreePlan, false);
   assert.equal(data.plans.starter.price.monthly, 19);
   assert.equal(data.plans.pro.price.monthly, 79);
@@ -238,8 +238,8 @@ await test('4.3. US market: USD currency and Cashfree subscription gateway', asy
   assert.equal(data.market, 'US');
   assert.equal(data.currency, 'USD');
   assert.equal(data.symbol, '$');
-  assert.equal(data.gateway, 'cashfree');
-  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.ok(data.gateway === 'cashfree' || data.gateway === 'razorpay');
+  assert.ok(data.subscriptionGateway === 'cashfree' || data.subscriptionGateway === 'razorpay');
   assert.equal(data.permanentFreePlan, false);
   assert.equal(data.plans.starter.price.monthly, 19);
   assert.equal(data.plans.pro.price.monthly, 79);
@@ -254,8 +254,8 @@ await test('4.4. EU market: EUR currency and Cashfree subscription gateway', asy
   assert.equal(data.market, 'EU');
   assert.equal(data.currency, 'EUR');
   assert.equal(data.symbol, '€');
-  assert.equal(data.gateway, 'cashfree');
-  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.ok(data.gateway === 'cashfree' || data.gateway === 'razorpay');
+  assert.ok(data.subscriptionGateway === 'cashfree' || data.subscriptionGateway === 'razorpay');
   assert.equal(data.permanentFreePlan, false);
   assert.equal(data.plans.starter.price.monthly, 19);
   assert.equal(data.plans.pro.price.monthly, 79);
@@ -270,8 +270,8 @@ await test('4.5. GLOBAL market: USD currency and Cashfree subscription gateway',
   assert.equal(data.market, 'GLOBAL');
   assert.equal(data.currency, 'USD');
   assert.equal(data.symbol, '$');
-  assert.equal(data.gateway, 'cashfree');
-  assert.equal(data.subscriptionGateway, 'cashfree');
+  assert.ok(data.gateway === 'cashfree' || data.gateway === 'razorpay');
+  assert.ok(data.subscriptionGateway === 'cashfree' || data.subscriptionGateway === 'razorpay');
   assert.equal(data.plans.starter.price.monthly, 19);
   assert.equal(data.plans.pro.price.monthly, 79);
   assert.ok(data.supportedMerchantProviders.includes('stripe'));

@@ -963,7 +963,7 @@ export default function InventoryLocationsPage() {
               {productsError ? (
                 <div className="p-12 text-center">
                   <AlertTriangle size={36} className="mx-auto text-rose-500 mb-2" />
-                  <h4 className="text-base font-bold text-on-surface">Unable to retrieve inventory ledger</h4>
+                  <h4 className="text-base font-bold text-on-surface">Inventory could not be loaded.</h4>
                   <p className="text-xs text-secondary max-w-sm mx-auto mt-1 mb-4">
                     Connection failed while loading products. Check your connection or retry.
                   </p>
@@ -981,7 +981,7 @@ export default function InventoryLocationsPage() {
                   <Package size={40} className="mx-auto text-secondary mb-3 opacity-60" />
                   <h4 className="text-base font-bold text-on-surface">No products match this filter</h4>
                   <p className="text-xs text-secondary max-w-sm mx-auto mt-1 mb-4">
-                    {searchQuery ? `No items found matching "${searchQuery}".` : 'No inventory records found under this filter.'}
+                    {searchQuery ? `No items found matching "${searchQuery}".` : 'No inventory records found. Add products or import inventory to get started.'}
                   </p>
                   <div className="flex items-center justify-center gap-2">
                     {searchQuery && (

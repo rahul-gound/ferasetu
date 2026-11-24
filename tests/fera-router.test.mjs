@@ -146,15 +146,15 @@ await test('IN + English: Skips Sarvam Translate completely and routes direct to
   });
 
   assert.equal(response.routing.market, 'IN');
-  assert.equal(response.routing.translationRequired, false, 'Sarvam must be SKIPPED for English');
+  assert.equal(response.routing.translationRequired, false, 'Translation must be SKIPPED for English');
   assert.equal(response.routing.translator, null);
   assert.equal(response.routing.reasoningModel, 'glm-5.3-flash');
-  assert.equal(response.routing.provider, 'modal');
+  assert.equal(response.routing.provider, 'fera_ai');
   assert.equal(response.usage.translationUsed, false);
   assert.equal(response.usage.translationInputCharacters, 0);
 });
 
-await test('IN + Hindi: Uses Sarvam Translate -> GLM-5.3 Flash -> Sarvam Translate', async () => {
+await test('IN + Hindi: Uses Fera Translate -> GLM-5.3 Flash -> Fera Translate', async () => {
   const indianUser = {
     id: 'user-in-02',
     market: 'IN',
@@ -170,15 +170,15 @@ await test('IN + Hindi: Uses Sarvam Translate -> GLM-5.3 Flash -> Sarvam Transla
   });
 
   assert.equal(response.routing.market, 'IN');
-  assert.equal(response.routing.translationRequired, true, 'Sarvam Translate must be invoked for Hindi');
-  assert.equal(response.routing.translator, 'sarvam_translate');
+  assert.equal(response.routing.translationRequired, true, 'Fera Translate must be invoked for Hindi');
+  assert.equal(response.routing.translator, 'fera_translate');
   assert.equal(response.routing.reasoningModel, 'glm-5.3-flash');
-  assert.equal(response.routing.provider, 'modal');
+  assert.equal(response.routing.provider, 'fera_ai');
   assert.equal(response.usage.translationUsed, true);
   assert.ok(response.usage.translationInputCharacters > 0);
 });
 
-await test('IN + Romanized Hinglish: Uses Sarvam Translate', async () => {
+await test('IN + Romanized Hinglish: Uses Fera Translate', async () => {
   const indianUser = {
     id: 'user-in-03',
     market: 'IN',
@@ -194,14 +194,14 @@ await test('IN + Romanized Hinglish: Uses Sarvam Translate', async () => {
   });
 
   assert.equal(response.routing.translationRequired, true);
-  assert.equal(response.routing.translator, 'sarvam_translate');
+  assert.equal(response.routing.translator, 'fera_translate');
 });
 
 console.log('\n════════════════════════════════════════════════════════════════════');
-console.log('🇺🇸 SUITE 3: USA Market Strategy (Direct GLM, Zero Sarvam)');
+console.log('🇺🇸 SUITE 3: USA Market Strategy (Direct GLM, Zero External Translation)');
 console.log('════════════════════════════════════════════════════════════════════');
 
-await test('US + English: Routes directly to GLM-5.3 Flash with zero Sarvam calls', async () => {
+await test('US + English: Routes directly to GLM-5.3 Flash with zero translation calls', async () => {
   const usUser = {
     id: 'user-us-01',
     market: 'US',
@@ -220,7 +220,7 @@ await test('US + English: Routes directly to GLM-5.3 Flash with zero Sarvam call
   assert.equal(response.routing.translationRequired, false);
   assert.equal(response.routing.translator, null);
   assert.equal(response.routing.reasoningModel, 'glm-5.3-flash');
-  assert.equal(response.routing.provider, 'modal');
+  assert.equal(response.routing.provider, 'fera_ai');
   assert.equal(response.usage.translationUsed, false);
 });
 

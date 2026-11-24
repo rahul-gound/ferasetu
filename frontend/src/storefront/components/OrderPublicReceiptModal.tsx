@@ -6,6 +6,7 @@
 // =============================================================================
 
 import React, { useState, useMemo } from 'react';
+import axios from 'axios';
 import {
   X,
   CheckCircle2,
@@ -77,13 +78,36 @@ export default function OrderPublicReceiptModal({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [showInvoiceDoc, setShowInvoiceDoc] = useState(false);
+  const [isCancelledLocally, setIsCancelledLocally] = useState((order.status || '').toLowerCase() === 'cancelled');
+  const [isCancelling, setIsCancelling] = useState(false);
 
-  const status = (order.status || 'pending').toLowerCase();
+  const status = isCancelledLocally ? 'cancelled' : (order.status || 'pending').toLowerCase();
   const paymentStatus = (order.payment_status || 'pending').toLowerCase();
   const isPaid = paymentStatus === 'paid' || status === 'delivered';
   const isDelivered = status === 'delivered';
   const isCancelled = status === 'cancelled';
   const isPreparing = status === 'preparing' || status === 'confirmed';
+
+  const handleCancelOrder = async () => {
+    const reason = window.prompt('Please enter a cancellation reason (optional):', 'Customer requested cancellation');
+    if (reason === null) return;
+    setIsCancelling(true);
+    try {
+      const rawApi = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+      const apiBase = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
+      await axios.post(`${apiBase}/orders/public/${order.id}/cancel`, {
+        customerPhone: order.customer_phone,
+        token: order.tracking_token,
+        reason: reason || 'Customer requested cancellation',
+      });
+      setIsCancelledLocally(true);
+      toast.success('Order cancelled successfully.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Unable to cancel order.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // Handshake code extraction
   const handshakeCode = useMemo(() => {
@@ -406,6 +430,18 @@ export default function OrderPublicReceiptModal({
                 <FileText size={14} />
                 <span>Tax Invoice PDF</span>
               </button>
+
+              {!isDelivered && !isCancelled && (
+                <button
+                  type="button"
+                  disabled={isCancelling}
+                  onClick={handleCancelOrder}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <X size={14} />
+                  <span>{isCancelling ? 'Cancelling…' : 'Cancel Order'}</span>
+                </button>
+              )}
             </div>
 
             <button

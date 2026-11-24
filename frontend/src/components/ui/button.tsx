@@ -4,26 +4,26 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-180 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:translate-y-0.5 active:scale-[0.985] select-none cursor-pointer",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer",
   {
     variants: {
       variant: {
         default:
-          "bg-[#0052FF] text-white shadow-[0_2px_4px_rgba(0,82,255,0.16),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-[#0047E0] hover:shadow-[0_6px_16px_rgba(0,82,255,0.24),0_2px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-[#003BB5] active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_2px_rgba(0,82,255,0.12),inset_0_2px_4px_rgba(0,0,0,0.18)]",
+          "border-t border-white/20 bg-[#0052FF] text-white shadow-[0_4px_0_0_#003BB5,0_8px_18px_rgba(0,82,255,0.35)] hover:bg-[#0047E0] hover:shadow-[0_5px_0_0_#003BB5,0_12px_22px_rgba(0,82,255,0.45)] hover:-translate-y-0.5 active:bg-[#003BB5] active:translate-y-1 active:shadow-[0_0px_0_0_#003BB5,inset_0_3px_6px_rgba(0,0,0,0.3)]",
         brand:
-          "bg-[#EA580C] text-white shadow-[0_2px_4px_rgba(234,88,12,0.2),0_1px_2px_rgba(0,0,0,0.06)] hover:bg-[#C2410C] hover:shadow-[0_6px_16px_rgba(234,88,12,0.28),0_2px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-[#9A3412] active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_2px_rgba(234,88,12,0.14),inset_0_2px_4px_rgba(0,0,0,0.2)]",
+          "border-t border-white/20 bg-[#EA580C] text-white shadow-[0_4px_0_0_#9A3412,0_8px_18px_rgba(234,88,12,0.35)] hover:bg-[#D9480F] hover:shadow-[0_5px_0_0_#9A3412,0_12px_22px_rgba(234,88,12,0.45)] hover:-translate-y-0.5 active:bg-[#C2410C] active:translate-y-1 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)]",
         destructive:
-          "bg-rose-600 text-white shadow-[0_2px_4px_rgba(225,29,72,0.2)] hover:bg-rose-700 hover:shadow-[0_6px_16px_rgba(225,29,72,0.25)] hover:-translate-y-0.5 active:bg-rose-800 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
+          "border-t border-white/20 bg-rose-600 text-white shadow-[0_4px_0_0_#9f1239,0_8px_18px_rgba(225,29,72,0.35)] hover:bg-rose-700 hover:shadow-[0_5px_0_0_#9f1239,0_12px_22px_rgba(225,29,72,0.45)] hover:-translate-y-0.5 active:bg-rose-800 active:translate-y-1 active:shadow-[0_0px_0_0_#9f1239,inset_0_3px_6px_rgba(0,0,0,0.3)]",
         outline:
-          "border border-slate-200/90 bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-slate-50 hover:border-slate-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-slate-100 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
+          "border border-slate-200/90 bg-white text-slate-800 shadow-[0_3px_0_0_#e2e8f0,0_4px_12px_rgba(0,0,0,0.05)] hover:bg-slate-50 hover:border-slate-300 hover:shadow-[0_4px_0_0_#cbd5e1,0_6px_16px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:bg-slate-100 active:translate-y-1 active:shadow-[0_0px_0_0_#cbd5e1,inset_0_2px_4px_rgba(0,0,0,0.08)]",
         secondary:
-          "bg-slate-100 text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-slate-200/80 hover:-translate-y-0.5 active:bg-slate-200 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
+          "bg-slate-100 text-slate-900 shadow-[0_3px_0_0_#cbd5e1,0_4px_10px_rgba(0,0,0,0.04)] hover:bg-slate-200/80 hover:shadow-[0_4px_0_0_#94a3b8,0_6px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:bg-slate-200 active:translate-y-1 active:shadow-[0_0px_0_0_#94a3b8,inset_0_2px_4px_rgba(0,0,0,0.08)]",
         ghost:
-          "text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/70 active:translate-y-0.5 active:scale-[0.985]",
+          "text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/70 active:translate-y-0.5",
         link:
           "text-[#0052FF] underline-offset-4 hover:underline",
         whatsapp:
-          "bg-emerald-600 text-white shadow-[0_2px_4px_rgba(5,150,105,0.2)] hover:bg-emerald-700 hover:shadow-[0_6px_16px_rgba(5,150,105,0.25)] hover:-translate-y-0.5 active:bg-emerald-800 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner",
+          "border-t border-white/20 bg-emerald-600 text-white shadow-[0_4px_0_0_#065f46,0_8px_18px_rgba(5,150,105,0.35)] hover:bg-emerald-700 hover:shadow-[0_5px_0_0_#065f46,0_12px_22px_rgba(5,150,105,0.45)] hover:-translate-y-0.5 active:bg-emerald-800 active:translate-y-1 active:shadow-[0_0px_0_0_#065f46,inset_0_3px_6px_rgba(0,0,0,0.3)]",
       },
       size: {
         default: "h-11 px-6 py-2.5 text-sm rounded-full min-h-[44px]",

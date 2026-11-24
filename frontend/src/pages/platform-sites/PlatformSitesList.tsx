@@ -120,7 +120,7 @@ export default function PlatformSitesList() {
           {filteredSites.map((site) => (
             <div
               key={site.id}
-              onClick={() => navigate(`/platform-sites/websites/${site.id}`)}
+              onClick={() => navigate(`/admin/platform-sites/websites/${site.id}`)}
               className="bg-white border border-slate-200/80 hover:border-[#0052FF]/60 hover:shadow-sm rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all group"
             >
               <div>

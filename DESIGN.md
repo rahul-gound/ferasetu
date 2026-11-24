@@ -159,3 +159,23 @@ components:
 - **Form Controls:** Inputs and buttons share identical heights, border radii, and focus ring metrics.
 - **Error & 404 Pages:** Witty, empathetic, shopkeeper-friendly copy that values the customer, reassures data safety, and avoids dry corporate jargon.
 - **Zero Sarvam Invariant:** Never display or reference Sarvam AI anywhere. Powered exclusively by Sovereign FeraSetu AI (`https://ai.fera-search.tech/v1`).
+
+---
+
+## 4. Stitch Retail Design System & UI Test Specifications
+The FeraSetu storefront engine incorporates the high-craft Stitch Design System (Project ID `6894408154411177085`). All implementations, component breakdowns, tokens, and verification criteria are systematically partitioned into three companion specifications:
+
+- **[ui-1-test.md](file:///c:/Users/himanshu/OneDrive/fera-shopkeeeper-web-testing-/ui-1-test.md):**
+  - **Screen 1:** `Retail - Local Storefront Home` (ID: `d71b6d95dd764895939859c4d73e8106`)
+    - Verified GSTIN badge, local delivery in 24 hrs, WhatsApp merchant communication, 2-column bestsellers with quick add, Google reviews widget, and direct UPI rails.
+  - **Screen 2:** `Retail - Product Catalog & Filters` (ID: `7e630f2d9dc749ce8b365a80346e8f12`)
+    - Faceted search, responsive dual-column product grid, discount tags, rating indicators, and store guarantee footprint.
+- **[ui-2-test.md](file:///c:/Users/himanshu/OneDrive/fera-shopkeeeper-web-testing-/ui-2-test.md):**
+  - **Screen 3:** `Retail - Product Detail (PDP)` (ID: `516552b83c954e60ba0af7bc0c573ec2`)
+    - Multi-angle carousel, Indian chest sizing guide, authentic handloom badges, tactile "Add to Cart" and dual-rail "Order via WhatsApp".
+  - **Screen 4:** `Retail - Cart & Checkout` (ID: `112f966813864d128d6d8a650dc77aec`)
+    - Tactile quantity steppers (`[-] 1 [+]`), 0% aggregator platform fee ledger, delivery address GPS selector, and discount coupon engine.
+- **[ui-3-test.md](file:///c:/Users/himanshu/OneDrive/fera-shopkeeeper-web-testing-/ui-3-test.md):**
+  - **Screen 5:** `Retail - Select Payment Mode` (ID: `1c43bc7c6b634f7ca979160e112baff1`)
+    - UPI Instant Settlement (GPay, PhonePe, Paytm, CRED), Cash on Delivery with OTP verification, 256-bit card gateway, and master tactile CTA button.
+  - **Website Builder Architecture:** Integration blueprint for `RetailStorefrontTemplate.tsx`, `THEME_REGISTRY['retail']`, and 5-screen interactive preview in `WebsiteDesignPage.tsx`.

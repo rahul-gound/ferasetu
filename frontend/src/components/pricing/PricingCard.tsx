@@ -36,19 +36,18 @@ export default function PricingCard({
       background: '#ffffff',
       border: '1px solid #cbd5e1',
     },
+    pro: {
+      background: '#ffffff',
+      border: '2px solid #2563eb',
+      transform: 'translateY(-8px)',
+      boxShadow: '0 24px 60px rgba(37,99,235,0.12)',
+    },
     business: {
       background: '#ffffff',
-      border: '2px solid #2563eb',
-      transform: 'translateY(-8px)',
-      boxShadow: '0 24px 60px rgba(37,99,235,0.12)',
+      border: '1px solid #94a3b8',
+      boxShadow: '0 8px 32px rgba(15,23,42,0.06)',
     },
     growth: {
-      background: '#ffffff',
-      border: '2px solid #2563eb',
-      transform: 'translateY(-8px)',
-      boxShadow: '0 24px 60px rgba(37,99,235,0.12)',
-    },
-    pro: {
       background: '#ffffff',
       border: '1px solid #94a3b8',
       boxShadow: '0 8px 32px rgba(15,23,42,0.06)',
@@ -58,9 +57,9 @@ export default function PricingCard({
   const ACCENT_COLORS: Record<string, string> = {
     free: '#64748b',
     starter: '#2563eb',
-    business: '#2563eb',
-    growth: '#2563eb',
-    pro: '#1e3a8a',
+    pro: '#2563eb',
+    business: '#1e3a8a',
+    growth: '#1e3a8a',
   };
 
   const accentColor = ACCENT_COLORS[plan.id] ?? '#64748b';
@@ -267,36 +266,43 @@ export default function PricingCard({
               : '#0052FF',
           color: isCurrentPlan || (isFree && isAuthenticated) ? '#64748b' : '#fff',
           fontSize: 14, fontWeight: 800, cursor: isCurrentPlan || (isFree && isAuthenticated) ? 'not-allowed' : 'pointer',
-          transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease',
+          transition: 'transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, filter 0.15s ease',
           boxShadow: isCurrentPlan || (isFree && isAuthenticated) ? 'none'
             : plan.id === 'pro'
-              ? '0 4px 14px rgba(15,23,42,0.22), 0 1px 2px rgba(0,0,0,0.06)'
-              : '0 4px 16px rgba(0,82,255,0.26), 0 1px 2px rgba(0,0,0,0.06)',
+              ? '0 4px 0 0 #020617, 0 10px 22px rgba(15,23,42,0.3)'
+              : '0 4px 0 0 #003BB5, 0 10px 22px rgba(0,82,255,0.3)',
         }}
         onMouseEnter={e => {
           if (!isCurrentPlan && !(isFree && isAuthenticated)) {
             (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.06)';
-            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1.5px)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = plan.id === 'pro'
+              ? '0 5px 0 0 #020617, 0 14px 26px rgba(15,23,42,0.4)'
+              : '0 5px 0 0 #003BB5, 0 14px 26px rgba(0,82,255,0.4)';
           }
         }}
         onMouseLeave={e => {
           (e.currentTarget as HTMLButtonElement).style.filter = 'none';
           (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = isCurrentPlan || (isFree && isAuthenticated) ? 'none'
+            : plan.id === 'pro'
+              ? '0 4px 0 0 #020617, 0 10px 22px rgba(15,23,42,0.3)'
+              : '0 4px 0 0 #003BB5, 0 10px 22px rgba(0,82,255,0.3)';
         }}
         onMouseDown={e => {
           if (!isCurrentPlan && !(isFree && isAuthenticated)) {
-            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(1.5px) scale(0.985)';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(2px) scale(0.985)';
             (e.currentTarget as HTMLButtonElement).style.boxShadow = plan.id === 'pro'
-              ? '0 1px 2px rgba(15,23,42,0.15), inset 0 2px 4px rgba(0,0,0,0.2)'
-              : '0 1px 2px rgba(0,82,255,0.15), inset 0 2px 4px rgba(0,0,0,0.2)';
+              ? '0 0px 0 0 #020617, inset 0 3px 6px rgba(0,0,0,0.35)'
+              : '0 0px 0 0 #003BB5, inset 0 3px 6px rgba(0,0,0,0.35)';
           }
         }}
         onMouseUp={e => {
           if (!isCurrentPlan && !(isFree && isAuthenticated)) {
-            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1.5px)';
             (e.currentTarget as HTMLButtonElement).style.boxShadow = plan.id === 'pro'
-              ? '0 4px 14px rgba(15,23,42,0.22), 0 1px 2px rgba(0,0,0,0.06)'
-              : '0 4px 16px rgba(0,82,255,0.26), 0 1px 2px rgba(0,0,0,0.06)';
+              ? '0 5px 0 0 #020617, 0 14px 26px rgba(15,23,42,0.4)'
+              : '0 5px 0 0 #003BB5, 0 14px 26px rgba(0,82,255,0.4)';
           }
         }}
       >

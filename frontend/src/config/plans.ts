@@ -5,8 +5,8 @@
  *
  * Tiers:
  * - Free: ₹0/mo, ₹0/yr (Acquisition tier)
- * - Business: ₹399/mo, ₹3,990/yr (Main growth tier - Most Popular)
- * - Pro: ₹999/mo, ₹9,990/yr (High-volume / scale tier)
+ * - Pro: ₹999/mo, ₹9,990/yr (High-volume scale tier - Most Popular)
+ * - Business: ₹399/mo, ₹3,990/yr (Main growth retail tier)
  */
 
 // ---------------------------------------------------------------------------
@@ -279,14 +279,34 @@ export const PLANS: PlanDefinition[] = [
     ],
   },
   {
+    id: 'pro',
+    displayName: 'Pro',
+    tagline: 'Complete power and scale for serious merchants.',
+    outcome: 'Unlimited catalog capacity, advanced predictive AI forecasting, multiple staff, and top priority support.',
+    price: PLAN_PRICES.pro,
+    limits: PLAN_LIMITS.pro,
+    highlighted: true,
+    badge: 'Most Popular',
+    ctaText: 'Get Pro',
+    ctaHref: '/register?plan=pro',
+    features: [
+      { label: 'Everything in Business', included: true },
+      { label: 'Unlimited products', included: true },
+      { label: '1,000 FeraSetu AI credits/month', included: true },
+      { label: '5GB media & backup storage', included: true },
+      { label: 'Advanced predictive AI & forecasting', included: true },
+      { label: 'Up to 5 staff accounts', included: true },
+      { label: 'Custom domain & white-label store', included: true },
+      { label: 'Dedicated priority support (24/7)', included: true },
+    ],
+  },
+  {
     id: 'business',
     displayName: 'Business',
     tagline: 'Run and grow your retail business efficiently.',
     outcome: 'Expand your catalog, track profits, automate stock alerts, and use your FeraSetu AI assistant daily.',
     price: PLAN_PRICES.business,
     limits: PLAN_LIMITS.business,
-    highlighted: true,
-    badge: 'Most Popular',
     ctaText: 'Get Business',
     ctaHref: '/register?plan=business',
     features: [
@@ -302,26 +322,6 @@ export const PLANS: PlanDefinition[] = [
       { label: 'Priority WhatsApp & phone support', included: true },
     ],
   },
-  {
-    id: 'pro',
-    displayName: 'Pro',
-    tagline: 'Complete power and scale for serious merchants.',
-    outcome: 'Unlimited catalog capacity, advanced predictive AI forecasting, multiple staff, and top priority support.',
-    price: PLAN_PRICES.pro,
-    limits: PLAN_LIMITS.pro,
-    ctaText: 'Get Pro',
-    ctaHref: '/register?plan=pro',
-    features: [
-      { label: 'Everything in Business', included: true },
-      { label: 'Unlimited products', included: true },
-      { label: '1,000 FeraSetu AI credits/month', included: true },
-      { label: '5GB media & backup storage', included: true },
-      { label: 'Advanced predictive AI & forecasting', included: true },
-      { label: 'Up to 5 staff accounts', included: true },
-      { label: 'Custom domain & white-label store', included: true },
-      { label: 'Dedicated priority support (24/7)', included: true },
-    ],
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -330,16 +330,16 @@ export const PLANS: PlanDefinition[] = [
 
 /**
  * Get market-aware plan definitions.
- * - India ('IN'): Returns 3 plans (Free, Business, Pro) with INR pricing and Free entry.
- * - US ('US'), Europe ('EU'), Other: Returns 3 paid plans (Starter, Business, Pro) with 14-day trial. NO Free plan.
+ * - India ('IN'): Returns 3 plans (Free, Pro, Business) with INR pricing and Free entry.
+ * - US ('US'), Europe ('EU'), Other: Returns 3 paid plans (Starter, Pro, Business) with 14-day trial. NO Free plan.
  */
 export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[] {
   const cfg = MARKET_CONFIGS[market] || MARKET_CONFIGS.GLOBAL;
 
   if (market === 'IN') {
     const freeDef = PLANS.find(p => p.id === 'free') || PLANS[0];
-    const bizDef = PLANS.find(p => p.id === 'business') || PLANS[2];
-    const proDef = PLANS.find(p => p.id === 'pro') || PLANS[3];
+    const proDef = PLANS.find(p => p.id === 'pro') || PLANS[2];
+    const bizDef = PLANS.find(p => p.id === 'business') || PLANS[3];
     return [
       {
         ...freeDef,
@@ -348,24 +348,28 @@ export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[
         ctaHref: '/register?market=IN',
       },
       {
-        ...bizDef,
-        price: cfg.plans.business,
-        ctaText: 'Get Business',
-        ctaHref: '/register?plan=business&market=IN',
-      },
-      {
         ...proDef,
         price: cfg.plans.pro,
+        highlighted: true,
+        badge: 'Most Popular',
         ctaText: 'Get Pro',
         ctaHref: '/register?plan=pro&market=IN',
+      },
+      {
+        ...bizDef,
+        price: cfg.plans.business,
+        highlighted: false,
+        badge: undefined,
+        ctaText: 'Get Business',
+        ctaHref: '/register?plan=business&market=IN',
       },
     ];
   }
 
-  // US, EU, and OTHER: 3 paid plans (Starter, Business, Pro) with 14-day trial. NO Free plan!
+  // US, EU, and OTHER: 3 paid plans (Starter, Pro, Business) with 14-day trial. NO Free plan!
   const starterDef = PLANS.find(p => p.id === 'starter') || PLANS[1];
-  const bizDef = PLANS.find(p => p.id === 'business') || PLANS[2];
-  const proDef = PLANS.find(p => p.id === 'pro') || PLANS[3];
+  const proDef = PLANS.find(p => p.id === 'pro') || PLANS[2];
+  const bizDef = PLANS.find(p => p.id === 'business') || PLANS[3];
 
   return [
     {
@@ -377,20 +381,22 @@ export function getMarketPlans(market: Market = DEFAULT_MARKET): PlanDefinition[
       ctaHref: `/register?plan=starter&market=${market}`,
     },
     {
-      ...bizDef,
-      price: cfg.plans.business,
-      tagline: 'For growing independent businesses and merchants.',
-      badge: '14 Days Free • Most Popular',
-      ctaText: 'Start 14-Day Free Trial',
-      ctaHref: `/register?plan=business&market=${market}`,
-    },
-    {
       ...proDef,
       price: cfg.plans.pro,
       tagline: 'For businesses and brands operating at larger scale.',
-      badge: '14 Days Free',
+      badge: '14 Days Free • Most Popular',
+      highlighted: true,
       ctaText: 'Start 14-Day Free Trial',
       ctaHref: `/register?plan=pro&market=${market}`,
+    },
+    {
+      ...bizDef,
+      price: cfg.plans.business,
+      tagline: 'For growing independent businesses and merchants.',
+      badge: '14 Days Free',
+      highlighted: false,
+      ctaText: 'Start 14-Day Free Trial',
+      ctaHref: `/register?plan=business&market=${market}`,
     },
   ];
 }

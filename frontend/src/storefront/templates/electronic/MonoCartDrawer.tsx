@@ -74,7 +74,7 @@ function CheckoutModal({ onClose }: { onClose: () => void }) {
             >
               <CheckCircle2 size={32} />
             </motion.span>
-            <h3 className="mt-4 text-xl font-bold text-ink">Order confirmed</h3>
+            <h3 className="mt-4 text-xl font-bold text-ink">Order placed</h3>
             <p className="mt-2 text-sm text-ink/60">
               {order?.id} · {order ? formatPrice(order.total) : ''}
               <br />

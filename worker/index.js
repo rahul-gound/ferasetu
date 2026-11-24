@@ -52,6 +52,7 @@ import {
   getSecurityTxtResponse,
   resolveCustomDomainTenant,
   isVerifiedCustomDomain,
+  isStaticAsset,
 } from "./storefront.js";
 import {
   generateCanonicalStorefront,
@@ -133,6 +134,8 @@ import { isProduction } from "./utils/env.js";
 const ALLOWED_ORIGINS = [
   "https://ferasetu.com",
   "https://www.ferasetu.com",
+  "https://ferasetu.store",
+  "https://www.ferasetu.store",
   "http://localhost:5173",
   "http://127.0.0.1:5173"
 ];
@@ -153,6 +156,10 @@ export function isOriginAllowed(origin, request = null, env = null) {
 
     // Permit valid merchant storefront subdomains and API subdomains
     if (classification.type === "merchant" || classification.type === "api") {
+      return true;
+    }
+    // Allow platform roots (ferasetu.com, ferasetu.store, etc.)
+    if (classification.type === "platform_root") {
       return true;
     }
     // Allow app or www if configured
@@ -191,7 +198,16 @@ export function isOriginAllowed(origin, request = null, env = null) {
 
 export function getCorsHeaders(request, env = null) {
   const origin = request ? (request.headers?.get("Origin") || request.headers?.get("origin")) : null;
-  const allowedOrigin = isOriginAllowed(origin, request, env) ? origin : "https://ferasetu.com";
+  let fallbackOrigin = "https://ferasetu.com";
+  if (request?.url) {
+    try {
+      const reqHost = new URL(request.url).hostname.toLowerCase();
+      if (reqHost.endsWith(".ferasetu.store") || reqHost === "ferasetu.store") {
+        fallbackOrigin = "https://ferasetu.store";
+      }
+    } catch {}
+  }
+  const allowedOrigin = isOriginAllowed(origin, request, env) ? origin : fallbackOrigin;
   const reqHeaders = request ? (request.headers?.get("Access-Control-Request-Headers") || request.headers?.get("access-control-request-headers")) : null;
   const baseHeaders = "Content-Type, Authorization, X-Requested-With, Accept, X-Organization-Id, X-Shop-Slug, X-Shop-Id, X-Store-Slug, X-Customer-Session, X-Forwarded-Host, X-User-Id, Idempotency-Key, X-Order-Idempotency, Cache-Control, Pragma";
   const allowedHeaders = reqHeaders ? `${baseHeaders}, ${reqHeaders}` : baseHeaders;
@@ -490,14 +506,18 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
   if (shopIdOrSlug && typeof shopIdOrSlug === 'string') {
     const clean = shopIdOrSlug.trim();
     if (clean) {
+      const cleanSlug = clean.replace(/\.(ferasetu\.com|ferasetu\.store|fera-search\.tech)$/i, "");
+      const storeHost = `${cleanSlug}.ferasetu.store`;
+      const comHost = `${cleanSlug}.ferasetu.com`;
+
       shop = await env.DB.prepare(
-        "SELECT * FROM shops WHERE id = ? OR store_slug = ? OR LOWER(name) = ?"
-      ).bind(clean, clean, clean.toLowerCase()).first();
+        "SELECT * FROM shops WHERE id = ? OR store_slug = ? OR store_slug = ? OR hostname = ? OR hostname = ? OR hostname = ? OR LOWER(name) = ?"
+      ).bind(clean, clean, cleanSlug, clean, storeHost, comHost, clean.toLowerCase()).first();
 
       if (!shop) {
         organization = await env.DB.prepare(
-          "SELECT * FROM organizations WHERE id = ? OR store_slug = ? OR LOWER(name) = ?"
-        ).bind(clean, clean, clean.toLowerCase()).first();
+          "SELECT * FROM organizations WHERE id = ? OR store_slug = ? OR store_slug = ? OR LOWER(name) = ?"
+        ).bind(clean, clean, cleanSlug, clean.toLowerCase()).first();
 
         if (organization) {
           shop = await env.DB.prepare(
@@ -508,8 +528,8 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
 
       if (!shop && !organization) {
         const legacyUser = await env.DB.prepare(
-          "SELECT id, business_name, name, subdomain FROM users WHERE id = ? OR subdomain = ? OR LOWER(business_name) = ? OR LOWER(name) = ?"
-        ).bind(clean, clean, clean.toLowerCase(), clean.toLowerCase()).first();
+          "SELECT id, business_name, name, subdomain, hostname FROM users WHERE id = ? OR subdomain = ? OR subdomain = ? OR hostname = ? OR hostname = ? OR hostname = ? OR LOWER(business_name) = ? OR LOWER(name) = ?"
+        ).bind(clean, clean, cleanSlug, clean, storeHost, comHost, clean.toLowerCase(), clean.toLowerCase()).first();
         if (legacyUser) {
           const mem = await env.DB.prepare(
             "SELECT organization_id FROM organization_members WHERE user_id = ? ORDER BY created_at ASC"
@@ -536,25 +556,50 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
     }
   }
 
+  let requestClassification = null;
   if (!shop && request) {
     try {
       const hostHeader = (request.headers.get("x-forwarded-host") || request.headers.get("host") || "").toLowerCase().trim();
       const hostname = hostHeader.split(":")[0];
       const classification = classifyHostname(hostname);
+      requestClassification = classification;
 
       if (classification.type === "merchant" && classification.subdomain) {
+        const merchantSlug = classification.subdomain;
+        const comHost = `${merchantSlug}.ferasetu.com`;
+        const storeHost = `${merchantSlug}.ferasetu.store`;
         shop = await env.DB.prepare(
-          "SELECT * FROM shops WHERE hostname = ? OR store_slug = ?"
-        ).bind(hostname, classification.subdomain).first();
+          "SELECT * FROM shops WHERE hostname = ? OR hostname = ? OR hostname = ? OR store_slug = ?"
+        ).bind(hostname, storeHost, comHost, merchantSlug).first();
 
         if (!shop) {
           organization = await env.DB.prepare(
             "SELECT * FROM organizations WHERE store_slug = ?"
-          ).bind(classification.subdomain).first();
+          ).bind(merchantSlug).first();
           if (organization) {
             shop = await env.DB.prepare(
               "SELECT * FROM shops WHERE organization_id = ? ORDER BY created_at ASC"
             ).bind(organization.id).first();
+          }
+        }
+
+        if (!shop && !organization) {
+          const legacyUser = await env.DB.prepare(
+            "SELECT id, business_name, name, subdomain, hostname FROM users WHERE subdomain = ? OR hostname = ? OR hostname = ? OR hostname = ? LIMIT 1"
+          ).bind(merchantSlug, hostname, storeHost, comHost).first();
+          if (legacyUser) {
+            organization = {
+              id: legacyUser.id,
+              name: legacyUser.business_name || legacyUser.name || 'Store',
+              store_slug: legacyUser.subdomain || merchantSlug
+            };
+            shop = {
+              id: legacyUser.id,
+              organization_id: legacyUser.id,
+              name: legacyUser.business_name || legacyUser.name || 'Store',
+              store_slug: legacyUser.subdomain || merchantSlug,
+              hostname: hostname
+            };
           }
         }
       } else if (classification.type === "custom_domain") {
@@ -583,12 +628,13 @@ export async function resolveStorefrontTenant(request, env, shopIdOrSlug = null)
   }
 
   if (!shop && organization) {
+    const fallbackBase = requestClassification?.domain || "ferasetu.store";
     shop = {
       id: organization.id,
       organization_id: organization.id,
       name: organization.name,
       store_slug: organization.store_slug,
-      hostname: `${organization.store_slug}.ferasetu.com`,
+      hostname: `${organization.store_slug}.${fallbackBase}`,
       logo_url: organization.logo_url || null,
       favicon_url: organization.favicon_url || null,
       primary_color: organization.primary_color || null,
@@ -4052,17 +4098,7 @@ async function ensureTables(db) {
       if (typeof db.prepare === 'function') {
         try {
           const orgExists = await db.prepare("SELECT 1 FROM organizations LIMIT 1").first();
-          const draftExists = await db.prepare("SELECT 1 FROM website_drafts LIMIT 1").first();
-          const connExists = await db.prepare("SELECT 1 FROM website_connections LIMIT 1").first();
-          const verExists = await db.prepare("SELECT 1 FROM website_versions LIMIT 1").first();
-          const adminEntExists = await db.prepare("SELECT 1 FROM platform_admin_entitlements LIMIT 1").first();
-          const analyticsIpExists = await db.prepare("SELECT ip_address FROM analytics_events LIMIT 1").first();
-          const discountsExists = await db.prepare("SELECT 1 FROM discounts LIMIT 1").first();
-          const segmentsExists = await db.prepare("SELECT 1 FROM customer_segments LIMIT 1").first();
-          const transfersExists = await db.prepare("SELECT 1 FROM inventory_transfers LIMIT 1").first();
-          const giftCardsExists = await db.prepare("SELECT 1 FROM gift_cards LIMIT 1").first();
-          const announcementsExists = await db.prepare("SELECT 1 FROM announcements LIMIT 1").first();
-          if (orgExists !== undefined && draftExists !== undefined && connExists !== undefined && verExists !== undefined && adminEntExists !== undefined && analyticsIpExists !== undefined && discountsExists !== undefined && segmentsExists !== undefined && transfersExists !== undefined && giftCardsExists !== undefined && announcementsExists !== undefined) {
+          if (orgExists !== undefined && orgExists !== null) {
             tablesInitialized = true;
             return;
           }
@@ -10915,6 +10951,19 @@ async function getWebsiteSettings(request, env) {
 
   const storeSlug = user?.subdomain || (user?.hostname ? user.hostname.split('.')[0] : 'store');
   const defaultTitle = website?.name || user?.business_name || user?.name || 'Online Store';
+  let hostDomain = user?.hostname;
+  if (!hostDomain) {
+    let reqBase = "ferasetu.store";
+    if (request?.url) {
+      try {
+        const uHost = new URL(request.url).hostname.toLowerCase();
+        if (uHost.endsWith(".ferasetu.com") || uHost === "ferasetu.com") {
+          reqBase = "ferasetu.com";
+        }
+      } catch {}
+    }
+    hostDomain = `${storeSlug}.${reqBase}`;
+  }
   const defaults = {
     show_on_google: true,
     show_on_bing: true,
@@ -10926,7 +10975,7 @@ async function getWebsiteSettings(request, env) {
     meta_description: 'Welcome to our official online store. Explore our full catalog with 0% platform markup, fast local delivery, and direct WhatsApp ordering.',
     keywords: 'online store, shopping, local retail, whatsapp orders',
     social_share_image: user?.logo_url || '',
-    canonical_url: `https://${storeSlug}.ferasetu.com`,
+    canonical_url: `https://${hostDomain}`,
     maintenance_mode: false,
     require_customer_login: false,
     google_analytics_id: '',
@@ -10944,7 +10993,7 @@ async function getWebsiteSettings(request, env) {
     settings,
     website_id: website?.id || null,
     is_published: website ? Boolean(website.is_published) : false,
-    store_url: `https://${storeSlug}.ferasetu.com`,
+    store_url: `https://${hostDomain}`,
   }, 200, {}, request);
 }
 
@@ -11519,8 +11568,17 @@ async function getPublicShop(shopName, request, env) {
   }
 
   const cleanShopName = shopName.trim().toLowerCase();
-  const slugWithoutDomain = cleanShopName.replace(/\.(ferasetu\.com|fera-search\.tech)$/i, "");
-  const fullHostname = slugWithoutDomain.includes(".") ? slugWithoutDomain : `${slugWithoutDomain}.ferasetu.com`;
+  const slugWithoutDomain = cleanShopName.replace(/\.(ferasetu\.com|ferasetu\.store|fera-search\.tech)$/i, "");
+  let reqHost = null;
+  try {
+    if (request?.url) {
+      reqHost = new URL(request.url).hostname.toLowerCase();
+    }
+  } catch {}
+  const targetBaseDomain = (reqHost && reqHost.endsWith(".ferasetu.store")) || cleanShopName.endsWith(".ferasetu.store") ? "ferasetu.store" : "ferasetu.com";
+  const fullHostname = slugWithoutDomain.includes(".") ? slugWithoutDomain : `${slugWithoutDomain}.${targetBaseDomain}`;
+  const storeHost = `${slugWithoutDomain}.ferasetu.store`;
+  const comHost = `${slugWithoutDomain}.ferasetu.com`;
 
   // 1. Resolve storefront tenant deterministically
   let tenant = null;
@@ -11551,17 +11609,17 @@ async function getPublicShop(shopName, request, env) {
   if (!targetOrgId) {
     try {
       user = await env.DB.prepare(
-        "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
+        "SELECT id, name, business_name, subdomain, hostname, custom_domain, is_blocked FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(custom_domain) = ?"
       )
-        .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname, cleanShopName)
+        .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname, storeHost, comHost, cleanShopName)
         .first();
     } catch (dbErr) {
       console.warn("Primary user query in getPublicShop failed, retrying with core columns:", dbErr?.message || dbErr);
       try {
         user = await env.DB.prepare(
-          "SELECT id, name, business_name, subdomain, hostname FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ?"
+          "SELECT id, name, business_name, subdomain, hostname FROM users WHERE LOWER(subdomain) = ? OR LOWER(subdomain) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ? OR LOWER(hostname) = ?"
         )
-          .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname)
+          .bind(cleanShopName, slugWithoutDomain, cleanShopName, fullHostname, storeHost, comHost)
           .first();
         if (user) {
           user.is_blocked = 0;
@@ -11601,6 +11659,181 @@ async function getPublicShop(shopName, request, env) {
       } catch (pSiteErr) {
         console.warn("Platform site fallback in getPublicShop notice:", pSiteErr?.message);
       }
+    }
+
+    // Showcase demo store fallback for Sharma Kirana
+    if (slugWithoutDomain === 'sharma-kirana' || cleanShopName === 'sharma-kirana' || slugWithoutDomain === 'sharma-general-store') {
+      return json({
+        shop: {
+          id: 'shop_sharma_kirana',
+          name: 'Sharma Kirana Store',
+          subdomain: 'sharma-kirana',
+          hostname: 'sharma-kirana.ferasetu.com',
+          business_name: 'Sharma Kirana Store',
+          market: 'IN',
+          currency: 'INR',
+          phone: '+91 98765 43210',
+          address: 'Shop No. 4, Gandhi Chowk, Station Road, Jaipur, Rajasthan 302001'
+        },
+        website: {
+          id: 'site_sharma_kirana',
+          name: 'Sharma Kirana Store',
+          template: 'market',
+          is_published: 1,
+          config: JSON.stringify({
+            tagline: 'Your Trusted Neighborhood Grocer Since 1998',
+            description: 'Daily fresh groceries, staples, dairy & home essentials delivered to your doorstep in 30 minutes with 0% extra markup.',
+            phone: '+91 98765 43210',
+            whatsapp: '+91 98765 43210',
+            address: 'Shop No. 4, Gandhi Chowk, Station Road, Jaipur, Rajasthan 302001',
+            announcement: 'Free home delivery on all neighborhood orders above ₹299!',
+            currency: 'INR',
+            maintenance_mode: 0
+          }),
+          sections: JSON.stringify([
+            {
+              id: 'sec_hero',
+              type: 'hero',
+              config: {
+                title: 'Sharma Kirana Store',
+                subtitle: 'Pure staples, fresh dairy, and trusted pantry essentials delivered to your counter or doorstep.',
+                ctaText: 'Explore Groceries',
+                badge: 'Verified Neighborhood Store'
+              }
+            },
+            {
+              id: 'sec_products',
+              type: 'productGrid',
+              config: {
+                title: 'Daily Essentials & Groceries',
+                showStock: true
+              }
+            },
+            {
+              id: 'sec_contact',
+              type: 'contact',
+              config: {
+                storeName: 'Sharma Kirana Store',
+                address: 'Shop No. 4, Gandhi Chowk, Station Road, Jaipur, Rajasthan 302001',
+                phone: '+91 98765 43210',
+                hours: 'Open Daily: 7:00 AM – 10:00 PM'
+              }
+            }
+          ])
+        },
+        products: [
+          {
+            id: 'prod_atta_1',
+            name: 'Aashirvaad Shudh Chakki Atta (5 kg)',
+            description: '100% whole wheat flour ground from heavy golden grains. Soft rotis guaranteed.',
+            price: 240,
+            sale_price: 240,
+            category: 'Atta & Flour',
+            stock_quantity: 45,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_rice_1',
+            name: 'India Gate Feast Rozzana Basmati Rice (1 kg)',
+            description: 'Long slender aromatic Basmati rice, aged for everyday delicious pulao and biryani.',
+            price: 110,
+            sale_price: 95,
+            category: 'Rice & Grains',
+            stock_quantity: 60,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_oil_1',
+            name: 'Fortune Sunlite Refined Sunflower Oil (1 Litre)',
+            description: 'Light, healthy cooking oil enriched with Vitamins A & D. Heart-friendly choice.',
+            price: 165,
+            sale_price: 145,
+            category: 'Oils & Ghee',
+            stock_quantity: 30,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_ghee_1',
+            name: 'Amul Pure Desi Ghee (1 Litre Tin)',
+            description: 'Traditional granular aromatic cow ghee from Amul. Rich aroma and authentic taste.',
+            price: 640,
+            sale_price: 590,
+            category: 'Oils & Ghee',
+            stock_quantity: 22,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1589927986089-35812388d1f4?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_salt_1',
+            name: 'Tata Salt Vacuum Evaporated Iodized Salt (1 kg)',
+            description: 'Desh Ka Namak. Pure vacuum evaporated iodized salt for balanced daily nutrition.',
+            price: 30,
+            sale_price: 28,
+            category: 'Spices & Seasoning',
+            stock_quantity: 120,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_tea_1',
+            name: 'Tata Tea Gold CTC Leaf Blend (500g)',
+            description: 'Exquisite blend of strong Assam CTC tea with gentle aromatic long leaves.',
+            price: 310,
+            sale_price: 265,
+            category: 'Tea & Coffee',
+            stock_quantity: 35,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_maggi_1',
+            name: 'Maggi 2-Minute Masala Noodles (Pack of 4)',
+            description: 'All-time favorite instant masala noodles crafted with 10 authentic Indian spices.',
+            price: 60,
+            sale_price: 56,
+            category: 'Snacks & Quick Bites',
+            stock_quantity: 80,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_biscuit_1',
+            name: 'Parle-G Original Glucose Biscuits (Pack of 6)',
+            description: 'The golden original glucose biscuits filled with goodness of milk and wheat.',
+            price: 45,
+            sale_price: 40,
+            category: 'Snacks & Quick Bites',
+            stock_quantity: 90,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_soap_1',
+            name: 'Dettol Original Germ Protection Soap (Pack of 4)',
+            description: 'Trusted antibacterial bath soap with classic pine fragrance for family hygiene.',
+            price: 180,
+            sale_price: 160,
+            category: 'Personal Care',
+            stock_quantity: 40,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1607006314646-9d227f295e86?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'prod_surf_1',
+            name: 'Surf Excel Easy Wash Detergent Powder (1 kg)',
+            description: 'Superfast stain removal formula with superior foaming power that treats tough stains gently.',
+            price: 155,
+            sale_price: 140,
+            category: 'Cleaning & Household',
+            stock_quantity: 35,
+            is_active: 1,
+            image_url: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=600&q=80'
+          }
+        ]
+      }, 200, {}, request);
     }
     return errorResponse("Shop not found", 404, undefined, request);
   }
@@ -11746,7 +11979,15 @@ async function getPublicShop(shopName, request, env) {
 
   const merchantName = tenant?.organization?.name || tenant?.shop?.name || user?.business_name || user?.name || "Store";
   const storeSlug = tenant?.organization?.store_slug || tenant?.shop?.store_slug || user?.subdomain || slugWithoutDomain;
-  const hostname = tenant?.shop?.hostname || user?.hostname || (storeSlug ? `${storeSlug}.ferasetu.com` : null);
+  let resolvedHostname = null;
+  if (reqHost && (reqHost.endsWith(".ferasetu.store") || reqHost.endsWith(".ferasetu.com"))) {
+    resolvedHostname = reqHost;
+  } else if (cleanShopName.endsWith(".ferasetu.store") || cleanShopName.endsWith(".ferasetu.com")) {
+    resolvedHostname = cleanShopName;
+  } else {
+    resolvedHostname = tenant?.shop?.hostname || user?.hostname || (storeSlug ? `${storeSlug}.${targetBaseDomain}` : null);
+  }
+  const hostname = resolvedHostname;
 
   const isServiceStore = Boolean(
     shopRow?.is_service === 1 ||
@@ -12777,12 +13018,13 @@ export default {
       if (
         hostClassification.subdomain === "cdn" ||
         url.hostname === "cdn.ferasetu.com" ||
+        url.hostname === "cdn.ferasetu.store" ||
         url.pathname.startsWith("/cdn/")
       ) {
         return await handleMediaCdnRequest(request, env, ctx);
       }
 
-      // 1. Platform root (ferasetu.com) — must NOT replace Pages handling
+      // 1. Platform root (ferasetu.com, ferasetu.store) — must NOT replace Pages handling
       if (hostClassification.type === "platform_root") {
         if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/admin/login") || url.pathname.startsWith("/error-logs")) {
           if (!env.DB) {
@@ -12794,7 +13036,15 @@ export default {
       }
 
       // 1.5 Autonomous Platform Sites & AI Web Properties (e.g. nothing.ferasetu.com, help.ferasetu.com)
-      if (env?.DB) {
+      if (
+        env?.DB &&
+        !isStaticAsset(url.pathname) &&
+        hostClassification.type !== "merchant" &&
+        hostClassification.type !== "canonical" &&
+        hostClassification.subdomain !== "api" &&
+        url.pathname !== "/api/health" &&
+        !url.pathname.startsWith("/api/geo")
+      ) {
         let platformSite = null;
         try {
           platformSite = await env.DB.prepare(`

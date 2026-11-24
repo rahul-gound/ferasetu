@@ -219,12 +219,12 @@ export default function SidekickCopilotBar({
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-700 via-indigo-600 to-pink-500 p-0.5 shrink-0 cursor-pointer shadow-xs hover:scale-105 transition-transform"
+            className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-700 via-blue-600 to-amber-500 p-0.5 shrink-0 cursor-pointer shadow-xs hover:scale-105 transition-transform"
             title="Open Sidekick AI Assistant"
             aria-label="Toggle Sidekick Assistant"
           >
             <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-white">
-              <Sparkles size={15} className="text-purple-300 animate-pulse" />
+              <Sparkles size={15} className="text-amber-300" />
             </div>
           </button>
 

@@ -128,7 +128,7 @@ export default function PlatformSitesOverview() {
           </div>
 
           <button
-            onClick={() => navigate('/platform-sites/integrations')}
+            onClick={() => navigate('/admin/platform-sites/integrations')}
             className="flex items-center gap-1 text-xs font-semibold text-[#0052FF] hover:underline self-end sm:self-center"
           >
             <span>View Integration Details</span>
@@ -211,7 +211,7 @@ export default function PlatformSitesOverview() {
         </div>
 
         <div
-          onClick={() => navigate('/platform-sites/ai-studio')}
+          onClick={() => navigate('/admin/platform-sites/ai-studio')}
           className="p-5 bg-gradient-to-br from-orange-50/80 to-white border border-orange-200/80 rounded-2xl cursor-pointer hover:shadow-sm hover:border-[#FF6B35]/60 transition-all group"
         >
           <div className="w-10 h-10 rounded-xl bg-[#FF6B35] text-white flex items-center justify-center mb-3 shadow-xs">
@@ -227,7 +227,7 @@ export default function PlatformSitesOverview() {
         </div>
 
         <div
-          onClick={() => navigate('/platform-sites/deployments')}
+          onClick={() => navigate('/admin/platform-sites/deployments')}
           className="p-5 bg-white border border-slate-200/80 rounded-2xl cursor-pointer hover:shadow-sm hover:border-slate-300 transition-all group"
         >
           <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center mb-3">
@@ -251,7 +251,7 @@ export default function PlatformSitesOverview() {
             <p className="text-xs text-slate-500">Live production versions across all platform sites.</p>
           </div>
           <button
-            onClick={() => navigate('/platform-sites/deployments')}
+            onClick={() => navigate('/admin/platform-sites/deployments')}
             className="text-xs font-semibold text-[#0052FF] hover:underline"
           >
             View all

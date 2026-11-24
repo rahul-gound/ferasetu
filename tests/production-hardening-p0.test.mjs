@@ -328,7 +328,7 @@ function createTestDb() {
             });
             return { meta: { changes: 1 } };
           }
-          if (s.includes('update products set stock = stock - ?')) {
+          if (s.includes('update products set stock')) {
             const qty = this._params[0];
             const prodId = this._params[2];
             const prod = tables.products.find(p => p.id === prodId);

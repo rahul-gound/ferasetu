@@ -5,7 +5,7 @@
 
 import { resolvePricingRegion } from "./routes/geo.js";
 
-export const BASE_DOMAINS = ["ferasetu.com", "fera-search.tech"];
+export const BASE_DOMAINS = ["ferasetu.com", "ferasetu.store", "fera-search.tech"];
 
 export const DEFAULT_PAGES_ORIGIN = "https://ferasetu.com";
 
@@ -29,6 +29,7 @@ export const RESERVED_SUBDOMAINS = new Set([
   "cdn",
   "test",
   "demo",
+  "shops",
 ]);
 
 export const STOREFRONT_SYSTEM_PAGES = new Set([
@@ -53,7 +54,7 @@ export const PLAN_PAGE_ENTITLEMENTS = {
   enterprise: { maxCustomPages: Infinity, allowedSystemPages: true },
 };
 
-export const FERASETU_CSP = "default-src 'self'; script-src 'self' https://sdk.cashfree.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://*.posthog.com 'sha256-l5kmlZA9WmIHHphbuWzmx/ZL2u6EVoPPWGHrCgWQgEQ=' 'sha256-hxl+HYYpeOskOidDK/wog/PPW2eZLUjQxwxf+yT6IuQ=' 'sha256-vCpLRVqXpZJMkwEwdE5SohGUk1Xy80mF/w1FPXkiVKU=' 'sha256-yY2uNTEf4EToetKMuHyZDJ6Up1ToavW6imaTbJoxUwA=' 'sha256-3jwW1buoFj0Sy3PpEg/F4V5zwghQ+aHyJ/fGSuWlneo=' https://ferasetu.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; media-src 'self' https://*.ferasetu.com https://cdn.ferasetu.com blob: data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ferasetu.com https://*.ferasetu.com https://ferasetu.singhantima203.workers.dev https://*.workers.dev https://api.workos.com https://*.cashfree.com https://challenges.cloudflare.com https://*.statsigapi.net https://*.statsig.com https://cloudflareinsights.com https://*.posthog.com; worker-src 'self' blob: data:; frame-src 'self' https://*.cashfree.com https://challenges.cloudflare.com https://api.workos.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://api.workos.com https://*.cashfree.com;";
+export const FERASETU_CSP = "default-src 'self'; script-src 'self' https://sdk.cashfree.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://*.posthog.com 'sha256-l5kmlZA9WmIHHphbuWzmx/ZL2u6EVoPPWGHrCgWQgEQ=' 'sha256-hxl+HYYpeOskOidDK/wog/PPW2eZLUjQxwxf+yT6IuQ=' 'sha256-vCpLRVqXpZJMkwEwdE5SohGUk1Xy80mF/w1FPXkiVKU=' 'sha256-yY2uNTEf4EToetKMuHyZDJ6Up1ToavW6imaTbJoxUwA=' 'sha256-3jwW1buoFj0Sy3PpEg/F4V5zwghQ+aHyJ/fGSuWlneo=' https://ferasetu.com https://ferasetu.store; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; media-src 'self' https://*.ferasetu.com https://*.ferasetu.store https://cdn.ferasetu.com blob: data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ferasetu.com https://*.ferasetu.com https://ferasetu.store https://*.ferasetu.store https://ferasetu.singhantima203.workers.dev https://*.workers.dev https://api.workos.com https://*.cashfree.com https://challenges.cloudflare.com https://*.statsigapi.net https://*.statsig.com https://cloudflareinsights.com https://*.posthog.com; worker-src 'self' blob: data:; frame-src 'self' https://*.cashfree.com https://challenges.cloudflare.com https://api.workos.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://api.workos.com https://*.cashfree.com;";
 
 export const RFC9116_SECURITY_TXT = `Contact: mailto:security@ferasetu.com
 Expires: 2027-09-26T00:00:00.000Z
@@ -640,6 +641,21 @@ export async function serveStorefrontSpa(request, env, { isEligibleForIndexing, 
   }
 
   let customizedHtml = htmlBody;
+
+  // Canonical URL & Open Graph URL: Exact source of truth is the incoming request host
+  try {
+    const reqUrl = new URL(request.url);
+    const canonicalUrl = `${reqUrl.protocol}//${reqUrl.host}${reqUrl.pathname}`;
+    if (customizedHtml.includes('<link rel="canonical"')) {
+      customizedHtml = customizedHtml.replace(/<link rel="canonical"[^>]*>/gi, `<link rel="canonical" href="${canonicalUrl}" />`);
+    } else {
+      customizedHtml = customizedHtml.replace('</head>', `  <link rel="canonical" href="${canonicalUrl}" />\n</head>`);
+    }
+    if (customizedHtml.includes('<meta property="og:url"')) {
+      customizedHtml = customizedHtml.replace(/<meta property="og:url" content=".*?" \/>/gi, `<meta property="og:url" content="${canonicalUrl}" />`);
+    }
+  } catch {}
+
   if (merchant) {
     const storeTitle = merchant.business_name || merchant.name || merchantSlug;
     customizedHtml = customizedHtml.replace(/<title>.*?<\/title>/gi, `<title>${storeTitle}</title>`);
@@ -728,7 +744,10 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
     productCount = cachedData.productCount;
   } else if (env?.DB) {
     try {
-      const fullHost = `${slug}.${hostClassification.domain || "ferasetu.com"}`;
+      const currentDomain = hostClassification.domain || "ferasetu.store";
+      const fullHost = `${slug}.${currentDomain}`;
+      const comHost = `${slug}.ferasetu.com`;
+      const storeHost = `${slug}.ferasetu.store`;
       let user = null;
       try {
         user = await env.DB.prepare(
@@ -737,9 +756,9 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
                   w.is_published
            FROM users u
            LEFT JOIN websites w ON w.user_id = u.id
-           WHERE u.subdomain = ? OR u.hostname = ?`
+           WHERE u.subdomain = ? OR u.hostname = ? OR u.hostname = ? OR u.hostname = ?`
         )
-          .bind(slug, fullHost)
+          .bind(slug, fullHost, storeHost, comHost)
           .first();
       } catch (colErr) {
         console.warn("Primary storefront merchant lookup failed, retrying with core columns:", colErr?.message || colErr);
@@ -750,9 +769,9 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
                     w.is_published
              FROM users u
              LEFT JOIN websites w ON w.user_id = u.id
-             WHERE u.subdomain = ? OR u.hostname = ?`
+             WHERE u.subdomain = ? OR u.hostname = ? OR u.hostname = ? OR u.hostname = ?`
           )
-            .bind(slug, fullHost)
+            .bind(slug, fullHost, storeHost, comHost)
             .first();
           if (user) {
             user.is_blocked = 0;
@@ -762,12 +781,41 @@ export async function handleStorefrontRequest(request, env, ctx, hostClassificat
         }
       }
 
+      // If not found in users, resolve via shops and organizations
+      if (!user) {
+        try {
+          const shopRow = await env.DB.prepare(
+            `SELECT s.*, o.name as org_name, o.plan, o.market
+             FROM shops s
+             LEFT JOIN organizations o ON o.id = s.organization_id
+             WHERE s.store_slug = ? OR s.hostname = ? OR s.hostname = ? OR s.hostname = ?
+             LIMIT 1`
+          ).bind(slug, fullHost, storeHost, comHost).first();
+          if (shopRow) {
+            user = {
+              id: shopRow.organization_id || shopRow.id,
+              name: shopRow.name || shopRow.org_name,
+              business_name: shopRow.name || shopRow.org_name,
+              subdomain: shopRow.store_slug,
+              hostname: shopRow.hostname || fullHost,
+              plan: shopRow.plan || 'free',
+              market: shopRow.market || 'IN',
+              is_published: 1,
+              is_blocked: 0,
+              logo_url: shopRow.logo_url,
+              favicon_url: shopRow.favicon_url,
+              social_image_url: shopRow.social_image_url,
+            };
+          }
+        } catch {}
+      }
+
       if (user) {
         merchant = user;
         try {
           const shopRow = await env.DB.prepare(
-            "SELECT name, logo_url, favicon_url, social_image_url, primary_color FROM shops WHERE store_slug = ? OR hostname = ? LIMIT 1"
-          ).bind(slug, fullHost).first();
+            "SELECT name, logo_url, favicon_url, social_image_url, primary_color FROM shops WHERE store_slug = ? OR hostname = ? OR hostname = ? OR hostname = ? LIMIT 1"
+          ).bind(slug, fullHost, storeHost, comHost).first();
           if (shopRow) {
             merchant.logo_url = shopRow.logo_url;
             merchant.favicon_url = shopRow.favicon_url;

@@ -7,6 +7,23 @@ export default function ConsentBanner() {
   const { consent, hasResponded, isModalOpen, acceptAll, rejectAll, savePreferences, closePreferencesModal } = useConsent();
   const [showCustomizer, setShowCustomizer] = useState(false);
 
+  // Storefront Isolation Invariant:
+  // Independent merchant storefronts must NEVER display FeraSetu platform cookie banner.
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname.toLowerCase();
+    const pathname = window.location.pathname.toLowerCase();
+    const isShopRoute = pathname.startsWith('/shop/') || pathname === '/shop';
+    const isStorefrontSubdomain = (
+      (hostname.endsWith('.ferasetu.com') && !['www', 'app', 'admin', 'auth', 'api'].includes(hostname.split('.')[0])) ||
+      (hostname.endsWith('.ferasetu.store') && !['www', 'app', 'admin', 'auth', 'api'].includes(hostname.split('.')[0])) ||
+      (hostname.endsWith('.localhost') && hostname !== 'localhost') ||
+      (!hostname.includes('ferasetu') && !hostname.includes('localhost') && !hostname.includes('127.0.0.1') && !hostname.includes('github.dev'))
+    );
+    if (isShopRoute || isStorefrontSubdomain) {
+      return null;
+    }
+  }
+
   // Local state for granular customization
   const [analyticsEnabled, setAnalyticsEnabled] = useState(consent.analytics);
   const [marketingEnabled, setMarketingEnabled] = useState(consent.marketing);

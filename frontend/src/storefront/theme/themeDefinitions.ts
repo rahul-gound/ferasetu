@@ -1468,7 +1468,155 @@ export const GYM_THEME: ThemeDefinition = {
   ],
 };
 
+export const RETAIL_THEME: ThemeDefinition = {
+  id: 'retail',
+  version: 1,
+  name: 'Retail Storefront',
+  tagline: 'Modern Indian Local Retail & Utilities with UPI Rails',
+  description: 'Built for independent retailers, local grocers, apparel shops, and electronics stores. Features fast pincode dispatch, WhatsApp ordering, and direct bank settlement.',
+  idealFor: ['Independent Retail', 'Handlooms & Apparel', 'Electronics & Hardware', 'Kirana & Grocery', 'Local Boutiques'],
+  aspectRatio: '4/5',
+  colors: {
+    primary: '#001428',
+    primaryHover: '#0F2942',
+    accent: '#FC6018',
+    accentHover: '#C74507',
+    background: '#F8F9FF',
+    surface: '#FFFFFF',
+    surfaceElevated: '#EFF4FF',
+    text: '#0D1C2F',
+    textMuted: '#475569',
+    textSubtle: '#74777E',
+    border: '#DDE9FF',
+    borderSubtle: '#EFF4FF',
+    badgeBg: '#0F2942',
+    badgeText: '#D1E4FF',
+    saleBadgeBg: '#FC6018',
+    saleBadgeText: '#FFFFFF',
+  },
+  typography: {
+    display: 'clamp(2.25rem, 4.5vw, 3.75rem)',
+    heading: 'clamp(1.5rem, 3vw, 2.25rem)',
+    subheading: 'clamp(1.1rem, 2vw, 1.35rem)',
+    body: '0.9375rem',
+    bodySmall: '0.8125rem',
+    label: '0.75rem',
+    caption: '0.6875rem',
+    price: '1.25rem',
+    navigation: '0.875rem',
+    fontFamilyHeading: "'Hanken Grotesk', sans-serif",
+    fontFamilyBody: "'Manrope', sans-serif",
+    headingWeight: '700',
+    bodyWeight: '500',
+    letterSpacingHeading: '-0.02em',
+    textTransformHeading: 'none',
+  },
+  spacing: {
+    ...BASE_SPACING_TOKENS,
+    sectionPadding: 'clamp(48px, 8vw, 96px)',
+    cardGap: '24px',
+  },
+  radius: {
+    none: '0px',
+    sm: '6px',
+    md: '10px',
+    lg: '12px',
+    pill: '9999px',
+    card: '14px',
+    button: '14px',
+    input: '12px',
+  },
+  elevation: {
+    surface0: '#F8F9FF',
+    surface1: '#FFFFFF',
+    surface2: '#EFF4FF',
+    floating: '#FFFFFF',
+    modal: '#FFFFFF',
+    shadowCard: '0 2px 8px rgba(0, 20, 40, 0.06)',
+    shadowCardHover: '0 10px 24px rgba(0, 20, 40, 0.12)',
+    shadowDropdown: '0 16px 36px rgba(0, 20, 40, 0.14)',
+    shadowModal: '0 24px 50px rgba(0, 20, 40, 0.2)',
+  },
+  motion: BASE_MOTION_TOKENS,
+  cardVariant: 'clean',
+  headerVariant: 'commerce',
+  heroVariant: 'commerce-banner',
+  footerVariant: 'commerce',
+  defaultSections: [
+    {
+      id: 'announcement-1',
+      type: 'announcement',
+      variant: 'minimal',
+      enabled: true,
+      config: {
+        text: 'Fast local dispatch within 24 hours across pin-codes • 100% direct merchant settlement',
+      },
+    },
+    {
+      id: 'header-1',
+      type: 'header',
+      variant: 'commerce',
+      enabled: true,
+      config: {
+        showSearch: true,
+        showAccount: true,
+      },
+    },
+    {
+      id: 'hero-1',
+      type: 'hero',
+      variant: 'commerce-banner',
+      enabled: true,
+      config: {
+        title: 'Sharma Handlooms & Electronics',
+        subtitle: 'Pure Cotton Kurtas, Home Utilities & Daily Essentials directly from our neighborhood shop.',
+        primaryButtonText: 'Explore Collection',
+        secondaryButtonText: 'Chat on WhatsApp',
+      },
+    },
+    {
+      id: 'category-grid-1',
+      type: 'category-grid',
+      enabled: true,
+      config: {
+        title: 'Explore Categories',
+      },
+    },
+    {
+      id: 'product-grid-1',
+      type: 'product-grid',
+      enabled: true,
+      config: {
+        title: 'Local Bestsellers',
+        limit: 8,
+      },
+    },
+    {
+      id: 'trust-strip-1',
+      type: 'trust-strip',
+      variant: 'commerce-badges',
+      enabled: true,
+      config: {
+        items: [
+          'GSTIN Verified Merchant',
+          '0% Aggregator Fee',
+          'Fast 24-Hr Local Dispatch',
+          'Direct UPI Payment',
+        ],
+      },
+    },
+    {
+      id: 'footer-1',
+      type: 'footer',
+      variant: 'commerce',
+      enabled: true,
+      config: {},
+    },
+  ],
+};
+
 export const THEME_REGISTRY: Record<ThemeId, ThemeDefinition> = {
+  retail: RETAIL_THEME,
   atelier: ATELIER_THEME,
   market: MARKET_THEME,
   mono: MONO_THEME,
@@ -1482,6 +1630,7 @@ export const THEME_REGISTRY: Record<ThemeId, ThemeDefinition> = {
 };
 
 export const THEMES_LIST: ThemeDefinition[] = [
+  RETAIL_THEME,
   GYM_THEME,
   ATELIER_THEME,
   MARKET_THEME,
@@ -1502,6 +1651,7 @@ export interface ThemePresetSummary {
 }
 
 export const THEME_PRESETS: ThemePresetSummary[] = [
+  { id: 'retail', name: 'Retail Storefront', desc: 'Modern Indian Local Retail & Utilities with GSTIN badge & UPI rails', color: '#FC6018' },
   { id: 'gym', name: 'Iron Athletic Club', desc: 'Heavyweight strength gym, CrossFit & combat sports club with day passes & class schedule', color: '#D4FF00' },
   { id: 'electronic', name: 'Mono Electronic', desc: 'Hardware store with 3D tilt hero, spec compare matrix & quick view', color: '#E4572E' },
   { id: 'market', name: 'Market Retail', desc: 'Fast, vibrant dynamic commerce with badge highlights', color: '#0F172A' },

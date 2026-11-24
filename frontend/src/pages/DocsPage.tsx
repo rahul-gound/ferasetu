@@ -70,7 +70,7 @@ const DOCS_DATA: DocSection[] = [
       {
         heading: '1. Register Your Sovereign Merchant Account',
         paragraphs: [
-          'FeraSetu is built specifically for independent retail shopkeepers, bodegas, boutiques, and grocers. Creating your store takes less than 2 minutes and requires only your phone number or email address.',
+          'FeraSetu is built specifically for independent retail shopkeepers and neighborhood grocers. Creating your store takes less than 2 minutes and requires only your phone number or email address.',
           'Unlike traditional platforms that lock your business behind complex contracts or take a 10% to 30% toll on every sale, FeraSetu gives you a 100% sovereign store where you own customer relationships directly.'
         ],
         steps: [
@@ -464,7 +464,7 @@ const DOCS_DATA: DocSection[] = [
       {
         heading: '1. What is FeraSetu?',
         paragraphs: [
-          'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers, grocers, bodegas, boutiques, and artisans.',
+          'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers and local grocers.',
           'It enables merchants to operate their own branded online stores with 0% platform commission, direct payment settlement, unmasked customer relationships, and native WhatsApp ordering. FeraSetu is NOT a marketplace, NOT a closed drag-and-drop website builder, and NOT a logistics broker.'
         ]
       },

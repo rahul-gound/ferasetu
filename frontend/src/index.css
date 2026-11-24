@@ -1192,11 +1192,12 @@ body {
 }
 
 /* ==========================================================================
-   FeraSetu Universal Tactile Button Constitution
+   FeraSetu Universal Tactile 3D Button Constitution
    - Rounded corners: smooth capsule / circle (rounded-full / border-radius: 9999px)
-   - Layered ambient shadows for tangible depth
-   - Physical press inward on :active (translateY(1.5px) scale(0.985))
-   - Hardware accelerated 180ms ease-out transitions
+   - Layered depth: 3D bottom bevel shelf + ambient colored blur shadow
+   - Physical press inward on :active (translateY(2px) scale(0.985)) with
+     shelf compression and inset shadow ("go inside and shadow work")
+   - Hardware accelerated 150ms ease-out transitions
    ========================================================================== */
 
 /* Universal action button rule for tactile feel and rounded pill corners */
@@ -1207,8 +1208,8 @@ input[type="submit"],
 a.btn,
 a[class*="rounded-"][class*="bg-"] {
   border-radius: 9999px !important;
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 180ms ease,
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 150ms ease,
               background-color 150ms ease,
               border-color 150ms ease,
               color 150ms ease,
@@ -1217,25 +1218,124 @@ a[class*="rounded-"][class*="bg-"] {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Subtle lift on hover */
+/* Default layered 3D depth for solid buttons */
+button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):not([class*="ghost"]):not([class*="link"]):not([class*="bg-transparent"]):not(:active),
+input[type="button"]:not(:active),
+input[type="submit"]:not(:active),
+.btn:not([class*="ghost"]):not([class*="link"]):not(:active),
+a.btn:not([class*="ghost"]):not([class*="link"]):not(:active),
+a[class*="rounded-"][class*="bg-"]:not(:active) {
+  box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.16), 0 8px 20px -2px rgba(0, 0, 0, 0.12), 0 3px 6px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Orange Brand Buttons: 3D shelf (#8c2505) + rich layered drop shadow & warm ambient glow */
+button[class*="bg-orange"]:not(:active),
+button[class*="bg-[#EA580C]"]:not(:active),
+button[class*="bg-[#f97316]"]:not(:active),
+a[class*="bg-orange"]:not(:active),
+a[class*="bg-[#EA580C]"]:not(:active),
+a[class*="bg-[#f97316]"]:not(:active),
+.btn-orange:not(:active),
+.btn-brand:not(:active) {
+  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 4px 0 0 #8c2505, 0 8px 18px -2px rgba(140, 37, 5, 0.35), 0 14px 28px -4px rgba(234, 88, 12, 0.42), 0 4px 8px -1px rgba(0, 0, 0, 0.12) !important;
+}
+
+button[class*="bg-orange"]:hover,
+button[class*="bg-[#EA580C]"]:hover,
+button[class*="bg-[#f97316]"]:hover,
+a[class*="bg-orange"]:hover,
+a[class*="bg-[#EA580C]"]:hover,
+a[class*="bg-[#f97316]"]:hover,
+.btn-orange:hover,
+.btn-brand:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 #8c2505, 0 10px 22px -2px rgba(140, 37, 5, 0.4), 0 20px 36px -4px rgba(234, 88, 12, 0.5), 0 6px 12px -2px rgba(0, 0, 0, 0.16) !important;
+}
+
+/* Sovereign Blue Buttons: 3D shelf (#0036A3) + rich layered drop shadow & royal ambient glow */
+button[class*="bg-[#0052FF]"]:not(:active),
+button[class*="bg-blue-600"]:not(:active),
+button[class*="bg-[#2563EB]"]:not(:active),
+a[class*="bg-[#0052FF]"]:not(:active),
+a[class*="bg-blue-600"]:not(:active),
+a[class*="bg-[#2563EB]"]:not(:active),
+.btn-primary:not(:active) {
+  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 4px 0 0 #0036A3, 0 8px 18px -2px rgba(0, 54, 163, 0.35), 0 14px 28px -4px rgba(0, 82, 255, 0.42), 0 4px 8px -1px rgba(0, 0, 0, 0.12) !important;
+}
+
+button[class*="bg-[#0052FF]"]:hover,
+button[class*="bg-blue-600"]:hover,
+button[class*="bg-[#2563EB]"]:hover,
+a[class*="bg-[#0052FF]"]:hover,
+a[class*="bg-blue-600"]:hover,
+a[class*="bg-[#2563EB]"]:hover,
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 #0036A3, 0 10px 22px -2px rgba(0, 54, 163, 0.4), 0 20px 36px -4px rgba(0, 82, 255, 0.5), 0 6px 12px -2px rgba(0, 0, 0, 0.16) !important;
+}
+
+/* White / Outline Buttons: 3D shelf (#CBD5E1) + crisp contact shadow */
+button[class*="bg-white"][class*="border"]:not(:active),
+a[class*="bg-white"][class*="border"]:not(:active) {
+  box-shadow: 0 3px 0 0 #E2E8F0, 0 6px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+button[class*="bg-white"][class*="border"]:hover,
+a[class*="bg-white"][class*="border"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4.5px 0 0 #CBD5E1, 0 10px 22px -2px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+button[class*="bg-white"][class*="border"]:active,
+a[class*="bg-white"][class*="border"]:active {
+  transform: translateY(2px) scale(0.985) !important;
+  box-shadow: 0 0.5px 0 0 #CBD5E1, inset 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Subtle lift on hover for all buttons */
 button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):hover,
 input[type="button"]:hover,
 input[type="submit"]:hover,
 .btn:hover,
 a.btn:hover,
 a[class*="rounded-"][class*="bg-"]:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
-/* Physical tactile press inward on click / tap */
+/* Physical tactile press inward on click / tap:
+   3D bottom shelf collapses and shadow goes inside ("go inside and shadow work") */
 button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):active,
 input[type="button"]:active,
 input[type="submit"]:active,
 .btn:active,
 a.btn:active,
 a[class*="rounded-"][class*="bg-"]:active {
-  transform: translateY(1.5px) scale(0.985) !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.16), 0 1px 1px rgba(0, 0, 0, 0.05) !important;
+  transform: translateY(3px) scale(0.985) !important;
+  box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.14), inset 0 3px 6px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Specific active press for orange buttons */
+button[class*="bg-orange"]:active,
+button[class*="bg-[#EA580C]"]:active,
+button[class*="bg-[#f97316]"]:active,
+a[class*="bg-orange"]:active,
+a[class*="bg-[#EA580C]"]:active,
+a[class*="bg-[#f97316]"]:active {
+  transform: translateY(3px) scale(0.985) !important;
+  box-shadow: 0 1px 0 0 #8c2505, inset 0 3px 6px rgba(0, 0, 0, 0.36), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Specific active press for blue buttons */
+button[class*="bg-[#0052FF]"]:active,
+button[class*="bg-blue-600"]:active,
+button[class*="bg-[#2563EB]"]:active,
+a[class*="bg-[#0052FF]"]:active,
+a[class*="bg-blue-600"]:active,
+a[class*="bg-[#2563EB]"]:active {
+  transform: translateY(3px) scale(0.985) !important;
+  box-shadow: 0 1px 0 0 #0036A3, inset 0 3px 6px rgba(0, 0, 0, 0.36), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
 }
 
 /* Disabled state */
@@ -1247,6 +1347,42 @@ input[type="submit"]:disabled,
   box-shadow: none !important;
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* Explicit Tactile Button Classes for Merchant Dashboard & UI */
+.btn-tactile-primary {
+  background-color: #0052FF !important;
+  color: #FFFFFF !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 4px 0 0 #0036A3, 0 8px 18px -2px rgba(0, 54, 163, 0.35), 0 12px 24px -4px rgba(0, 82, 255, 0.38), 0 4px 8px -1px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-tactile-primary:hover {
+  background-color: #0045D8 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 0 0 #0036A3, 0 10px 22px -2px rgba(0, 54, 163, 0.4), 0 18px 32px -4px rgba(0, 82, 255, 0.45), 0 6px 12px -2px rgba(0, 0, 0, 0.14) !important;
+}
+.btn-tactile-primary:active {
+  transform: translateY(3px) scale(0.985) !important;
+  box-shadow: 0 1px 0 0 #0036A3, inset 0 3px 6px rgba(0, 0, 0, 0.36), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
+}
+
+.btn-tactile-ghost {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 2.5px 0 0 #CBD5E1, 0 6px 14px -2px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-tactile-ghost:hover {
+  background-color: #F8FAFC !important;
+  border-color: #94A3B8 !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: 0 4px 0 0 #94A3B8, 0 8px 18px -2px rgba(15, 23, 42, 0.12) !important;
+}
+.btn-tactile-ghost:active {
+  transform: translateY(2px) scale(0.985) !important;
+  box-shadow: 0 0.5px 0 0 #CBD5E1, inset 0 1.5px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Reduced motion preference */

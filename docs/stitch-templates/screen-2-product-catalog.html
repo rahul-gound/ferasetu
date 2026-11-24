@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&family=Manrope:wght@100..900&display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed": "#ffdbcf", "on-tertiary-container": "#5b9d57", "on-primary-container": "#7991af", "tertiary-fixed": "#acf4a4", "error": "#ba1a1a", "on-primary-fixed": "#011d35", "on-error-container": "#93000a", "surface-container-low": "#eff4ff", "on-surface": "#0d1c2f", "secondary-fixed-dim": "#ffb59a", "surface-container-lowest": "#ffffff", "surface-container-high": "#dde9ff", "inverse-on-surface": "#ebf1ff", "on-primary": "#ffffff", "on-primary-fixed-variant": "#314863", "on-error": "#ffffff", "on-tertiary-fixed-variant": "#0c5216", "secondary": "#a83900", "primary-fixed-dim": "#b0c9e8", "primary-container": "#0f2942", "error-container": "#ffdad6", "on-secondary-fixed": "#380d00", "secondary-container": "#fc6018", "outline": "#74777e", "tertiary-container": "#002f06", "surface-variant": "#d5e3fd", "tertiary-fixed-dim": "#91d78a", "primary": "#001428", "surface-container-highest": "#d5e3fd", "background": "#f8f9ff", "on-tertiary-fixed": "#002203", "outline-variant": "#c3c6ce", "primary-fixed": "#d1e4ff", "surface-container": "#e6eeff", "on-background": "#0d1c2f", "surface-bright": "#f8f9ff", "on-tertiary": "#ffffff", "inverse-primary": "#b0c9e8", "on-secondary-fixed-variant": "#802a00", "inverse-surface": "#233144", "tertiary": "#001702", "surface-tint": "#49607c", "surface-dim": "#ccdbf4", "on-surface-variant": "#43474d", "surface": "#f8f9ff", "on-secondary": "#ffffff", "on-secondary-container": "#531800" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "margin": "1rem", "space-xs": "0.25rem", "margin-md": "1.5rem", "space-md": "1rem", "space-sm": "0.5rem", "gutter": "1rem", "gutter-lg": "1.5rem", "space-xl": "2rem", "gutter-sm": "0.75rem", "space-2xl": "3rem", "margin-lg": "2rem", "space-lg": "1.5rem" }, "fontFamily": { "body-lg": ["Hanken Grotesk"], "label-md": ["Hanken Grotesk"], "display": ["Manrope"], "label-lg": ["Hanken Grotesk"], "headline-lg": ["Manrope"], "headline-sm": ["Manrope"], "price-regular": ["Manrope"], "label-sm": ["Hanken Grotesk"], "price-hero": ["Manrope"], "headline-md": ["Manrope"], "headline-lg-mobile": ["Manrope"], "caption": ["Hanken Grotesk"], "body-sm": ["Hanken Grotesk"], "body-md": ["Hanken Grotesk"] }, "fontSize": { "body-lg": ["18px", {"lineHeight": "28px", "letterSpacing": "0em", "fontWeight": "400"}], "label-md": ["14px", {"lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "600"}], "display": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}], "label-lg": ["16px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}], "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700"}], "headline-sm": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.005em", "fontWeight": "600"}], "price-regular": ["20px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "700"}], "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "700"}], "price-hero": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "800"}], "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}], "headline-lg-mobile": ["26px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}], "caption": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}], "body-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}], "body-md": ["16px", {"lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400"}] } } } };</script><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;font-family:'Hanken Grotesk',sans-serif;color:#0d1c2f;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col selection:bg-secondary-fixed selection:text-on-secondary-fixed"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="bg-primary text-on-primary py-1 px-margin flex items-center justify-center overflow-hidden"><p class="font-label-sm text-label-sm tracking-wide text-center truncate flex items-center gap-space-xs"><span>🇮🇳</span> <span>Free Delivery Across India</span><span class="opacity-40">|</span><span>100% Verified GST Merchant</span><span class="opacity-40">|</span><span>COD Available</span></p></div><div class="h-20 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><img alt="FeraSetu Brand Logo" class="h-8 w-auto object-contain shrink-0" src="https://lh3.googleusercontent.com/aida/ALJJyrCP9K0aIKb5sBe5C3-9hMwmG-uTjF0rHdTD_-YzlsPi9jpMIVH5l-rUP7Q3nmG3mEQR5VrOpXLsW6gxZAmC_1m_tarsKTMETDVpON-bLVGMSpcbPu3_QrnFJDSbtjwXvzyfIoWbOysZ9IvqEZyDmK_UJeu42w11MCTsO_sjpWbylFa4ghxi35y0JSOb004Hz9dwM-V1TFug2TltAQgITmfWYXfxjtJoKPal9CgY7TW-"/><div class="flex flex-col min-w-0"><span class="font-headline-sm text-headline-sm tracking-tight text-primary leading-none truncate">FeraSetu</span><span class="font-caption text-caption text-on-surface-variant truncate">Product Catalog</span></div></div><div class="flex items-center gap-space-xs shrink-0"><button aria-label="Search Catalog" class="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-primary active:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[22px]">search</span></button><button aria-label="Language Toggle" class="h-9 px-space-xs flex items-center justify-center rounded-lg bg-surface-container text-primary font-label-sm text-label-sm hover:bg-surface-container-high transition-colors"><span class="text-primary font-bold">EN</span><span class="text-outline px-1">/</span><span class="text-on-surface-variant">हिं</span></button><a aria-label="Shopping Cart" class="relative w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-primary active:bg-surface-container-high transition-colors" data-path="cart-and-checkout" href="#"><span class="material-symbols-outlined text-[24px]">shopping_bag</span><span class="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-secondary text-on-secondary font-label-sm text-[10px] leading-tight flex items-center justify-center font-bold">2</span></a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-space-xs"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-20 pb-24 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<!-- Merchant Trust Authority Bar -->
+<div class="bg-primary px-margin py-2 flex items-center justify-between text-on-primary">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-[18px] text-tertiary-fixed shrink-0">verified</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-[11px] leading-tight font-bold truncate tracking-wide text-primary-fixed">Sharma Handlooms & Electronics</span>
+<span class="font-caption text-[10px] leading-tight text-on-primary-container truncate">GSTIN: 07AAECP4589K1Z4 • Verified Hub</span>
+</div>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-high/15 px-2 py-0.5 rounded-full shrink-0">
+<span class="inline-block w-2 h-2 rounded-full bg-on-tertiary-container animate-pulse"></span>
+<span class="font-label-sm text-[10px] text-tertiary-fixed font-semibold tracking-wider">LIVE STOCK</span>
+</div>
+</div>
+<!-- Category Title & Metrics -->
+<div class="px-margin pt-3 pb-2 flex flex-col gap-1 bg-surface">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-primary font-bold">Men's Festive Kurtas</span>
+<span class="bg-surface-container-high text-primary px-2 py-0.5 rounded-full font-label-sm text-label-sm font-bold">48</span>
+</div>
+<button aria-label="Toggle View Density" class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-primary active:bg-surface-container-high transition-transform active:scale-95" id="viewToggleBtn">
+<span class="material-symbols-outlined text-[20px]" id="gridIcon">view_agenda</span>
+</button>
+</div>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-on-tertiary-container">local_shipping</span>
+      Express dispatch from Chandni Chowk central warehouse
+    </p>
+</div>
+<!-- Horizontal Scrollable Sticky Filters -->
+<div class="sticky top-20 z-40 bg-surface/95 backdrop-blur-md py-2.5 shadow-sm px-margin flex items-center gap-2 overflow-x-auto no-scrollbar">
+<button class="filter-chip active flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm font-semibold shadow-sm transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px] text-secondary-fixed">swap_vert</span>
+<span>Price: Low to High</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold active:bg-surface-container-high transition-all active:scale-95">
+<span>Under ₹799</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold active:bg-surface-container-high transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px] text-secondary">eco</span>
+<span>Pure Cotton</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold active:bg-surface-container-high transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px] text-on-tertiary-container">bolt</span>
+<span>Fast Delivery</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold active:bg-surface-container-high transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px] text-secondary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+<span>Rating 4+ ★</span>
+</button>
+</div>
+<!-- Trust Strip -->
+<div class="px-margin my-2">
+<div class="bg-surface-container-low px-3 py-2 rounded-xl flex items-center justify-between text-on-surface-variant">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[18px] text-primary shrink-0">inventory_2</span>
+<span class="font-label-sm text-[11px] font-semibold truncate text-primary">100% Genuine Handlooms</span>
+</div>
+<span class="text-outline-variant">•</span>
+<div class="flex items-center gap-1 shrink-0">
+<span class="material-symbols-outlined text-[16px] text-on-tertiary-container">receipt</span>
+<span class="font-label-sm text-[11px] font-semibold text-on-surface">Valid GST Invoice</span>
+</div>
+</div>
+</div>
+<!-- Product Listing Vertical Feed -->
+<div class="px-margin flex flex-col gap-space-md mt-1 pb-16">
+<!-- Card 1: Royal Indigo Handloom Cotton Kurta -->
+<article class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-3 relative">
+<div class="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Studio portrait of an Indian male model wearing a rich Royal Indigo traditional handloom cotton kurta with subtle silver zari neck detailing, warm studio spotlight, crisp textile folds, high-end ethnic apparel ecommerce photo with deep oceanic blue tone" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLdh0TKg7sJfwiTM3LJntJANZ1YugQZdOWvsv0TvrEK4pcWd0daLvM_pLA-j72jIuPmYHEMLy1NQ0ndeXkppCqjEUnnw09bij5xdfSKNndxPTNx6BdXvWfvKQARvyASRyL2Vtn8OMM8WgSjrrn6K5B9vXr90z1QK2uMEDFgsqeQy06pIUnt-tI5olVukyrmgOPBn-xAnXJev2NWM4-QUX0sJXKa5w4mgy_cjc8ZpM"/>
+<!-- Bestseller Tag & Scarcity Tag -->
+<div class="absolute top-2 left-2 flex flex-col gap-1 items-start">
+<span class="bg-secondary text-on-secondary font-label-sm text-[11px] font-bold px-2 py-0.5 rounded shadow-sm tracking-wide">
+            BESTSELLER
+          </span>
+<span class="bg-primary/90 backdrop-blur-sm text-on-primary font-caption text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px] text-tertiary-fixed">eco</span> 100% Khadi Craft
+          </span>
+</div>
+<button aria-label="Add to Wishlist" class="wishlist-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-surface-container-lowest/90 backdrop-blur-md flex items-center justify-center text-on-surface shadow-sm active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">favorite_border</span>
+</button>
+<!-- Urgency Micro-Banner -->
+<div class="absolute bottom-0 inset-x-0 bg-error/95 text-on-error py-1 px-2.5 flex items-center justify-between text-caption font-caption font-bold">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">local_fire_department</span>
+            Hurry! Only 3 left in Size L
+          </span>
+<span class="text-[10px] tracking-wider uppercase opacity-90">Hot Demand</span>
+</div>
+</div>
+<!-- Content Meta -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-start justify-between gap-2">
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold leading-snug line-clamp-2">
+            Royal Indigo Handloom Cotton Kurta
+          </h2>
+<div class="flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded shrink-0">
+<span class="material-symbols-outlined text-[15px] text-secondary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-label-sm text-label-sm font-bold text-primary">4.9</span>
+<span class="font-caption text-caption text-on-surface-variant">(118)</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">
+          Hand-spun yarn, regular mandarin collar, breathable all-day festive fit.
+        </p>
+<!-- Price Section -->
+<div class="flex items-baseline gap-2 mt-1">
+<span class="font-price-hero text-price-hero text-primary font-extrabold">₹749</span>
+<span class="font-body-md text-body-md text-outline line-through">₹1,499</span>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm font-bold px-2 py-0.5 rounded-full">
+            50% OFF
+          </span>
+</div>
+<!-- Delivery Reassurance -->
+<div class="flex items-center gap-1.5 text-on-tertiary-container font-label-sm text-label-sm font-semibold pt-0.5">
+<span class="material-symbols-outlined text-[18px]">electric_bolt</span>
+<span>Tomorrow by 6 PM • Free Delivery</span>
+</div>
+<!-- Action Target -->
+<div class="mt-2 pt-1 flex gap-2">
+<button class="add-to-cart-btn flex-1 h-12 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+<span>+ Add to Cart</span>
+</button>
+<a aria-label="Inquire Kurta on WhatsApp" class="w-12 h-12 rounded-lg bg-tertiary-container text-tertiary-fixed flex items-center justify-center shrink-0 active:scale-95 transition-transform" data-path="whatsapp-merchant-chat" href="#">
+<span class="material-symbols-outlined text-[22px]">chat</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Card 2: Saffron Silk Blend Festive Kurta -->
+<article class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-3 relative">
+<div class="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Indian male in a radiant warm saffron orange festive silk blend kurta standing near warm festive palace illumination, detailed golden button placket, elegant celebratory attire photography with sharp tailoring and rich fabric luster" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC85MFV3OIEc5OxwFBHDY1Xb65ELM8VqwnAriZpn-qoJhGtm3v1sv2CeawIb85zgkKX32s0SLq3sCkpr67D5rTosUzN7XY5_iqVG80ayLYp02INfa-g5_wyGZdCqD0zW2oCInSwQ39zeojpOWI8lB_gUALFY4679pxDOwr2OKb9c0wFBvJjyPQjdBNZlIAhvtm2Od0sWo0cyxT6zEweLWBI78rTxnTE-iFR26n04UM"/>
+<div class="absolute top-2 left-2 flex flex-col gap-1 items-start">
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-bold px-2 py-0.5 rounded shadow-sm tracking-wide">
+            DIWALI EDITION
+          </span>
+</div>
+<button aria-label="Add to Wishlist" class="wishlist-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-surface-container-lowest/90 backdrop-blur-md flex items-center justify-center text-on-surface shadow-sm active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">favorite_border</span>
+</button>
+<div class="absolute bottom-2 left-2 bg-primary/80 backdrop-blur-sm text-on-primary font-caption text-caption px-2 py-0.5 rounded">
+          Sizes: M, L, XL, XXL
+        </div>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-start justify-between gap-2">
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold leading-snug line-clamp-2">
+            Saffron Silk Blend Festive Kurta
+          </h2>
+<div class="flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded shrink-0">
+<span class="material-symbols-outlined text-[15px] text-secondary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-label-sm text-label-sm font-bold text-primary">4.8</span>
+<span class="font-caption text-caption text-on-surface-variant">(89)</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">
+          Lustrous jacquard motifs, wrinkle-resistant raw silk touch, royal celebration cut.
+        </p>
+<div class="flex items-baseline gap-2 mt-1">
+<span class="font-price-hero text-price-hero text-primary font-extrabold">₹899</span>
+<span class="font-body-md text-body-md text-outline line-through">₹1,799</span>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm font-bold px-2 py-0.5 rounded-full">
+            50% OFF
+          </span>
+</div>
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm font-medium pt-0.5">
+<span class="material-symbols-outlined text-[18px] text-on-tertiary-container">schedule</span>
+<span>Delivered in <strong class="text-primary font-bold">2 Days</strong> to New Delhi</span>
+</div>
+<div class="mt-2 pt-1 flex gap-2">
+<button class="add-to-cart-btn flex-1 h-12 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+<span>+ Add to Cart</span>
+</button>
+<a aria-label="Inquire on WhatsApp" class="w-12 h-12 rounded-lg bg-tertiary-container text-tertiary-fixed flex items-center justify-center shrink-0 active:scale-95 transition-transform" data-path="whatsapp-merchant-chat" href="#">
+<span class="material-symbols-outlined text-[22px]">chat</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Card 3: Minimalist White Khadi Linen Shirt -->
+<article class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-3 relative">
+<div class="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Editorial catalog shot of a man wearing a pristine crisp off-white organic khadi linen long shirt, natural morning window illumination, soft fabric texture, authentic handspun thread details, warm minimalist Indian modern gentleman styling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6fen4cHqeEOE0P2fbsM5mRklFfXA4Zrm8slIp5s4-_g1ir6YTXyJvgXFkoWi9gUNqZoyySKFFET6moPbvPTem08XE1F5W0w6TTtQJ3YOatJ8sj6ZyV1-VgZVbpsro6h9kIZKGJQIKCU5s8i_Jw-UcdG2VRsthTO-BEpIXBQ0VIfZzjpGHCTmwTDO-vz0IGiV6HXHZgAkvqK0yEx9u6_ycv_oHF2lNpUqq1qrUOf4"/>
+<div class="absolute top-2 left-2 flex flex-col gap-1 items-start">
+<span class="bg-surface-container-highest text-primary font-label-sm text-[11px] font-bold px-2 py-0.5 rounded shadow-sm tracking-wide">
+            CLASSIC FIT
+          </span>
+</div>
+<button aria-label="Add to Wishlist" class="wishlist-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-surface-container-lowest/90 backdrop-blur-md flex items-center justify-center text-on-surface shadow-sm active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">favorite_border</span>
+</button>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-start justify-between gap-2">
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold leading-snug line-clamp-2">
+            Minimalist White Khadi Linen Shirt
+          </h2>
+<div class="flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded shrink-0">
+<span class="material-symbols-outlined text-[15px] text-secondary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-label-sm text-label-sm font-bold text-primary">4.9</span>
+<span class="font-caption text-caption text-on-surface-variant">(142)</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">
+          Featherlight summer weave with mother-of-pearl buttons and curved hem.
+        </p>
+<div class="flex items-baseline gap-2 mt-1">
+<span class="font-price-hero text-price-hero text-primary font-extrabold">₹599</span>
+<span class="font-body-md text-body-md text-outline line-through">₹1,199</span>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm font-bold px-2 py-0.5 rounded-full">
+            SAVE ₹600
+          </span>
+</div>
+<div class="flex items-center gap-1.5 text-on-tertiary-container font-label-sm text-label-sm font-semibold pt-0.5">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span>Preshrunk • Pre-washed Organic Yarn</span>
+</div>
+<div class="mt-2 pt-1 flex gap-2">
+<button class="add-to-cart-btn flex-1 h-12 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+<span>+ Add to Cart</span>
+</button>
+<a aria-label="Inquire on WhatsApp" class="w-12 h-12 rounded-lg bg-tertiary-container text-tertiary-fixed flex items-center justify-center shrink-0 active:scale-95 transition-transform" data-path="whatsapp-merchant-chat" href="#">
+<span class="material-symbols-outlined text-[22px]">chat</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Card 4: Embroidered Nehru Jacket - Navy Blue -->
+<article class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-3 relative">
+<div class="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Dapper Indian man wearing an ornate embroidered sleeveless Nehru Modi jacket over a cream kurta, deep sovereign navy blue fabric with subtle tonal floral threadwork, high-end wedding guest collection photo, crisp lighting and rich texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCV4Setwzqf2ZXX6o-a4fML0F_XNXmwumct8WAIJfz3tsMMr8eNJ6JSQY8-h-sZRl9RrgUUU0jFBV2csNDUttTSqsqGxzAmhpDJ7y61aLwwZ37p7_UbrmEdYjNDLCMRX9Q4AXBi2bKYqDUegZNribb3Qoo7xhjXx5b4ocbHtHPbt6tKG96JUZFOT_v3tXu8bh9AaOQWTRiyQFGk7AvC3ydWh00tFPlu1Q6Qo2vH5Xo"/>
+<div class="absolute top-2 left-2 flex flex-col gap-1 items-start">
+<span class="bg-primary text-on-primary font-label-sm text-[11px] font-bold px-2 py-0.5 rounded shadow-sm tracking-wide">
+            PREMIUM CRAFT
+          </span>
+</div>
+<button aria-label="Add to Wishlist" class="wishlist-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-surface-container-lowest/90 backdrop-blur-md flex items-center justify-center text-on-surface shadow-sm active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">favorite_border</span>
+</button>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-start justify-between gap-2">
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold leading-snug line-clamp-2">
+            Embroidered Nehru Jacket - Navy Blue
+          </h2>
+<div class="flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded shrink-0">
+<span class="material-symbols-outlined text-[15px] text-secondary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-label-sm text-label-sm font-bold text-primary">4.7</span>
+<span class="font-caption text-caption text-on-surface-variant">(64)</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">
+          Structured mandarin neck with metal buttons and inside phone pocket.
+        </p>
+<div class="flex items-baseline gap-2 mt-1">
+<span class="font-price-hero text-price-hero text-primary font-extrabold">₹1,199</span>
+<span class="font-body-md text-body-md text-outline line-through">₹2,399</span>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm font-bold px-2 py-0.5 rounded-full">
+            50% OFF
+          </span>
+</div>
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm font-medium pt-0.5">
+<span class="material-symbols-outlined text-[18px] text-primary">swap_horizontal_circle</span>
+<span>7-Day Hassle-Free Size Exchange Available</span>
+</div>
+<div class="mt-2 pt-1 flex gap-2">
+<button class="add-to-cart-btn flex-1 h-12 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+<span>+ Add to Cart</span>
+</button>
+<a aria-label="Inquire on WhatsApp" class="w-12 h-12 rounded-lg bg-tertiary-container text-tertiary-fixed flex items-center justify-center shrink-0 active:scale-95 transition-transform" data-path="whatsapp-merchant-chat" href="#">
+<span class="material-symbols-outlined text-[22px]">chat</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Merchant Store Guarantee Shield -->
+<div class="bg-surface-container-high/60 rounded-xl p-space-md flex flex-col gap-3 my-2 text-on-surface">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[24px] text-primary">security</span>
+<h3 class="font-label-lg text-label-lg text-primary font-bold">Sharma Handlooms & Electronics Guarantee</h3>
+</div>
+<div class="grid grid-cols-2 gap-2 font-caption text-caption text-on-surface-variant">
+<div class="flex items-center gap-1.5 bg-surface-container-lowest p-2 rounded-lg">
+<span class="material-symbols-outlined text-[16px] text-on-tertiary-container">done_all</span>
+<span>Verified Pure Fiber</span>
+</div>
+<div class="flex items-center gap-1.5 bg-surface-container-lowest p-2 rounded-lg">
+<span class="material-symbols-outlined text-[16px] text-secondary">local_atm</span>
+<span>Cash On Delivery</span>
+</div>
+<div class="flex items-center gap-1.5 bg-surface-container-lowest p-2 rounded-lg">
+<span class="material-symbols-outlined text-[16px] text-primary">package_2</span>
+<span>Tamper-Proof Box</span>
+</div>
+<div class="flex items-center gap-1.5 bg-surface-container-lowest p-2 rounded-lg">
+<span class="material-symbols-outlined text-[16px] text-tertiary">support_agent</span>
+<span>Direct Owner Care</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Floating Quick Checkout Bar -->
+<div class="fixed bottom-16 inset-x-0 z-40 px-margin pb-2 pointer-events-none">
+<a class="pointer-events-auto w-full bg-secondary-container hover:bg-secondary text-on-secondary py-3 px-4 rounded-xl shadow-xl flex items-center justify-between transition-all transform active:scale-[0.99] border-t border-surface-container-lowest/20" data-path="cart-and-checkout" href="#">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-full bg-surface-container-lowest/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px] text-on-secondary">shopping_basket</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md font-bold leading-tight truncate">2 Items in Cart</span>
+<span class="font-caption text-[11px] opacity-90 leading-tight">Total: <strong class="font-extrabold text-on-secondary">₹1,148</strong> (incl. all taxes)</span>
+</div>
+</div>
+<div class="flex items-center gap-1 shrink-0 font-label-md text-label-md font-bold bg-surface-container-lowest/20 px-3 py-1.5 rounded-lg">
+<span>View Cart & Checkout</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</div>
+</a>
+</div>
+</div>
+<script>
+  // Dynamic Wishlist toggling micro-interaction
+  document.querySelectorAll('.wishlist-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      const icon = button.querySelector('.material-symbols-outlined');
+      if (icon.innerText === 'favorite_border') {
+        icon.innerText = 'favorite';
+        icon.classList.add('text-secondary');
+        icon.style.fontVariationSettings = "'FILL' 1";
+      } else {
+        icon.innerText = 'favorite_border';
+        icon.classList.remove('text-secondary');
+        icon.style.fontVariationSettings = "'FILL' 0";
+      }
+    });
+  });
+
+  // Filter chips active toggle
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.remove('bg-primary', 'text-on-primary');
+        c.classList.add('bg-surface-container', 'text-on-surface');
+      });
+      chip.classList.remove('bg-surface-container', 'text-on-surface');
+      chip.classList.add('bg-primary', 'text-on-primary');
+    });
+  });
+
+  // Add to cart interactive feedback
+  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const originalHtml = this.innerHTML;
+      this.classList.remove('bg-primary');
+      this.classList.add('bg-tertiary-container', 'text-tertiary-fixed');
+      this.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span><span>Added to Cart!</span>';
+      setTimeout(() => {
+        this.classList.remove('bg-tertiary-container', 'text-tertiary-fixed');
+        this.classList.add('bg-primary');
+        this.innerHTML = originalHtml;
+      }, 1400);
+    });
+  });
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-4px_16px_-2px_rgba(15,41,66,0.08)]" data-active-classes="text-secondary font-bold"><div class="flex items-center justify-around h-16 px-space-xs"><a class="flex flex-col items-center justify-center w-16 h-14 rounded-lg text-on-surface-variant hover:text-primary transition-colors gap-0.5" data-path="local-storefront" href="#"><span class="material-symbols-outlined text-[22px]">storefront</span><span class="font-label-sm text-[11px] leading-none tracking-tight">Home</span></a><a aria-current="page" class="flex flex-col items-center justify-center w-16 h-14 rounded-lg transition-colors gap-0.5 text-secondary font-bold" data-path="product-catalog" href="#"><span class="material-symbols-outlined text-[22px]">grid_view</span><span class="font-label-sm text-[11px] leading-none tracking-tight">Categories</span></a><a class="flex flex-col items-center justify-center w-20 h-14 rounded-lg text-[#1B5E20] hover:text-[#0C5216] transition-colors gap-0.5" data-path="whatsapp-merchant-chat" href="#"><div class="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#1B5E20] text-on-tertiary shadow-sm"><span class="material-symbols-outlined text-[18px]">chat</span><span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-secondary-container ring-2 ring-surface"></span></div><span class="font-label-sm text-[11px] font-bold text-[#1B5E20] leading-none tracking-tight">WhatsApp</span></a><a class="flex flex-col items-center justify-center w-16 h-14 rounded-lg text-on-surface-variant hover:text-primary transition-colors gap-0.5" data-path="merchant-and-account" href="#"><span class="material-symbols-outlined text-[22px]">account_circle</span><span class="font-label-sm text-[11px] leading-none tracking-tight">Account</span></a><a class="flex flex-col items-center justify-center w-16 h-14 rounded-lg text-on-surface-variant hover:text-primary transition-colors gap-0.5" data-path="cart-and-checkout" href="#"><span class="material-symbols-outlined text-[22px]">receipt_long</span><span class="font-label-sm text-[11px] leading-none tracking-tight">Orders</span></a></div></nav></body></html>

@@ -141,3 +141,16 @@ Platform administrators can directly modify a merchant's website URL (subdomain 
    - Includes 1-click **"Visit New Site"**, **"Copy Link"** with visual checkmark feedback, and dismiss action (`POST /api/website/dismiss-site-notice`).
    - Also dispatched to the merchant's bell notification center (`FeraSetuUpdatesCenter.tsx`) for persistent historical reference.
 
+---
+
+## 8. Multi-Domain Merchant Storefront Architecture (`*.ferasetu.store` & `*.ferasetu.com`)
+
+FeraSetu's Cloudflare Worker natively recognizes and serves merchant storefronts across both primary domain families using a unified application, database, and edge proxy:
+
+- **Supported Base Domains:** `BASE_DOMAINS = ["ferasetu.com", "ferasetu.store", "fera-search.tech"]`.
+- **Exact Suffix Resolution:** Suffix matching strictly enforces leading dot (`host.endsWith("." + base)`), preventing attacks such as `evilferasetu.store` from being classified as merchant storefronts.
+- **Unified D1 Mapping:** Merchant lookup resolves across `users`, `shops`, and `organizations` tables with cross-domain aliasing. A merchant record registered with `nshopkeeper` serves simultaneously on `nshopkeeper.ferasetu.com` and `nshopkeeper.ferasetu.store`.
+- **Dynamic SEO Canonical URLs:** Incoming request hostname is the authoritative source of truth. A visitor on `nshopkeeper.ferasetu.store` receives `<link rel="canonical" href="https://nshopkeeper.ferasetu.store/" />` and Open Graph `og:url` without redirects or cross-domain pollution.
+- **Zero-D1 Static Asset Proxy:** Requests to fingerprinted static assets (`/assets/*.js`, `/assets/*.css`, etc.) strictly bypass D1 database queries (0 queries) and leverage Cloudflare edge cache (`caches.default`).
+- **Protected Subdomains:** Core platform hostnames (`app`, `www`, `api`, `cdn`, `mail`, `help`, `shops`, `admin`, `status`) are strictly reserved across both domains and cannot be claimed by merchants.
+

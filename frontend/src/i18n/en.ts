@@ -179,8 +179,8 @@ export default {
 
   // Pricing Card
   "card.popular": "MOST POPULAR",
-  "card.save": "₹{{total}}/year — save 2 months",
-  "card.day": "₹{{price}}/day",
+  "card.save": "{{total}}/year — save 2 months",
+  "card.day": "{{price}}/day",
   "card.current": "Current plan",
   "card.cancel": "Cancel anytime · No hidden fees",
   

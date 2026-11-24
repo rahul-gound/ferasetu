@@ -189,6 +189,28 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
   const [isOrdering, setIsOrdering] = useState(false);
   const [orderComplete, setOrderComplete] = useState<{ id: string; invoice: string; deliveryCode: string; paymentOtp?: string; trackingToken?: string } | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelDirectOrder = async () => {
+    if (!orderComplete) return;
+    const reason = window.prompt('Please enter a cancellation reason (optional):', 'Changed my mind');
+    if (reason === null) return;
+    setIsCancelling(true);
+    try {
+      await axios.post(`${API}/orders/public/${orderComplete.id}/cancel`, {
+        customerPhone: formData.phone,
+        token: orderComplete.trackingToken,
+        reason: reason || 'Customer requested cancellation',
+      });
+      setIsCancelled(true);
+      toast_success('Order cancelled successfully.');
+    } catch (err: any) {
+      toast_error(err?.response?.data?.error || 'Unable to cancel order.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
   
   const [formData, setFormData] = useState({
     name: '',
@@ -429,21 +451,31 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
 
             {orderComplete ? (
               <div style={{ padding: '48px 32px', textAlign: 'center' }}>
-                <div style={{ width: '80px', height: '80px', background: '#f0fdf4', color: '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}><Check size={44} strokeWidth={3} /></div>
-                <h2 style={{ fontSize: '28px', fontWeight: 900, marginBottom: '12px' }}>Order Confirmed!</h2>
-                <p style={{ color: '#64748b', marginBottom: '32px' }}>Your order <b>#{orderComplete.invoice}</b> has been received.</p>
-                
-                <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '20px', marginBottom: '32px', textAlign: 'left' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px' }}>
-                    Delivery Security Code
-                  </div>
-                  <div style={{ fontSize: '32px', fontWeight: 900, color: accentColor, letterSpacing: '3px' }}>
-                    {orderComplete.deliveryCode}
-                  </div>
-                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>
-                    A secret verification OTP has been emailed to your address. Show your delivery security code to the delivery partner or shopkeeper upon order handoff.
-                  </p>
+                <div style={{ width: '80px', height: '80px', background: isCancelled ? '#fef2f2' : '#f0fdf4', color: isCancelled ? '#dc2626' : '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                  {isCancelled ? <X size={44} strokeWidth={3} /> : <Check size={44} strokeWidth={3} />}
                 </div>
+                <h2 style={{ fontSize: '28px', fontWeight: 900, marginBottom: '12px' }}>
+                  {isCancelled ? 'Order Cancelled' : 'Order Placed!'}
+                </h2>
+                <p style={{ color: '#64748b', marginBottom: '24px' }}>
+                  {isCancelled
+                    ? 'This order has been cancelled. The shopkeeper has been notified.'
+                    : `Your order #${orderComplete.invoice} has been placed. The shopkeeper will confirm and prepare it shortly.`}
+                </p>
+                
+                {!isCancelled && (
+                  <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '20px', marginBottom: '24px', textAlign: 'left' }}>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px' }}>
+                      Delivery Security Code
+                    </div>
+                    <div style={{ fontSize: '32px', fontWeight: 900, color: accentColor, letterSpacing: '3px' }}>
+                      {orderComplete.deliveryCode}
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>
+                      A secret verification OTP has been emailed to your address. Show your delivery security code to the delivery partner or shopkeeper upon order handoff.
+                    </p>
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                   <button
@@ -494,17 +526,44 @@ export default function ProductGridSection({ config, products, shopId, shopPhone
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <button
-                    onClick={() => {
-                      const phone = shopPhone.replace(/\D/g, '') || '91XXXXXXXXXX';
-                      const msg = encodeURIComponent(`Namaste! I just placed an order.\nOrder ID: ${orderComplete.id}\nItems: ${cart.length}\nTotal: ₹${cartTotal}\nCode: ${orderComplete.deliveryCode}`);
-                      window.open(`https://wa.me/${phone.startsWith('91') ? phone : '91'+phone}?text=${msg}`, '_blank');
-                    }}
-                    style={{ background: '#25D366', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-                  >
-                    Send Order on WhatsApp <ExternalLink size={18} />
-                  </button>
-                  <button onClick={() => { setIsCheckingOut(false); setOrderComplete(null); }} style={{ padding: '12px', color: '#64748b', border: 'none', background: 'none', fontWeight: 700, cursor: 'pointer' }}>Close</button>
+                  {!isCancelled && (
+                    <button
+                      type="button"
+                      disabled={isCancelling}
+                      onClick={handleCancelDirectOrder}
+                      style={{
+                        background: '#fff',
+                        color: '#dc2626',
+                        border: '1.5px solid #fca5a5',
+                        padding: '14px',
+                        borderRadius: '14px',
+                        fontWeight: 800,
+                        cursor: isCancelling ? 'not-allowed' : 'pointer',
+                        opacity: isCancelling ? 0.6 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <X size={16} />
+                      {isCancelling ? 'Cancelling Order…' : 'Cancel My Order'}
+                    </button>
+                  )}
+
+                  {!isCancelled && (
+                    <button
+                      onClick={() => {
+                        const phone = shopPhone.replace(/\D/g, '') || '91XXXXXXXXXX';
+                        const msg = encodeURIComponent(`Namaste! I just placed an order.\nOrder ID: ${orderComplete.id}\nItems: ${cart.length}\nTotal: ₹${cartTotal}\nCode: ${orderComplete.deliveryCode}`);
+                        window.open(`https://wa.me/${phone.startsWith('91') ? phone : '91'+phone}?text=${msg}`, '_blank');
+                      }}
+                      style={{ background: '#25D366', color: '#fff', border: 'none', padding: '16px', borderRadius: '14px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                    >
+                      Send Order on WhatsApp <ExternalLink size={18} />
+                    </button>
+                  )}
+                  <button onClick={() => { setIsCheckingOut(false); setOrderComplete(null); setIsCancelled(false); }} style={{ padding: '12px', color: '#64748b', border: 'none', background: 'none', fontWeight: 700, cursor: 'pointer' }}>Close</button>
                 </div>
               </div>
             ) : (

@@ -104,18 +104,6 @@ export const PRICING_STAGES: PricingStage[] = [
     ],
   },
   {
-    planId: 'business',
-    stage: 'Grow',
-    promise: 'Run a larger catalog with clearer business signals',
-    proof: [
-      'Up to 500 products',
-      'Advanced analytics and profit tracking',
-      'Automated low-stock alerts',
-      '200 FeraSetu AI queries per month',
-      'Custom domain',
-    ],
-  },
-  {
     planId: 'pro',
     stage: 'Scale',
     promise: 'Operate with more capacity and support',
@@ -125,6 +113,18 @@ export const PRICING_STAGES: PricingStage[] = [
       'Up to 5 staff accounts',
       'Priority phone and chat support',
       'White-label storefront',
+    ],
+  },
+  {
+    planId: 'business',
+    stage: 'Grow',
+    promise: 'Run a larger catalog with clearer business signals',
+    proof: [
+      'Up to 500 products',
+      'Advanced analytics and profit tracking',
+      'Automated low-stock alerts',
+      '200 FeraSetu AI queries per month',
+      'Custom domain',
     ],
   },
 ];

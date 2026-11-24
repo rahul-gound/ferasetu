@@ -317,10 +317,10 @@ test('M3.1.5: Reserved domains rejection and provider factories', async () => {
 
 test('M3.2.1: DomainService coordinates purchase, verification and resolveCustomStorefront', async () => {
   const db = createMockDb();
-  const service = createDomainService({ DB: db });
+  const provider = new SandboxDomainProvider({ DB: db });
 
   // Initiate purchase
-  const order = await service.initiatePurchase({
+  const order = await provider.initiatePurchase({
     organizationId: 'org_m3',
     domain: 'myorganicstore.in',
     years: 1,
@@ -332,7 +332,7 @@ test('M3.2.1: DomainService coordinates purchase, verification and resolveCustom
   assert.equal(order.amount, 942.82);
 
   // Verify purchase and provision
-  const verified = await service.verifyPurchase({
+  const verified = await provider.verifyPurchase({
     organizationId: 'org_m3',
     orderId: order.orderId,
     domain: 'myorganicstore.in',

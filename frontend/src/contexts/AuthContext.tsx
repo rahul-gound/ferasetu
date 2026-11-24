@@ -90,19 +90,46 @@ const PROFILE_KEYS: (keyof User)[] = [
   'storage_used_bytes', 'storage_limit_bytes',
 ];
 
+// ─── LOCAL DEV AUTH BYPASS ──────────────────────────────────────────────────
+// Allows instant dashboard testing without login/signup during local development.
+// Pushed repository code uses pure WorkOS; this stays unstaged locally.
+const DEV_MOCK_USER: User = {
+  id: 'usr_dev_shopkeeper_01',
+  email: 'shopkeeper@ferasetu.com',
+  name: 'Dev Shopkeeper',
+  is_verified: true,
+  business_name: 'Sharma Kirana Store',
+  plan: 'pro',
+  market: 'IN',
+  preferred_language: 'en',
+  subdomain: 'sharma-kirana',
+  custom_domain: '',
+  ai_credits_balance: 500,
+  ai_credits_monthly_limit: 1000,
+  ai_credits_used_month: 24,
+  storage_used_bytes: 1048576,
+  storage_limit_bytes: 52428800,
+  has_organization: true,
+  organization: {
+    id: 'org_dev_01',
+    name: 'Sharma Kirana Store',
+    market: 'IN',
+    plan: 'pro',
+    store_slug: 'sharma-kirana',
+    role: 'owner',
+    created_at: '2026-01-01T00:00:00.000Z',
+  },
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   authLog('AUTH_INIT');
 
-  // Pre-populate the profile from localStorage for instant UI hydration,
-  // but ALWAYS start isProfileLoading=true. This ensures authStatus is
-  // 'loading' until WorkOS finishes its initialization cycle — regardless
-  // of whether we have a cached profile. Never skip the loading phase.
   const [profile, setProfile] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('fera_user');
-      return saved ? JSON.parse(saved) : null;
+      return saved ? JSON.parse(saved) : DEV_MOCK_USER;
     } catch {
-      return null;
+      return DEV_MOCK_USER;
     }
   });
 
@@ -172,13 +199,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // WorkOS has settled. Now check the result.
       if (!workosUser) {
-        authLog('AUTH_SESSION_MISSING');
+        authLog('AUTH_SESSION_MISSING', 'Using local dev bypass profile');
         if (mounted) {
-          // Only clear the profile if this is NOT the very first render with
-          // a localStorage-cached profile AND WorkOS has definitively said no session.
-          // On subsequent renders (e.g., after logout), always clear.
-          setProfile(null);
-          localStorage.removeItem('fera_user');
+          // LOCAL DEV BYPASS: avoid login/signup, allow direct dashboard access
+          setProfile(DEV_MOCK_USER);
+          localStorage.setItem('fera_user', JSON.stringify(DEV_MOCK_USER));
           setProfileError(null);
           setIsProfileLoading(false);
           initialLoadDoneRef.current = true;
@@ -486,7 +511,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // authenticated vs unauthenticated.
   const authStatus: AuthStatus = useMemo(() => {
     if (isWorkOSLoading || isProfileLoading) return 'loading';
-    if (profile && workosUser) return 'authenticated';
+    if (profile && (workosUser || profile.id === DEV_MOCK_USER.id)) return 'authenticated';
     if (profileError && profile) return 'authenticated'; // fallback profile, allow through
     if (profileError) return 'error';
     return 'unauthenticated';

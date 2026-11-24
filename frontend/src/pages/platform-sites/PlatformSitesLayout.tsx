@@ -31,15 +31,15 @@ export default function PlatformSitesLayout() {
   }, []);
 
   const navItems = [
-    { path: '/platform-sites/overview', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, label: 'Overview' },
-    { path: '/platform-sites/websites', icon: <Globe size={18} strokeWidth={1.75} />, label: 'Websites' },
-    { path: '/platform-sites/deployments', icon: <Layers size={18} strokeWidth={1.75} />, label: 'Deployments' },
-    { path: '/platform-sites/domains', icon: <GitBranch size={18} strokeWidth={1.75} />, label: 'Domains' },
-    { path: '/platform-sites/ai-studio', icon: <Sparkles size={18} strokeWidth={1.75} />, label: 'AI Studio', badge: 'AI' },
-    { path: '/platform-sites/usage', icon: <BarChart3 size={18} strokeWidth={1.75} />, label: 'Usage & Analytics' },
-    { path: '/platform-sites/integrations', icon: <Server size={18} strokeWidth={1.75} />, label: 'Integrations' },
-    { path: '/platform-sites/activity', icon: <ShieldCheck size={18} strokeWidth={1.75} />, label: 'Activity & Audit' },
-    { path: '/platform-sites/settings', icon: <Settings size={18} strokeWidth={1.75} />, label: 'Settings' },
+    { path: '/admin/platform-sites/overview', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, label: 'Overview' },
+    { path: '/admin/platform-sites/websites', icon: <Globe size={18} strokeWidth={1.75} />, label: 'Websites' },
+    { path: '/admin/platform-sites/deployments', icon: <Layers size={18} strokeWidth={1.75} />, label: 'Deployments' },
+    { path: '/admin/platform-sites/domains', icon: <GitBranch size={18} strokeWidth={1.75} />, label: 'Domains' },
+    { path: '/admin/platform-sites/ai-studio', icon: <Sparkles size={18} strokeWidth={1.75} />, label: 'AI Studio', badge: 'AI' },
+    { path: '/admin/platform-sites/usage', icon: <BarChart3 size={18} strokeWidth={1.75} />, label: 'Usage & Analytics' },
+    { path: '/admin/platform-sites/integrations', icon: <Server size={18} strokeWidth={1.75} />, label: 'Integrations' },
+    { path: '/admin/platform-sites/activity', icon: <ShieldCheck size={18} strokeWidth={1.75} />, label: 'Activity & Audit' },
+    { path: '/admin/platform-sites/settings', icon: <Settings size={18} strokeWidth={1.75} />, label: 'Settings' },
   ];
 
   const roleBadgeColors: Record<string, string> = {
@@ -114,7 +114,7 @@ export default function PlatformSitesLayout() {
           {/* Navigation Bar */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-100 py-1">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path === '/platform-sites/overview' && location.pathname === '/platform-sites');
+              const isActive = location.pathname === item.path || (item.path === '/admin/platform-sites/overview' && (location.pathname === '/admin/platform-sites' || location.pathname === '/admin/platform-sites/'));
               return (
                 <NavLink
                   key={item.path}
@@ -155,7 +155,7 @@ export default function PlatformSitesLayout() {
           onClose={() => setWizardOpen(false)}
           onSuccess={(newSite) => {
             setWizardOpen(false);
-            navigate(`/platform-sites/websites/${newSite.id}`);
+            navigate(`/admin/platform-sites/websites/${newSite.id}`);
           }}
         />
       )}

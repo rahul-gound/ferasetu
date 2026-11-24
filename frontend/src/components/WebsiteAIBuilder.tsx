@@ -303,14 +303,14 @@ export default function WebsiteAIBuilder({
       <div className="border-b border-slate-200 dark:border-slate-800 p-4 bg-slate-50/70 dark:bg-slate-950 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-blue-600 text-white flex items-center justify-center shadow-xs">
+            <div className="w-7 h-7 rounded-lg bg-[#0052FF] text-white flex items-center justify-center shadow-xs">
               <Wand2 size={15} />
             </div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
               AI Storefront Creator
             </h2>
           </div>
-          <span className="text-[11px] font-mono font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200">
+          <span className="text-[11px] font-mono font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200">
             Step {currentStep} of 3
           </span>
         </div>
@@ -720,11 +720,11 @@ export default function WebsiteAIBuilder({
             type="button"
             onClick={handleRunAIGenerator}
             disabled={isGenerating}
-            className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xl shadow-purple-600/25 active:scale-95 transition-all disabled:opacity-50"
+            className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-[#0052FF] hover:bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
           >
             {isGenerating ? (
               <>
-                <BrainCircuit size={16} className="animate-spin text-purple-200" />
+                <BrainCircuit size={16} className="animate-spin text-blue-200" />
                 <span>Crafting Your Website…</span>
               </>
             ) : (

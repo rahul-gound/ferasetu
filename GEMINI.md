@@ -60,4 +60,19 @@ When the user shares a screenshot or photo of the UI:
 - **Strict Frontend Isolation:** Neither `AI_ENDPOINT` nor `API_AI` must ever be leaked, shown in client responses, or called directly by the frontend. The frontend communicates exclusively with `/api/v1/ai/chat` (or `/api/ai/chat`) on the Cloudflare Worker backend.
 - **Zero Sarvam Invariant:** We do NOT use Sarvam AI. NEVER show or mention "Powered by Sarvam", "Sarvam", or "savram" anywhere in UI pages, legal modals, privacy policies, system prompts, or merchant facing copy. The AI engine is branded exclusively as **FeraSetu AI** / **Fera AI** powered by our OpenAI-compatible backend cluster (`https://ai.fera-search.tech/v1`).
 
+## 8. Mandatory Pre-Push Quality Gates (ui-1-test.md through ui-9-test.md)
+- **Pre-Push Quality Rule:** Before any git push or major release, EVERY agent and developer MUST audit and verify changes against all 9 quality gates:
+  1. `ui-1-test.md`: Complete First-Impression, UX & Product Quality Audit (Five-second comprehension, cognitive load, visual hierarchy, mobile viewport ergonomics, tactile button press physics).
+  2. `ui-2-test.md`: The Power of Trust, Credibility & Transparency Quality Gate (Zero fake social proof/reviews, accurate pricing/currencies, honest data presentation, verified payment/support signals, zero broken links).
+  3. `ui-3-test.md`: Easy Navigation Reduces Frustration Quality Gate (Navigation bars, findability, active route wayfinding, and zero broken routes).
+  4. `ui-4-test.md`: Colour Psychology, Brand Identity & Visual Colour System Quality Gate (Intentional colour usage, WCAG 2.2 contrast compliance, semantic states, and non-colour reliance).
+  5. `ui-5-test.md`: Strong Headlines Capture Attention Quality Gate (Clear, scannable headings, inverted-pyramid structure, semantic H1-H6 hierarchy, zero synthetic AI clichés).
+  6. `ui-6-test.md`: Clear Calls to Action Drive Results (CTA strategy, action hierarchy, touch targets, and tactile button physics).
+  7. `ui-7-test.md`: Mobile Experience is Essential Quality Gate (Responsive adaptability, 320px–1440px viewports, 44–48px touch targets, zero horizontal overflow).
+  8. `ui-8-test.md`: Emotional Connection Matters Quality Gate (Human-centred design, visceral/behavioral/reflective UX, zero dark patterns, user dignity & empowerment).
+  9. `ui-9-test.md`: Consistency Creates Confidence Quality Gate (Design foundations, single source of truth tokens, shared component coherence, predictable navigation, and cross-platform integrity).
+- **Button Rule Exception Invariant:** When a specific button design standard or rule (`.md`) is provided for a particular component, follow that explicit rule; otherwise, always apply the universal tactile 3D button standard (`DESIGN.md`, `.agents/rules/ferasetu-design-system.md`).
+- **Browser Visual Verification:** ALWAYS invoke the `browser` subagent to visually inspect and verify the UI on running `http://localhost:5173` across desktop (`1440×900`) and mobile (`390×844`) viewports before clearing a release.
+- **Automatic Release Blockers:** An automatic FAIL occurs if fake testimonials, broken pricing/currencies, unreadable buttons, navigation dead ends, horizontal mobile overflows, or misleading claims are introduced. Never push code until all mandatory checks PASS.
+
 

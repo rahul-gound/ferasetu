@@ -5,42 +5,29 @@ import toast from 'react-hot-toast';
 import {
   Globe,
   Eye,
-  EyeOff,
   Sparkles,
-  Plus,
-  Trash2,
   Save,
   ExternalLink,
-  Layers,
-  Settings,
   Smartphone,
   Tablet,
   Monitor,
   Check,
-  Palette,
   RotateCcw,
   Sliders,
-  Type,
-  Maximize2,
-  Upload,
   History,
-  Zap,
   Link2,
-  Image as ImageIconLucide,
-  Wand2,
   Menu,
   X,
+  FileSpreadsheet,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
 import { useLanguage } from '../contexts/LanguageContext';
 import TemplateRenderer from '../components/shop/TemplateRenderer';
-import WebsiteAIBuilder from '../components/WebsiteAIBuilder';
-import DesignPanel from '../builder/panels/DesignPanel';
-import LogicPanel from '../builder/panels/LogicPanel';
-import ConnectionsPanel from '../builder/panels/ConnectionsPanel';
-import AssetsPanel from '../builder/panels/AssetsPanel';
+import StorefrontAiChat from '../builder/ai/StorefrontAiChat';
+import CompactConnectorsPopover from '../builder/connectors/CompactConnectorsPopover';
 import VersionHistoryModal from '../builder/modals/VersionHistoryModal';
 import { builderApi } from '../builder/services/builderApi';
 import { createDefaultSignupWorkflow } from '../builder/workflows/workflowSchema';
@@ -51,7 +38,7 @@ import { normalizeLegacySections } from '../storefront/compatibility/legacySecti
 import type { WorkflowDefinition, ConnectionConfig } from '../builder/types/builderTypes';
 import posthog from '../lib/posthog';
 
-// Realistic deterministic demo products for preview
+// Realistic deterministic demo products for live preview
 const DEMO_PRODUCTS: ShopProduct[] = [
   {
     id: 'demo-1',
@@ -113,8 +100,6 @@ const DEMO_PRODUCTS: ShopProduct[] = [
   },
 ];
 
-type UnifiedTab = 'design' | 'logic' | 'connections' | 'assets' | 'ai';
-
 interface WebsiteRecord {
   id: string;
   name: string;
@@ -129,12 +114,13 @@ export default function WebsiteBuilderPage() {
   const { user } = useAuth();
   const { translate } = useLanguage();
   const queryClient = useQueryClient();
-  const outletContext = (useOutletContext<{ setSidebarOpen?: (open: boolean) => void }>() || {});
+  const outletContext = useOutletContext<{ setSidebarOpen?: (open: boolean) => void }>() || {};
 
-  const [activeTab, setActiveTab] = useState<UnifiedTab>('design');
+  // Device & Layout Modes
   const [deviceView, setDeviceView] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [mobileMode, setMobileMode] = useState<'controls' | 'preview'>('controls');
+  const [mobileMode, setMobileMode] = useState<'chat' | 'preview'>('chat');
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [isConnectorsOpen, setIsConnectorsOpen] = useState(false);
 
   // Store metadata & Canvas state
   const [shopName, setShopName] = useState('');
@@ -148,18 +134,21 @@ export default function WebsiteBuilderPage() {
   const [publishing, setPublishing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
 
+  // State undo history stack
+  const [historyStack, setHistoryStack] = useState<StorefrontSection[][]>([]);
+
   // Authoritative Branding & Token Overrides
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [faviconUrl, setFaviconUrl] = useState<string>('');
   const [overrides, setOverrides] = useState<MerchantThemeOverrides>({
-    primaryColor: '#0F172A',
-    accentColor: '#16A34A',
+    primaryColor: '#0052FF',
+    accentColor: '#EA580C',
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     radiusStyle: 'soft',
     density: 'balanced',
   });
 
-  // Declarative Workflows state
+  // Declarative Workflows state (kept internally for AI operations)
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([createDefaultSignupWorkflow()]);
 
   // Fetch website draft
@@ -247,179 +236,50 @@ export default function WebsiteBuilderPage() {
     }
   }, [draftResponse, websiteData, user]);
 
-  // Listen for remove-section custom event from section components (e.g. AiAssistantSection)
-  useEffect(() => {
-    const handleRemoveSectionEvent = (e: any) => {
-      if (e.detail?.id) {
-        handleRemoveSection(e.detail.id);
-      }
-    };
-    window.addEventListener('fera-remove-section', handleRemoveSectionEvent);
-    return () => window.removeEventListener('fera-remove-section', handleRemoveSectionEvent);
-  }, []);
-
-  // Dedicated Theme Selection Handler
-  const handleThemeSelect = (themeIdInput: string) => {
-    let tId = (themeIdInput || 'market').toLowerCase().trim() as ThemeId;
-    if (
-      tId === ('mono-electronic' as any) ||
-      tId === ('mono_electronic' as any) ||
-      tId === ('tech' as any) ||
-      tId === ('electronics' as any)
-    ) {
-      tId = 'electronic';
-    }
-    const themeDef = THEME_REGISTRY[tId] || THEME_REGISTRY.market;
-    setSelectedThemeId(tId);
-
-    // Update overrides to match the new theme's native palette, fonts & aesthetics
-    setOverrides((prev) => ({
-      ...prev,
-      primaryColor: themeDef.colors.primary,
-      accentColor: themeDef.colors.accent,
-      fontFamily: themeDef.typography.fontFamilyBody,
-      headingFont: themeDef.typography.fontFamilyHeading,
-      radiusStyle: tId === 'atelier' || tId === 'mono' ? 'sharp' : tId === 'bold' ? 'rounded' : 'soft',
-      density: tId === 'atelier' ? 'editorial' : 'balanced',
-    }));
-
-    // Update sections to the new theme's signature sections, adapting any existing merchant content
-    setSections((currentSections) => {
-      if (!currentSections || currentSections.length === 0) {
-        return themeDef.defaultSections;
-      }
-      return themeDef.defaultSections.map((newSec) => {
-        const existing = currentSections.find((s) => s.type === newSec.type);
-        if (existing) {
-          return {
-            ...newSec,
-            config: {
-              ...newSec.config,
-              ...(existing.config || {}),
-            },
-          };
-        }
-        return newSec;
-      });
-    });
-
-    toast.success(`Theme switched to ${themeDef.name}`);
-  };
-
-  // Section Manipulation Handlers
-  const handleAddSection = (type: string) => {
-    const defaultVariant = 'clean';
-    const newSection: StorefrontSection = {
-      id: `${type}-${Date.now()}`,
-      type: type as any,
-      variant: defaultVariant,
-      enabled: true,
-      config: {},
-    };
-    setSections((prev) => [...prev, newSection]);
-    setSelectedSectionId(newSection.id);
-    toast.success(`Added ${type} section`);
-  };
-
-  const handleRemoveSection = (id: string) => {
-    setSections((prev) => prev.filter((s) => s.id !== id));
-    if (selectedSectionId === id) setSelectedSectionId(null);
-  };
-
-  const handleReorderSections = (newSections: StorefrontSection[]) => {
+  // Section update handler with undo history tracking
+  const handleUpdateSections = (newSections: StorefrontSection[], reason?: string) => {
+    setHistoryStack((prev) => [...prev, sections]);
     setSections(newSections);
-  };
-
-  const handleUpdateSectionConfig = (id: string, newConfig: Record<string, any>) => {
-    setSections((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              config: { ...(s.config || {}), ...newConfig },
-            }
-          : s
-      )
-    );
-  };
-
-  const handleDuplicateSection = (id: string) => {
-    const existing = sections.find((s) => s.id === id);
-    if (!existing) return;
-    const duplicated: StorefrontSection = {
-      ...existing,
-      id: `${existing.type}-${Date.now()}`,
-      config: { ...(existing.config || {}) },
-    };
-    const index = sections.findIndex((s) => s.id === id);
-    const newSections = [...sections];
-    newSections.splice(index + 1, 0, duplicated);
-    setSections(newSections);
-    setSelectedSectionId(duplicated.id);
-    toast.success(`Duplicated ${existing.type} section`);
-  };
-
-  // Cursor Drag-and-Drop Insert Handler for Preview Canvas
-  const handleInsertSectionAt = (index: number, type: string, customConfig?: any) => {
-    let cleanType = type;
-    if (cleanType.startsWith('primitive.button') || cleanType === 'button') {
-      cleanType = 'hero';
-      customConfig = { ...(customConfig || {}), ctaText: customConfig?.text || 'Explore Products' };
-    } else if (cleanType.startsWith('primitive.card') || cleanType === 'spotlight-card' || cleanType === 'bento-card') {
-      cleanType = 'bento-grid';
-    } else if (cleanType === 'marquee-ticker') {
-      cleanType = 'marquee';
+    if (reason) {
+      toast.success(reason);
     }
-
-    const newSection: StorefrontSection = {
-      id: `${cleanType}-${Date.now()}`,
-      type: cleanType as any,
-      variant: 'clean',
-      enabled: true,
-      config: customConfig ? { ...customConfig } : {},
-    };
-
-    setSections((prev) => {
-      const next = [...prev];
-      const insertIdx = Math.max(0, Math.min(index, next.length));
-      next.splice(insertIdx, 0, newSection);
-      return next;
-    });
-    setSelectedSectionId(newSection.id);
-    toast.success(`Added ${newSection.type.replace(/-/g, ' ')} block to canvas`);
   };
 
-  const handleBindWorkflow = (nodeId: string, workflowId: string) => {
-    setSections((prev) =>
-      prev.map((s) =>
-        s.id === nodeId
-          ? {
-              ...s,
-              props: { ...(s as any).props, workflowId },
-              config: { ...s.config, workflowId },
-            }
-          : s
-      )
-    );
-    toast.success('Interactive workflow bound to section');
+  // Undo last modification
+  const handleUndo = () => {
+    if (historyStack.length === 0) return;
+    const previous = historyStack[historyStack.length - 1];
+    setHistoryStack((prev) => prev.slice(0, prev.length - 1));
+    setSections(previous);
+    toast.success('↩️ Reverted storefront to previous snapshot');
   };
 
-  const handleApplyAssetToNode = (assetUrl: string) => {
-    if (!selectedSectionId) {
-      toast.error('Select a section in Design panel first to apply this image');
-      return;
+  // Theme selection handler
+  const handleThemeSelect = (themeId: ThemeId) => {
+    setSelectedThemeId(themeId);
+    const themeDef = THEME_REGISTRY[themeId];
+    if (themeDef) {
+      setOverrides((prev) => ({
+        ...prev,
+        primaryColor: themeDef.colors.primary,
+        accentColor: themeDef.colors.accent,
+        fontFamily: themeDef.typography.fontFamilyHeading,
+      }));
     }
-    setSections((prev) =>
-      prev.map((s) =>
-        s.id === selectedSectionId
-          ? {
-              ...s,
-              config: { ...s.config, imageUrl: assetUrl, heroImage: assetUrl },
-            }
-          : s
-      )
-    );
-    toast.success('Image applied to selected section preview!');
+    toast.success(`Theme updated to ${themeDef?.name || themeId}`);
+  };
+
+  // Overrides update handler
+  const handleUpdateOverrides = (newOverrides: Partial<MerchantThemeOverrides>) => {
+    setOverrides((prev) => ({ ...prev, ...newOverrides }));
+  };
+
+  // Refresh live preview
+  const handleRefreshPreview = () => {
+    refetchDraft();
+    queryClient.invalidateQueries({ queryKey: ['website'] });
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    toast.success('🔄 Live website preview refreshed');
   };
 
   // Draft Save Handler
@@ -451,10 +311,10 @@ export default function WebsiteBuilderPage() {
         activePageId: 'page_home',
         tokens: {
           colors: {
-            primary: overrides.primaryColor || '#0F172A',
-            secondary: overrides.accentColor || '#16A34A',
-            background: '#ffffff',
-            text: '#111827',
+            primary: overrides.primaryColor || '#0052FF',
+            secondary: overrides.accentColor || '#EA580C',
+            background: overrides.backgroundColor || '#ffffff',
+            text: overrides.textColor || '#0F172A',
           },
           typography: {
             fontFamily: overrides.fontFamily || 'Inter, sans-serif',
@@ -469,7 +329,7 @@ export default function WebsiteBuilderPage() {
         await builderApi.saveDraft(draftPayload);
         saved = true;
       } catch (builderErr) {
-        console.warn('Builder draft endpoint warning, falling back to /website:', builderErr);
+        console.warn('Builder draft endpoint warning, syncing via /website:', builderErr);
       }
 
       try {
@@ -488,9 +348,8 @@ export default function WebsiteBuilderPage() {
       posthog.capture('storefront_draft_saved', {
         theme: selectedThemeId,
         section_count: sections.length,
-        workflow_count: workflows.length,
       });
-      toast.success('Working draft saved safely');
+      toast.success('💾 Working draft saved safely');
       refetchDraft();
       queryClient.invalidateQueries({ queryKey: ['website'] });
     } catch (err: any) {
@@ -500,13 +359,13 @@ export default function WebsiteBuilderPage() {
     }
   };
 
-  // Publish Handler
+  // Publish Live Handler
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      // Ensure current state is saved as draft first
       await handleSaveDraft();
       let published = false;
+
       try {
         const res = await builderApi.publishDraft();
         setCurrentVersion(res.published_version);
@@ -525,11 +384,12 @@ export default function WebsiteBuilderPage() {
       }
 
       setIsPublished(true);
+      setShowPublishModal(false);
       posthog.capture('storefront_published', {
         theme: selectedThemeId,
         section_count: sections.length,
       });
-      toast.success('🎉 Store successfully published live!', {
+      toast.success('🎉 Storefront successfully published live!', {
         duration: 5000,
       });
       queryClient.invalidateQueries({ queryKey: ['website'] });
@@ -554,8 +414,8 @@ export default function WebsiteBuilderPage() {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-slate-50 text-slate-900 font-sans">
       {/* Top Cockpit Navigation Bar */}
-      <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-6 flex-shrink-0 shadow-xs z-30">
-        {/* Left Branding & Shop Name */}
+      <div className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 sm:gap-6 flex-shrink-0 shadow-xs z-30">
+        {/* Left Branding & Shop Info */}
         <div className="flex items-center gap-3 min-w-0">
           {outletContext.setSidebarOpen && (
             <button
@@ -568,15 +428,17 @@ export default function WebsiteBuilderPage() {
               <Menu size={18} />
             </button>
           )}
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white flex items-center justify-center font-black text-sm shadow-sm shadow-orange-500/25 flex-shrink-0 ring-1 ring-orange-400/30">
+
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-xs shadow-blue-500/25 flex-shrink-0">
             FS
           </div>
+
           <div className="min-w-0">
             <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[110px] xs:max-w-[150px] sm:max-w-[220px] md:max-w-xs">
-                {shopName || user?.business_name || user?.name || 'Himmat'}
+              <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-[220px]">
+                {shopName || user?.business_name || 'My Store'}
               </h1>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-200/90 tracking-wide shadow-2xs">
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200/80 tracking-wide">
                 Theme: <span className="font-extrabold">{activeThemeDef.name}</span>
               </span>
               <span className="hidden md:inline-flex text-[11px] font-mono font-semibold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
@@ -586,126 +448,138 @@ export default function WebsiteBuilderPage() {
           </div>
         </div>
 
-        {/* Center: Mobile Segmented Mode Switcher (Editor vs Preview) */}
+        {/* Center: Mobile Segmented Switcher (AI Chat vs Live Preview) */}
         <div className="flex lg:hidden items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             type="button"
-            onClick={() => setMobileMode('controls')}
+            onClick={() => setMobileMode('chat')}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
-              mobileMode === 'controls'
-                ? 'bg-white text-orange-600 shadow-xs border border-orange-100'
+              mobileMode === 'chat'
+                ? 'bg-white text-blue-600 shadow-xs border border-blue-100'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Sliders size={13} />
-            <span>Editor</span>
+            <MessageSquare size={13} />
+            <span>AI Studio</span>
           </button>
           <button
             type="button"
             onClick={() => setMobileMode('preview')}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
               mobileMode === 'preview'
-                ? 'bg-white text-orange-600 shadow-xs border border-orange-100'
+                ? 'bg-white text-blue-600 shadow-xs border border-blue-100'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <Eye size={13} />
-            <span>Preview</span>
+            <span>Live Store</span>
           </button>
         </div>
 
-        {/* Desktop Device Switcher (Desktop/Tablet/Mobile Simulator) */}
+        {/* Center-Right: Desktop Device Simulator (Desktop / Tablet / Mobile) */}
         <div className="hidden lg:flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/90 shadow-2xs gap-1">
           <button
             type="button"
             onClick={() => setDeviceView('desktop')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
               deviceView === 'desktop'
                 ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
                 : 'text-slate-500 hover:text-slate-900 font-medium'
             }`}
           >
-            <Monitor size={14} className={deviceView === 'desktop' ? 'text-orange-600' : 'text-slate-400'} />
+            <Monitor size={14} className={deviceView === 'desktop' ? 'text-blue-600' : 'text-slate-400'} />
             <span>Desktop</span>
           </button>
           <button
             type="button"
             onClick={() => setDeviceView('tablet')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
               deviceView === 'tablet'
                 ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
                 : 'text-slate-500 hover:text-slate-900 font-medium'
             }`}
           >
-            <Tablet size={14} className={deviceView === 'tablet' ? 'text-orange-600' : 'text-slate-400'} />
+            <Tablet size={14} className={deviceView === 'tablet' ? 'text-blue-600' : 'text-slate-400'} />
             <span>Tablet (768px)</span>
           </button>
           <button
             type="button"
             onClick={() => setDeviceView('mobile')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
               deviceView === 'mobile'
                 ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold'
                 : 'text-slate-500 hover:text-slate-900 font-medium'
             }`}
           >
-            <Smartphone size={14} className={deviceView === 'mobile' ? 'text-orange-600' : 'text-slate-400'} />
+            <Smartphone size={14} className={deviceView === 'mobile' ? 'text-blue-600' : 'text-slate-400'} />
             <span>Mobile (375px)</span>
           </button>
         </div>
 
-        {/* Action Buttons: Versions, Save Draft, Publish Live */}
+        {/* Right Action Controls: Refresh, Connectors, Versions, Save Draft, Publish Live */}
         <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+          {/* Refresh Live Preview */}
+          <button
+            type="button"
+            onClick={handleRefreshPreview}
+            title="Refresh preview canvas"
+            className="p-2 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors cursor-pointer shadow-2xs"
+            aria-label="Refresh preview"
+          >
+            <RotateCcw size={14} />
+          </button>
+
+          {/* Compact Connectors Entry Point */}
+          <button
+            type="button"
+            onClick={() => setIsConnectorsOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 text-slate-700 transition-all cursor-pointer shadow-2xs"
+            title="Manage connected services: Google Sheets, WhatsApp, Payments"
+          >
+            <Link2 size={14} className="text-blue-600" />
+            <span className="hidden sm:inline">Connectors</span>
+          </button>
+
           {/* Version History Button */}
           <button
             type="button"
             onClick={() => setIsVersionModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 hover:text-orange-600 text-slate-700 transition-all cursor-pointer shadow-2xs"
+            className="hidden xl:flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all cursor-pointer shadow-2xs"
             title="View publication snapshots and rollback"
           >
             <History size={14} className="text-slate-500" />
-            <span className="hidden md:inline">Versions</span>
+            <span>Versions</span>
           </button>
-
-          {/* Website Settings Link */}
-          <Link
-            to="/website-settings"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 transition-all cursor-pointer shadow-2xs"
-            title="Configure Google search indexing, visibility & SEO metadata"
-          >
-            <Sliders size={14} className="text-slate-500" />
-            <span className="hidden md:inline">Settings</span>
-          </Link>
 
           {isPublished && (
             <a
               href={liveUrl}
               target="_blank"
               rel="noreferrer"
-              className="hidden xl:flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-2 rounded-xl transition-all shadow-2xs"
+              className="hidden 2xl:flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-2 rounded-xl transition-all shadow-2xs"
             >
               <ExternalLink size={13} /> Live Store
             </a>
           )}
 
-          {/* Save Draft Button (Orange / Clean Warm Style - NO BLACK!) */}
+          {/* Save Draft Button (Tactile Inward Physics) */}
           <button
             type="button"
             onClick={handleSaveDraft}
             disabled={savingDraft}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold border border-orange-200/90 bg-orange-50/70 hover:bg-orange-100 text-orange-700 rounded-xl shadow-2xs transition-all disabled:opacity-50 cursor-pointer active:scale-98"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-2xs transition-all disabled:opacity-50 cursor-pointer active:translate-y-0.5 active:scale-[0.985] active:shadow-inner"
           >
-            <Save size={14} className="text-orange-600" />
+            <Save size={14} className="text-slate-500" />
             <span className="hidden sm:inline">{savingDraft ? 'Saving Draft…' : 'Save Draft'}</span>
             <span className="sm:hidden">{savingDraft ? 'Saving…' : 'Save'}</span>
           </button>
 
-          {/* Publish Store Button (Emerald Green Primary) */}
+          {/* Publish Store Button (Tactile Emerald Primary) */}
           <button
             type="button"
             onClick={() => setShowPublishModal(true)}
             disabled={publishing}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl shadow-xs shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer active:scale-98"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl shadow-[0_2px_4px_rgba(16,185,129,0.16),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(16,185,129,0.24)] transition-all disabled:opacity-50 cursor-pointer active:translate-y-0.5 active:scale-[0.985] active:shadow-inner"
           >
             <Globe size={14} />
             <span>{publishing ? 'Publishing…' : 'Publish Live'}</span>
@@ -713,403 +587,138 @@ export default function WebsiteBuilderPage() {
         </div>
       </div>
 
-      {/* Main Studio Workspace (Left Panels + Live Canvas) */}
+      {/* Main Studio Workspace: EXACTLY TWO PRIMARY AREAS */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
-        {/* Desktop Left Navigation Icon Strip - Clean, Warm & Vibrant with Orange Accents, NO BLACK */}
-        <div className="hidden lg:flex w-[72px] bg-white border-r border-slate-200 flex-col items-center py-4 gap-3 flex-shrink-0 z-20 shadow-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('design')}
-            title="Design & Style"
-            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'design'
-                ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 ring-2 ring-orange-200'
-                : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/80'
-            }`}
-          >
-            <Palette size={18} />
-            <span className="text-[10px] font-bold">Design</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('logic')}
-            title="Logic & Declarative Workflows"
-            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'logic'
-                ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-200'
-                : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50/80'
-            }`}
-          >
-            <Zap size={18} />
-            <span className="text-[10px] font-bold">Logic</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('connections')}
-            title="Connections & Data"
-            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'connections'
-                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-200'
-                : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50/80'
-            }`}
-          >
-            <Link2 size={18} />
-            <span className="text-[10px] font-bold">Data</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('assets')}
-            title="Assets & Media"
-            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'assets'
-                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-200'
-                : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50/80'
-            }`}
-          >
-            <ImageIconLucide size={18} />
-            <span className="text-[10px] font-bold">Assets</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('ai')}
-            title="AI Storefront Generator"
-            className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'ai'
-                ? 'bg-[#0052FF] text-white shadow-md shadow-blue-500/20 ring-2 ring-blue-200'
-                : 'text-slate-600 hover:text-[#0052FF] hover:bg-blue-50/80'
-            }`}
-          >
-            <Wand2 size={18} />
-            <span className="text-[10px] font-bold">AI</span>
-          </button>
-
-          <div className="w-8 border-t border-slate-200 my-1" />
-
-          <Link
-            to="/website-settings"
-            title="Website & SEO Settings"
-            className="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          >
-            <Sliders size={18} />
-            <span className="text-[10px] font-bold">Settings</span>
-          </Link>
-        </div>
-
-        {/* Studio Controls Container */}
-        {/* On desktop: w-96 flex-shrink-0. On mobile (<lg): full width if mobileMode === 'controls', hidden if mobileMode === 'preview' */}
+        {/* AREA 1: FeraSetu AI Chat Studio */}
         <div
-          className={`flex-col h-full overflow-hidden z-10 bg-white border-r border-slate-200 ${
-            mobileMode === 'controls' ? 'flex w-full lg:w-96 flex-shrink-0' : 'hidden lg:flex lg:w-96 flex-shrink-0'
+          className={`flex-col h-full overflow-hidden z-20 bg-white ${
+            mobileMode === 'chat'
+              ? 'flex w-full lg:w-[420px] xl:w-[460px] flex-shrink-0'
+              : 'hidden lg:flex lg:w-[420px] xl:w-[460px] flex-shrink-0'
           }`}
         >
-          {/* Mobile Studio Category Tab Bar - Crisp White & Color Accents, NO BLACK */}
-          <div className="flex lg:hidden overflow-x-auto no-scrollbar items-center bg-white px-3 py-2.5 gap-2 flex-shrink-0 border-b border-slate-200 shadow-2xs">
-            {[
-              { id: 'design', label: 'Design & Style', icon: Palette, activeBg: 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs' },
-              { id: 'logic', label: 'Workflows', icon: Zap, activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs' },
-              { id: 'connections', label: 'Data', icon: Link2, activeBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs' },
-              { id: 'assets', label: 'Assets', icon: ImageIconLucide, activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs' },
-              { id: 'ai', label: 'AI Generator', icon: Wand2, activeBg: 'bg-[#0052FF] text-white shadow-xs' },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                    isActive
-                      ? tab.activeBg
-                      : 'text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80'
-                  }`}
-                >
-                  <Icon size={14} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Panel Content */}
-          <div className="flex-1 overflow-hidden min-h-0">
-            {activeTab === 'design' && (
-              <DesignPanel
-                selectedTheme={selectedThemeId}
-                onThemeSelect={handleThemeSelect}
-                primaryColor={overrides.primaryColor || activeThemeDef.colors.primary}
-                onColorChange={(col) => setOverrides((prev) => ({ ...prev, primaryColor: col }))}
-                fontFamily={overrides.fontFamily || activeThemeDef.typography.fontFamilyBody}
-                onFontChange={(font) => setOverrides((prev) => ({ ...prev, fontFamily: font }))}
-                sections={sections}
-                onAddSection={handleAddSection}
-                onRemoveSection={handleRemoveSection}
-                selectedNodeId={selectedSectionId}
-                onSelectNode={(id) => setSelectedSectionId(id)}
-                workflows={workflows}
-                onBindWorkflowToNode={handleBindWorkflow}
-                onReorderSections={handleReorderSections}
-                onUpdateSectionConfig={handleUpdateSectionConfig}
-                onDuplicateSection={handleDuplicateSection}
-              />
-            )}
-
-            {activeTab === 'logic' && (
-              <LogicPanel
-                workflows={workflows}
-                onUpdateWorkflows={(wfs) => setWorkflows(wfs)}
-              />
-            )}
-
-            {activeTab === 'connections' && (
-              <ConnectionsPanel
-                connections={connectionsData?.connections || []}
-                onRefreshConnections={refetchConnections}
-              />
-            )}
-
-            {activeTab === 'assets' && (
-              <AssetsPanel
-                selectedNodeId={selectedSectionId}
-                onApplyAssetToNode={handleApplyAssetToNode}
-              />
-            )}
-
-            {activeTab === 'ai' && (
-              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-white">
-                <WebsiteAIBuilder
-                  websiteId={websiteData?.id || 'new'}
-                  shopName={shopName || user?.business_name || 'My Store'}
-                  onApplied={(updatedWebsite: any) => {
-                    if (updatedWebsite.template && THEME_REGISTRY[updatedWebsite.template as ThemeId]) {
-                      setSelectedThemeId(updatedWebsite.template as ThemeId);
-                    }
-                    if (updatedWebsite.sections) {
-                      setSections(normalizeLegacySections(updatedWebsite.sections, updatedWebsite.name));
-                    }
-                    if (updatedWebsite.theme?.overrides) {
-                      setOverrides(updatedWebsite.theme.overrides);
-                    }
-                    toast.success('AI Website design applied!');
-                    setActiveTab('design');
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Bottom Quick-Action Bar */}
-          <div className="p-3 bg-white/95 border-t border-slate-200 flex items-center justify-between gap-3 lg:hidden flex-shrink-0 shadow-lg">
-            <button
-              type="button"
-              onClick={() => setMobileMode('preview')}
-              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-500/20 active:scale-98 transition-all"
-            >
-              <Eye size={16} />
-              <span>Preview Storefront</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={savingDraft}
-              className="h-12 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs border border-orange-200 active:scale-98 transition-all disabled:opacity-50"
-            >
-              <Save size={15} className="text-orange-600" />
-              <span>{savingDraft ? 'Saving…' : 'Save'}</span>
-            </button>
-          </div>
+          <StorefrontAiChat
+            shopName={shopName}
+            sections={sections}
+            onUpdateSections={handleUpdateSections}
+            selectedThemeId={selectedThemeId}
+            onThemeSelect={handleThemeSelect}
+            overrides={overrides}
+            onUpdateOverrides={handleUpdateOverrides}
+            onOpenConnectors={() => setIsConnectorsOpen(true)}
+            onUndoLastChange={handleUndo}
+            canUndo={historyStack.length > 0}
+            onSaveDraft={handleSaveDraft}
+          />
         </div>
 
-        {/* Live Canvas Viewport Container */}
-        {/* On desktop: flex-1 flex. On mobile (<lg): full width if mobileMode === 'preview', hidden if mobileMode === 'controls' */}
+        {/* AREA 2: Live Website Preview Canvas */}
         <div
-          className={`flex-1 h-full min-h-0 overflow-hidden bg-slate-100/90 dark:bg-slate-950/40 p-3 sm:p-5 md:p-6 lg:p-8 flex items-center justify-center relative ${
+          className={`flex-1 flex-col overflow-hidden bg-slate-100/70 ${
             mobileMode === 'preview' ? 'flex w-full' : 'hidden lg:flex'
           }`}
         >
-          {/* Fixed Storefront Preview Frame / Tab (fixed container, leaves balanced spacing) */}
-          <div
-            className={`bg-white dark:bg-slate-900 transition-all duration-300 flex flex-col h-full max-h-full shadow-2xl rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-800 ${
-              deviceView === 'desktop'
-                ? 'w-full max-w-6xl'
-                : deviceView === 'tablet'
-                ? 'w-[768px] max-w-full'
-                : 'w-[390px] max-w-full rounded-3xl border-2 border-slate-300/90 dark:border-slate-700 shadow-2xl'
-            }`}
-          >
-            {/* Live Storefront Renderer - Website scrolls smoothly inside fixed frame */}
-            <div className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative overscroll-contain select-auto">
+          {/* Framed Canvas Stage with Responsive Simulation */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 flex justify-center">
+            <div
+              className={`transition-all duration-300 bg-white rounded-2xl shadow-xl border border-slate-200/90 overflow-hidden flex flex-col ${
+                deviceView === 'desktop'
+                  ? 'w-full max-w-full'
+                  : deviceView === 'tablet'
+                  ? 'w-[768px] max-w-full'
+                  : 'w-[375px] max-w-full'
+              }`}
+              style={{
+                minHeight: '100%',
+              }}
+            >
               <TemplateRenderer
+                sections={sections}
+                products={activeProducts}
+                shopName={shopName}
+                shopLogo={logoUrl}
+                shopPhone={shopPhone}
                 theme={selectedThemeId}
                 themeId={selectedThemeId}
-                sections={sections}
-                isService={Boolean((user as any)?.is_service === 1 || (user as any)?.is_service === true || (user as any)?.business_type === 'service' || (user as any)?.category === 'coaching')}
-                businessType={((user as any)?.is_service === 1 || (user as any)?.business_type === 'service' || (user as any)?.category === 'coaching') ? 'service' : 'retail'}
-                shop={{
-                  id: user?.id || 'demo-shop',
-                  name: shopName || 'My Store',
-                  description: 'Welcome to our online store',
-                  phone: shopPhone || user?.phone || '',
-                  logo_url: logoUrl,
-                  is_service: (user as any)?.is_service,
-                  business_type: (user as any)?.business_type,
-                  category: (user as any)?.category,
-                }}
-                shopName={shopName || 'My Store'}
-                shopId={user?.id || 'demo-shop'}
-                shopPhone={shopPhone || user?.phone || ''}
-                shopLogo={logoUrl}
-                products={activeProducts}
+                overrides={overrides}
+                themeOverrides={overrides}
                 isPreview={true}
                 previewMode={true}
                 showPreviewBanner={false}
-                overrides={overrides}
-                themeOverrides={overrides}
-                onSelectSection={(secId) => {
-                  setSelectedSectionId(secId);
-                  setActiveTab('design');
-                  setMobileMode('controls');
-                }}
-                selectedSectionId={selectedSectionId}
-                onRemoveSection={(secId) => {
-                  handleRemoveSection(secId);
-                }}
-                onReorderSections={handleReorderSections}
-                onInsertSectionAt={handleInsertSectionAt}
-                onUpdateSectionConfig={handleUpdateSectionConfig}
-                onDuplicateSection={handleDuplicateSection}
               />
             </div>
-          </div>
-
-          {/* Floating Return Button for Mobile Preview */}
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 lg:hidden pointer-events-auto">
-            <button
-              type="button"
-              onClick={() => setMobileMode('controls')}
-              className="flex items-center gap-2 px-5 py-3 bg-slate-900/95 hover:bg-black text-white text-xs font-bold rounded-full shadow-2xl border border-slate-700/60 backdrop-blur-md active:scale-95 transition-all"
-            >
-              <Sliders size={14} className="text-blue-400" />
-              <span>Back to Editor Controls</span>
-            </button>
           </div>
         </div>
       </div>
 
-            {/* 🚀 Staging Pipeline & Deployment Confirmation Modal */}
+      {/* Compact Connectors Popover / Drawer */}
+      <CompactConnectorsPopover
+        isOpen={isConnectorsOpen}
+        onClose={() => setIsConnectorsOpen(false)}
+        connections={connectionsData?.connections || []}
+        onRefreshConnections={refetchConnections}
+      />
+
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+        onRollbackSuccess={handleRollbackComplete}
+        currentVersion={currentVersion}
+      />
+
+      {/* Publish Live Confirmation Modal */}
       {showPublishModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                  <Globe size={18} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Publish Storefront Changes</h3>
-                  <p className="text-xs text-slate-500 font-medium">Deploy draft modifications to production</p>
-                </div>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 flex flex-col gap-4 animate-scale-up">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
+              <Globe size={24} />
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Publish Storefront Live?
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Your approved changes will immediately go live to shoppers on your official store domain. All previous publications are safely stored in version history.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+              <p className="font-bold flex items-center gap-1.5 text-slate-900">
+                <Check size={14} className="text-emerald-600" />
+                Live Target URL:
+              </p>
+              <a
+                href={liveUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 font-semibold underline block mt-0.5 truncate"
+              >
+                {liveUrl}
+              </a>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowPublishModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-4">
-              {/* Staging Pipeline Progress */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-bold text-slate-600">
-                  <span>Staging Pipeline</span>
-                  <span className="text-emerald-700 font-bold">Ready for deployment</span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  <div className="h-1.5 rounded-full bg-emerald-600" />
-                  <div className="h-1.5 rounded-full bg-emerald-600" />
-                  <div className="h-1.5 rounded-full bg-emerald-600" />
-                  <div className="h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                </div>
-                <div className="flex justify-between text-[11px] text-slate-400 font-medium pt-0.5">
-                  <span>Draft Edit</span>
-                  <span>Auto-Saved</span>
-                  <span>Previewed</span>
-                  <span className="font-bold text-emerald-700">Deploy</span>
-                </div>
-              </div>
-
-              {/* Target & Component Details */}
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
-                <div className="flex items-center justify-between font-medium">
-                  <span className="text-slate-500">Live Production Target:</span>
-                  <span className="font-mono text-blue-600 font-bold truncate max-w-[220px]">{liveUrl}</span>
-                </div>
-                <div className="flex items-center justify-between font-medium">
-                  <span className="text-slate-500">Theme & Sections:</span>
-                  <span className="font-bold text-slate-900">{activeThemeDef.name} ({sections.length} active sections)</span>
-                </div>
-              </div>
-
-              {/* Review Pending Changes Summary */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-slate-900">Summary of Production Updates:</p>
-                <ul className="space-y-2 text-xs text-slate-600 font-medium">
-                  <li className="flex items-start gap-2">
-                    <Check size={15} className="text-emerald-600 mt-0.5 shrink-0" />
-                    <span><strong>Theme & Aesthetics:</strong> Primary brand token set to <span className="font-mono text-slate-800">{overrides.primaryColor || activeThemeDef.colors.primary}</span> with high-contrast human readability.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check size={15} className="text-emerald-600 mt-0.5 shrink-0" />
-                    <span><strong>Catalog Grounding:</strong> Synced with {activeProducts.length} live products and WhatsApp checkout direct integration.</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="p-3 bg-blue-50/60 rounded-xl text-xs text-blue-800 font-medium border border-blue-100">
-                Publishing will update your live storefront immediately with zero downtime. Shoppers can continue checkout uninterrupted.
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setShowPublishModal(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors"
-              >
-                Return to Studio
+                Cancel
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  setShowPublishModal(false);
-                  await handlePublish();
-                }}
                 disabled={publishing}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                onClick={handlePublish}
+                className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs disabled:opacity-50 cursor-pointer active:scale-98"
               >
-                <Globe size={14} />
-                <span>{publishing ? 'Deploying…' : 'Confirm & Deploy Live'}</span>
+                {publishing ? 'Publishing…' : 'Confirm & Publish Live'}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Version History & Rollback Modal */}
-      <VersionHistoryModal
-        isOpen={isVersionModalOpen}
-        onClose={() => setIsVersionModalOpen(false)}
-        onRollbackComplete={handleRollbackComplete}
-      />
     </div>
   );
 }

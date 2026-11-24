@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import {
   X,
   Plus,
@@ -56,6 +58,50 @@ export default function CartDrawer() {
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [isOrderCancelled, setIsOrderCancelled] = useState(false);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const handleCancelOrder = async () => {
+    if (!orderSuccess) return;
+    setIsCancellingOrder(true);
+    setCancelError(null);
+    try {
+      const rawApi = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+      const apiBase = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
+      const reason = cancelReason.trim() || 'Customer requested cancellation';
+      
+      if (orderSuccess.id.startsWith('ord_demo_')) {
+        setIsOrderCancelled(true);
+        setShowCancelPrompt(false);
+        toast.success('Your order has been cancelled successfully.');
+        return;
+      }
+
+      await axios.post(`${apiBase}/orders/public/${orderSuccess.id}/cancel`, {
+        customerPhone: orderSuccess.customerPhone || formData.customerPhone,
+        token: orderSuccess.trackingToken,
+        reason,
+      });
+      setIsOrderCancelled(true);
+      setShowCancelPrompt(false);
+      toast.success('Your order has been cancelled successfully.');
+    } catch (err: any) {
+      if (orderSuccess.id.startsWith('ord_demo_')) {
+        setIsOrderCancelled(true);
+        setShowCancelPrompt(false);
+        toast.success('Your order has been cancelled successfully.');
+        return;
+      }
+      const msg = err?.response?.data?.error || 'Unable to cancel order. Please contact shopkeeper.';
+      setCancelError(msg);
+      toast.error(msg);
+    } finally {
+      setIsCancellingOrder(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -169,69 +215,85 @@ export default function CartDrawer() {
           </div>
         )}
 
-        {/* Order Confirmed State */}
+        {/* Order Placed State */}
 
         {orderSuccess ? (
           <div className="flex-1 p-5 sm:p-6 flex flex-col items-center justify-start text-center overflow-y-auto">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 mt-2 shadow-inner">
-              <CheckCircle2 size={38} />
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 mt-2 shadow-inner ${
+              isOrderCancelled ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+            }`}>
+              {isOrderCancelled ? <AlertCircle size={38} /> : <CheckCircle2 size={38} />}
             </div>
             <h3 className="text-xl font-black text-slate-900 mb-1 tracking-tight">
-              {isService ? 'Booking Confirmed!' : 'Order Confirmed!'}
+              {isOrderCancelled
+                ? 'Order Cancelled'
+                : (isService ? 'Booking Placed!' : 'Order Placed!')}
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              {isService
-                ? `Thank you! Your session booking has been securely placed with ${shopName}.`
-                : 'Thank you! Your order has been securely placed with the store.'}
+              {isOrderCancelled
+                ? 'Your order has been cancelled. The shopkeeper has been notified.'
+                : (isService
+                    ? `Thank you! Your booking request has been placed with ${shopName}.`
+                    : 'Thank you! Your order has been placed with the store. The shopkeeper will confirm and prepare it shortly.')}
             </p>
 
             {/* Expected Next Step / Status Banner */}
-            <div className="w-full bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 mb-3 text-left flex items-start gap-2.5">
-              <Clock size={16} className="text-amber-700 flex-shrink-0 mt-0.5" />
+            <div className={`w-full rounded-lg px-3.5 py-2.5 mb-3 text-left flex items-start gap-2.5 border ${
+              isOrderCancelled
+                ? 'bg-rose-50 border-rose-200 text-rose-900'
+                : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}>
+              <Clock size={16} className={`flex-shrink-0 mt-0.5 ${isOrderCancelled ? 'text-rose-700' : 'text-amber-700'}`} />
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
-                  {isService ? 'Status: Pending Coach / Studio Confirmation' : 'Status: Pending Merchant Confirmation'}
+                <div className="text-[11px] font-bold uppercase tracking-wider">
+                  {isOrderCancelled
+                    ? 'Status: Cancelled'
+                    : (isService ? 'Status: Pending Coach / Studio Confirmation' : 'Status: Pending Shopkeeper Confirmation')}
                 </div>
-                <div className="text-[11px] text-amber-700 leading-snug">
-                  {isService
-                    ? 'The instructor or studio has received your booking and will confirm your batch timing.'
-                    : 'The merchant has received your order and will prepare it shortly.'}
+                <div className={`text-[11px] leading-snug ${isOrderCancelled ? 'text-rose-700' : 'text-amber-700'}`}>
+                  {isOrderCancelled
+                    ? 'No charges will be made. You can place a new order whenever you like.'
+                    : (isService
+                        ? 'The instructor or studio has received your booking and will confirm your batch timing.'
+                        : 'The shopkeeper has received your order and will confirm it shortly.')}
                 </div>
               </div>
             </div>
 
-            {/* OTP & Verification Banner */}
-            <div className="w-full bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
-              <div className="flex items-center gap-2 mb-1.5">
-                <ShieldCheck size={18} className="text-blue-700 flex-shrink-0" />
-                <span className="text-xs font-bold text-blue-950 uppercase tracking-wide">
-                  {isService ? 'Session Check-in / Booking Security Code' : 'Doorstep Delivery OTP / Handshake Code'}
-                </span>
-              </div>
-              {orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
-                <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-lg border border-blue-200 my-2">
-                  <span className="font-mono text-2xl font-black text-blue-900 tracking-widest">
-                    {orderSuccess.deliveryCode}
+            {/* OTP & Verification Banner - Only show if NOT cancelled */}
+            {!isOrderCancelled && (
+              <div className="w-full bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <ShieldCheck size={18} className="text-blue-700 flex-shrink-0" />
+                  <span className="text-xs font-bold text-blue-950 uppercase tracking-wide">
+                    {isService ? 'Session Check-in / Booking Security Code' : 'Doorstep Delivery OTP / Handshake Code'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(orderSuccess.deliveryCode);
-                      alert('Delivery code copied to clipboard!');
-                    }}
-                    className="text-xs font-bold text-blue-700 hover:text-blue-900 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
-                  >
-                    Copy Code
-                  </button>
                 </div>
-              )}
-              <p className="text-[11px] text-blue-800 leading-relaxed">
-                Please keep this code confidential and share it with the shopkeeper or delivery partner <span className="font-semibold">ONLY</span> when receiving your order to confirm delivery.
-              </p>
-            </div>
+                {orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
+                  <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-lg border border-blue-200 my-2">
+                    <span className="font-mono text-2xl font-black text-blue-900 tracking-widest">
+                      {orderSuccess.deliveryCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(orderSuccess.deliveryCode);
+                        toast.success('Delivery code copied to clipboard!');
+                      }}
+                      className="text-xs font-bold text-blue-700 hover:text-blue-900 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer"
+                    >
+                      Copy Code
+                    </button>
+                  </div>
+                )}
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  Please keep this code confidential and share it with the shopkeeper or delivery partner <span className="font-semibold">ONLY</span> when receiving your order to confirm delivery.
+                </p>
+              </div>
+            )}
 
             {/* Order Summary Card */}
-            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-left mb-5 space-y-2.5 text-xs">
+            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-left mb-4 space-y-2.5 text-xs">
               <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                 <span className="text-slate-500 font-medium">Order ID</span>
                 <span className="font-mono font-bold text-slate-900">{orderSuccess.id}</span>
@@ -240,7 +302,7 @@ export default function CartDrawer() {
                 <span className="text-slate-500 font-medium">Invoice Number</span>
                 <span className="font-mono font-bold text-slate-900">{orderSuccess.invoice}</span>
               </div>
-              {orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
+              {!isOrderCancelled && orderSuccess.deliveryCode && orderSuccess.deliveryCode !== 'N/A' && (
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                   <span className="text-slate-500 font-medium">Delivery Security Code</span>
                   <span className="font-mono font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded border border-emerald-200">
@@ -271,11 +333,63 @@ export default function CartDrawer() {
               )}
             </div>
 
+            {/* Cancel Order Action */}
+            {!isOrderCancelled && (
+              <div className="w-full mb-3">
+                {showCancelPrompt ? (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-left space-y-2.5">
+                    <div className="text-xs font-bold text-rose-900">
+                      Cancel This Order?
+                    </div>
+                    <p className="text-[11px] text-rose-700">
+                      Are you sure you want to cancel your order? This will immediately notify the shopkeeper.
+                    </p>
+                    <input
+                      type="text"
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="Reason for cancellation (optional)"
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-rose-200 rounded-lg text-slate-800 focus:outline-none"
+                    />
+                    {cancelError && (
+                      <p className="text-[11px] text-rose-700 font-semibold">{cancelError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={isCancellingOrder}
+                        onClick={handleCancelOrder}
+                        className="flex-1 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {isCancellingOrder ? 'Cancelling…' : 'Yes, Cancel Order'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCancelPrompt(false)}
+                        className="py-2 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                      >
+                        Keep Order
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelPrompt(true)}
+                    className="w-full py-2.5 px-3 rounded-lg border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <X size={14} />
+                    <span>Cancel My Order</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2 w-full mb-3">
               <button
                 type="button"
                 onClick={() => setShowInvoiceModal(true)}
-                className="py-2.5 px-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                className="py-2.5 px-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <FileText size={15} />
                 <span>View Invoice</span>
@@ -288,7 +402,7 @@ export default function CartDrawer() {
                   const apiBase = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
                   window.open(`${apiBase}/orders/public/${orderSuccess.id}/invoice/pdf?token=${encodeURIComponent(token)}`, '_blank');
                 }}
-                className="py-2.5 px-3 rounded-lg bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                className="py-2.5 px-3 rounded-lg bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
               >
                 <Download size={15} />
                 <span>Download PDF</span>
@@ -299,10 +413,12 @@ export default function CartDrawer() {
               type="button"
               onClick={() => {
                 clearOrderSuccess();
+                setIsOrderCancelled(false);
+                setShowCancelPrompt(false);
                 setCheckoutStep('cart');
                 closeCart();
               }}
-              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-lg transition-colors border border-slate-200"
+              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-lg transition-colors border border-slate-200 cursor-pointer"
             >
               Continue Shopping
             </button>

@@ -4,6 +4,7 @@
 // local-mock offline database, and display helpers.
 
 export const DEFAULT_BASE_DOMAIN = 'ferasetu.com';
+export const SUPPORTED_BASE_DOMAINS = ['ferasetu.com', 'ferasetu.store', 'fera-search.tech'];
 
 export interface StorefrontInput {
   shopName: string;
@@ -42,6 +43,7 @@ export const RESERVED_SUBDOMAINS = new Set([
   'cdn',
   'test',
   'demo',
+  'shops',
 ]);
 
 export const INDIA_STATE_CODES: Record<string, string> = {

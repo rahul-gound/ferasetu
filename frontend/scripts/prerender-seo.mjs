@@ -189,8 +189,8 @@ const coreRoutes = [
   {
     path: '/docs/inventory-locations',
     outPath: 'docs/inventory-locations/index.html',
-    title: 'Multi-Location Inventory & SKU Register — Documentation | FeraSetu',
-    description: 'Manage inventory across retail counters, backrooms, and central godowns. Prevent out-of-stock orders, scan EAN barcodes, and transfer stock with AI Sidekick.',
+    title: 'Multi-Location Inventory & SKU Register | Documentation · FeraSetu',
+    description: 'Manage inventory across retail counters and storage godowns. Prevent out-of-stock orders, scan EAN barcodes, and transfer stock with AI Sidekick.',
     canonical: `${BASE_URL}/docs/inventory-locations/`,
     lang: 'en'
   },
@@ -221,14 +221,14 @@ const coreRoutes = [
   {
     path: '/docs/sovereign-commerce-answers',
     outPath: 'docs/sovereign-commerce-answers/index.html',
-    title: 'FeraSetu Core Architecture & FAQs — Documentation | FeraSetu',
+    title: 'FeraSetu Core Architecture & FAQs | Documentation · FeraSetu',
     description: 'Authoritative answers to the 12 core questions about FeraSetu: architecture, 0% commission model, customer data sovereignty, order routing, and limitations.',
     canonical: `${BASE_URL}/docs/sovereign-commerce-answers/`,
     lang: 'en',
     faq: [
       {
         q: 'What is FeraSetu?',
-        a: 'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers, grocers, bodegas, boutiques, and artisans with 0% platform commission, direct bank settlement, and native WhatsApp ordering.'
+        a: 'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers and local grocers with 0% platform commission, direct bank settlement, and native WhatsApp ordering.'
       },
       {
         q: 'How does FeraSetu differ from online marketplaces?',
@@ -275,16 +275,16 @@ const coreRoutes = [
   {
     path: '/terms',
     outPath: 'terms/index.html',
-    title: 'Terms of Service — FeraSetu',
-    description: 'Rights and responsibilities for merchants using FeraSetu software, including storefronts, orders, billing, and data ownership.',
+    title: 'Terms of Service | FeraSetu',
+    description: 'Rights and responsibilities for merchants using FeraSetu software, covering storefront operations, billing, and merchant catalog ownership.',
     canonical: `${BASE_URL}/terms/`,
     lang: 'en'
   },
   {
     path: '/privacy',
     outPath: 'privacy/index.html',
-    title: 'Privacy Policy — FeraSetu',
-    description: 'Learn how FeraSetu collects, uses, protects, and manages personal data when you use FeraSetu services with transparency and security.',
+    title: 'Privacy Policy | FeraSetu',
+    description: 'Learn how FeraSetu collects and safeguards personal data when you use FeraSetu services with complete security and transparency.',
     canonical: `${BASE_URL}/privacy/`,
     lang: 'en'
   }
@@ -306,7 +306,7 @@ for (const file of langFiles) {
     localizedRoutes.push({
       path: `/${code}`,
       outPath: `${code}/index.html`,
-      title: titleMatch[1],
+      title: titleMatch[1].replace(/—/g, '·'),
       description: descMatch[1],
       canonical: `${BASE_URL}/${code}/`,
       lang: code

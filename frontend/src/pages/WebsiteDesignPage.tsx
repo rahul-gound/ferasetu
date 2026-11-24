@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getStorefrontUrl } from '../utils/canonicalHostname';
+import RetailStorefrontTemplate from '../storefront/templates/retail/RetailStorefrontTemplate';
 import api from '../services/api';
 
 interface ThemeItem {
@@ -26,6 +27,18 @@ interface ThemeItem {
 
 const CURATED_THEMES: ThemeItem[] = [
   {
+    id: 'retail',
+    name: 'Retail Storefront',
+    version: 'v3.0.0',
+    category: 'Indian Retail',
+    tagline: 'Modern local storefront with GSTIN verification & direct UPI rails',
+    description: 'Engineered for independent grocers, handlooms, apparel boutiques, and neighborhood electronics shops. Features 5 interconnected screens, pincode dispatch, and WhatsApp orders.',
+    badge: 'Stitch Design System',
+    tags: ['Hanken + Manrope', 'GSTIN Verified', 'WhatsApp 1-Tap', 'UPI Rails', 'Chest Sizing Specs'],
+    imageUrl: '/templates/retail/screen-1-retail-home.png',
+    isActive: true,
+  },
+  {
     id: 'atelier',
     name: 'Atelier',
     version: 'v2.4.1',
@@ -35,7 +48,6 @@ const CURATED_THEMES: ThemeItem[] = [
     badge: 'Editorial',
     tags: ['Editorial Spacing', 'Lookbook Ready', 'Hanken + Sans'],
     imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80',
-    isActive: true,
   },
   {
     id: 'market',
@@ -98,9 +110,13 @@ export default function WebsiteDesignPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [viewport, setViewport] = useState<'100%' | '768px' | '390px'>('100%');
-  const [activeThemeId, setActiveThemeId] = useState('atelier');
+  const [activeThemeId, setActiveThemeId] = useState('retail');
   const [selectedDirection, setSelectedDirection] = useState<number | null>(1);
   const [aiCopilotNotice, setAiCopilotNotice] = useState<string | null>(null);
+
+  const activeThemeItem = useMemo(() => {
+    return CURATED_THEMES.find(t => t.id === activeThemeId) || CURATED_THEMES[0];
+  }, [activeThemeId]);
 
   const storeUrl = useMemo(() => getStorefrontUrl(user), [user]);
   const businessName = user?.business_name || (user as any)?.name || 'Himmat Crafts & Goods';
@@ -201,7 +217,7 @@ export default function WebsiteDesignPage() {
             href={storeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-10 px-3.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/90 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+            className="h-10 px-3.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/90 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-[0_2px_0_0_#cbd5e1,0_1px_3px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner transition-all"
           >
             <span>Preview Storefront</span>
             <ExternalLink size={13} className="text-slate-400" />
@@ -209,7 +225,7 @@ export default function WebsiteDesignPage() {
 
           <Link
             to="/website-builder"
-            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs transition-colors"
+            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-[0_3px_0_0_#003bb5,0_6px_14px_rgba(0,82,255,0.24)] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_0_0_#003bb5] transition-all"
           >
             <Brush size={14} />
             <span>Customize Design</span>
@@ -285,121 +301,137 @@ export default function WebsiteDesignPage() {
                 style={{ width: viewport, maxWidth: '100%' }}
                 className="transition-all duration-300 ease-out bg-white shadow-md rounded-xl overflow-hidden flex flex-col border border-slate-200"
               >
-                {/* Store Header inside Mock */}
-                <header className="px-5 py-3.5 bg-white flex items-center justify-between border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-                      {initial}
-                    </div>
-                    <div>
-                      <p className="font-extrabold text-xs text-slate-900 tracking-tight uppercase">
-                        {businessName}
-                      </p>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
-                        Home & Goods Atelier
-                      </p>
-                    </div>
-                  </div>
-                  <nav className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-600">
-                    <span className="text-slate-900 font-bold">Catalog</span>
-                    <span>Essentials</span>
-                    <span>Story</span>
-                  </nav>
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <button type="button" className="p-1 hover:bg-slate-50 rounded">
-                      <Search size={14} />
-                    </button>
-                    <div className="relative p-1 hover:bg-slate-50 rounded">
-                      <ShoppingBag size={14} />
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
-                        2
-                      </span>
-                    </div>
-                  </div>
-                </header>
-
-                {/* Store Hero Banner inside Mock */}
-                <div className="p-5 sm:p-6 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-100">
-                  <div className="max-w-xs space-y-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-orange-700 bg-orange-100 px-2 py-0.5 rounded-md inline-block">
-                      Local Merchant Edition • 2026
-                    </span>
-                    <h2 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug">
-                      Handcrafted essentials direct from our local store.
-                    </h2>
-                    <p className="text-xs text-slate-600 font-medium">
-                      0% aggregator markup. Delivered directly with care.
-                    </p>
-                    <div className="pt-1 flex items-center gap-2">
-                      <span className="px-3 py-1.5 bg-slate-900 text-white font-bold text-xs rounded-lg shadow-xs">
-                        Explore Collection
-                      </span>
-                    </div>
-                  </div>
-                  <div className="w-full sm:w-44 h-32 rounded-xl overflow-hidden bg-slate-200 shrink-0">
-                    <img
-                      src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=400&q=80"
-                      alt="Artisan tableware"
-                      className="w-full h-full object-cover"
+                {/* Signature Retail Storefront vs Generic Theme View */}
+                {activeThemeId === 'retail' ? (
+                  <div className="w-full">
+                    <RetailStorefrontTemplate
+                      products={products.length > 0 ? products : undefined}
+                      shopName={businessName}
+                      shopPhone={user?.phone || '919876543210'}
+                      shopLogo={user?.logo_url}
+                      currencySymbol="₹"
+                      isPreview={true}
                     />
                   </div>
-                </div>
-
-                {/* Products Row inside Mock */}
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-                        Curated Essentials
-                      </h3>
-                      <p className="text-[11px] text-slate-500 font-medium">Direct store catalog</p>
-                    </div>
-                    <span className="text-xs font-bold text-blue-700">View All Items</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {previewProducts.map((p, idx) => (
-                      <div key={p.id || idx} className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex flex-col justify-between">
-                        <div>
-                          <div className="h-24 rounded-lg bg-slate-200 overflow-hidden relative mb-2">
-                            <img
-                              src={
-                                idx === 0
-                                  ? 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=300&q=80'
-                                  : idx === 1
-                                  ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=300&q=80'
-                                  : 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=300&q=80'
-                              }
-                              alt={p.name}
-                              className="w-full h-full object-cover"
-                            />
-                            {p.badge && (
-                              <span className="absolute top-1.5 right-1.5 bg-white/95 text-slate-900 px-1.5 py-0.5 rounded text-[9px] font-bold shadow-xs">
-                                {p.badge}
-                              </span>
-                            )}
-                          </div>
-                          <p className="font-bold text-xs text-slate-900 truncate">{p.name}</p>
-                          <p className="text-[10px] text-slate-500 font-medium">{p.category || 'Retail'}</p>
+                ) : (
+                  <>
+                    {/* Store Header inside Mock */}
+                    <header className="px-5 py-3.5 bg-white flex items-center justify-between border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+                          {initial}
                         </div>
-                        <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                          <span className="font-black text-xs text-slate-900 tabular-nums">
-                            ₹{Number(p.price || 0).toLocaleString('en-IN')}
-                          </span>
-                          <span className="px-2 py-0.5 bg-white border border-slate-200 text-slate-800 rounded text-[10px] font-bold shadow-2xs">
-                            Add
+                        <div>
+                          <p className="font-extrabold text-xs text-slate-900 tracking-tight uppercase">
+                            {businessName}
+                          </p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
+                            Home & Goods Atelier
+                          </p>
+                        </div>
+                      </div>
+                      <nav className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-600">
+                        <span className="text-slate-900 font-bold">Catalog</span>
+                        <span>Essentials</span>
+                        <span>Story</span>
+                      </nav>
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <button type="button" className="p-1 hover:bg-slate-50 rounded">
+                          <Search size={14} />
+                        </button>
+                        <div className="relative p-1 hover:bg-slate-50 rounded">
+                          <ShoppingBag size={14} />
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
+                            2
                           </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </header>
 
-                {/* Footer inside Mock */}
-                <footer className="mt-auto px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-                  <span>© {businessName}</span>
-                  <span className="font-bold text-slate-700">Powered by FeraSetu Merchant Cloud</span>
-                </footer>
+                    {/* Store Hero Banner inside Mock */}
+                    <div className="p-5 sm:p-6 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-100">
+                      <div className="max-w-xs space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-orange-700 bg-orange-100 px-2 py-0.5 rounded-md inline-block">
+                          Local Merchant Edition • 2026
+                        </span>
+                        <h2 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug">
+                          Handcrafted essentials direct from our local store.
+                        </h2>
+                        <p className="text-xs text-slate-600 font-medium">
+                          0% aggregator markup. Delivered directly with care.
+                        </p>
+                        <div className="pt-1 flex items-center gap-2">
+                          <span className="px-3 py-1.5 bg-slate-900 text-white font-bold text-xs rounded-lg shadow-xs">
+                            Explore Collection
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-44 h-32 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+                        <img
+                          src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=400&q=80"
+                          alt="Artisan tableware"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Products Row inside Mock */}
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                            Curated Essentials
+                          </h3>
+                          <p className="text-[11px] text-slate-500 font-medium">Direct store catalog</p>
+                        </div>
+                        <span className="text-xs font-bold text-blue-700">View All Items</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {previewProducts.map((p, idx) => (
+                          <div key={p.id || idx} className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex flex-col justify-between">
+                            <div>
+                              <div className="h-24 rounded-lg bg-slate-200 overflow-hidden relative mb-2">
+                                <img
+                                  src={
+                                    idx === 0
+                                      ? 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=300&q=80'
+                                      : idx === 1
+                                      ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=300&q=80'
+                                      : 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=300&q=80'
+                                  }
+                                  alt={p.name}
+                                  className="w-full h-full object-cover"
+                                />
+                                {p.badge && (
+                                  <span className="absolute top-1.5 right-1.5 bg-white/95 text-slate-900 px-1.5 py-0.5 rounded text-[9px] font-bold shadow-xs">
+                                    {p.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="font-bold text-xs text-slate-900 truncate">{p.name}</p>
+                              <p className="text-[10px] text-slate-500 font-medium">{p.category || 'Retail'}</p>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                              <span className="font-black text-xs text-slate-900 tabular-nums">
+                                ₹{Number(p.price || 0).toLocaleString('en-IN')}
+                              </span>
+                              <span className="px-2 py-0.5 bg-white border border-slate-200 text-slate-800 rounded text-[10px] font-bold shadow-2xs">
+                                Add
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Footer inside Mock */}
+                    <footer className="mt-auto px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+                      <span>© {businessName}</span>
+                      <span className="font-bold text-slate-700">Powered by FeraSetu Merchant Cloud</span>
+                    </footer>
+                  </>
+                )}
               </div>
             </div>
 
@@ -417,7 +449,7 @@ export default function WebsiteDesignPage() {
               <div className="flex items-center gap-2">
                 <Link
                   to="/website-builder"
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-[0_3px_0_0_#003bb5,0_4px_10px_rgba(0,82,255,0.2)] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_0_0_#003bb5] flex items-center gap-1.5"
                 >
                   <Brush size={13} />
                   <span>Open Studio Editor</span>
@@ -436,8 +468,8 @@ export default function WebsiteDesignPage() {
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Store Theme</span>
-                <h3 className="text-xl font-extrabold text-slate-900 mt-0.5">Atelier</h3>
-                <p className="text-xs text-slate-500 font-medium">v2.4.1 • Curated editorial layout for craft merchants</p>
+                <h3 className="text-xl font-extrabold text-slate-900 mt-0.5">{activeThemeItem.name}</h3>
+                <p className="text-xs text-slate-500 font-medium">{activeThemeItem.version} • {activeThemeItem.tagline}</p>
               </div>
               <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-lg text-xs font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
@@ -638,10 +670,10 @@ export default function WebsiteDesignPage() {
                     <button
                       type="button"
                       onClick={() => handleApplyTheme(theme)}
-                      className={`flex-1 h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`flex-1 h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         isCurrentlyActive
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-[0_3px_0_0_#003bb5,0_6px_14px_rgba(0,82,255,0.24)] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] active:shadow-[0_1px_0_0_#003bb5]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800 shadow-[0_2px_0_0_#cbd5e1] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985]'
                       }`}
                     >
                       <span>{isCurrentlyActive ? 'Customize Active' : 'Apply Theme'}</span>

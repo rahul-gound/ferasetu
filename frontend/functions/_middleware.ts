@@ -157,7 +157,7 @@ const ROUTE_REGISTRY: Record<string, RouteMeta> = {
     faqs: [
       {
         q: 'What is FeraSetu?',
-        a: 'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers, grocers, bodegas, boutiques, and artisans with 0% platform commission, direct bank settlement, and native WhatsApp ordering.',
+        a: 'FeraSetu (फेरासेतु) is sovereign digital commerce infrastructure for independent retail shopkeepers and local grocers with 0% platform commission, direct bank settlement, and native WhatsApp ordering.',
       },
       {
         q: 'How does FeraSetu differ from online marketplaces?',

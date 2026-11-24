@@ -876,7 +876,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
               type="button"
 
-              onClick={() => navigate('/platform-sites')}
+              onClick={() => navigate('/admin/platform-sites')}
 
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#0052FF] bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200/60 transition-colors cursor-pointer"
 
@@ -1205,28 +1205,16 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         {/* Top header - hidden when merchant is on website builder tab to maximize canvas */}
 
         {!isWebsiteBuilder && (
-
-          <header className="sticky top-0 z-30 flex h-[64px] shrink-0 items-center justify-between gap-3 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-4 sm:px-5 shadow-xs backdrop-blur lg:px-6">
-
+          <header className="sticky top-0 z-30 flex h-[64px] w-full max-w-full overflow-hidden shrink-0 items-center justify-between gap-2 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-3 sm:px-5 shadow-xs backdrop-blur lg:px-6">
             {/* Left: Mobile hamburger & Live Store Pill */}
-
-            <div className="flex items-center gap-2.5 min-w-0">
-
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
               <button
-
                 onClick={() => setSidebarOpen(true)}
-
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5EAF1] text-[#667085] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] md:hidden shrink-0 cursor-pointer"
-
               aria-label={translate('nav.openMenu')}
-
             >
-
               <Menu size={18} aria-hidden="true" />
-
             </button>
-
-
 
             {/* Live Storefront Access Pill */}
             {storeSubdomain && (
@@ -1260,7 +1248,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             )}
           </div>
 
-          {/* Search bar with Ctrl+K shortcut */}
+          {/* Search bar with Ctrl+K shortcut - visible on tablet and desktop */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1268,7 +1256,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
               }
             }}
-            className="flex-1 max-w-xs md:max-w-sm flex items-center gap-2 bg-[#F6F8FC] px-4 py-2 rounded-full text-[#667085] text-xs sm:text-sm border border-[#E5EAF1] focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all shrink min-w-0"
+            className="hidden md:flex flex-1 max-w-xs md:max-w-sm items-center gap-2 bg-[#F6F8FC] px-4 py-2 rounded-full text-[#667085] text-xs sm:text-sm border border-[#E5EAF1] focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all shrink min-w-0"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-400">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>

@@ -192,19 +192,28 @@ function AppRoutes() {
   const { user } = useAuth();
   const hostname = window.location.hostname;
 
-  const platformDomains = ['ferasetu.com', 'fera-search.tech'];
-  const isLocalOrPreview = hostname === 'localhost' || hostname.includes('127.0.0.1') || hostname.includes('app.github.dev');
+  const platformDomains = ['ferasetu.com', 'ferasetu.store', 'fera-search.tech'];
+  const isBareLocal = hostname === 'localhost' || hostname.includes('127.0.0.1') || hostname.includes('app.github.dev');
+  
+  // Check if hostname is a local subdomain (e.g. sharma-kirana.localhost)
+  const isLocalSubdomain = hostname.endsWith('.localhost') && hostname !== 'localhost';
   
   // Check if hostname ends with any of our platform domains but is not the root domain itself
   const matchingDomain = platformDomains.find(domain => 
     hostname.endsWith(`.${domain}`) && hostname !== domain
   );
-  const potentialSubdomain = matchingDomain
-    ? hostname.slice(0, -(matchingDomain.length + 1)).toLowerCase()
-    : null;
-  const isReserved = potentialSubdomain ? RESERVED_SUBDOMAINS.has(potentialSubdomain) : false;
+  
+  let potentialSubdomain: string | null = null;
+  if (matchingDomain) {
+    potentialSubdomain = hostname.slice(0, -(matchingDomain.length + 1)).toLowerCase();
+  } else if (isLocalSubdomain) {
+    potentialSubdomain = hostname.slice(0, -'.localhost'.length).toLowerCase();
+  }
 
-  const isShopSubdomain = Boolean(potentialSubdomain && !isReserved && !isLocalOrPreview);
+  const isReserved = potentialSubdomain ? RESERVED_SUBDOMAINS.has(potentialSubdomain) : false;
+  const isCustomDomain = !matchingDomain && !isBareLocal && !isLocalSubdomain && !hostname.includes('ferasetu');
+
+  const isShopSubdomain = Boolean((potentialSubdomain && !isReserved) || isCustomDomain);
 
   if (isShopSubdomain) {
     return (
@@ -246,6 +255,7 @@ function AppRoutes() {
           <Route path="/website-builder/settings" element={<WebsiteSettingsPage />} />
           <Route path="/website-design" element={<WebsiteDesignPage />} />
           <Route path="/website-and-design" element={<WebsiteDesignPage />} />
+          <Route path="/website/design" element={<Navigate to="/website-design" replace />} />
           <Route path="/domains" element={<DomainsPage />} />
           <Route path="/marketing-and-seo" element={<MarketingSeoPage />} />
           <Route path="/marketing-seo" element={<Navigate to="/marketing-and-seo" replace />} />
@@ -324,26 +334,29 @@ function AppRoutes() {
           <Route path="qa/runs/:runId" element={<AdminQARunDetailPage />} />
           <Route path="qa/issues/:issueId" element={<AdminQAIssueDetailPage />} />
           <Route path="qa/sandbox" element={<AdminQASandboxPage />} />
-          <Route path="platform-sites" element={<Navigate to="/platform-sites" replace />} />
-          <Route path="platform-sites/*" element={<Navigate to="/platform-sites" replace />} />
+
+          {/* Platform Sites — Internal Infrastructure & AI Website Management under /admin/platform-sites */}
+          <Route path="platform-sites" element={<PlatformSitesRouteGuard><PlatformSitesLayout /></PlatformSitesRouteGuard>}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<PlatformSitesOverview />} />
+            <Route path="websites" element={<PlatformSitesList />} />
+            <Route path="websites/:siteId/*" element={<PlatformSiteDetailPage />} />
+            <Route path="deployments" element={<PlatformDeploymentsList />} />
+            <Route path="domains" element={<PlatformDomainsRegistry />} />
+            <Route path="ai-studio" element={<PlatformAiStudio />} />
+            <Route path="usage" element={<PlatformUsageAnalytics />} />
+            <Route path="integrations" element={<PlatformIntegrations />} />
+            <Route path="activity" element={<PlatformAuditLogView />} />
+            <Route path="settings" element={<PlatformSitesSettings />} />
+            <Route path="*" element={<Navigate to="overview" replace />} />
+          </Route>
+
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Route>
 
-        {/* Platform Sites — Internal Infrastructure & AI Website Management */}
-        <Route path="/platform-sites" element={<PlatformSitesRouteGuard><PlatformSitesLayout /></PlatformSitesRouteGuard>}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<PlatformSitesOverview />} />
-          <Route path="websites" element={<PlatformSitesList />} />
-          <Route path="websites/:siteId/*" element={<PlatformSiteDetailPage />} />
-          <Route path="deployments" element={<PlatformDeploymentsList />} />
-          <Route path="domains" element={<PlatformDomainsRegistry />} />
-          <Route path="ai-studio" element={<PlatformAiStudio />} />
-          <Route path="usage" element={<PlatformUsageAnalytics />} />
-          <Route path="integrations" element={<PlatformIntegrations />} />
-          <Route path="activity" element={<PlatformAuditLogView />} />
-          <Route path="settings" element={<PlatformSitesSettings />} />
-          <Route path="*" element={<Navigate to="overview" replace />} />
-        </Route>
+        {/* Legacy /platform-sites redirecting to /admin/platform-sites */}
+        <Route path="/platform-sites" element={<Navigate to="/admin/platform-sites" replace />} />
+        <Route path="/platform-sites/*" element={<Navigate to="/admin/platform-sites" replace />} />
 
         {/* Legacy Regional & Default English Redirects to Canonical Clean URLs */}
         <Route path="/en" element={<Navigate to="/" replace />} />

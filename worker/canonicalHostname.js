@@ -11,6 +11,7 @@
 // - Supports Unicode/Indian-language transliteration & state abbreviations
 
 export const DEFAULT_BASE_DOMAIN = "ferasetu.com";
+export const SUPPORTED_BASE_DOMAINS = ["ferasetu.com", "ferasetu.store", "fera-search.tech"];
 
 export const RESERVED_SUBDOMAINS = new Set([
   "api",
@@ -32,6 +33,7 @@ export const RESERVED_SUBDOMAINS = new Set([
   "cdn",
   "test",
   "demo",
+  "shops",
 ]);
 
 /**

@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     { id: 'dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} strokeWidth={1.75} />, label: 'Overview' },
-    { id: 'platform-sites', path: '/platform-sites', icon: <Globe size={20} strokeWidth={1.75} />, label: 'Platform Sites' },
+    { id: 'platform-sites', path: '/admin/platform-sites', icon: <Globe size={20} strokeWidth={1.75} />, label: 'Platform Sites' },
     { id: 'qa', path: '/admin/qa', icon: <Activity size={20} strokeWidth={1.75} />, label: 'QA & Diagnostics' },
     { id: 'users', path: '/admin/users', icon: <Users size={20} strokeWidth={1.75} />, label: 'Partners' },
     { id: 'ai-credits', path: '/admin/ai-credits', icon: <Bot size={20} strokeWidth={1.75} />, label: 'AI Credits & Usage' },

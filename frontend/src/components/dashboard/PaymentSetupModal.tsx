@@ -389,7 +389,7 @@ export default function PaymentSetupModal({
             <button
               type="submit"
               disabled={isSubmitting || !canSave}
-              className="flex-1 min-h-[48px] inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-bold rounded-xl shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed"
+              className="flex-1 min-h-[48px] inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0052FF] hover:bg-blue-600 active:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none text-white text-sm font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed"
             >
               <span>{isSubmitting ? 'Saving…' : 'Save & Activate Direct Payments'}</span>
               <ArrowRight size={15} />

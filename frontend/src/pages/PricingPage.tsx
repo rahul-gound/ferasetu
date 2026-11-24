@@ -97,8 +97,8 @@ export default function PricingPage() {
     : `Pricing — FeraSetu | ${config.trialDays}-Day Free Trial for Independent Businesses`;
 
   const pageDescription = isIndia
-    ? 'Start your online store for ₹0. Upgrade to Business (₹399/mo) or Pro (₹999/mo) as your catalog grows. Zero commissions, no hidden fees.'
-    : `Start your 14-day free trial on FeraSetu. ${config.symbol}${config.plans.business.monthly}/mo for Business, ${config.symbol}${config.plans.pro.monthly}/mo for Pro. Zero marketplace commissions and proactive AI assistance built-in.`;
+    ? 'Start your online store for ₹0. Upgrade to Pro (₹999/mo) or Business (₹399/mo) as your catalog grows. Zero commissions, no hidden fees.'
+    : `Start your 14-day free trial on FeraSetu. ${config.symbol}${config.plans.pro.monthly}/mo for Pro, ${config.symbol}${config.plans.business.monthly}/mo for Business. Zero marketplace commissions and proactive AI assistance built-in.`;
 
   const trustSignals = isIndia
     ? [
@@ -266,16 +266,11 @@ export default function PricingPage() {
           aria-label="Pricing plans"
           style={{
             padding: '0 24px 60px',
-            maxWidth: isIndia ? 1200 : 840,
+            maxWidth: 1200,
             margin: '0 auto'
           }}
         >
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
-            gap: 'clamp(16px, 2vw, 24px)',
-            alignItems: 'start',
-          }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {marketPlans.map(plan => (
               <PricingCard
                 key={plan.id}

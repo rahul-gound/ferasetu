@@ -177,7 +177,7 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => handleStart('hero_primary')}
-                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/20 shadow-[0_5px_0_0_#9A3412,0_10px_20px_rgba(234,88,12,0.3)] hover:shadow-[0_6px_0_0_#9A3412,0_14px_24px_rgba(234,88,12,0.4)] hover:-translate-y-0.5 active:translate-y-1.5 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/30 shadow-[0_4px_0_0_#8c2505,0_8px_18px_-2px_rgba(140,37,5,0.35),0_14px_28px_-4px_rgba(234,88,12,0.42),0_4px_8px_-1px_rgba(0,0,0,0.12)] hover:shadow-[0_6px_0_0_#8c2505,0_10px_22px_-2px_rgba(140,37,5,0.4),0_20px_36px_-4px_rgba(234,88,12,0.5),0_6px_12px_-2px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_1px_0_0_#8c2505,inset_0_3px_6px_rgba(0,0,0,0.36),0_2px_6px_rgba(0,0,0,0.12)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                   >
                     <span>Bring my business online</span>
                     <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
@@ -436,7 +436,7 @@ export default function LandingPage() {
                 previewPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl'
               }`}>
                 {previewPlans.map((plan) => {
-                  const isPopular = plan.id === 'business';
+                  const isPopular = plan.highlighted ?? (plan.id === 'pro');
                   const PlanIcon = plan.id === 'pro' ? Sparkles : plan.id === 'business' ? Zap : Store;
 
                   return (
@@ -582,7 +582,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => handleStart('final_cta')}
-                  className="group w-full sm:w-auto px-9 py-4 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/20 shadow-[0_5px_0_0_#9A3412,0_10px_22px_rgba(234,88,12,0.35)] hover:shadow-[0_6px_0_0_#9A3412,0_14px_26px_rgba(234,88,12,0.45)] hover:-translate-y-0.5 active:translate-y-1.5 active:shadow-[0_0px_0_0_#9A3412,inset_0_3px_6px_rgba(0,0,0,0.3)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                  className="group w-full sm:w-auto px-9 py-4 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/30 shadow-[0_4px_0_0_#8c2505,0_8px_18px_-2px_rgba(140,37,5,0.35),0_14px_28px_-4px_rgba(234,88,12,0.42),0_4px_8px_-1px_rgba(0,0,0,0.12)] hover:shadow-[0_6px_0_0_#8c2505,0_10px_22px_-2px_rgba(140,37,5,0.4),0_20px_36px_-4px_rgba(234,88,12,0.5),0_6px_12px_-2px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_1px_0_0_#8c2505,inset_0_3px_6px_rgba(0,0,0,0.36),0_2px_6px_rgba(0,0,0,0.12)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                 >
                   <span>Bring my business online</span>
                   <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />

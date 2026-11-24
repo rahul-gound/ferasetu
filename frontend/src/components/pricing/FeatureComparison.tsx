@@ -137,17 +137,25 @@ export default function FeatureComparison() {
                       <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600, color: '#334155' }}>
                         {row.feature}
                       </td>
-                      {isIndia && (
-                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                          <CellContent value={row.free} />
-                        </td>
-                      )}
-                      <td style={{ padding: '14px 16px', textAlign: 'center', background: 'rgba(255,107,53,0.03)' }}>
-                        <CellContent value={row.business ?? row.growth} />
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                        <CellContent value={row.pro} />
-                      </td>
+                      {plans.map(p => {
+                        const val = p.id === 'free'
+                          ? row.free
+                          : p.id === 'pro'
+                            ? row.pro
+                            : (row.business ?? row.growth);
+                        return (
+                          <td
+                            key={p.id}
+                            style={{
+                              padding: '14px 16px',
+                              textAlign: 'center',
+                              background: p.highlighted || p.id === 'pro' ? 'rgba(255,107,53,0.03)' : undefined,
+                            }}
+                          >
+                            <CellContent value={val} />
+                          </td>
+                        );
+                      })}
                     </>
                   )}
                 </tr>
