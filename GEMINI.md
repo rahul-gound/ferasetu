@@ -102,6 +102,22 @@ When the user shares a screenshot or photo of the UI:
 - **Merchant Dashboard Density:** Balance information density with comfort. Use compact density for order lists, inventory, and ledger tables; standard density for overview, settings, and product details; spacious density for onboarding and empty states.
 - **Anti-Pattern Prevention:** Never introduce arbitrary negative margins to patch broken layouts, never stack unexamined nested card padding, avoid layout clipping with fixed heights, and always use CSS logical properties (`margin-inline-start`, `padding-inline-end`) for RTL and international layout resilience.
 
+## 13. Mandatory Customer Loyalty & Emotional Connection Standard (Customer Loyalty & Emotional Connection Rulebook.md)
+- **Always Active:** Every agent and developer MUST strictly follow `Customer Loyalty & Emotional Connection Rulebook.md` (and `customer-loyalty-rulebook.md`) in the repository root for all product, brand, UX, support, onboarding, marketing, and customer-success tasks.
+- **The Non-Negotiable Principle:** FeraSetu must earn loyalty. It must never manufacture dependency. The customer is the hero; FeraSetu is the trusted infrastructure and guide. Never trap data, obscure cancellation, or penalize leaving.
+- **Four Loyalty Pillars:** Every interaction must strengthen Offer (solving real problems), Alignment (respecting merchant agency), Experience (clear, calm, dependable), or Bonding (recognized, supported relationship).
+- **Psychological Invariants:**
+  1. *Autonomy:* Merchant in control—plain-language settings, findable & fair cancellation/export, zero guilt or artificial urgency.
+  2. *Competence:* Manageable workflows, genuine verified milestones (never celebrate unverified events), actionable error recovery.
+  3. *Relatedness:* Context-aware support without repetitive questioning, warm respectful tone without faux-familiarity.
+  4. *Identity Alignment:* Portray merchants as capable owners, not helpless people rescued by AI; consistent sovereign commerce promise.
+  5. *Trust:* State all fees/terms before commitment; never invent testimonials, metrics, uptime, or AI capabilities; immediate honest incident communication.
+  6. *Experience Memory:* Thoughtfully design peak/end moments (first live store, first sale, issue resolution, clean exit).
+  7. *Belonging:* Authentic peer discussions and practical learning—never a disguised sales channel or fabricated activity.
+  8. *Fair Reciprocity:* Provide educational and operational value before asking for reviews, referrals, or upgrades.
+- **Strict Anti-Pattern Prohibitions:** Zero hidden cancellation, zero holding domains/data hostage, zero fake scarcity/countdowns, zero guilt-tripping copy ("Don't abandon us"), zero fake personalisation or pseudo-human bot messages, zero dark patterns, and zero emotional fluff masking broken functionality.
+
+
 
 
 
