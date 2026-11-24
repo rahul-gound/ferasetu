@@ -88,5 +88,12 @@ When the user shares a screenshot or photo of the UI:
 - **Flexbox Scroll Invariant:** All main workbench views and flex columns MUST specify `h-full min-h-0` on flex parents and `flex-1 min-h-0 overflow-y-auto` on scrollable content areas to prevent viewport clipping and guarantee vertical scrollability on pages like `/products`.
 - **Naming Invariant:** The visual builder is branded exclusively as **Website Builder** across navigation, headers, and documentation (not "Storefront Studio").
 
+## 11. Mandatory Typography Standard (typography.md)
+- **Always Active:** Every agent and developer MUST strictly follow `typography.md` in the repository root for all text styling, hierarchy, font weights, line heights, and typography tokens across FeraSetu.
+- **Five Priorities:** Legibility, Hierarchy, Consistency, Personality, Performance. Never sacrifice the first three for decorative styling.
+- **Deliberate Type Scale Tokens:** Display (56px/600), H1 (36px/600), H2 (28px/600), H3 (22px/600), H4 (18px/600), H5 (16px/600), H6 (14px/600), Body Large (18px/400), Body (16px/400), Body Small (14px/400), Caption (13px/400), Micro (12px/500). Never use 10px text in ordinary functional interfaces.
+- **Tabular Numerals Invariant:** Always apply tabular figures (`tabular-nums`) to prices, order counts, ledger entries, settlement balances, and quantitative metrics.
+- **Multilingual Glyph & Script Support:** Ensure proper line-height headroom and zero clipping across English and Indian scripts (Hindi, Marathi, Bengali, Gujarati, Tamil, Telugu, Kannada, Malayalam, Punjabi). Preserve correct Unicode character shaping without manual CSS letter-spacing deformation.
+
 
 
