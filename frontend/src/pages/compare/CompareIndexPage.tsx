@@ -81,13 +81,17 @@ export default function CompareIndexPage() {
                 className="p-8 rounded-xl bg-white border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all hover:shadow-md"
               >
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-5">
-                    <ComparisonVersusBadge slug={comp.slug} competitorName={comp.competitorName} size={36} />
-                    <span className="px-2.5 py-1 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600 uppercase tracking-wider shrink-0">
-                      {comp.competitorCategory}
-                    </span>
+                  <div className="mb-6">
+                    <div className="mb-3.5">
+                      <span className="inline-block px-2.5 py-1 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600 uppercase tracking-wider max-w-full truncate">
+                        {comp.competitorCategory}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <ComparisonVersusBadge slug={comp.slug} competitorName={comp.competitorName} size={42} />
+                    </div>
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-3">
+                  <h2 className="sr-only">
                     FeraSetu vs. {comp.competitorName}
                   </h2>
                   <p className="text-sm text-slate-600 leading-relaxed mb-6">
