@@ -531,7 +531,7 @@ export default function IntegrationsPage() {
         </header>
 
         {/* ── FERA AI INTEGRATION COMMAND CENTER BANNER ─────────────────────── */}
-        <section className="p-6 rounded-3xl bg-linear-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-xl relative overflow-hidden">
+        <section className="p-6 rounded-3xl bg-slate-900 bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 text-white shadow-xl relative overflow-hidden border border-slate-800">
           <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
             <Bot size={280} className="text-white" />
           </div>
