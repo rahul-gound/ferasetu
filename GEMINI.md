@@ -75,4 +75,12 @@ When the user shares a screenshot or photo of the UI:
 - **Browser Visual Verification:** ALWAYS invoke the `browser` subagent to visually inspect and verify the UI on running `http://localhost:5173` across desktop (`1440×900`) and mobile (`390×844`) viewports before clearing a release.
 - **Automatic Release Blockers:** An automatic FAIL occurs if fake testimonials, broken pricing/currencies, unreadable buttons, navigation dead ends, horizontal mobile overflows, or misleading claims are introduced. Never push code until all mandatory checks PASS.
 
+## 9. Mandatory UX Principles Standard (ux-principles.md)
+- **Always Active for Every UI Change:** Every agent and developer MUST follow `ux-principles.md` in the repository root for all UI/UX creation, editing, redesign, and review across FeraSetu.
+- **Navigation vs. Button Invariant:** Navigation bars, sidebar links, category filters, and horizontal sub-tabs are spatial wayfinding elements. They MUST NEVER be styled as 3D tactile buttons and MUST NOT follow `button.md`. They must be clean, rectangular or subtly rounded items with flat indicators (underlines, clean background tints), never floating 3D pills with depth shadows or active scale compressions.
+- **Zero Fake Data Invariant:** Never fabricate simulated metrics, fake traffic sources (e.g., "84% Mobile Web • 46% WhatsApp"), or placeholder customer numbers in empty states. State zero data honestly and provide actionable setup guidance.
+- **High Contrast & Calm Surfaces:** Maintain high-contrast text (`text-slate-900` / `text-slate-700`, WCAG 2.2 AA ≥4.5:1). Never render faint grey text on white surfaces, and avoid heavy, jarring pitch-black slabs (`bg-slate-900` / `#0A0F1D`) on light merchant workbenches.
+- **Accessible Modals:** Every modal dialog and popup MUST provide an explicit, accessible "X" close button in the top right corner in addition to `Esc` and "Cancel" actions.
+
+
 

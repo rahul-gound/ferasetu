@@ -164,6 +164,14 @@ export default function AddOrderModal({
 
   // Estimated gross profit & margin calculation
   const estimatedProfitInfo = useMemo(() => {
+    if (selectedItems.length === 0) {
+      return {
+        cost: 0,
+        profit: 0,
+        margin: 0,
+        isLoss: false
+      };
+    }
     let cost = 0;
     for (const it of selectedItems) {
       const prodCost = (it.product as any).cost_price != null && Number((it.product as any).cost_price) > 0
@@ -171,15 +179,15 @@ export default function AddOrderModal({
         : (it.price * 0.65);
       cost += prodCost * it.quantity;
     }
-    const profit = Math.round((totalAmount - cost) * 100) / 100;
-    const margin = totalAmount > 0 ? Math.round((profit / totalAmount) * 100) : 0;
+    const profit = Math.round((subtotal - cost) * 100) / 100;
+    const margin = subtotal > 0 ? Math.round((profit / subtotal) * 100) : 0;
     return {
       cost: Math.round(cost * 100) / 100,
       profit,
       margin,
       isLoss: profit < 0
     };
-  }, [selectedItems, totalAmount]);
+  }, [selectedItems, subtotal]);
 
   // Cart operations
   const handleAddItem = (product: Product) => {

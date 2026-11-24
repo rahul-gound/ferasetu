@@ -304,14 +304,16 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
               </div>
 
               {/* Segmented Channel Navigation */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-4 p-1.5 rounded-full bg-slate-200/80 text-xs font-semibold">
+              <div role="tablist" aria-label="Event channels" className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-4 p-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'feed'}
                   onClick={() => setActiveTab('feed')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                     activeTab === 'feed'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
                   <Bell size={14} className={activeTab === 'feed' ? 'text-[#0052FF]' : ''} />
@@ -319,11 +321,13 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'settlement'}
                   onClick={() => setActiveTab('settlement')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                     activeTab === 'settlement'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
                   <Building2 size={14} className={activeTab === 'settlement' ? 'text-emerald-600' : ''} />
@@ -331,11 +335,13 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'inventory'}
                   onClick={() => setActiveTab('inventory')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                     activeTab === 'inventory'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
                   <Package size={14} className={activeTab === 'inventory' ? 'text-amber-600' : ''} />
@@ -343,11 +349,13 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'suggestions'}
                   onClick={() => setActiveTab('suggestions')}
-                  className={`min-h-[38px] px-3.5 py-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.985] active:translate-y-0.5 ${
+                  className={`min-h-[38px] px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                     activeTab === 'suggestions'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
                   <TrendingUp size={14} className={activeTab === 'suggestions' ? 'text-[#EA580C]' : ''} />

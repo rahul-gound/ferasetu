@@ -347,7 +347,9 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Total Gross Sales</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px]">+14.2%</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px]">
+                {totalRecordedGross > 0 ? 'Verified' : '—'}
+              </span>
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums tracking-tight">
               ₹{totalRecordedGross.toLocaleString('en-IN')}
@@ -355,7 +357,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
             <span>Direct till volume</span>
-            <span className="text-emerald-700 font-semibold">100% kept</span>
+            <span className="text-emerald-700 font-semibold">100% kept (0% fee)</span>
           </div>
         </div>
 
@@ -364,7 +366,9 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Orders Received</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">+8.6%</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px]">
+                {totalInvoices > 0 ? `${totalInvoices} total` : '—'}
+              </span>
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums tracking-tight flex items-baseline gap-1.5">
               <span>{totalInvoices}</span>
@@ -372,8 +376,10 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Avg {Math.max(1, Math.round(totalInvoices / (period === '7d' ? 7 : 30)))} orders/day</span>
-            <span className="text-blue-700 font-semibold">Active</span>
+            <span>{totalInvoices > 0 ? `Avg ${Math.max(1, Math.round(totalInvoices / (period === '7d' ? 7 : 30)))} orders/day` : '0 orders/day'}</span>
+            <span className={totalInvoices > 0 ? "text-blue-700 font-semibold" : "text-slate-400 font-medium"}>
+              {totalInvoices > 0 ? 'Active' : 'No sales yet'}
+            </span>
           </div>
         </div>
 
@@ -382,15 +388,17 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Average Order Value</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px]">+5.2%</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px]">
+                {aov > 0 ? 'Calculated' : '—'}
+              </span>
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums tracking-tight">
               ₹{aov.toLocaleString('en-IN')}
             </div>
           </div>
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-amber-700 font-semibold">
-            <span>Retail basket healthy</span>
-            <Sparkles size={12} className="text-amber-500" />
+          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+            <span>{aov > 0 ? 'Retail basket healthy' : 'Awaiting first order'}</span>
+            {aov > 0 && <Sparkles size={12} className="text-amber-500" />}
           </div>
         </div>
 
@@ -399,7 +407,9 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Unique Shoppers</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px]">+18.4%</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px]">
+                {uniqueShoppers > 0 ? 'Active' : '—'}
+              </span>
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums tracking-tight flex items-baseline gap-1.5">
               <span>{uniqueShoppers}</span>
@@ -407,8 +417,8 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>71% via WhatsApp link</span>
-            <MessageSquare size={12} className="text-emerald-600" />
+            <span>{uniqueShoppers > 0 ? `${uniqueShoppers} verified buyers` : 'Direct WhatsApp & walk-in'}</span>
+            <MessageSquare size={12} className={uniqueShoppers > 0 ? "text-emerald-600" : "text-slate-400"} />
           </div>
         </div>
 
@@ -417,17 +427,17 @@ export default function AnalyticsPage() {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Store Conversion</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px]">
-                {verifiedVisitors ? `${conversionRate}%` : 'Not Configured'}
+              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px]">
+                {verifiedVisitors && verifiedVisitors > 0 ? `${conversionRate}%` : '—'}
               </span>
             </div>
             <div className="mt-2 text-2xl font-black text-slate-900 tabular-nums tracking-tight">
-              {verifiedVisitors ? `${conversionRate}%` : '—'}
+              {verifiedVisitors && verifiedVisitors > 0 ? `${conversionRate}%` : '—'}
             </div>
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>{verifiedVisitors ? `${verifiedVisitors} verified visits` : 'Visitor tracking not configured'}</span>
-            <CheckCircle2 size={12} className={verifiedVisitors ? "text-emerald-600" : "text-slate-400"} />
+            <span>{verifiedVisitors && verifiedVisitors > 0 ? `${verifiedVisitors} verified visits` : 'Visitor tracking not configured'}</span>
+            <CheckCircle2 size={12} className={verifiedVisitors && verifiedVisitors > 0 ? "text-emerald-600" : "text-slate-400"} />
           </div>
         </div>
       </div>
@@ -450,78 +460,157 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {/* Signal 1 */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 left-0 bottom-0 w-1 bg-amber-500" />
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px] flex items-center gap-1">
-                  <Clock size={11} /> Peak Evening Traffic
-                </span>
-                <span className="text-[10px] text-slate-400 font-semibold">8 PM – 10 PM</span>
+          {totalInvoices === 0 ? (
+            <>
+              {/* Empty Signal 1 */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-slate-300" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center gap-1">
+                      <Clock size={11} /> Traffic Cadence
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Awaiting Activity</span>
+                  </div>
+                  <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
+                    Peak Hour Analysis
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                    The Fera Kernel engine monitors store checkouts in real-time. Peak shopping hours and evening surge alerts will appear once initial store orders arrive.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>Share Storefront Link</span>
+                  <ArrowRight size={13} />
+                </div>
               </div>
-              <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
-                Mobile Evening Shopping Surge
-              </h3>
-              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
-                Shoppers predominantly browse catalog items after dinner hours. Keeping instant delivery active during evening hours maximizes conversions.
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
-              <span>Inspect Checkout Flow</span>
-              <ArrowRight size={13} />
-            </div>
-          </div>
 
-          {/* Signal 2 */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500" />
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px] flex items-center gap-1">
-                  <CheckCircle size={11} /> High Loyalty
-                </span>
-                <span className="text-[10px] text-slate-400 font-semibold">Customer Ledger</span>
+              {/* Empty Signal 2 */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-slate-300" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center gap-1">
+                      <CheckCircle size={11} /> Buyer Cohorts
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Customer Ledger</span>
+                  </div>
+                  <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
+                    Loyalty &amp; Retention Tracking
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                    Repeat customer basket size multipliers and neighborhood patron loyalty rates will be calculated as customers place orders through your store link.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+                  <Link to="/customers" className="flex items-center justify-between w-full">
+                    <span>View Customer Directory</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
               </div>
-              <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
-                Returning Patrons Drive Majority of Inflow
-              </h3>
-              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
-                Repeat neighborhood buyers purchase with <strong>2.4x larger average basket sizes</strong> compared to first-time visitors. Strong retention on pantry staples.
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
-              <Link to="/customers" className="flex items-center justify-between w-full">
-                <span>View Customer Cohorts</span>
-                <ArrowRight size={13} />
-              </Link>
-            </div>
-          </div>
 
-          {/* Signal 3 */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 left-0 bottom-0 w-1 bg-blue-500" />
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-bold text-[10px] flex items-center gap-1">
-                  <Package size={11} /> Volume Concentration
-                </span>
-                <span className="text-[10px] text-slate-400 font-semibold">Catalog Health</span>
+              {/* Empty Signal 3 */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-slate-300" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center gap-1">
+                      <Package size={11} /> Inventory Turnover
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Catalog Health</span>
+                  </div>
+                  <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
+                    Turnover Velocity Radar
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                    Fast-moving products and staple reorder alerts will surface automatically once products are ordered, preventing stock-outs before they happen.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+                  <Link to="/products" className="flex items-center justify-between w-full">
+                    <span>Manage Catalog</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
               </div>
-              <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
-                Core Grocery & Essentials Lead Turnover
-              </h3>
-              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
-                Top staple products anchor over 60% of daily ledger revenue. Maintaining replenishment turnaround ensures zero out-of-stock lost sales.
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
-              <Link to="/products" className="flex items-center justify-between w-full">
-                <span>Review Stock Limits</span>
-                <ArrowRight size={13} />
-              </Link>
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Signal 1 */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-amber-500" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px] flex items-center gap-1">
+                      <Clock size={11} /> Peak Evening Traffic
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">8 PM – 10 PM</span>
+                  </div>
+                  <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
+                    Mobile Evening Shopping Surge
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                    Shoppers predominantly browse catalog items after dinner hours. Keeping instant delivery active during evening hours maximizes conversions.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+                  <span>Inspect Checkout Flow</span>
+                  <ArrowRight size={13} />
+                </div>
+              </div>
+
+              {/* Signal 2 */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px] flex items-center gap-1">
+                      <CheckCircle size={11} /> High Loyalty
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Customer Ledger</span>
+                  </div>
+                  <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
+                    Returning Patrons Drive Majority of Inflow
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                    Repeat neighborhood buyers purchase with higher basket sizes compared to first-time visitors. Strong retention on pantry staples.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+                  <Link to="/customers" className="flex items-center justify-between w-full">
+                    <span>View Customer Cohorts</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Signal 3 */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 w-1 bg-blue-500" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-bold text-[10px] flex items-center gap-1">
+                      <Package size={11} /> Volume Concentration
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Catalog Health</span>
+                  </div>
+                  <h3 className="font-extrabold text-xs text-slate-900 leading-snug">
+                    Core Grocery &amp; Essentials Lead Turnover
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                    Top staple products anchor daily ledger revenue. Maintaining replenishment turnaround ensures zero out-of-stock lost sales.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700">
+                  <Link to="/products" className="flex items-center justify-between w-full">
+                    <span>Review Stock Limits</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -740,7 +829,7 @@ export default function AnalyticsPage() {
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">Where your customers discover your store</p>
               </div>
               <span className="text-xs font-bold text-slate-700 px-2.5 py-1 rounded-xl bg-slate-100">
-                84% Mobile Web
+                {verifiedVisitors && verifiedVisitors > 0 ? `${verifiedVisitors} visits` : 'Awaiting Traffic'}
               </span>
             </div>
 
@@ -756,8 +845,8 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs font-black text-slate-900">46%</div>
-                  <div className="text-[10px] text-slate-400 font-medium">Primary driver</div>
+                  <div className="text-xs font-black text-slate-900">{verifiedVisitors && verifiedVisitors > 0 ? 'Active' : '0 visits'}</div>
+                  <div className="text-[10px] text-slate-400 font-medium">Direct chats</div>
                 </div>
               </div>
 
@@ -772,7 +861,7 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs font-black text-slate-900">28%</div>
+                  <div className="text-xs font-black text-slate-900">Indexed</div>
                   <div className="text-[10px] text-slate-400 font-medium">Organic SEO</div>
                 </div>
               </div>
@@ -788,7 +877,7 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs font-black text-slate-900">18%</div>
+                  <div className="text-xs font-black text-slate-900">{verifiedVisitors && verifiedVisitors > 0 ? 'Active' : '0 visits'}</div>
                   <div className="text-[10px] text-slate-400 font-medium">Social traffic</div>
                 </div>
               </div>
@@ -804,8 +893,8 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs font-black text-slate-900">8%</div>
-                  <div className="text-[10px] text-slate-400 font-medium">Store till</div>
+                  <div className="text-xs font-black text-slate-900">{totalInvoices > 0 ? 'Active' : '0 scans'}</div>
+                  <div className="text-[10px] text-slate-400 font-medium">Store counter</div>
                 </div>
               </div>
             </div>

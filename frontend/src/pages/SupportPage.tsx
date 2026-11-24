@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle, User } from 'lucide-react';
+import { LifeBuoy, Plus, Send, MessageSquare, ChevronLeft, ChevronRight, MessageCircle, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
@@ -300,9 +300,26 @@ export default function SupportPage() {
 
       {/* New Ticket Modal */}
       {showNewModal && (
-        <div className="support-modal" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div className="support-modal-card max-h-[90vh] overflow-y-auto" style={{ background: '#fff', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 40px rgba(15,23,42,0.25)' }}>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1E293B', marginBottom: '24px' }}>How can we help?</h2>
+        <div
+          className="support-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="support-modal-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNewModal(false); }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+        >
+          <div className="support-modal-card max-h-[90vh] overflow-y-auto" style={{ background: '#fff', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 40px rgba(15,23,42,0.25)', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'between', marginBottom: '24px' }}>
+              <h2 id="support-modal-title" style={{ fontSize: '22px', fontWeight: 800, color: '#1E293B', margin: 0, flex: 1 }}>How can we help?</h2>
+              <button
+                type="button"
+                onClick={() => setShowNewModal(false)}
+                aria-label="Close modal"
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
             <form onSubmit={handleCreateTicket} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Subject</label>

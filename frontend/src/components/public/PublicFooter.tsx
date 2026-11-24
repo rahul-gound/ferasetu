@@ -283,7 +283,7 @@ export default function PublicFooter() {
               <a
                 key={lang.code}
                 href={`/${lang.code}/`}
-                className="px-2 py-0.5 rounded border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-colors bg-white font-medium text-[11px]"
+                className="px-2 py-0.5 rounded border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-colors bg-white font-medium text-xs"
               >
                 {lang.label}
               </a>

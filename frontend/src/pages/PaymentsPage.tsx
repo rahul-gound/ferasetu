@@ -251,7 +251,7 @@ export default function PaymentsPage() {
           </div>
 
           {/* Navigation Tabs */}
-          <div className="mt-6 flex items-center gap-1 overflow-x-auto pt-2 border-t border-outline-variant/20 scrollbar-none">
+          <div role="tablist" aria-label="Payment tabs" className="mt-6 flex items-center gap-1 overflow-x-auto pt-2 border-t border-outline-variant/20 scrollbar-none">
             {[
               { id: 'overview', label: 'Overview & Inflow', icon: <Wallet size={16} /> },
               { id: 'ledger', label: 'Transactions Ledger' },
@@ -263,8 +263,10 @@ export default function PaymentsPage() {
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-2 text-xs sm:text-sm rounded-lg whitespace-nowrap flex items-center gap-1.5 transition-colors ${
+                className={`px-3.5 py-2 text-xs sm:text-sm rounded-lg whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
                   activeTab === tab.id
                     ? 'bg-surface-container text-primary font-semibold'
                     : 'text-secondary hover:text-on-surface hover:bg-surface-container-low'

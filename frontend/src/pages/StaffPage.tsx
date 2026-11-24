@@ -483,12 +483,14 @@ export default function StaffPage() {
         </div>
 
         {/* Tab Navigation Segmented Bar */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 overflow-x-auto scrollbar-none">
+        <div role="tablist" aria-label="Staff management tabs" className="flex items-center justify-between border-b border-slate-200/80 overflow-x-auto scrollbar-none">
           <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'directory'}
               onClick={() => setActiveTab('directory')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer border-b-2 rounded-none shadow-none ${
                 activeTab === 'directory'
                   ? 'border-[#0052FF] text-[#0052FF]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -503,8 +505,10 @@ export default function StaffPage() {
 
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'roles'}
               onClick={() => setActiveTab('roles')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer border-b-2 rounded-none shadow-none ${
                 activeTab === 'roles'
                   ? 'border-[#0052FF] text-[#0052FF]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -516,8 +520,10 @@ export default function StaffPage() {
 
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'stations'}
               onClick={() => setActiveTab('stations')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer border-b-2 rounded-none shadow-none ${
                 activeTab === 'stations'
                   ? 'border-[#0052FF] text-[#0052FF]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -529,8 +535,10 @@ export default function StaffPage() {
 
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'audit'}
               onClick={() => setActiveTab('audit')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+              className={`pb-3 px-3 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer border-b-2 rounded-none shadow-none ${
                 activeTab === 'audit'
                   ? 'border-[#0052FF] text-[#0052FF]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'

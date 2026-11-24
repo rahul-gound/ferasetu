@@ -347,21 +347,18 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     {
       path: '/customers',
       icon: <Users size={17} />,
-      label: 'Customers',
+      label: 'Customers & Khata',
       badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
       badgeColor: 'blue',
     },
     { path: '/website-builder', icon: <Globe size={17} />, label: 'Storefront Studio' },
   ], [totalOrdersCount, totalCustomersCount]);
 
-  // ── Categorized Drawer 1: Store Tools & Design ──
+  // ── Categorized Drawer 1: Store Tools & Inventory ──
   const toolsNavItems: NavItem[] = useMemo(() => [
-    { path: '/website-design', icon: <Palette size={17} />, label: 'Website & Design' },
+    { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
     { path: '/domains', icon: <Globe size={17} />, label: 'Domains & DNS' },
     { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts & Coupons' },
-    { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
-    { path: '/transfers', icon: <Truck size={17} />, label: 'Stock Transfers' },
-    { path: '/gift-cards', icon: <Gift size={17} />, label: 'Gift Cards' },
   ], []);
 
   // ── Categorized Drawer 2: Finance & Growth ──
@@ -372,24 +369,16 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     {
       path: '/ferasetu-ai',
       icon: <Sparkles size={17} />,
-      label: 'Fero AI Monitor',
+      label: 'Fero AI Co-pilot',
       badge: 'AI',
       badgeColor: 'orange',
     },
-    { path: '/whatsapp-assistant', icon: <MessageSquare size={17} />, label: 'WhatsApp Assistant' },
-    {
-      path: '/ai-credits',
-      icon: <Coins size={17} />,
-      label: 'AI Credits',
-      badge: user?.ai_credits_balance ?? 20,
-      badgeColor: 'blue',
-    },
-  ], [user?.ai_credits_balance]);
+  ], []);
 
-  // ── Categorized Drawer 3: Operations & Support ──
+  // ── Categorized Drawer 3: Operations & Staff ──
   const opsNavItems: NavItem[] = useMemo(() => [
-    { path: '/staff', icon: <ShieldCheck size={17} />, label: 'Staff & Access' },
-    { path: '/integrations', icon: <Server size={17} />, label: 'Integrations & Hub' },
+    { path: '/staff', icon: <ShieldCheck size={17} />, label: 'Staff & Team' },
+    { path: '/integrations', icon: <Server size={17} />, label: 'Integrations Hub' },
     { path: '/community', icon: <MessageSquareText size={17} />, label: 'Merchant Community' },
     { path: '/support', icon: <LifeBuoy size={17} />, label: 'Merchant Support' },
   ], []);
@@ -1205,7 +1194,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         {/* Top header - hidden when merchant is on website builder tab to maximize canvas */}
 
         {!isWebsiteBuilder && (
-          <header className="sticky top-0 z-30 flex h-[64px] w-full max-w-full overflow-hidden shrink-0 items-center justify-between gap-2 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-3 sm:px-5 shadow-xs backdrop-blur lg:px-6">
+          <header className="sticky top-0 z-30 flex h-[64px] w-full max-w-full shrink-0 items-center justify-between gap-2 sm:gap-4 border-b border-[#E5EAF1] bg-white/95 px-3 sm:px-5 shadow-xs backdrop-blur lg:px-6">
             {/* Left: Mobile hamburger & Live Store Pill */}
             <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
               <button

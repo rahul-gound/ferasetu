@@ -1200,14 +1200,23 @@ body {
    - Hardware accelerated 150ms ease-out transitions
    ========================================================================== */
 
-/* Universal action button rule for tactile feel and rounded pill corners */
-button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]),
+/* ==========================================================================
+   FeraSetu Tactile Button Physics & Navigation Invariant Engine
+   - Obey ux-principles.md & ferasetu-design-system.md
+   - INVARIANT: Navigation links, sidebar items, tabs, and filters are spatial
+     wayfinding elements and MUST NEVER receive 3D tactile button styling or
+     forced pill radiuses.
+   - Action buttons receive intentional tactile physics (lift on hover, press on active)
+   - Hardware accelerated 150ms ease-out transitions
+   ========================================================================== */
+
+/* Universal tactile button transitions (strictly excluding nav, sidebar, tabs, and unstyled) */
+button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):not(nav *):not(aside *):not([role="tablist"] *):not([role="navigation"] *):not(footer *),
 input[type="button"],
 input[type="submit"],
-.btn,
-a.btn,
-a[class*="rounded-"][class*="bg-"] {
-  border-radius: 9999px !important;
+.btn:not(nav *):not(aside *):not(footer *),
+.btn-tactile,
+.btn-3d {
   transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 150ms ease,
               background-color 150ms ease,
@@ -1218,122 +1227,103 @@ a[class*="rounded-"][class*="bg-"] {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Default layered 3D depth for solid buttons */
-button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):not([class*="ghost"]):not([class*="link"]):not([class*="bg-transparent"]):not(:active),
-input[type="button"]:not(:active),
-input[type="submit"]:not(:active),
-.btn:not([class*="ghost"]):not([class*="link"]):not(:active),
-a.btn:not([class*="ghost"]):not([class*="link"]):not(:active),
-a[class*="rounded-"][class*="bg-"]:not(:active) {
-  box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.16), 0 8px 20px -2px rgba(0, 0, 0, 0.12), 0 3px 6px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* Orange Brand Buttons: 3D shelf (#8c2505) + rich layered drop shadow & warm ambient glow */
-button[class*="bg-orange"]:not(:active),
-button[class*="bg-[#EA580C]"]:not(:active),
-button[class*="bg-[#f97316]"]:not(:active),
-a[class*="bg-orange"]:not(:active),
-a[class*="bg-[#EA580C]"]:not(:active),
-a[class*="bg-[#f97316]"]:not(:active),
+/* Orange Brand CTA Buttons: 3D shelf (#8c2505) + warm layered ambient shadow */
+button[class*="bg-orange"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):not(:active),
+button[class*="bg-[#EA580C]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):not(:active),
+button[class*="bg-[#f97316]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):not(:active),
+a.btn[class*="bg-orange"]:not(nav *):not(aside *):not(footer *):not(:active),
+a.btn[class*="bg-[#EA580C]"]:not(nav *):not(aside *):not(footer *):not(:active),
+a.btn[class*="bg-[#f97316]"]:not(nav *):not(aside *):not(footer *):not(:active),
 .btn-orange:not(:active),
 .btn-brand:not(:active) {
   border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
   box-shadow: 0 4px 0 0 #8c2505, 0 8px 18px -2px rgba(140, 37, 5, 0.35), 0 14px 28px -4px rgba(234, 88, 12, 0.42), 0 4px 8px -1px rgba(0, 0, 0, 0.12) !important;
 }
 
-button[class*="bg-orange"]:hover,
-button[class*="bg-[#EA580C]"]:hover,
-button[class*="bg-[#f97316]"]:hover,
-a[class*="bg-orange"]:hover,
-a[class*="bg-[#EA580C]"]:hover,
-a[class*="bg-[#f97316]"]:hover,
+button[class*="bg-orange"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):hover,
+button[class*="bg-[#EA580C]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):hover,
+button[class*="bg-[#f97316]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):hover,
+a.btn[class*="bg-orange"]:hover,
+a.btn[class*="bg-[#EA580C]"]:hover,
+a.btn[class*="bg-[#f97316]"]:hover,
 .btn-orange:hover,
 .btn-brand:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 0 0 #8c2505, 0 10px 22px -2px rgba(140, 37, 5, 0.4), 0 20px 36px -4px rgba(234, 88, 12, 0.5), 0 6px 12px -2px rgba(0, 0, 0, 0.16) !important;
 }
 
-/* Sovereign Blue Buttons: 3D shelf (#0036A3) + rich layered drop shadow & royal ambient glow */
-button[class*="bg-[#0052FF]"]:not(:active),
-button[class*="bg-blue-600"]:not(:active),
-button[class*="bg-[#2563EB]"]:not(:active),
-a[class*="bg-[#0052FF]"]:not(:active),
-a[class*="bg-blue-600"]:not(:active),
-a[class*="bg-[#2563EB]"]:not(:active),
+/* Sovereign Blue Buttons: 3D shelf (#0036A3) + rich royal ambient glow */
+button[class*="bg-[#0052FF]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):not(:active),
+button[class*="bg-blue-600"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):not(:active),
+button[class*="bg-[#2563EB]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):not(:active),
+a.btn[class*="bg-[#0052FF]"]:not(nav *):not(aside *):not(footer *):not(:active),
+a.btn[class*="bg-blue-600"]:not(nav *):not(aside *):not(footer *):not(:active),
+a.btn[class*="bg-[#2563EB]"]:not(nav *):not(aside *):not(footer *):not(:active),
 .btn-primary:not(:active) {
   border-top: 1px solid rgba(255, 255, 255, 0.28) !important;
   box-shadow: 0 4px 0 0 #0036A3, 0 8px 18px -2px rgba(0, 54, 163, 0.35), 0 14px 28px -4px rgba(0, 82, 255, 0.42), 0 4px 8px -1px rgba(0, 0, 0, 0.12) !important;
 }
 
-button[class*="bg-[#0052FF]"]:hover,
-button[class*="bg-blue-600"]:hover,
-button[class*="bg-[#2563EB]"]:hover,
-a[class*="bg-[#0052FF]"]:hover,
-a[class*="bg-blue-600"]:hover,
-a[class*="bg-[#2563EB]"]:hover,
+button[class*="bg-[#0052FF]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):hover,
+button[class*="bg-blue-600"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):hover,
+button[class*="bg-[#2563EB]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):hover,
+a.btn[class*="bg-[#0052FF]"]:hover,
+a.btn[class*="bg-blue-600"]:hover,
+a.btn[class*="bg-[#2563EB]"]:hover,
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 0 0 #0036A3, 0 10px 22px -2px rgba(0, 54, 163, 0.4), 0 20px 36px -4px rgba(0, 82, 255, 0.5), 0 6px 12px -2px rgba(0, 0, 0, 0.16) !important;
 }
 
-/* White / Outline Buttons: 3D shelf (#CBD5E1) + crisp contact shadow */
-button[class*="bg-white"][class*="border"]:not(:active),
-a[class*="bg-white"][class*="border"]:not(:active) {
+/* White Tactile Action Buttons (Strictly action buttons, never tabs or nav) */
+button.btn-tactile-white:not(:active),
+.btn-tactile-ghost:not(:active) {
   box-shadow: 0 3px 0 0 #E2E8F0, 0 6px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
 }
 
-button[class*="bg-white"][class*="border"]:hover,
-a[class*="bg-white"][class*="border"]:hover {
+button.btn-tactile-white:hover,
+.btn-tactile-ghost:hover {
   transform: translateY(-2px);
   box-shadow: 0 4.5px 0 0 #CBD5E1, 0 10px 22px -2px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
-button[class*="bg-white"][class*="border"]:active,
-a[class*="bg-white"][class*="border"]:active {
+button.btn-tactile-white:active,
+.btn-tactile-ghost:active {
   transform: translateY(2px) scale(0.985) !important;
   box-shadow: 0 0.5px 0 0 #CBD5E1, inset 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* Subtle lift on hover for all buttons */
-button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):hover,
-input[type="button"]:hover,
-input[type="submit"]:hover,
-.btn:hover,
-a.btn:hover,
-a[class*="rounded-"][class*="bg-"]:hover {
+/* Subtle lift on hover for primary action buttons only */
+button.btn-tactile:hover,
+a.btn:hover {
   transform: translateY(-2px);
 }
 
-/* Physical tactile press inward on click / tap:
-   3D bottom shelf collapses and shadow goes inside ("go inside and shadow work") */
-button:not([data-unstyled]):not([aria-expanded]):not([role="tab"]):not(.unstyled-btn):not([class*="w-full"][class*="text-left"]):active,
-input[type="button"]:active,
-input[type="submit"]:active,
-.btn:active,
-a.btn:active,
-a[class*="rounded-"][class*="bg-"]:active {
+/* Physical tactile press inward on click / tap */
+button.btn-tactile:active,
+a.btn:active {
   transform: translateY(3px) scale(0.985) !important;
   box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.14), inset 0 3px 6px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Specific active press for orange buttons */
-button[class*="bg-orange"]:active,
-button[class*="bg-[#EA580C]"]:active,
-button[class*="bg-[#f97316]"]:active,
-a[class*="bg-orange"]:active,
-a[class*="bg-[#EA580C]"]:active,
-a[class*="bg-[#f97316]"]:active {
+button[class*="bg-orange"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):active,
+button[class*="bg-[#EA580C]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):active,
+button[class*="bg-[#f97316]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):active,
+a.btn[class*="bg-orange"]:active,
+a.btn[class*="bg-[#EA580C]"]:active,
+a.btn[class*="bg-[#f97316]"]:active {
   transform: translateY(3px) scale(0.985) !important;
   box-shadow: 0 1px 0 0 #8c2505, inset 0 3px 6px rgba(0, 0, 0, 0.36), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
 }
 
 /* Specific active press for blue buttons */
-button[class*="bg-[#0052FF]"]:active,
-button[class*="bg-blue-600"]:active,
-button[class*="bg-[#2563EB]"]:active,
-a[class*="bg-[#0052FF]"]:active,
-a[class*="bg-blue-600"]:active,
-a[class*="bg-[#2563EB]"]:active {
+button[class*="bg-[#0052FF]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):active,
+button[class*="bg-blue-600"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):active,
+button[class*="bg-[#2563EB]"]:not(nav *):not(aside *):not([role="tab"]):not(footer *):active,
+a.btn[class*="bg-[#0052FF]"]:active,
+a.btn[class*="bg-blue-600"]:active,
+a.btn[class*="bg-[#2563EB]"]:active {
   transform: translateY(3px) scale(0.985) !important;
   box-shadow: 0 1px 0 0 #0036A3, inset 0 3px 6px rgba(0, 0, 0, 0.36), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
 }
@@ -1408,8 +1398,7 @@ input[type="submit"]:disabled,
   input[type="button"],
   input[type="submit"],
   .btn,
-  a.btn,
-  a[class*="rounded-"][class*="bg-"] {
+  a.btn {
     transform: none !important;
     transition: none !important;
   }

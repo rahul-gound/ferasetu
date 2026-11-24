@@ -318,17 +318,13 @@ export default function TemplateRenderer({
           <MonoElectronicTemplate />
         ) : (
           <div className="relative">
-            {/* Top Drop Zone (Position 0) in Preview Mode */}
-            {effectiveIsPreview && (
+            {/* Top Drop Zone (Position 0) in Preview Mode - only visible during active drag */}
+            {effectiveIsPreview && activeDropTargetIndex === 0 && (
               <div
                 onDragOver={(e) => handleDragOverZone(e, 0)}
                 onDragLeave={() => setActiveDropTargetIndex(null)}
                 onDrop={(e) => handleDropOnZone(e, 0)}
-                className={`transition-all duration-200 py-1.5 px-4 flex items-center justify-center ${
-                  activeDropTargetIndex === 0
-                    ? 'bg-orange-500/15 border-2 border-dashed border-orange-500 py-4 scale-[1.01]'
-                    : 'hover:bg-orange-500/10 opacity-40 hover:opacity-100 border border-dashed border-transparent hover:border-orange-300'
-                }`}
+                className="transition-all duration-200 py-4 px-4 flex items-center justify-center bg-orange-500/15 border-2 border-dashed border-orange-500 scale-[1.01]"
               >
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-800 text-orange-600 text-[11px] font-bold shadow-2xs">
                   <Plus size={12} />
@@ -562,22 +558,20 @@ export default function TemplateRenderer({
                       </div>
                     </div>
 
-                    {/* Inter-Section Drop Zone (Position idx + 1) */}
-                    <div
-                      onDragOver={(e) => handleDragOverZone(e, idx + 1)}
-                      onDragLeave={() => setActiveDropTargetIndex(null)}
-                      onDrop={(e) => handleDropOnZone(e, idx + 1)}
-                      className={`transition-all duration-200 py-1.5 px-4 flex items-center justify-center ${
-                        activeDropTargetIndex === idx + 1
-                          ? 'bg-orange-500/15 border-2 border-dashed border-orange-500 py-4 scale-[1.01]'
-                          : 'hover:bg-orange-500/10 opacity-30 hover:opacity-100 border border-dashed border-transparent hover:border-orange-300'
-                      }`}
-                    >
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-800 text-orange-600 text-[11px] font-bold shadow-2xs">
-                        <Plus size={12} />
-                        <span>Drop here (Position #{idx + 2})</span>
+                    {/* Inter-Section Drop Zone (Position idx + 1) - only visible during active drag */}
+                    {activeDropTargetIndex === idx + 1 && (
+                      <div
+                        onDragOver={(e) => handleDragOverZone(e, idx + 1)}
+                        onDragLeave={() => setActiveDropTargetIndex(null)}
+                        onDrop={(e) => handleDropOnZone(e, idx + 1)}
+                        className="transition-all duration-200 py-4 px-4 flex items-center justify-center bg-orange-500/15 border-2 border-dashed border-orange-500 scale-[1.01]"
+                      >
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-800 text-orange-600 text-[11px] font-bold shadow-2xs">
+                          <Plus size={12} />
+                          <span>Drop here (Position #{idx + 2})</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </React.Fragment>
                 );
               }

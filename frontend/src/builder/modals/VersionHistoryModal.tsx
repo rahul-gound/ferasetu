@@ -15,13 +15,17 @@ import { builderApi, type VersionSummary } from '../services/builderApi';
 interface VersionHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onRollbackComplete: () => void;
+  onRollbackComplete?: () => void;
+  onRollbackSuccess?: () => void;
+  currentVersion?: number;
 }
 
 export default function VersionHistoryModal({
   isOpen,
   onClose,
   onRollbackComplete,
+  onRollbackSuccess,
+  currentVersion,
 }: VersionHistoryModalProps) {
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +64,8 @@ export default function VersionHistoryModal({
     try {
       await builderApi.rollbackVersion(versionNumber);
       toast.success(`Successfully rolled back to Version ${versionNumber}!`);
-      onRollbackComplete();
+      onRollbackComplete?.();
+      onRollbackSuccess?.();
       onClose();
     } catch (err: any) {
       toast.error(err.response?.data?.error || err.message || 'Rollback failed');

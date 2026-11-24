@@ -1088,13 +1088,13 @@ export default function OperationsDashboard({
                 </span>
               </div>
 
-              <h1 className="text-lg sm:text-xl font-bold font-display tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-lg sm:text-xl font-black font-display tracking-tight text-slate-900 dark:text-white">
                 {getGreeting()}, {merchantName}.{' '}
-                <span className="font-normal text-slate-600 dark:text-slate-300">
+                <span className="font-semibold text-slate-700 dark:text-slate-200 block sm:inline mt-0.5 sm:mt-0">
                   {metrics.orderCount > 0 ? (
                     <>
-                      Store is humming—<strong className="font-semibold text-slate-900 dark:text-white font-mono-tabular">{formatInr(metrics.grossSales)}</strong> gross across{' '}
-                      <strong className="font-semibold text-slate-900 dark:text-white font-mono-tabular">{metrics.orderCount}</strong> orders in selected period.
+                      Store is humming—<strong className="font-bold text-slate-900 dark:text-white font-mono-tabular">{formatInr(metrics.grossSales)}</strong> gross across{' '}
+                      <strong className="font-bold text-slate-900 dark:text-white font-mono-tabular">{metrics.orderCount}</strong> orders in selected period.
                     </>
                   ) : (
                     <>Ready for sales. Counter register is open and UPI QR code is active.</>
@@ -1309,7 +1309,7 @@ export default function OperationsDashboard({
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Net Sales
               </span>
               <span
@@ -1324,7 +1324,7 @@ export default function OperationsDashboard({
                 <span className="text-base font-medium text-slate-400 dark:text-slate-500 mr-0.5">₹</span>
                 <span>{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
               </div>
-              <div className="text-[11px] text-slate-500 font-mono-tabular truncate mt-0.5">
+              <div className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold font-mono-tabular truncate mt-0.5">
                 Gross: {formatInr(metrics.grossSales)} • Refunds: {formatInr(metrics.refunds)}
               </div>
             </div>
@@ -1343,7 +1343,7 @@ export default function OperationsDashboard({
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Total Orders
               </span>
               <span
@@ -1357,7 +1357,7 @@ export default function OperationsDashboard({
               <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
                 {metrics.orderCount}
               </div>
-              <div className="text-[11px] text-slate-500 font-mono-tabular truncate mt-0.5">
+              <div className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold font-mono-tabular truncate mt-0.5">
                 Counter: {metrics.counterOrders} • UPI: {metrics.upiOrders} • Online: {metrics.onlineOrders}
               </div>
             </div>

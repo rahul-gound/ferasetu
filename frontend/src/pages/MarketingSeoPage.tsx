@@ -134,9 +134,9 @@ export default function MarketingSeoPage() {
     return Math.max(50, Math.min(98, 100 - penalized));
   }, [productsList.length, missingDescriptionProducts.length, missingImageAltCount]);
 
-  const searchImpressions = analyticsData?.total_visits ? Math.round(analyticsData.total_visits * 4.2) : 1420;
-  const searchClicks = analyticsData?.total_visits || 312;
-  const activePromosCount = discountsList.filter((d: any) => d.status === 'active' || d.is_active).length || 2;
+  const searchImpressions = analyticsData?.total_visits ? Math.round(analyticsData.total_visits * 4.2) : 0;
+  const searchClicks = analyticsData?.total_visits || 0;
+  const activePromosCount = discountsList.filter((d: any) => d.status === 'active' || d.is_active).length;
 
   // Metadata mutation
   const [metaTitle, setMetaTitle] = useState(settingsData?.meta_title || '');
@@ -374,13 +374,15 @@ export default function MarketingSeoPage() {
             <div className="flex flex-col justify-between p-4 bg-surface-container-low rounded-lg border border-outline-variant/20">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-secondary uppercase tracking-wider">Impressions</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-semibold">+18%</span>
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                  {searchImpressions > 0 ? 'Verified' : '—'}
+                </span>
               </div>
               <div className="my-2">
                 <span className="text-3xl font-bold text-on-surface tabular-nums">{searchImpressions.toLocaleString('en-IN')}</span>
               </div>
               <p className="text-xs text-on-surface-variant truncate" title="Appeared in local search results">
-                Local customer queries
+                {searchImpressions > 0 ? 'Local customer queries' : 'Awaiting search discovery'}
               </p>
             </div>
 
@@ -388,13 +390,15 @@ export default function MarketingSeoPage() {
             <div className="flex flex-col justify-between p-4 bg-surface-container-low rounded-lg border border-outline-variant/20">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-secondary uppercase tracking-wider">Search Clicks</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-semibold">+12.4%</span>
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                  {searchClicks > 0 ? 'Active' : '—'}
+                </span>
               </div>
               <div className="my-2">
                 <span className="text-3xl font-bold text-on-surface tabular-nums">{searchClicks.toLocaleString('en-IN')}</span>
               </div>
               <p className="text-xs text-on-surface-variant truncate" title="Direct visits from Google SERP and WhatsApp">
-                22% Organic CTR
+                {searchImpressions > 0 ? `${Math.round((searchClicks / searchImpressions) * 100)}% Organic CTR` : 'Direct visits & store links'}
               </p>
             </div>
 
@@ -403,10 +407,10 @@ export default function MarketingSeoPage() {
               <span className="text-xs font-semibold text-secondary uppercase tracking-wider">Active Promos</span>
               <div className="my-2 flex items-baseline gap-1">
                 <span className="text-3xl font-bold text-primary tabular-nums">{activePromosCount}</span>
-                <span className="text-sm text-secondary font-medium">Running</span>
+                <span className="text-sm text-secondary font-medium">{activePromosCount > 0 ? 'Running' : 'None'}</span>
               </div>
               <p className="text-xs text-on-surface-variant truncate">
-                Discounts &amp; free shipping
+                Discounts &amp; coupons
               </p>
             </div>
           </div>

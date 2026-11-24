@@ -531,27 +531,23 @@ export default function IntegrationsPage() {
         </header>
 
         {/* ── FERA AI INTEGRATION COMMAND CENTER BANNER ─────────────────────── */}
-        <section className="p-6 rounded-3xl bg-slate-900 bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 text-white shadow-xl relative overflow-hidden border border-slate-800">
-          <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
-            <Bot size={280} className="text-white" />
-          </div>
-
+        <section className="p-6 rounded-2xl bg-white border border-slate-200/90 text-slate-900 shadow-xs relative overflow-hidden">
           <div className="relative z-10 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-blue-300 shadow-inner">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#0052FF] shrink-0">
                   <Bot size={26} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                    <h2 className="text-lg sm:text-xl font-black tracking-tight text-slate-900">
                       Fera AI Integration Command Center
                     </h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-[#0052FF] border border-blue-200">
                       OpenAI Cluster
                     </span>
                   </div>
-                  <p className="text-xs text-blue-100/90 mt-0.5 max-w-2xl leading-relaxed">
+                  <p className="text-xs text-slate-600 mt-0.5 max-w-2xl leading-relaxed font-normal">
                     Your sovereign store assistant can autonomously trigger receipts, sync sheets, post Slack alerts, estimate delivery fares, and speak payment confirmations via function tools.
                   </p>
                 </div>
@@ -563,16 +559,16 @@ export default function IntegrationsPage() {
                   onClick={() => setShowAiOnly(!showAiOnly)}
                   className={`min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                     showAiOnly
-                      ? 'bg-white text-blue-900 shadow-md'
-                      : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                      ? 'bg-blue-50 text-[#0052FF] border border-blue-200 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
                   }`}
                 >
-                  <Sparkles size={14} className={showAiOnly ? 'text-blue-600' : 'text-blue-300'} />
+                  <Sparkles size={14} className={showAiOnly ? 'text-[#0052FF]' : 'text-slate-500'} />
                   <span>{showAiOnly ? 'Showing AI Enabled Only' : 'Filter AI-Enabled Only'}</span>
                 </button>
                 <Link
                   to="/ai-assistant"
-                  className="min-h-[40px] px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md"
+                  className="min-h-[40px] px-4 py-2 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
                 >
                   <span>Open Fera AI Assistant</span>
                   <ArrowRight size={14} />
@@ -581,9 +577,9 @@ export default function IntegrationsPage() {
             </div>
 
             {/* AI Quick Execution Chips */}
-            <div className="pt-2 border-t border-white/10 flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
-              <span className="text-blue-200 font-bold uppercase text-[10px] tracking-wider shrink-0 flex items-center gap-1">
-                <Play size={11} className="text-blue-300" />
+            <div className="pt-3 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+              <span className="text-slate-700 font-bold uppercase text-[10px] tracking-wider shrink-0 flex items-center gap-1">
+                <Play size={11} className="text-[#0052FF]" />
                 Quick Autonomous Actions:
               </span>
 
@@ -607,7 +603,7 @@ export default function IntegrationsPage() {
                         handleExecuteAiAction(targetService, targetService.aiInfo?.samplePrompts[0]);
                       }
                     }}
-                    className="shrink-0 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/25 active:scale-95 border border-white/15 text-white text-xs font-semibold transition-all cursor-pointer"
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold transition-all cursor-pointer"
                   >
                     {chip.label}
                   </button>
