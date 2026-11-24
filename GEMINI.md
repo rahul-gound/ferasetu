@@ -95,5 +95,13 @@ When the user shares a screenshot or photo of the UI:
 - **Tabular Numerals Invariant:** Always apply tabular figures (`tabular-nums`) to prices, order counts, ledger entries, settlement balances, and quantitative metrics.
 - **Multilingual Glyph & Script Support:** Ensure proper line-height headroom and zero clipping across English and Indian scripts (Hindi, Marathi, Bengali, Gujarati, Tamil, Telugu, Kannada, Malayalam, Punjabi). Preserve correct Unicode character shaping without manual CSS letter-spacing deformation.
 
+## 12. Mandatory Spacing Standard (spaicng-rule.md / spacing-rule.md)
+- **Always Active:** Every agent and developer MUST strictly follow `spaicng-rule.md` (and `spacing-rule.md`) in the repository root for all margins, padding, gaps, and layout structures across FeraSetu.
+- **Fundamental Rule:** Smaller spacing groups related elements (4–8px tight, 12–16px normal). Larger spacing separates unrelated groups (20–32px group, 40–64px section). Never add arbitrary whitespace to make a layout appear minimal or premium.
+- **Core 4px Foundation & 8px Rhythm:** Approved spacing tokens: `--space-0` (0px), `--space-1` (4px), `--space-2` (8px), `--space-3` (12px), `--space-4` (16px), `--space-5` (20px), `--space-6` (24px), `--space-8` (32px), `--space-10` (40px), `--space-12` (48px), `--space-16` (64px), `--space-20` (80px), `--space-24` (96px).
+- **Merchant Dashboard Density:** Balance information density with comfort. Use compact density for order lists, inventory, and ledger tables; standard density for overview, settings, and product details; spacious density for onboarding and empty states.
+- **Anti-Pattern Prevention:** Never introduce arbitrary negative margins to patch broken layouts, never stack unexamined nested card padding, avoid layout clipping with fixed heights, and always use CSS logical properties (`margin-inline-start`, `padding-inline-end`) for RTL and international layout resilience.
+
+
 
 
