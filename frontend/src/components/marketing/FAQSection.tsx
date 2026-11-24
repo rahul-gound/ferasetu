@@ -109,21 +109,26 @@ export default function FAQSection({
                   type="button"
                   onClick={() => toggle(i)}
                   aria-expanded={isOpen}
-                  className={`w-full text-left px-5 sm:px-6 py-4 sm:py-4.5 flex items-center justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] rounded-xl cursor-pointer active:scale-[0.995] active:translate-y-0.5 transition-all duration-200 select-none ${
+                  className={`w-full text-left px-5 sm:px-6 py-4.5 sm:py-5 flex items-center justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052FF] rounded-xl cursor-pointer active:scale-[0.985] active:translate-y-0.5 transition-all duration-300 select-none ${
                     dark ? 'text-white' : 'text-slate-900'
                   }`}
                 >
                   <span className="font-bold text-sm sm:text-base leading-snug">{faq.question}</span>
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] active:scale-90 will-change-transform shadow-xs ${
                       isOpen
-                        ? 'bg-[#0052FF] border-[#0052FF] text-white rotate-45 shadow-[0_2px_8px_rgba(0,82,255,0.25)]'
+                        ? 'bg-[#0052FF] border-[#0052FF] text-white rotate-45 shadow-[0_4px_14px_rgba(0,82,255,0.32)]'
                         : dark
-                        ? 'bg-slate-700 border-slate-600 text-slate-300'
-                        : 'bg-slate-50 border-slate-200 text-slate-500'
+                        ? 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
+                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
                     }`}
                   >
-                    <Plus size={15} aria-hidden="true" />
+                    <Plus
+                      size={16}
+                      strokeWidth={2.25}
+                      aria-hidden="true"
+                      className="transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                    />
                   </div>
                 </button>
 

@@ -19,6 +19,7 @@ import PublicLayout from '../../components/public/PublicLayout';
 import SEOHead from '../../components/seo/SEOHead';
 import { COMPARISONS_DATA } from '../../content/comparisonsData';
 import { useAuth } from '../../contexts/AuthContext';
+import { ComparisonVersusBadge, FeraSetuLogoBadge, getCompetitorLogo } from '../../components/compare/CompetitorLogos';
 
 export default function CompetitorComparisonPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -79,6 +80,11 @@ export default function CompetitorComparisonPage() {
             <ChevronRight size={12} className="text-slate-400" />
             <span className="text-slate-900 font-semibold">{data.competitorName} Alternative</span>
           </nav>
+
+          {/* Visual Matchup Logos */}
+          <div className="mb-5">
+            <ComparisonVersusBadge slug={data.slug} competitorName={data.competitorName} size={42} showLabels={true} />
+          </div>
 
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700 mb-5">
@@ -156,6 +162,9 @@ export default function CompetitorComparisonPage() {
       <section className="py-16 md:py-24 bg-white border-b border-slate-200">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="max-w-2xl mb-12">
+            <div className="mb-3">
+              <ComparisonVersusBadge slug={data.slug} competitorName={data.competitorName} size={30} />
+            </div>
             <div className="text-xs font-bold uppercase tracking-wider text-blue-600 mb-2">
               Architectural &amp; Fee Matrix
             </div>
@@ -177,10 +186,16 @@ export default function CompetitorComparisonPage() {
                     Feature &amp; Metric
                   </th>
                   <th className="py-4 px-6 text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50/50 w-1/3">
-                    FeraSetu
+                    <div className="flex items-center gap-2">
+                      <FeraSetuLogoBadge size={24} />
+                      <span>FeraSetu</span>
+                    </div>
                   </th>
-                  <th className="py-4 px-6 text-xs font-bold uppercase tracking-wider text-slate-500 w-1/3">
-                    {data.competitorName}
+                  <th className="py-4 px-6 text-xs font-bold uppercase tracking-wider text-slate-700 w-1/3">
+                    <div className="flex items-center gap-2">
+                      {getCompetitorLogo(data.slug, 24)}
+                      <span>{data.competitorName}</span>
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -234,9 +249,12 @@ export default function CompetitorComparisonPage() {
             <div className="text-xs font-bold uppercase tracking-wider text-blue-600 mb-2">
               Strategic Advantages
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Why Independent Merchants Switch from {data.competitorName}
-            </h2>
+            <div className="flex items-center gap-3">
+              {getCompetitorLogo(data.slug, 32)}
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Why Independent Merchants Switch from {data.competitorName}
+              </h2>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

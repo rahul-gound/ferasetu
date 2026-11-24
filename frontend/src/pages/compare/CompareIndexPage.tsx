@@ -5,6 +5,7 @@ import PublicLayout from '../../components/public/PublicLayout';
 import SEOHead from '../../components/seo/SEOHead';
 import { COMPARISONS_DATA } from '../../content/comparisonsData';
 import { useAuth } from '../../contexts/AuthContext';
+import { ComparisonVersusBadge } from '../../components/compare/CompetitorLogos';
 
 export default function CompareIndexPage() {
   const { register } = useAuth();
@@ -80,8 +81,11 @@ export default function CompareIndexPage() {
                 className="p-8 rounded-xl bg-white border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all hover:shadow-md"
               >
                 <div>
-                  <div className="inline-block px-2.5 py-1 rounded-md bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-4">
-                    {comp.competitorCategory}
+                  <div className="flex items-center justify-between gap-3 mb-5">
+                    <ComparisonVersusBadge slug={comp.slug} competitorName={comp.competitorName} size={36} />
+                    <span className="px-2.5 py-1 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600 uppercase tracking-wider shrink-0">
+                      {comp.competitorCategory}
+                    </span>
                   </div>
                   <h2 className="text-xl font-bold text-slate-900 mb-3">
                     FeraSetu vs. {comp.competitorName}
