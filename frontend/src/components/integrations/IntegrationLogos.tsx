@@ -516,10 +516,14 @@ export const INTEGRATION_LOGOS: Record<string, React.FC<LogoProps>> = {
   'stripe-pg': StripeLogo,
   'paypal': PayPalLogo,
   'paypal-pg': PayPalLogo,
+  'payu-pg': CashfreeLogo,
+  'pinelabs-pg': CashfreeLogo,
 
   // Messaging
   'wa-baileys': WhatsAppLogo,
   'whatsapp': WhatsAppLogo,
+  'whatsapp-cloud-api': WhatsAppLogo,
+  'gupshup-enterprise': WhatsAppLogo,
   'telegram': TelegramLogo,
   'telegram-bot': TelegramLogo,
   'twilio': TwilioLogo,
@@ -537,13 +541,16 @@ export const INTEGRATION_LOGOS: Record<string, React.FC<LogoProps>> = {
   'dunzo-shadowfax': DunzoLogo,
   'dunzo': DunzoLogo,
   'bluedart': BlueDartLogo,
+  'bluedart-apex': BlueDartLogo,
   'bluedart-dhl': BlueDartLogo,
+  'dtdc-express': ShiprocketLogo,
 
   // Accounting
   'tally-erp': TallyPrimeLogo,
   'tally': TallyPrimeLogo,
   'zoho-books': ZohoBooksLogo,
   'zoho': ZohoBooksLogo,
+  'marg-erp': TallyPrimeLogo,
   'quickbooks': QuickBooksLogo,
 
   // AI & Productivity
@@ -555,6 +562,7 @@ export const INTEGRATION_LOGOS: Record<string, React.FC<LogoProps>> = {
   'google-sheets': GoogleSheetsLogo,
   'sheets': GoogleSheetsLogo,
   'slack': SlackLogo,
+  'zapier-make': GoogleStitchLogo,
 
   // Hardware
   'thermal-printer': ThermalPrinterLogo,

@@ -391,6 +391,60 @@ await test('Integrations Hub — Integration feature request persists with pendi
   assert.equal(db.tables.integration_requests[0].service_name, 'Busy Accounting Software');
 });
 
+await test('Integrations Hub — GET /api/integrations/ai-tools returns registered AI tool definitions', async () => {
+  const db = createTestDb();
+  const token = await createToken('usr_merchant_1', 'merchant@store.com');
+
+  const req = new Request('http://localhost:8787/api/integrations/ai-tools', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const env = createMockEnv(db);
+  const res = await worker.fetch(req, env);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.ok(Array.isArray(data.tools));
+  assert.ok(data.tools.length >= 8);
+
+  const toolNames = data.tools.map(t => t.name);
+  assert.ok(toolNames.includes('sync_google_sheets'));
+  assert.ok(toolNames.includes('send_slack_alert'));
+  assert.ok(toolNames.includes('print_thermal_receipt'));
+  assert.ok(toolNames.includes('trigger_soundbox_voice'));
+});
+
+await test('Integrations Hub — POST /api/integrations/execute runs autonomous AI tool action', async () => {
+  const db = createTestDb();
+  const token = await createToken('usr_merchant_1', 'merchant@store.com');
+
+  // Test executing Google Sheets AI sync action
+  const req = new Request('http://localhost:8787/api/integrations/execute', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      serviceId: 'google-sheets',
+      action: 'sync_orders',
+      params: { count: 5 },
+    }),
+  });
+
+  const env = createMockEnv(db);
+  const res = await worker.fetch(req, env);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.equal(data.serviceId, 'google-sheets');
+  assert.equal(data.action, 'sync_orders');
+  assert.ok(data.result);
+  assert.ok(data.telemetry);
+  assert.equal(data.telemetry.aiModel, 'Fera AI Engine v1 (OpenAI-compatible cluster)');
+});
+
 console.log(`\n────────────────────────────────────────────────────────────`);
 console.log(`Results: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

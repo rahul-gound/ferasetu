@@ -187,7 +187,29 @@ export default function OperationsDashboard({
   const [timeRange, setTimeRange] = useState<'today' | '7d' | '30d'>('today');
   const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('ferasetu_theme');
+      if (saved) return saved === 'dark';
+      return document.documentElement.classList.contains('dark');
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('ferasetu_theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('ferasetu_theme', 'light');
+      }
+    } catch {
+      // ignore storage access errors
+    }
+  }, [isDarkMode]);
   const [isAllCaughtUpManualPreview, setIsAllCaughtUpManualPreview] = useState<boolean>(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
   const [commandSearch, setCommandSearch] = useState<string>('');
@@ -1027,10 +1049,10 @@ export default function OperationsDashboard({
         {/* HEADER: OPERATIONAL BRIEFING & ACTIONS                              */}
         {/* ================================================================== */}
         <header
-          className={`rounded-xl border p-4 sm:p-5 transition-all ${
+          className={`rounded-2xl border p-4 sm:p-5 transition-all ${
             isDarkMode
-              ? 'bg-[#0F1623] border-white/[0.07] shadow-[0_2px_8px_rgba(0,0,0,0.4)]'
-              : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+              ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.3)]'
+              : 'bg-white border-slate-200/90 shadow-[0_2px_12px_rgba(15,23,42,0.03)]'
           }`}
         >
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -1047,22 +1069,22 @@ export default function OperationsDashboard({
                   <span>Store Live · Direct Settlement Active</span>
                 </span>
                 <span className="text-xs text-slate-300 dark:text-slate-700">•</span>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {storeName}
                 </span>
                 <span className="text-xs text-slate-300 dark:text-slate-700">•</span>
                 {/* Dynamically Reconciled Reporting Period Label */}
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 font-mono-tabular">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 font-mono-tabular">
                   <Clock size={11} />
                   {reportingPeriodLabel}
                 </span>
                 {/* Commission Saved Counter Pill */}
                 <span
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-mono-tabular cursor-help"
-                  title="Estimated 18% commission saved compared to traditional marketplaces. On FeraSetu, you keep 100%."
+                  title="0% platform commission on FeraSetu. You keep 100% of your earnings."
                 >
                   <Sparkles size={11} className="text-[#F59E0B]" />
-                  <span>{formatInr(Math.round((metrics.grossSales || 0) * 0.18))} Commission Retained</span>
+                  <span>0% Commission Retained</span>
                 </span>
               </div>
 
@@ -1087,7 +1109,7 @@ export default function OperationsDashboard({
               <button
                 type="button"
                 onClick={() => onOpenNewOrderModal?.()}
-                className="btn-tactile-primary flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold text-white shadow-sm cursor-pointer"
+                className="btn-tactile-primary flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-sm cursor-pointer"
                 title="Create In-Store Order (Key: C)"
               >
                 <Plus size={15} />
@@ -1103,7 +1125,7 @@ export default function OperationsDashboard({
                   href={storeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`btn-tactile-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold cursor-pointer ${
+                  className={`btn-tactile-ghost flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer ${
                     isDarkMode
                       ? 'bg-transparent border-white/10 text-slate-200 hover:bg-white/5'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -1120,7 +1142,7 @@ export default function OperationsDashboard({
               <button
                 type="button"
                 onClick={handleCopyStoreLink}
-                className={`p-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
+                className={`p-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer active:translate-y-0.5 active:scale-[0.985] ${
                   isDarkMode
                     ? 'border-white/10 text-slate-300 hover:bg-white/5'
                     : 'border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -1135,7 +1157,7 @@ export default function OperationsDashboard({
                 <button
                   type="button"
                   onClick={() => setToolsMenuOpen((prev) => !prev)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold cursor-pointer ${
+                  className={`btn-tactile-ghost flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer ${
                     toolsMenuOpen
                       ? 'bg-slate-100 dark:bg-white/10 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white'
                       : isDarkMode
@@ -1280,26 +1302,27 @@ export default function OperationsDashboard({
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
           {/* Card 1: Gross & Net Sales */}
           <div
-            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border border-t-[3px] border-t-blue-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Net Sales
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 cursor-help"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
                 title="Net Sales = Gross Sales minus Refunds. Reconciled in real time from canonical order records."
               >
                 <Info size={13} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
-                {formatInr(metrics.netSales)}
+            <div className="my-2.5">
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular flex items-baseline">
+                <span className="text-base font-medium text-slate-400 dark:text-slate-500 mr-0.5">₹</span>
+                <span>{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
               </div>
               <div className="text-[11px] text-slate-500 font-mono-tabular truncate mt-0.5">
                 Gross: {formatInr(metrics.grossSales)} • Refunds: {formatInr(metrics.refunds)}
@@ -1313,25 +1336,25 @@ export default function OperationsDashboard({
 
           {/* Card 2: Number of Orders & Breakdown */}
           <div
-            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border border-t-[3px] border-t-indigo-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Total Orders
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 cursor-help"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
                 title="Total non-cancelled orders in reporting period = Counter Orders + Online Orders"
               >
                 <Info size={13} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
+            <div className="my-2.5">
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
                 {metrics.orderCount}
               </div>
               <div className="text-[11px] text-slate-500 font-mono-tabular truncate mt-0.5">
@@ -1346,26 +1369,27 @@ export default function OperationsDashboard({
 
           {/* Card 3: Average Basket & Peak Rush */}
           <div
-            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border border-t-[3px] border-t-sky-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Avg Basket
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 cursor-help"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
                 title="Average Basket Size = Gross Sales ÷ Order Count. Calculated dynamically from period transactions."
               >
                 <Info size={13} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
-                {formatInr(metrics.avgOrderValue)}
+            <div className="my-2.5">
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular flex items-baseline">
+                <span className="text-base font-medium text-slate-400 dark:text-slate-500 mr-0.5">₹</span>
+                <span>{Math.round(metrics.avgOrderValue).toLocaleString('en-IN')}</span>
               </div>
               <div className="text-[11px] text-slate-500 font-mono-tabular truncate mt-0.5" title={metrics.peakRushText}>
                 {metrics.peakRushText}
@@ -1379,26 +1403,27 @@ export default function OperationsDashboard({
 
           {/* Card 4: Settled & Pending Payments */}
           <div
-            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border border-t-[3px] border-t-emerald-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Settled Payments
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 cursor-help"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
                 title="Settled Payments = Paid + Delivered orders. Pending = Unpaid Khata dues."
               >
                 <Info size={13} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
-                {formatInr(metrics.settledPayments)}
+            <div className="my-2.5">
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular flex items-baseline">
+                <span className="text-base font-medium text-slate-400 dark:text-slate-500 mr-0.5">₹</span>
+                <span>{Math.round(metrics.settledPayments).toLocaleString('en-IN')}</span>
               </div>
               <div className="text-[11px] text-amber-600 dark:text-amber-400 font-mono-tabular truncate mt-0.5">
                 Pending / Dues: {formatInr(metrics.pendingPayments)}
@@ -1412,25 +1437,25 @@ export default function OperationsDashboard({
 
           {/* Card 5: Store Visits & Conversion */}
           <div
-            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border border-t-[3px] border-t-violet-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Conversion Rate
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 cursor-help"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
                 title="Conversion Rate = (Total Orders ÷ Store Visits) × 100"
               >
                 <Info size={13} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
+            <div className="my-2.5">
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
                 {metrics.conversionRate}%
               </div>
               <div className="text-[11px] text-slate-500 font-mono-tabular truncate mt-0.5">
@@ -1445,39 +1470,40 @@ export default function OperationsDashboard({
 
           {/* Card 6: Settlement Balance & Settle Action */}
           <div
-            className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border border-t-[3px] border-t-amber-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Ready to Sweep
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 cursor-help"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
                 title="Funds collected via UPI/Online ready for direct bank sweep with 0% commission."
               >
                 <Info size={13} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular">
-                {formatInr(metrics.settlementBalance)}
+            <div className="my-2.5">
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular flex items-baseline">
+                <span className="text-base font-medium text-slate-400 dark:text-slate-500 mr-0.5">₹</span>
+                <span>{Math.round(metrics.settlementBalance).toLocaleString('en-IN')}</span>
               </div>
               <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono-tabular truncate mt-0.5">
                 0% commission • Instant
               </div>
             </div>
-            <div className="flex items-center gap-1.5 pt-1">
+            <div className="flex items-center gap-2 pt-1.5">
               <button
                 type="button"
                 onClick={() => {
                   setSettlementModalMode('settle');
                   setSettlementModalOpen(true);
                 }}
-                className="flex-1 py-1 px-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold text-center cursor-pointer transition-colors"
+                className="btn-tactile-primary flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:translate-y-0.5 active:scale-[0.985] text-white text-[11px] font-bold text-center cursor-pointer transition-all shadow-[0_2px_8px_rgba(16,185,129,0.3)]"
               >
                 Settle Now
               </button>
@@ -1487,8 +1513,8 @@ export default function OperationsDashboard({
                   setSettlementModalMode('review');
                   setSettlementModalOpen(true);
                 }}
-                className={`py-1 px-2 rounded-md border text-[11px] font-semibold cursor-pointer transition-colors ${
-                  isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50'
+                className={`btn-tactile-ghost py-1.5 px-2.5 rounded-xl border text-[11px] font-semibold cursor-pointer transition-all active:translate-y-0.5 active:scale-[0.985] ${
+                  isDarkMode ? 'border-white/10 hover:bg-white/5 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                 }`}
                 title="Review settlement breakdown"
               >
@@ -1497,6 +1523,91 @@ export default function OperationsDashboard({
             </div>
           </div>
         </section>
+
+        {/* ================================================================== */}
+        {/* COUNTER QUICK-ACTION BAR: 1-TAP WORKSPACE FOR SHOPKEEPERS          */}
+        {/* ================================================================== */}
+        <div
+          className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+            isDarkMode
+              ? 'bg-gradient-to-r from-[#0F1623] via-[#121B2A] to-[#0F1623] border-white/[0.08] shadow-[0_2px_12px_rgba(0,0,0,0.3)]'
+              : 'bg-gradient-to-r from-white via-slate-50/70 to-white border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)]'
+          }`}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Zap size={16} />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <span>Counter Quick Actions</span>
+                  <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-full">Fast POS</span>
+                </h2>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Instant tools for retail billing, direct UPI QR display, and digital customer invoices
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenNewOrderModal?.()}
+                className="btn-tactile-primary flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm cursor-pointer"
+                title="Create In-Store Order (Key: C)"
+              >
+                <Plus size={14} />
+                <span>+ Walk-in Sale</span>
+                <kbd className="hidden sm:inline-block px-1 py-0.2 text-[9px] bg-white/20 rounded font-mono-tabular">
+                  C
+                </kbd>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onOpenQrModal?.()}
+                className={`btn-tactile-ghost flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
+                  isDarkMode
+                    ? 'border-white/10 text-slate-200 hover:bg-white/5'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Display QR Code for Counter Customer UPI Payments"
+              >
+                <CreditCard size={14} className="text-emerald-500" />
+                <span>Display Counter QR</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onOpenInvoiceModal?.()}
+                className={`btn-tactile-ghost flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
+                  isDarkMode
+                    ? 'border-white/10 text-slate-200 hover:bg-white/5'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Generate digital invoice or tax bill"
+              >
+                <FileText size={14} className="text-indigo-500" />
+                <span>Create Bill / Invoice</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrinterModalOpen(true)}
+                className={`btn-tactile-ghost flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
+                  isDarkMode
+                    ? 'border-white/10 text-slate-200 hover:bg-white/5'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Check thermal printer connectivity"
+              >
+                <Printer size={14} className="text-slate-500" />
+                <span>Receipt Printer</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* ================================================================== */}
         {/* ZONE B: DYNAMIC TIMEFRAME PULSE CHART & REAL ACTIONABLE TRIAGE     */}
@@ -1594,134 +1705,168 @@ export default function OperationsDashboard({
                 </span>
               </div>
 
-              {/* Chart Grid with Y-Axis Reference Gridlines */}
-              <div className="h-48 pt-6 pb-2 border-b border-slate-100 dark:border-white/[0.06] relative">
-                {/* Horizontal reference lines & Y-axis labels */}
-                <div className="absolute inset-x-0 top-6 bottom-7 flex flex-col justify-between pointer-events-none z-0">
-                  {/* 100% max reference line */}
-                  <div className="w-full border-b border-dashed border-slate-200/80 dark:border-white/[0.07] flex justify-between items-center pr-1">
-                    <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
-                      {formatInr(maxChartVal)}
-                    </span>
-                    <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">Peak</span>
+              {/* Chart Grid with Y-Axis Reference Gridlines OR Engaging Zero-State */}
+              {metrics.orderCount === 0 ? (
+                <div className="h-48 my-2 flex flex-col items-center justify-center text-center px-4 relative z-10 border border-dashed border-slate-200/90 dark:border-white/10 rounded-2xl bg-gradient-to-b from-slate-50/60 to-white dark:from-white/[0.02] dark:to-transparent">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 shadow-sm">
+                    <TrendingUp size={20} />
                   </div>
-                  {/* 50% reference line */}
-                  <div className="w-full border-b border-dashed border-slate-200/60 dark:border-white/[0.04] flex justify-between items-center pr-1">
-                    <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
-                      {formatInr(Math.round(maxChartVal / 2))}
-                    </span>
-                    <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">50%</span>
-                  </div>
-                  {/* Baseline ₹0 reference line */}
-                  <div className="w-full border-b border-slate-200 dark:border-white/[0.08] flex justify-between items-center pr-1">
-                    <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
-                      ₹0
-                    </span>
-                    <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">Base</span>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Counter register is open and ready for sales
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
+                    Record your first walk-in sale or let customers scan your UPI QR code. Live hourly settlement pulses will graph here automatically.
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenNewOrderModal?.()}
+                      className="btn-tactile-primary px-3 py-1.5 rounded-xl text-xs font-semibold text-white cursor-pointer shadow-sm flex items-center gap-1.5"
+                    >
+                      <Plus size={13} />
+                      <span>+ Record Counter Sale</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenQrModal?.()}
+                      className={`btn-tactile-ghost px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 cursor-pointer ${
+                        isDarkMode ? 'border-white/10 text-slate-200 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <CreditCard size={13} className="text-emerald-500" />
+                      <span>Display UPI QR</span>
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <div className="h-48 pt-6 pb-2 border-b border-slate-100 dark:border-white/[0.06] relative">
+                  {/* Horizontal reference lines & Y-axis labels */}
+                  <div className="absolute inset-x-0 top-6 bottom-7 flex flex-col justify-between pointer-events-none z-0">
+                    {/* 100% max reference line */}
+                    <div className="w-full border-b border-dashed border-slate-200/80 dark:border-white/[0.07] flex justify-between items-center pr-1">
+                      <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
+                        {formatInr(maxChartVal)}
+                      </span>
+                      <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">Peak</span>
+                    </div>
+                    {/* 50% reference line */}
+                    <div className="w-full border-b border-dashed border-slate-200/60 dark:border-white/[0.04] flex justify-between items-center pr-1">
+                      <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
+                        {formatInr(Math.round(maxChartVal / 2))}
+                      </span>
+                      <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">50%</span>
+                    </div>
+                    {/* Baseline ₹0 reference line */}
+                    <div className="w-full border-b border-slate-200 dark:border-white/[0.08] flex justify-between items-center pr-1">
+                      <span className="text-[9px] font-mono-tabular text-slate-400 dark:text-slate-500 bg-white/80 dark:bg-[#0F1623]/80 px-1 rounded">
+                        ₹0
+                      </span>
+                      <span className="text-[9px] font-mono-tabular text-slate-300 dark:text-slate-600">Base</span>
+                    </div>
+                  </div>
 
-                {/* Bars Container */}
-                <div className="h-full flex items-end gap-2 sm:gap-3 relative z-10">
-                  {chartSlots.map((pulse, idx) => {
-                    const isHovered = hoveredBarIndex === idx;
-                    const isSelected = selectedBarIndex === idx;
-                    const isActive = isHovered || (hoveredBarIndex === null && isSelected);
-                    const total = pulse.settledAmount + pulse.pendingAmount;
-                    const heightPercent = total > 0 ? Math.max(12, Math.round((total / maxChartVal) * 100)) : 4;
-                    const settledPercent = total > 0 ? Math.round((pulse.settledAmount / total) * 100) : 100;
+                  {/* Bars Container */}
+                  <div className="h-full flex items-end gap-2 sm:gap-3 relative z-10">
+                    {chartSlots.map((pulse, idx) => {
+                      const isHovered = hoveredBarIndex === idx;
+                      const isSelected = selectedBarIndex === idx;
+                      const isActive = isHovered || (hoveredBarIndex === null && isSelected);
+                      const total = pulse.settledAmount + pulse.pendingAmount;
+                      const heightPercent = total > 0 ? Math.max(12, Math.round((total / maxChartVal) * 100)) : 4;
+                      const settledPercent = total > 0 ? Math.round((pulse.settledAmount / total) * 100) : 100;
 
-                    return (
-                      <div
-                        key={pulse.slot + idx}
-                        onClick={() => {
-                          setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
-                        }}
-                        onMouseEnter={() => setHoveredBarIndex(idx)}
-                        onMouseLeave={() => setHoveredBarIndex(null)}
-                        onFocus={() => setHoveredBarIndex(idx)}
-                        onBlur={() => setHoveredBarIndex(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
+                      return (
+                        <div
+                          key={pulse.slot + idx}
+                          onClick={() => {
                             setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${pulse.fullLabel || pulse.slot}: ${formatInr(pulse.settledAmount)} settled, ${pulse.orderCount} orders`}
-                        className="flex-1 h-full flex flex-col justify-end items-center group cursor-pointer relative outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-t"
-                      >
-                        {/* Tooltip on hover/active - centered with downward pointer */}
-                        {isActive && (
-                          <div
-                            className={`absolute -top-16 left-1/2 -translate-x-1/2 z-30 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono-tabular shadow-xl whitespace-nowrap pointer-events-none transition-all ${
-                              isDarkMode
-                                ? 'bg-[#1A253A] border-white/10 text-white'
-                                : 'bg-slate-900 text-white border-slate-800'
-                            }`}
-                          >
-                            <div className="font-semibold text-emerald-400">
-                              Settled: {formatInr(pulse.settledAmount)}
-                            </div>
-                            {pulse.pendingAmount > 0 && (
-                              <div className="text-amber-400">
-                                Khata / Due: {formatInr(pulse.pendingAmount)}
-                              </div>
-                            )}
-                            <div className="text-slate-300 text-[10px]">
-                              {pulse.orderCount} {pulse.orderCount === 1 ? 'order' : 'orders'} • {pulse.fullLabel || pulse.slot}
-                            </div>
+                          }}
+                          onMouseEnter={() => setHoveredBarIndex(idx)}
+                          onMouseLeave={() => setHoveredBarIndex(null)}
+                          onFocus={() => setHoveredBarIndex(idx)}
+                          onBlur={() => setHoveredBarIndex(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedBarIndex(selectedBarIndex === idx ? null : idx);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${pulse.fullLabel || pulse.slot}: ${formatInr(pulse.settledAmount)} settled, ${pulse.orderCount} orders`}
+                          className="flex-1 h-full flex flex-col justify-end items-center group cursor-pointer relative outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-t"
+                        >
+                          {/* Tooltip on hover/active - centered with downward pointer */}
+                          {isActive && (
                             <div
-                              className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 ${
-                                isDarkMode ? 'border-t-[#1A253A]' : 'border-t-slate-900'
+                              className={`absolute -top-16 left-1/2 -translate-x-1/2 z-30 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono-tabular shadow-xl whitespace-nowrap pointer-events-none transition-all ${
+                                isDarkMode
+                                  ? 'bg-[#1A253A] border-white/10 text-white'
+                                  : 'bg-slate-900 text-white border-slate-800'
+                              }`}
+                            >
+                              <div className="font-semibold text-emerald-400">
+                                Settled: {formatInr(pulse.settledAmount)}
+                              </div>
+                              {pulse.pendingAmount > 0 && (
+                                <div className="text-amber-400">
+                                  Khata / Due: {formatInr(pulse.pendingAmount)}
+                                </div>
+                              )}
+                              <div className="text-slate-300 text-[10px]">
+                                {pulse.orderCount} {pulse.orderCount === 1 ? 'order' : 'orders'} • {pulse.fullLabel || pulse.slot}
+                              </div>
+                              <div
+                                className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 ${
+                                  isDarkMode ? 'border-t-[#1A253A]' : 'border-t-slate-900'
+                                }`}
+                              />
+                            </div>
+                          )}
+
+                          {/* Stacked Bar with tactile transition */}
+                          <div
+                            className={`w-full max-w-[42px] rounded-t transition-all duration-150 overflow-hidden flex flex-col justify-end shadow-sm ${
+                              isActive
+                                ? 'ring-2 ring-blue-500 scale-[1.05] shadow-blue-500/20'
+                                : 'opacity-85 hover:opacity-100 hover:scale-[1.02]'
+                            }`}
+                            style={{ height: `${heightPercent}%` }}
+                          >
+                            {pulse.pendingAmount > 0 && (
+                              <div
+                                style={{ height: `${100 - settledPercent}%` }}
+                                className="w-full bg-amber-500/80 transition-colors"
+                                title={`Pending: ${formatInr(pulse.pendingAmount)}`}
+                              />
+                            )}
+                            <div
+                              style={{ height: `${settledPercent}%` }}
+                              className={`w-full transition-colors ${
+                                total === 0
+                                  ? isDarkMode ? 'bg-slate-800' : 'bg-slate-200'
+                                  : isActive
+                                  ? 'bg-[#0052FF]'
+                                  : 'bg-[#0052FF]/85 dark:bg-[#0052FF]/70'
                               }`}
                             />
                           </div>
-                        )}
 
-                        {/* Stacked Bar with tactile transition */}
-                        <div
-                          className={`w-full max-w-[42px] rounded-t transition-all duration-150 overflow-hidden flex flex-col justify-end shadow-sm ${
-                            isActive
-                              ? 'ring-2 ring-blue-500 scale-[1.05] shadow-blue-500/20'
-                              : 'opacity-85 hover:opacity-100 hover:scale-[1.02]'
-                          }`}
-                          style={{ height: `${heightPercent}%` }}
-                        >
-                          {pulse.pendingAmount > 0 && (
-                            <div
-                              style={{ height: `${100 - settledPercent}%` }}
-                              className="w-full bg-amber-500/80 transition-colors"
-                              title={`Pending: ${formatInr(pulse.pendingAmount)}`}
-                            />
-                          )}
-                          <div
-                            style={{ height: `${settledPercent}%` }}
-                            className={`w-full transition-colors ${
-                              total === 0
-                                ? isDarkMode ? 'bg-slate-800' : 'bg-slate-200'
-                                : isActive
-                                ? 'bg-[#0052FF]'
-                                : 'bg-[#0052FF]/85 dark:bg-[#0052FF]/70'
+                          <span
+                            className={`text-[11px] font-mono-tabular mt-2 transition-colors ${
+                              isActive
+                                ? 'font-bold text-blue-600 dark:text-blue-400'
+                                : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
                             }`}
-                          />
+                          >
+                            {pulse.slot}
+                          </span>
                         </div>
-
-                        <span
-                          className={`text-[11px] font-mono-tabular mt-2 transition-colors ${
-                            isActive
-                              ? 'font-bold text-blue-600 dark:text-blue-400'
-                              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
-                          }`}
-                        >
-                          {pulse.slot}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Bottom Ledger Summary Row */}
@@ -1751,148 +1896,193 @@ export default function OperationsDashboard({
 
           {/* RIGHT 40%: Real Actionable Triage Stack with Exact Counts */}
           <div
-            className={`lg:col-span-5 xl:col-span-5 rounded-xl border flex flex-col justify-between overflow-hidden transition-all ${
+            className={`lg:col-span-5 xl:col-span-5 rounded-2xl border flex flex-col justify-between overflow-hidden transition-all ${
               isDarkMode
-                ? 'bg-[#0F1623] border-white/[0.07]'
-                : 'bg-white border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_2px_12px_rgba(0,0,0,0.3)]'
+                : 'bg-white border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)]'
             }`}
           >
             {/* Header */}
-            <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Requires Attention
-                </h3>
-              </div>
-              <span className="text-[11px] font-mono-tabular text-slate-400 font-semibold">
-                {(needsPackingOrders.length > 0 ? 1 : 0) + (lowStockProducts.length > 0 ? 1 : 0) + (payLaterOrders.length > 0 ? 1 : 0)} Active Signals
-              </span>
-            </div>
-
-            {/* Operational Strip 1: Real Packing Queue Signal */}
-            <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400">
-                      HIGH PRIORITY
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                      {needsPackingOrders.length > 0
-                        ? `${needsPackingOrders.length} order${needsPackingOrders.length > 1 ? 's' : ''} awaiting packing`
-                        : 'Packing queue is clear'}
+            {(() => {
+              const activeSignalCount = (needsPackingOrders.length > 0 ? 1 : 0) + (lowStockProducts.length > 0 ? 1 : 0) + (payLaterOrders.length > 0 ? 1 : 0);
+              return (
+                <>
+                  <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${activeSignalCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Requires Attention
+                      </h3>
+                    </div>
+                    <span className={`text-[11px] font-mono-tabular font-semibold px-2 py-0.5 rounded-full ${
+                      activeSignalCount > 0
+                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                        : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                    }`}>
+                      {activeSignalCount === 0 ? 'All Queues Clear' : `${activeSignalCount} Active Signal${activeSignalCount > 1 ? 's' : ''}`}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {needsPackingOrders.length > 0
-                      ? `Oldest order: #${needsPackingOrders[0].id.slice(0, 8)} (${needsPackingOrders[0].customer_name || 'Counter'})`
-                      : 'Zero orders waiting in the preparation line.'}
-                  </p>
-                </div>
 
-                {needsPackingOrders.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={(e) => handlePackOrder(needsPackingOrders[0], e)}
-                    className="btn-tactile-primary px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    Accept &amp; Pack →
-                  </button>
-                ) : (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 shrink-0">
-                    <CheckCircle2 size={13} />
-                    All packed
-                  </span>
-                )}
-              </div>
-            </div>
+                  {activeSignalCount === 0 ? (
+                    <div className="p-6 flex flex-col items-center justify-center text-center space-y-3 flex-1 bg-gradient-to-b from-emerald-50/20 to-transparent dark:from-emerald-950/10">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm">
+                        <ShieldCheck size={26} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Counter &amp; Operations All Clear
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mt-1">
+                          Zero pending packing delays, inventory levels are healthy, and all customer Khata dues are settled in full.
+                        </p>
+                      </div>
+                      <div className="pt-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                        <CheckCircle2 size={12} />
+                        <span>Real-time D1 ledger synced</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Operational Strip 1: Real Packing Queue Signal */}
+                      <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                needsPackingOrders.length > 0
+                                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                              }`}>
+                                {needsPackingOrders.length > 0 ? 'HIGH PRIORITY' : 'CLEAR'}
+                              </span>
+                              <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                {needsPackingOrders.length > 0
+                                  ? `${needsPackingOrders.length} order${needsPackingOrders.length > 1 ? 's' : ''} awaiting packing`
+                                  : 'Packing queue is clear'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {needsPackingOrders.length > 0
+                                ? `Oldest order: #${needsPackingOrders[0].id.slice(0, 8)} (${needsPackingOrders[0].customer_name || 'Counter'})`
+                                : 'Zero orders waiting in the preparation line.'}
+                            </p>
+                          </div>
 
-            {/* Operational Strip 2: Real Inventory Watch */}
-            <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400">
-                      MEDIUM
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                      {lowStockProducts.length > 0
-                        ? `${lowStockProducts.length} item${lowStockProducts.length > 1 ? 's' : ''} low on stock (≤5 units)`
-                        : 'Inventory healthy (no low stock)'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {lowStockProducts.length > 0
-                      ? `${lowStockProducts[0].name} (${lowStockProducts[0].stock_quantity} left)`
-                      : 'All tracked catalog items have sufficient stock units.'}
-                  </p>
-                </div>
+                          {needsPackingOrders.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handlePackOrder(needsPackingOrders[0], e)}
+                              className="btn-tactile-primary px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap shrink-0 cursor-pointer"
+                            >
+                              Accept &amp; Pack →
+                            </button>
+                          ) : (
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 shrink-0">
+                              <CheckCircle2 size={13} />
+                              All packed
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                {lowStockProducts.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStockModalProduct(lowStockProducts[0]);
-                      setIsStockModalOpen(true);
-                    }}
-                    className={`btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap shrink-0 cursor-pointer ${
-                      isDarkMode
-                        ? 'bg-[#1A253A] border-white/10 text-slate-200 hover:border-white/25'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    Update Stock →
-                  </button>
-                ) : (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 shrink-0">
-                    <CheckCircle2 size={13} />
-                    Stock healthy
-                  </span>
-                )}
-              </div>
-            </div>
+                      {/* Operational Strip 2: Real Inventory Watch */}
+                      <div className="p-4 border-b border-slate-100 dark:border-white/[0.06] hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                lowStockProducts.length > 0
+                                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                              }`}>
+                                {lowStockProducts.length > 0 ? 'RESTOCK' : 'HEALTHY'}
+                              </span>
+                              <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                {lowStockProducts.length > 0
+                                  ? `${lowStockProducts.length} item${lowStockProducts.length > 1 ? 's' : ''} low on stock (≤5 units)`
+                                  : 'Inventory healthy (no low stock)'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {lowStockProducts.length > 0
+                                ? `${lowStockProducts[0].name} (${lowStockProducts[0].stock_quantity} left)`
+                                : 'All tracked catalog items have sufficient stock units.'}
+                            </p>
+                          </div>
 
-            {/* Operational Strip 3: Real Khata / Credit Dues */}
-            <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-700 dark:text-purple-400">
-                      KHATA DUE
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                      {payLaterOrders.length > 0
-                        ? `${formatInr(totalCreditDue)} due from ${payLaterOrders.length} account${payLaterOrders.length > 1 ? 's' : ''}`
-                        : 'No pending khata balance'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {payLaterOrders.length > 0
-                      ? payLaterOrders
-                          .slice(0, 2)
-                          .map((o) => `${o.customer_name || 'Customer'} (${formatInr(Number(o.total) || 0)})`)
-                          .join(' • ')
-                      : 'All customer credit ledgers are settled in full.'}
-                  </p>
-                </div>
+                          {lowStockProducts.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStockModalProduct(lowStockProducts[0]);
+                                setIsStockModalOpen(true);
+                              }}
+                              className={`btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap shrink-0 cursor-pointer ${
+                                isDarkMode
+                                  ? 'bg-[#1A253A] border-white/10 text-slate-200 hover:border-white/25'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              Update Stock →
+                            </button>
+                          ) : (
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 shrink-0">
+                              <CheckCircle2 size={13} />
+                              Stock healthy
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                {payLaterOrders.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={(e) => handleNudgeWhatsApp(payLaterOrders[0], e)}
-                    className="btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap bg-purple-50 dark:bg-[#1A253A] border-purple-200 dark:border-white/10 text-purple-800 dark:text-purple-400 hover:bg-purple-100 cursor-pointer shrink-0"
-                  >
-                    Nudge WhatsApp →
-                  </button>
-                ) : (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 shrink-0">
-                    <CheckCircle2 size={13} />
-                    Zero dues
-                  </span>
-                )}
-              </div>
-            </div>
+                      {/* Operational Strip 3: Real Khata / Credit Dues */}
+                      <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                payLaterOrders.length > 0
+                                  ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400'
+                                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                              }`}>
+                                {payLaterOrders.length > 0 ? 'KHATA DUE' : 'ZERO DUES'}
+                              </span>
+                              <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                {payLaterOrders.length > 0
+                                  ? `${formatInr(totalCreditDue)} due from ${payLaterOrders.length} account${payLaterOrders.length > 1 ? 's' : ''}`
+                                  : 'No pending khata balance'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {payLaterOrders.length > 0
+                                ? payLaterOrders
+                                    .slice(0, 2)
+                                    .map((o) => `${o.customer_name || 'Customer'} (${formatInr(Number(o.total) || 0)})`)
+                                    .join(' • ')
+                                : 'All customer credit ledgers are settled in full.'}
+                            </p>
+                          </div>
+
+                          {payLaterOrders.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleNudgeWhatsApp(payLaterOrders[0], e)}
+                              className="btn-tactile-ghost px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap bg-purple-50 dark:bg-[#1A253A] border-purple-200 dark:border-white/10 text-purple-800 dark:text-purple-400 hover:bg-purple-100 cursor-pointer shrink-0"
+                            >
+                              Nudge WhatsApp →
+                            </button>
+                          ) : (
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 shrink-0">
+                              <CheckCircle2 size={13} />
+                              Zero dues
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Zero Platform Commission Guarantee */}
             <div
@@ -2092,13 +2282,13 @@ export default function OperationsDashboard({
 
           {/* REAL ORDERS TABLE OR AUTHENTIC EMPTY STATE */}
           {filteredOrders.length === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center justify-center max-w-md mx-auto space-y-4">
-              <div className="mb-2">
+            <div className="p-8 sm:p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto space-y-4 my-4 rounded-2xl border border-dashed border-slate-200/90 dark:border-white/10 bg-slate-50/40 dark:bg-white/[0.01]">
+              <div className="mb-1">
                 <FeroMascot size={64} showBadge={true} />
               </div>
 
               <div className="space-y-1.5">
-                <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
+                <h3 className="text-base sm:text-lg font-bold font-display text-slate-900 dark:text-white">
                   {selectedSlot
                     ? `No orders in ${selectedSlot.fullLabel || selectedSlot.slot}`
                     : searchQuery
@@ -2109,7 +2299,7 @@ export default function OperationsDashboard({
                     ? 'Zero pending khata accounts'
                     : 'All caught up—no orders in this queue'}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md">
                   {selectedSlot ? (
                     <button
                       type="button"
@@ -2121,25 +2311,38 @@ export default function OperationsDashboard({
                   ) : searchQuery ? (
                     'Try searching with a different customer name, phone number, or product item.'
                   ) : (
-                    'Your counter is clear. Record instant walk-in orders or share your direct UPI storefront link with customers.'
+                    'Your counter is clear. Record instant walk-in orders with UPI or cash, or display your direct storefront link to customers.'
                   )}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center flex-wrap justify-center gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => onOpenNewOrderModal?.()}
-                  className="btn-tactile-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer"
+                  className="btn-tactile-primary px-3.5 py-2 rounded-xl text-xs font-semibold text-white cursor-pointer shadow-sm flex items-center gap-1.5"
                 >
-                  + Create Quick Order
+                  <Plus size={14} />
+                  <span>+ Record Counter Order</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenQrModal?.()}
+                  className={`btn-tactile-ghost px-3.5 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 cursor-pointer ${
+                    isDarkMode
+                      ? 'border-white/10 text-slate-200 hover:bg-white/5'
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <CreditCard size={14} className="text-emerald-500" />
+                  <span>Display Store QR</span>
                 </button>
                 {storeUrl && (
                   <a
                     href={storeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`btn-tactile-ghost px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ${
+                    className={`btn-tactile-ghost px-3.5 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 ${
                       isDarkMode
                         ? 'border-white/10 text-slate-300 hover:bg-white/5'
                         : 'border-slate-200 text-slate-700 hover:bg-slate-50'

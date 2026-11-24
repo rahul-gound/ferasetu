@@ -118,6 +118,43 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
       { key: 'secretKey', label: 'Secret Key', type: 'password', placeholder: '••••••••', required: true },
     ],
   },
+  {
+    id: 'paytm-pg',
+    name: 'Paytm Payment Gateway',
+    category: 'payments',
+    developer: 'One97 Communications',
+    description: 'Accept UPI, Paytm Wallet, netbanking, and cards with instant webhook settlement.',
+    badge: 'Popular UPI',
+    docsUrl: 'https://developer.paytm.com',
+    fields: [
+      { key: 'merchantId', label: 'Merchant ID (MID)', type: 'text', placeholder: 'PAYTM_MID_...', required: true },
+      { key: 'merchantKey', label: 'Merchant Key', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
+  {
+    id: 'payu-pg',
+    name: 'PayU India Gateway',
+    category: 'payments',
+    developer: 'PayU Payments',
+    description: 'Enterprise payment stack supporting card EMI, UPI Intent, and multi-currency billing.',
+    badge: 'Enterprise',
+    fields: [
+      { key: 'merchantKey', label: 'Merchant Key', type: 'text', placeholder: 'PAYU_KEY_...', required: true },
+      { key: 'merchantSalt', label: 'Merchant Salt', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
+  {
+    id: 'pinelabs-pg',
+    name: 'Pine Labs Plural',
+    category: 'payments',
+    developer: 'Pine Labs India',
+    description: 'Unified online and countertop payment orchestration across retail branches.',
+    badge: 'Retail POS',
+    fields: [
+      { key: 'merchantId', label: 'Plural Merchant ID', type: 'text', placeholder: 'PLURAL_MID_...', required: true },
+      { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
 
   // Logistics
   {
@@ -174,6 +211,30 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
       { key: 'secretKey', label: 'API Secret', type: 'password', placeholder: '••••••••', required: true },
     ],
   },
+  {
+    id: 'bluedart-apex',
+    name: 'Blue Dart Apex Express',
+    category: 'logistics',
+    developer: 'DHL / Blue Dart Express',
+    description: 'Air express domestic priority delivery with dedicated cargo reliability across metros and capitals.',
+    badge: 'Air Priority',
+    fields: [
+      { key: 'loginId', label: 'Blue Dart Customer Login ID', type: 'text', placeholder: 'BLUEDART_CUST...', required: true },
+      { key: 'licenseKey', label: 'License Key', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
+  {
+    id: 'dtdc-express',
+    name: 'DTDC Smart Express',
+    category: 'logistics',
+    developer: 'DTDC Express Ltd',
+    description: 'Pan-India reach across tier-2, tier-3 and rural pincodes with automated tracking webhooks.',
+    badge: 'Pan-India Reach',
+    fields: [
+      { key: 'customerId', label: 'Customer Code', type: 'text', placeholder: 'DTDC_GL123...', required: true },
+      { key: 'apiToken', label: 'API Access Token', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
 
   // Messaging
   {
@@ -190,6 +251,32 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
     ],
   },
   {
+    id: 'whatsapp-cloud-api',
+    name: 'Meta WhatsApp Cloud API',
+    category: 'messaging',
+    developer: 'Meta Business Platform',
+    description: 'Official WhatsApp Cloud API for green-badge stores with high-throughput bulk template broadcasts.',
+    badge: 'Official Meta',
+    popular: true,
+    fields: [
+      { key: 'phoneId', label: 'Phone Number ID', type: 'text', placeholder: '109823478912345', required: true },
+      { key: 'accessToken', label: 'Permanent System Access Token', type: 'password', placeholder: 'EAAG...', required: true },
+      { key: 'wabaId', label: 'WhatsApp Business Account ID', type: 'text', placeholder: '1029384756', required: true },
+    ],
+  },
+  {
+    id: 'gupshup-enterprise',
+    name: 'Gupshup WhatsApp Enterprise',
+    category: 'messaging',
+    developer: 'Gupshup India',
+    description: 'Enterprise WhatsApp BSP gateway with conversational commerce chatbot automation.',
+    badge: 'Conversational',
+    fields: [
+      { key: 'appName', label: 'Gupshup App Name', type: 'text', placeholder: 'my_store_bot', required: true },
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
+  {
     id: 'telegram-bot',
     name: 'Telegram Store Alerts Bot',
     category: 'messaging',
@@ -199,6 +286,19 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
     fields: [
       { key: 'botToken', label: 'Telegram Bot Token', type: 'password', placeholder: '123456789:ABCdefGhI...', required: true, helperText: 'Create via @BotFather on Telegram' },
       { key: 'chatId', label: 'Your Chat ID or Channel ID', type: 'text', placeholder: '-100123456789', required: true },
+    ],
+  },
+  {
+    id: 'twilio-sms',
+    name: 'Twilio SMS & OTP Gateway',
+    category: 'messaging',
+    developer: 'Twilio Inc.',
+    description: 'Worldwide telecom routing for OTP authentication codes, customer delivery alerts, and SMS.',
+    badge: 'Global SMS',
+    fields: [
+      { key: 'accountSid', label: 'Account SID', type: 'text', placeholder: 'AC...', required: true },
+      { key: 'authToken', label: 'Auth Token', type: 'password', placeholder: '••••••••', required: true },
+      { key: 'fromNumber', label: 'Twilio Sender Phone Number', type: 'text', placeholder: '+1234567890', required: true },
     ],
   },
   {
@@ -242,6 +342,18 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
       { key: 'orgId', label: 'Zoho Organization ID', type: 'text', placeholder: '6001234567', required: true },
       { key: 'clientId', label: 'Client ID', type: 'text', placeholder: '1000.XXXX...', required: true },
       { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: '••••••••', required: true },
+    ],
+  },
+  {
+    id: 'marg-erp',
+    name: 'Marg ERP 9+ Retail Bridge',
+    category: 'accounting',
+    developer: 'Marg Compusoft',
+    description: 'Direct billing synchronization for pharmacies, FMCG distributors, and kirana stores running Marg ERP.',
+    badge: 'Pharma & Kirana',
+    fields: [
+      { key: 'companyCode', label: 'Marg Company Code', type: 'text', placeholder: 'MARG_COMP_01', required: true },
+      { key: 'serverUrl', label: 'Marg Bridge Server URL', type: 'text', placeholder: 'http://localhost:8080/marg', required: true },
     ],
   },
   {
@@ -370,6 +482,31 @@ export const INTEGRATION_CATALOG: CatalogIntegration[] = [
       { key: 'channel', label: 'Channel Name', type: 'text', placeholder: '#store-orders', required: false },
     ],
   },
+  {
+    id: 'fera-ai',
+    name: 'Fera AI Store Brain & Sidekick',
+    category: 'ai',
+    developer: 'FeraSetu Core AI Cluster',
+    description: 'Autonomous AI agent powered by our sovereign OpenAI-compatible cluster (ai.fera-search.tech). Operates orders, reports, and storefronts.',
+    badge: 'Native AI Brain',
+    popular: true,
+    fields: [
+      { key: 'autoSync', label: 'Autonomous Tool Mode', type: 'select', options: [{ label: 'Enabled (Autonomous Assistant)', value: 'enabled' }, { label: 'Manual Approval Only', value: 'manual' }] },
+      { key: 'voiceAlerts', label: 'Voice Feedback Language', type: 'select', options: [{ label: 'Hindi + English', value: 'hi_en' }, { label: 'English Only', value: 'en' }, { label: 'Telugu', value: 'te' }] },
+    ],
+  },
+  {
+    id: 'zapier-make',
+    name: 'Zapier & Make.com Webhook Automation',
+    category: 'ai',
+    developer: 'Zapier / Celonis Make',
+    description: 'Connect FeraSetu events to 5,000+ cloud apps, CRM workflows, and custom automations without writing code.',
+    badge: 'No-Code Auto',
+    popular: true,
+    fields: [
+      { key: 'webhookUrl', label: 'Zapier / Make Catch Hook URL', type: 'text', placeholder: 'https://hooks.zapier.com/hooks/catch/...', required: true },
+    ],
+  },
 ];
 
 interface AddIntegrationModalProps {
@@ -488,13 +625,13 @@ export default function AddIntegrationModal({
               <Plus size={22} />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
                 {configuringApp ? `Configure ${configuringApp.name}` : 'Add New Integration'}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 {configuringApp
                   ? `Enter merchant credentials to connect ${configuringApp.name} with your store.`
-                  : 'Choose from 28+ payment gateways, couriers, accounting ERP, and POS hardware apps.'}
+                  : `Choose from ${INTEGRATION_CATALOG.length}+ payment gateways, couriers, accounting ERP, and AI tools.`}
               </p>
             </div>
           </div>
@@ -508,7 +645,7 @@ export default function AddIntegrationModal({
                 onClose();
               }
             }}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -517,21 +654,21 @@ export default function AddIntegrationModal({
         {/* Modal Body */}
         {configuringApp ? (
           /* Step 2: Configuration View */
-          <div className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 pb-10">
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
               <div className="shrink-0">
                 {getIntegrationLogo(configuringApp.id, 52)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  <h3 className="text-base font-black text-slate-900">
                     {configuringApp.name}
                   </h3>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-blue-50 text-blue-700">
                     {configuringApp.category}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                <p className="text-xs text-slate-600 mt-0.5">
                   {configuringApp.description}
                 </p>
               </div>
@@ -541,7 +678,7 @@ export default function AddIntegrationModal({
               <div className="space-y-3.5">
                 {configuringApp.fields.map((field) => (
                   <div key={field.key} className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <label className="block text-xs font-bold text-slate-800">
                       {field.label}
                       {field.required && <span className="text-rose-500 ml-1">*</span>}
                     </label>
@@ -550,7 +687,7 @@ export default function AddIntegrationModal({
                       <select
                         value={formData[field.key] || ''}
                         onChange={(e) => handleInputChange(field.key, e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-[#0052FF] focus:ring-2 focus:ring-blue-100"
+                        className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 bg-white text-slate-900 outline-none focus:border-[#0052FF] focus:ring-2 focus:ring-blue-100"
                       >
                         {field.options?.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -565,12 +702,12 @@ export default function AddIntegrationModal({
                         onChange={(e) => handleInputChange(field.key, e.target.value)}
                         placeholder={field.placeholder}
                         required={field.required}
-                        className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-[#0052FF] focus:ring-2 focus:ring-blue-100"
+                        className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 bg-white text-slate-900 outline-none focus:border-[#0052FF] focus:ring-2 focus:ring-blue-100"
                       />
                     )}
 
                     {field.helperText && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <p className="text-[11px] text-slate-500">
                         {field.helperText}
                       </p>
                     )}
@@ -579,19 +716,19 @@ export default function AddIntegrationModal({
               </div>
 
               {/* Zero Commission & Security Invariant */}
-              <div className="p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800 flex items-center gap-2.5 text-xs text-emerald-900 dark:text-emerald-300">
+              <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200/60 flex items-center gap-2.5 text-xs text-emerald-900">
                 <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
                 <span>
-                  <strong>0% Platform Commission Guarantee:</strong> FeraSetu does not levy fees on integrations. All payouts and data flow directly between you and {configuringApp.name}.
+                  <strong>0% Platform Commission Guarantee:</strong> FeraSetu does not levy fees or take a commission cut. All transactions, orders, and data flow directly and securely between your shop and {configuringApp.name}.
                 </span>
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-4 flex items-center justify-between border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setConfiguringApp(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
                 >
                   ← Back to Apps
                 </button>
@@ -611,7 +748,7 @@ export default function AddIntegrationModal({
           /* Step 1: Catalog Browser */
           <>
             {/* Search & Category Filter Toolbar */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-[#F8FAFC] dark:bg-slate-900/50 space-y-3 shrink-0">
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-[#F8FAFC] space-y-3 shrink-0">
               {/* Search Bar */}
               <div className="relative">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -619,8 +756,8 @@ export default function AddIntegrationModal({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search 28+ apps, payment gateways, couriers, accounting ERP, or POS hardware..."
-                  className="w-full min-h-[42px] pl-10 pr-4 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-[#0052FF] focus:ring-2 focus:ring-blue-100"
+                  placeholder={`Search ${INTEGRATION_CATALOG.length}+ apps, payment gateways, couriers, accounting ERP, or AI tools...`}
+                  className="w-full min-h-[42px] pl-10 pr-4 py-2 rounded-xl text-xs border border-slate-200 bg-white text-slate-900 outline-none focus:border-[#0052FF] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
@@ -628,12 +765,12 @@ export default function AddIntegrationModal({
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
                 {[
                   { id: 'all', label: `All Apps (${INTEGRATION_CATALOG.length})` },
+                  { id: 'ai', label: 'AI & MCP Tools' },
                   { id: 'payments', label: 'Payments & UPI' },
                   { id: 'logistics', label: 'Couriers & Logistics' },
-                  { id: 'messaging', label: 'Messaging & Alerts' },
-                  { id: 'accounting', label: 'Accounting & Tally' },
+                  { id: 'messaging', label: 'Messaging & WhatsApp' },
+                  { id: 'accounting', label: 'Accounting & ERP' },
                   { id: 'hardware', label: 'Counter Hardware' },
-                  { id: 'ai', label: 'Productivity & AI' },
                 ].map((cat) => (
                   <button
                     key={cat.id}
@@ -668,7 +805,7 @@ export default function AddIntegrationModal({
                             {getIntegrationLogo(app.id, 44)}
                           </div>
                           <div>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                            <h4 className="text-sm font-black text-slate-900 leading-tight">
                               {app.name}
                             </h4>
                             <p className="text-[11px] text-slate-400 font-medium">
