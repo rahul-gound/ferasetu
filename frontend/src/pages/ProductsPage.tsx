@@ -353,22 +353,22 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="flex flex-col w-full gap-6 pb-12 font-sans bg-[#f9f9ff] text-[#121c2b] min-h-full">
+    <div className="flex flex-col w-full gap-6 pb-12 font-sans text-slate-900 min-h-full">
       {/* 1. Header Bar */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="flex flex-col">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-[28px] font-bold text-[#121c2b] tracking-tight m-0">
+            <h1 className="text-2xl sm:text-[28px] font-black text-slate-900 tracking-tight m-0">
               {translate('products')}
             </h1>
-            <span className="px-2.5 py-0.5 rounded-lg bg-[#dee8fe] text-[#434656] text-xs font-semibold">
+            <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-[#0052FF] border border-blue-200 text-xs font-bold">
               SKU Register
             </span>
           </div>
-          <p className="text-sm text-[#585e6f] mt-1 font-normal m-0">
+          <p className="text-sm text-slate-600 mt-1 font-normal m-0">
             Manage your inventory, pricing, variants, and storefront visibility
             {productLimit !== Infinity && (
-              <span className="text-[#737688]">
+              <span className="text-slate-500">
                 {' '}
                 • {products.length} of {productLimit} slots used
               </span>
@@ -381,9 +381,9 @@ export default function ProductsPage() {
           <button
             type="button"
             onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 h-11 px-4 rounded-xl bg-white hover:bg-[#e7eeff] text-[#121c2b] font-medium text-sm transition-colors shadow-xs border border-[#c3c5d9]/30 cursor-pointer"
+            className="flex items-center gap-2 h-11 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm transition-all shadow-xs border border-slate-200 cursor-pointer active:translate-y-0.5"
           >
-            <Download size={18} className="text-[#585e6f]" />
+            <Download size={18} className="text-slate-500" />
             <span>Import CSV</span>
           </button>
 
@@ -391,16 +391,16 @@ export default function ProductsPage() {
             type="button"
             onClick={handleExportCsv}
             disabled={exportingCsv || products.length === 0}
-            className="flex items-center gap-2 h-11 px-4 rounded-xl bg-white hover:bg-[#e7eeff] text-[#121c2b] font-medium text-sm transition-colors shadow-xs border border-[#c3c5d9]/30 cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 h-11 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm transition-all shadow-xs border border-slate-200 cursor-pointer active:translate-y-0.5 disabled:opacity-50"
           >
-            <Upload size={18} className="text-[#585e6f]" />
+            <Upload size={18} className="text-slate-500" />
             <span>{exportingCsv ? 'Exporting...' : 'Export'}</span>
           </button>
 
           <button
             type="button"
             onClick={openAdd}
-            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#0052ff] hover:bg-[#003ec7] text-white font-medium text-sm transition-colors shadow-sm cursor-pointer"
+            className="btn-tactile-primary flex items-center gap-2 h-11 px-5 rounded-xl font-bold text-sm text-white shadow-sm cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
             <span>Add Product</span>
@@ -411,70 +411,70 @@ export default function ProductsPage() {
       {/* 2. Catalogue Stats & Quick Insights */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Card 1: Total Register */}
-        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+        <div className="bg-white rounded-2xl p-4 flex flex-col justify-between shadow-xs border border-slate-200/90">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#737688]">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Total Register
             </span>
-            <Package size={18} className="text-[#737688]" />
+            <Package size={18} className="text-slate-500" />
           </div>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-[28px] font-bold text-[#121c2b] leading-tight">
+            <span className="text-[28px] font-black text-slate-900 leading-tight">
               {stats.total}
             </span>
-            <span className="text-xs text-[#737688]">SKUs recorded</span>
+            <span className="text-xs text-slate-500 font-medium">SKUs recorded</span>
           </div>
         </div>
 
         {/* Card 2: Active Online */}
-        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+        <div className="bg-white rounded-2xl p-4 flex flex-col justify-between shadow-xs border border-slate-200/90">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#737688]">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Active Online
             </span>
-            <Store size={18} className="text-[#003ec7]" />
+            <Store size={18} className="text-[#0052FF]" />
           </div>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-[28px] font-bold text-[#121c2b] leading-tight">
+            <span className="text-[28px] font-black text-slate-900 leading-tight">
               {stats.active}
             </span>
-            <span className="text-xs text-[#003ec7] font-semibold">
+            <span className="text-xs text-[#0052FF] font-bold">
               {stats.visiblePct}% visible
             </span>
           </div>
         </div>
 
         {/* Card 3: Low Stock */}
-        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+        <div className="bg-white rounded-2xl p-4 flex flex-col justify-between shadow-xs border border-slate-200/90">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#952200]">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
               Low Stock
             </span>
-            <AlertTriangle size={18} className="text-[#952200]" />
+            <AlertTriangle size={18} className="text-amber-600" />
           </div>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-[28px] font-bold text-[#952200] leading-tight">
+            <span className="text-[28px] font-black text-amber-600 leading-tight">
               {stats.lowStock}
             </span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#ffdbd2] text-[#891e00]">
+            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
               Reorder suggested
             </span>
           </div>
         </div>
 
         {/* Card 4: Out of Stock */}
-        <div className="bg-white rounded-xl p-4 flex flex-col justify-between shadow-xs border border-[#e7eeff]">
+        <div className="bg-white rounded-2xl p-4 flex flex-col justify-between shadow-xs border border-slate-200/90">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#ba1a1a]">
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-700">
               Out of Stock
             </span>
-            <AlertCircle size={18} className="text-[#ba1a1a]" />
+            <AlertCircle size={18} className="text-rose-600" />
           </div>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-[28px] font-bold text-[#ba1a1a] leading-tight">
+            <span className="text-[28px] font-black text-rose-600 leading-tight">
               {stats.outOfStock}
             </span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#ffdad6] text-[#93000a]">
+            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
               Zero balance
             </span>
           </div>
@@ -490,14 +490,14 @@ export default function ProductsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-[#121c2b] m-0">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 m-0">
                   Congratulations on listing {productLimit} products!
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
                   Milestone
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-[#585e6f] font-normal m-0 mt-1">
+              <p className="text-xs sm:text-sm text-slate-600 font-normal m-0 mt-1">
                 Your shop is expanding. Your existing products remain 100% active and free forever.
               </p>
             </div>
@@ -522,13 +522,13 @@ export default function ProductsPage() {
       )}
 
       {/* 3. Search, Filters, & Category Pills */}
-      <div className="bg-white rounded-xl p-4 flex flex-col gap-4 shadow-xs border border-[#e7eeff]">
+      <div className="bg-white rounded-2xl p-4 flex flex-col gap-4 shadow-xs border border-slate-200/90">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Search Field */}
           <div className="relative flex-1">
             <Search
               size={18}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#737688]"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
               type="text"
@@ -538,7 +538,7 @@ export default function ProductsPage() {
                 setPage(1);
               }}
               placeholder="Search products by title, SKU, barcode (EAN)..."
-              className="w-full h-11 pl-10 pr-9 rounded-xl bg-[#f0f3ff] text-[#121c2b] placeholder:text-[#737688] text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0052ff]/20 transition-all border-none"
+              className="w-full h-11 pl-10 pr-9 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 transition-all border border-slate-200"
             />
             {search && (
               <button
@@ -547,7 +547,7 @@ export default function ProductsPage() {
                   setSearch('');
                   setPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737688] hover:text-[#121c2b] cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -565,19 +565,19 @@ export default function ProductsPage() {
                   setShowStatusMenu(!showStatusMenu);
                   setShowStockMenu(false);
                 }}
-                className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#121c2b] text-sm transition-colors whitespace-nowrap cursor-pointer"
+                className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-sm transition-colors whitespace-nowrap cursor-pointer"
               >
-                <span className="text-xs text-[#737688]">Status:</span>
+                <span className="text-xs text-slate-500">Status:</span>
                 <span className="font-semibold capitalize">
                   {statusFilter === 'all' ? 'All' : statusFilter}
                 </span>
-                <ChevronDown size={18} className="text-[#737688]" />
+                <ChevronDown size={16} className="text-slate-400" />
               </button>
 
               {showStatusMenu && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-[#c3c5d9]/40"
+                  className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-slate-200"
                 >
                   {(['all', 'active', 'draft', 'archived'] as const).map((val) => (
                     <button
@@ -588,10 +588,10 @@ export default function ProductsPage() {
                         setShowStatusMenu(false);
                         setPage(1);
                       }}
-                      className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#121c2b] hover:bg-[#f0f3ff] flex justify-between items-center capitalize cursor-pointer"
+                      className="text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-800 hover:bg-slate-50 flex justify-between items-center capitalize cursor-pointer"
                     >
                       <span>{val === 'all' ? 'All Statuses' : val}</span>
-                      {statusFilter === val && <Check size={16} className="text-[#0052ff]" />}
+                      {statusFilter === val && <Check size={16} className="text-[#0052FF]" />}
                     </button>
                   ))}
                 </div>
@@ -607,9 +607,9 @@ export default function ProductsPage() {
                   setShowStockMenu(!showStockMenu);
                   setShowStatusMenu(false);
                 }}
-                className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#121c2b] text-sm transition-colors whitespace-nowrap cursor-pointer"
+                className="flex items-center gap-2 h-11 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-sm transition-colors whitespace-nowrap cursor-pointer"
               >
-                <span className="text-xs text-[#737688]">Stock:</span>
+                <span className="text-xs text-slate-500">Stock:</span>
                 <span className="font-semibold">
                   {stockFilter === 'all'
                     ? 'All'
@@ -619,13 +619,13 @@ export default function ProductsPage() {
                     ? 'Low Stock (≤5)'
                     : 'Out of Stock (0)'}
                 </span>
-                <ChevronDown size={18} className="text-[#737688]" />
+                <ChevronDown size={16} className="text-slate-400" />
               </button>
 
               {showStockMenu && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-[#c3c5d9]/40"
+                  className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-xl p-1 z-30 flex flex-col gap-0.5 border border-slate-200"
                 >
                   {[
                     { id: 'all', label: 'All Inventory' },
@@ -641,10 +641,10 @@ export default function ProductsPage() {
                         setShowStockMenu(false);
                         setPage(1);
                       }}
-                      className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#121c2b] hover:bg-[#f0f3ff] flex justify-between items-center cursor-pointer"
+                      className="text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-800 hover:bg-slate-50 flex justify-between items-center cursor-pointer"
                     >
                       <span>{opt.label}</span>
-                      {stockFilter === opt.id && <Check size={16} className="text-[#0052ff]" />}
+                      {stockFilter === opt.id && <Check size={16} className="text-[#0052FF]" />}
                     </button>
                   ))}
                 </div>
@@ -656,31 +656,33 @@ export default function ProductsPage() {
               type="button"
               onClick={handleResetFilters}
               title="Reset Filters"
-              className="h-11 w-11 flex items-center justify-center rounded-xl bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#737688] hover:text-[#121c2b] transition-colors cursor-pointer shrink-0"
+              className="h-11 w-11 flex items-center justify-center rounded-xl bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 border border-slate-200 transition-colors cursor-pointer shrink-0"
             >
               <RotateCcw size={18} />
             </button>
           </div>
         </div>
 
-        {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {/* Category Filter Tabs */}
+        <div role="tablist" aria-label="Product categories" className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             type="button"
+            role="tab"
+            aria-selected={!category}
             onClick={() => {
               setCategory('');
               setPage(1);
             }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
               !category
-                ? 'bg-[#0052ff] text-white shadow-xs'
-                : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#434656] hover:text-[#121c2b]'
+                ? 'bg-[#0052FF] text-white shadow-xs'
+                : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700 hover:text-slate-900'
             }`}
           >
             <span>All Products</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
-                !category ? 'bg-white/20 text-white' : 'bg-[#d9e3f8] text-[#434656]'
+                !category ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}
             >
               {products.length}
@@ -693,20 +695,22 @@ export default function ProductsPage() {
               <button
                 key={cat.name}
                 type="button"
+                role="tab"
+                aria-selected={isSelected}
                 onClick={() => {
                   setCategory(isSelected ? '' : cat.name);
                   setPage(1);
                 }}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   isSelected
-                    ? 'bg-[#0052ff] text-white shadow-xs'
-                    : 'bg-[#f0f3ff] hover:bg-[#e7eeff] text-[#434656] hover:text-[#121c2b]'
+                    ? 'bg-[#0052FF] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700 hover:text-slate-900'
                 }`}
               >
                 <span>{cat.name}</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-[#d9e3f8] text-[#434656]'
+                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
                   }`}
                 >
                   {cat.count}
@@ -754,11 +758,11 @@ export default function ProductsPage() {
       )}
 
       {/* 5. Products Ledger Table Container */}
-      <div className="bg-white rounded-xl shadow-xs overflow-hidden flex flex-col border border-[#e7eeff]">
+      <div className="bg-white rounded-2xl shadow-xs overflow-hidden flex flex-col border border-slate-200/90">
         {isLoading ? (
           <div className="p-12 flex flex-col items-center justify-center text-center space-y-3">
-            <div className="w-8 h-8 border-3 border-[#0052ff] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-[#737688]">Loading catalog items...</p>
+            <div className="w-8 h-8 border-3 border-[#0052FF] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-slate-500 font-medium">Loading catalog items...</p>
           </div>
         ) : filtered.length === 0 ? (
           /* Emotional Guided Empty State with Fero Guardian */
@@ -790,27 +794,27 @@ export default function ProductsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#f0f3ff] text-[#737688] text-xs font-semibold uppercase tracking-wider select-none border-b border-[#e7eeff]">
-                  <th className="py-3 pl-4 pr-2 w-10 text-center">
+                <tr className="bg-slate-50 text-slate-700 text-xs font-bold uppercase tracking-wider select-none border-b border-slate-200">
+                  <th className="py-3.5 pl-4 pr-2 w-10 text-center">
                     <input
                       type="checkbox"
                       checked={
                         filtered.length > 0 && selectedProductIds.length === filtered.length
                       }
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded w-4 h-4 text-[#0052ff] focus:ring-0 cursor-pointer accent-[#0052ff]"
+                      className="rounded w-4 h-4 text-[#0052FF] focus:ring-0 cursor-pointer accent-[#0052FF]"
                     />
                   </th>
-                  <th className="py-3 px-3 min-w-[280px]">Product &amp; SKU</th>
-                  <th className="py-3 px-3 min-w-[140px]">Category</th>
-                  <th className="py-3 px-3 text-right min-w-[100px]">Price</th>
-                  <th className="py-3 px-3 text-left min-w-[140px]">Inventory</th>
-                  <th className="py-3 px-3 min-w-[130px]">Channels</th>
-                  <th className="py-3 px-3 text-center min-w-[100px]">Storefront</th>
-                  <th className="py-3 pr-4 pl-2 text-right w-12"></th>
+                  <th className="py-3.5 px-3 min-w-[280px]">Product &amp; SKU</th>
+                  <th className="py-3.5 px-3 min-w-[140px]">Category</th>
+                  <th className="py-3.5 px-3 text-right min-w-[100px]">Price</th>
+                  <th className="py-3.5 px-3 text-left min-w-[140px]">Inventory</th>
+                  <th className="py-3.5 px-3 min-w-[130px]">Channels</th>
+                  <th className="py-3.5 px-3 text-center min-w-[100px]">Storefront</th>
+                  <th className="py-3.5 pr-4 pl-2 text-right w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#e7eeff] text-sm text-[#121c2b]">
+              <tbody className="divide-y divide-slate-100 text-sm text-slate-900">
                 {paginatedProducts.map((p) => {
                   const isSelected = selectedProductIds.includes(p.id);
                   const isActive =
@@ -825,7 +829,7 @@ export default function ProductsPage() {
                   return (
                     <tr
                       key={p.id}
-                      className="hover:bg-[#f0f3ff]/60 transition-colors group"
+                      className="hover:bg-slate-50/80 transition-colors group"
                     >
                       {/* Checkbox */}
                       <td className="py-3.5 pl-4 pr-2 text-center">
@@ -842,7 +846,7 @@ export default function ProductsPage() {
                         <div className="flex items-center gap-3">
                           <div
                             onClick={() => openEdit(p)}
-                            className="w-11 h-11 rounded-lg overflow-hidden bg-[#e7eeff] shrink-0 relative shadow-2xs flex items-center justify-center cursor-pointer"
+                            className="w-11 h-11 rounded-xl overflow-hidden bg-slate-100 shrink-0 relative shadow-2xs flex items-center justify-center cursor-pointer border border-slate-200"
                           >
                             {p.media_key || p.image_url ? (
                               <img
@@ -851,27 +855,27 @@ export default function ProductsPage() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <Package size={20} className="text-[#737688]" />
+                              <Package size={20} className="text-slate-400" />
                             )}
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span
                               onClick={() => openEdit(p)}
-                              className="font-semibold text-sm text-[#121c2b] group-hover:text-[#0052ff] transition-colors truncate cursor-pointer"
+                              className="font-bold text-sm text-slate-900 group-hover:text-[#0052FF] transition-colors truncate cursor-pointer"
                               title={p.name}
                             >
                               {p.name}
                             </span>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs font-mono text-[#737688]">
+                              <span className="text-xs font-mono text-slate-500">
                                 {p.sku || 'NO-SKU'}
                               </span>
-                              <span className="w-1 h-1 rounded-full bg-[#c3c5d9]" />
-                              <span className="text-xs text-[#585e6f]">
+                              <span className="w-1 h-1 rounded-full bg-slate-300" />
+                              <span className="text-xs text-slate-500">
                                 {p.barcode ? `EAN: ${p.barcode}` : 'No barcode'}
                               </span>
                               {p.variants && p.variants.length > 0 && (
-                                <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#0052ff] ml-1">
+                                <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-[#0052FF] ml-1">
                                   <Layers size={11} />
                                   <span>{p.variants.length} var</span>
                                 </span>
@@ -883,16 +887,16 @@ export default function ProductsPage() {
 
                       {/* Category */}
                       <td className="py-3.5 px-3">
-                        <span className="px-2 py-1 rounded-md bg-[#e7eeff] text-[#434656] text-xs font-medium inline-block truncate max-w-[130px]">
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium inline-block truncate max-w-[130px] border border-slate-200/60">
                           {p.category || 'General'}
                         </span>
                       </td>
 
                       {/* Price */}
                       <td className="py-3.5 px-3 text-right">
-                        <span className="font-semibold text-base tabular-nums text-[#121c2b]">
+                        <span className="font-bold text-base tabular-nums text-slate-900">
                           ₹{intPart}
-                          <span className="text-[#737688] text-xs">.{decPart}</span>
+                          <span className="text-slate-400 text-xs font-medium">.{decPart}</span>
                         </span>
                       </td>
 
@@ -900,21 +904,21 @@ export default function ProductsPage() {
                       <td className="py-3.5 px-3">
                         {isOut ? (
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ffdad6] text-[#93000a]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#ba1a1a]" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
                               0 left
                             </span>
                           </div>
                         ) : isLow ? (
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ffdbd2] text-[#891e00]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#952200]" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
                               {p.stock_quantity} left
                             </span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 text-xs text-[#121c2b]">
-                            <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                          <div className="flex items-center gap-1.5 text-xs text-slate-900 font-semibold">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
                             <span>{p.stock_quantity ?? 0} in stock</span>
                           </div>
                         )}

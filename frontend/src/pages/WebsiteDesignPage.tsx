@@ -165,7 +165,7 @@ export default function WebsiteDesignPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <span className="uppercase tracking-wider">Storefront Studio</span>
+            <span className="uppercase tracking-wider">Website Builder</span>
             <span className="w-1 h-1 rounded-full bg-slate-300" />
             <span className="text-blue-700 font-bold">{businessName}</span>
           </div>

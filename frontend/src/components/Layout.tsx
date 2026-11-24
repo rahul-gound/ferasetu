@@ -351,7 +351,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       badge: totalCustomersCount > 0 ? totalCustomersCount : undefined,
       badgeColor: 'blue',
     },
-    { path: '/website-builder', icon: <Globe size={17} />, label: 'Storefront Studio' },
+    { path: '/website-builder', icon: <Globe size={17} />, label: 'Website Builder' },
   ], [totalOrdersCount, totalCustomersCount]);
 
   // ── Categorized Drawer 1: Store Tools & Inventory ──
@@ -1189,7 +1189,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       {/* Main content area */}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col h-full min-h-0 overflow-hidden">
 
         {/* Top header - hidden when merchant is on website builder tab to maximize canvas */}
 
@@ -1563,7 +1563,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
               ? 'flex-1 min-h-0 overflow-hidden bg-white p-0'
 
-              : 'flex-1 overflow-y-auto bg-[#F6F8FC] p-3.5 sm:p-6 lg:p-8'
+              : 'flex-1 min-h-0 overflow-y-auto bg-[#F6F8FC] p-3.5 sm:p-6 lg:p-8'
 
           }
 

@@ -82,5 +82,11 @@ When the user shares a screenshot or photo of the UI:
 - **High Contrast & Calm Surfaces:** Maintain high-contrast text (`text-slate-900` / `text-slate-700`, WCAG 2.2 AA ≥4.5:1). Never render faint grey text on white surfaces, and avoid heavy, jarring pitch-black slabs (`bg-slate-900` / `#0A0F1D`) on light merchant workbenches.
 - **Accessible Modals:** Every modal dialog and popup MUST provide an explicit, accessible "X" close button in the top right corner in addition to `Esc` and "Cancel" actions.
 
+## 10. Mandatory Navigation Standard (nav-rule.md)
+- **Always Active:** Every agent and developer MUST strictly obey `nav-rule.md` in the repository root for all navigation, sidebar, tab bar, header, footer, and category filter implementations.
+- **Wayfinding vs. Action Buttons:** Navigation items are spatial wayfinding tools, never mechanical action buttons. They must never follow `button.md`, never receive 3D bottom shelves (`box-shadow: 0 4px 0 0 ...`), and never be forced into `9999px` oval pills.
+- **Flexbox Scroll Invariant:** All main workbench views and flex columns MUST specify `h-full min-h-0` on flex parents and `flex-1 min-h-0 overflow-y-auto` on scrollable content areas to prevent viewport clipping and guarantee vertical scrollability on pages like `/products`.
+- **Naming Invariant:** The visual builder is branded exclusively as **Website Builder** across navigation, headers, and documentation (not "Storefront Studio").
+
 
 
