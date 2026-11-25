@@ -1269,14 +1269,23 @@ export default function OperationsDashboard({
               <button
                 type="button"
                 onClick={() => setCommandPaletteOpen(true)}
-                className={`p-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer active:translate-y-0.5 active:scale-[0.985] ${
                   isDarkMode
-                    ? 'border-white/10 text-slate-300 hover:bg-white/5'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+                    : 'border-slate-200 bg-slate-50/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
                 title="Open Command Palette (⌘K)"
+                aria-label="Open Command Palette"
               >
-                <Search size={14} />
+                <Search size={14} className="text-slate-400" />
+                <span className="hidden xl:inline">Search</span>
+                <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono-tabular border ${
+                  isDarkMode
+                    ? 'bg-slate-800 border-white/10 text-slate-300'
+                    : 'bg-white border-slate-200 text-slate-500'
+                }`}>
+                  ⌘K
+                </kbd>
               </button>
 
               {/* Daylight / Dark Mode Switcher */}
@@ -1300,37 +1309,33 @@ export default function OperationsDashboard({
         {/* RECONCILED METRIC CARDS GRID (13 METRICS RECONCILED IN 6 CARDS)    */}
         {/* ================================================================== */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
-          {/* Card 1: Gross & Net Sales */}
+          {/* Card 1: Gross & Net Sales (Single Focal KPI Card per Kombai Tidewell/Hollis) */}
           <div
-            className={`rounded-2xl border border-t-[3px] border-t-blue-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
-              isDarkMode
-                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
-            }`}
+            className="rounded-2xl bg-gradient-to-br from-[#0052FF] to-[#003BB5] text-white p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 shadow-[0_6px_20px_rgba(0,82,255,0.22)] hover:shadow-[0_10px_28px_rgba(0,82,255,0.3)]"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-100">
                 Net Sales
               </span>
               <span
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help"
+                className="text-blue-200 hover:text-white cursor-help"
                 title="Net Sales = Gross Sales minus Refunds. Reconciled in real time from canonical order records."
               >
                 <Info size={13} />
               </span>
             </div>
             <div className="my-2.5">
-              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-slate-900 dark:text-white font-mono-tabular flex items-baseline">
-                <span className="text-base font-medium text-slate-400 dark:text-slate-500 mr-0.5">₹</span>
+              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-white font-mono-tabular flex items-baseline">
+                <span className="text-base font-medium text-blue-200 mr-0.5">₹</span>
                 <span>{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
               </div>
-              <div className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold font-mono-tabular truncate mt-0.5">
+              <div className="text-[11px] text-blue-100/90 font-semibold font-mono-tabular truncate mt-0.5">
                 Gross: {formatInr(metrics.grossSales)} • Refunds: {formatInr(metrics.refunds)}
               </div>
             </div>
-            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+            <div className="text-[10px] text-emerald-200 font-semibold flex items-center gap-1 pt-2 border-t border-white/15">
               <CheckCircle2 size={11} />
-              <span>Live D1 Ledger</span>
+              <span>Live D1 Ledger · 0% Fee</span>
             </div>
           </div>
 

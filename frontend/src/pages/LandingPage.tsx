@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { Component, useEffect, useState, useRef, lazy, Suspense, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -29,8 +29,21 @@ import CommissionCalculatorMatrix from '../components/marketing/CommissionCalcul
 import HowItWorksFeraAIShowcase from '../components/marketing/HowItWorksFeraAIShowcase';
 import CompleteCircuit from '../components/marketing/CompleteCircuit';
 import MerchantStorySpotlight from '../components/marketing/MerchantStorySpotlight';
+import ScrollViewCinema from '../components/marketing/ScrollViewCinema';
 import SEO from '../components/SEO';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
+
+const HeroScene = lazy(() => import('../components/three/HeroScene'));
+
+class ThreeErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -56,6 +69,20 @@ export default function LandingPage() {
     if (prefersReducedMotion || isTouchOrCoarse || !landingRef.current) return;
 
     const ctx = gsap.context(() => {
+      // Choreographed above-the-fold Hero entrance
+      gsap.fromTo(
+        '.hero-stagger',
+        { opacity: 0, y: 18 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.65,
+          stagger: 0.08,
+          ease: 'power3.out',
+          clearProps: 'transform',
+        }
+      );
+
       // Staggered row reveal for comparison table
       gsap.fromTo(
         '.comparison-row',
@@ -162,6 +189,21 @@ export default function LandingPage() {
             id="hero"
             className="relative pt-14 pb-16 md:pt-20 md:pb-24 overflow-hidden bg-white border-b border-slate-200/80 scroll-mt-24"
           >
+            {/* Interactive 3D Sovereign Engine Backdrop (Three.js) */}
+            <div
+              className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 sm:opacity-25 z-0"
+              style={{
+                maskImage: 'radial-gradient(ellipse 75% 65% at 50% 35%, black 20%, transparent 100%)',
+                WebkitMaskImage: 'radial-gradient(ellipse 75% 65% at 50% 35%, black 20%, transparent 100%)',
+              }}
+            >
+              <ThreeErrorBoundary>
+                <Suspense fallback={null}>
+                  <HeroScene />
+                </Suspense>
+              </ThreeErrorBoundary>
+            </div>
+
             {/* Subtle Kombai-Inspired Ambient Radial Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-blue-50/40 via-orange-50/20 to-transparent blur-3xl pointer-events-none" />
 
@@ -170,7 +212,7 @@ export default function LandingPage() {
               {/* Main Headline & Core Proposition */}
               <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-12">
                 {/* Architectural HUD Eyebrow Badge */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/[0.03] border border-slate-200/80 mb-6 text-xs font-semibold text-slate-800 shadow-2xs">
+                <div className="hero-stagger inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/[0.03] border border-slate-200/80 mb-6 text-xs font-semibold text-slate-800 shadow-2xs">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
@@ -180,19 +222,19 @@ export default function LandingPage() {
                   <span className="text-orange-950 font-bold">0% Commission Guaranteed</span>
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[62px] font-black text-slate-950 tracking-[-0.03em] leading-[1.08] mb-6">
+                <h1 className="hero-stagger text-4xl sm:text-5xl md:text-6xl lg:text-[62px] font-black text-slate-950 tracking-[-0.03em] leading-[1.08] mb-6">
                   Your business is yours.{' '}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-slate-800 to-slate-600">
                     The internet should be too.
                   </span>
                 </h1>
 
-                <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
+                <p className="hero-stagger text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
                   FeraSetu connects your physical shop directly to online buyers with zero intermediary commissions and instant bank settlement. Built inside is <strong>Fero</strong> — your autonomous 24/7 AI agent monitoring stock, auditing payouts, and defending your store.
                 </p>
 
                 {/* Primary Action Row */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-8 max-w-md mx-auto">
+                <div className="hero-stagger flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-8 max-w-md mx-auto">
                   <button
                     type="button"
                     onClick={() => handleStart('hero_primary')}
@@ -248,6 +290,12 @@ export default function LandingPage() {
             SECTION 1B — REAL MERCHANT SPOTLIGHT: EMOTIONAL CONNECTION & HUMAN PROOF
           ================================================================ */}
           <MerchantStorySpotlight />
+
+
+          {/* ================================================================
+            SECTION 1C — SCROLL-VIEW: FRAME-BY-FRAME COMMERCE WALKTHROUGH
+          ================================================================ */}
+          <ScrollViewCinema market={market} />
 
 
           {/* ================================================================

@@ -1,12 +1,11 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, MeshDistortMaterial, AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-// Brand palette (matches FeraSetu orange + neon accents)
+// Brand palette (matches FeraSetu orange + Sovereign Blue + Emerald accents)
 const ORANGE = '#ff6b35';
 const ORANGE_HOT = '#ff9a6c';
+const BLUE = '#0052FF';
 const INDIGO = '#6366f1';
 const EMERALD = '#10b981';
 
@@ -52,44 +51,61 @@ function PointerTracker() {
   return null;
 }
 
-// The glowing "engine of your shop" — a distorted, breathing emissive core.
+// The glowing "engine of your shop" — a breathing, faceted Sovereign Core with outer wireframe shell.
 function Core({ tier, still }: { tier: Tier; still: boolean }) {
+  const group = useRef<THREE.Group>(null);
   const mesh = useRef<THREE.Mesh>(null);
+  const shell = useRef<THREE.Mesh>(null);
+
   useFrame((state) => {
-    const m = mesh.current;
-    if (!m || still) return;
+    if (still) return;
     const t = state.clock.elapsedTime;
-    m.rotation.y = t * 0.2;
-    m.rotation.x = Math.sin(t * 0.25) * 0.2;
-    const breathe = 1 + Math.sin(t * 0.9) * 0.04;
-    m.scale.setScalar(breathe);
+    if (group.current) {
+      group.current.position.y = 0.2 + Math.sin(t * 1.1) * 0.22;
+    }
+    if (mesh.current) {
+      mesh.current.rotation.y = t * 0.22;
+      mesh.current.rotation.x = Math.sin(t * 0.25) * 0.2;
+      const breathe = 1 + Math.sin(t * 0.9) * 0.045;
+      mesh.current.scale.setScalar(breathe);
+    }
+    if (shell.current) {
+      shell.current.rotation.y = -t * 0.14;
+      shell.current.rotation.z = Math.cos(t * 0.2) * 0.15;
+    }
   });
-  const core = (
-    <>
+
+  return (
+    <group ref={group} position={[0, 0.2, 0]}>
       <mesh ref={mesh}>
-        <icosahedronGeometry args={[1.75, tier === 'high' ? 16 : 6]} />
-        <MeshDistortMaterial
+        <icosahedronGeometry args={[1.65, tier === 'high' ? 3 : 2]} />
+        <meshStandardMaterial
           color={ORANGE}
           emissive={ORANGE}
-          emissiveIntensity={2.3}
-          roughness={0.15}
-          metalness={0.7}
-          distort={tier === 'high' ? 0.42 : 0.3}
-          speed={still ? 0 : 1.8}
+          emissiveIntensity={1.2}
+          roughness={0.22}
+          metalness={0.65}
+          flatShading
+        />
+      </mesh>
+      {/* Outer geodesic wireframe cage */}
+      <mesh ref={shell} scale={1.18}>
+        <icosahedronGeometry args={[1.65, 1]} />
+        <meshStandardMaterial
+          color={BLUE}
+          emissive={BLUE}
+          emissiveIntensity={0.85}
+          wireframe
+          transparent
+          opacity={0.45}
         />
       </mesh>
       {/* Inner hot glow */}
-      <mesh scale={0.66}>
-        <sphereGeometry args={[1, 24, 24]} />
-        <meshBasicMaterial color={ORANGE_HOT} transparent opacity={0.6} />
+      <mesh scale={0.7}>
+        <sphereGeometry args={[1, 20, 20]} />
+        <meshBasicMaterial color={ORANGE_HOT} transparent opacity={0.45} />
       </mesh>
-    </>
-  );
-  if (still) return <group position={[0, 0.2, 0]}>{core}</group>;
-  return (
-    <Float speed={1.2} rotationIntensity={0.4} floatIntensity={0.8} position={[0, 0.2, 0]}>
-      {core}
-    </Float>
+    </group>
   );
 }
 
@@ -98,10 +114,10 @@ function Satellites({ tier, still }: { tier: Tier; still: boolean }) {
   const group = useRef<THREE.Group>(null);
   const sats = useMemo(
     () => [
-      { r: 3.1, size: 0.5, speed: 0.45, color: INDIGO, y: 0.7, phase: 0 },
+      { r: 3.1, size: 0.48, speed: 0.45, color: INDIGO, y: 0.7, phase: 0 },
       { r: 3.7, size: 0.38, speed: -0.32, color: EMERALD, y: -1.0, phase: 2.1 },
       { r: 2.7, size: 0.36, speed: 0.6, color: ORANGE_HOT, y: 1.5, phase: 4.2 },
-      { r: 4.3, size: 0.3, speed: -0.24, color: INDIGO, y: -0.5, phase: 1.0 },
+      { r: 4.3, size: 0.3, speed: -0.24, color: BLUE, y: -0.5, phase: 1.0 },
       { r: 2.4, size: 0.28, speed: 0.5, color: EMERALD, y: 0.2, phase: 5.3 },
     ],
     []
@@ -124,7 +140,6 @@ function Orbiter({
   r: number; size: number; speed: number; color: string; y: number; phase: number; detail: number; still: boolean;
 }) {
   const ref = useRef<THREE.Mesh>(null);
-  // Static fallback position so reduced-motion still shows the satellites in place.
   const staticPos = useMemo<[number, number, number]>(
     () => [Math.cos(phase) * r, y, Math.sin(phase) * r],
     [r, y, phase]
@@ -140,7 +155,7 @@ function Orbiter({
   return (
     <mesh ref={ref} position={staticPos}>
       <icosahedronGeometry args={[size, detail]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} wireframe roughness={0.4} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.9} wireframe roughness={0.4} />
     </mesh>
   );
 }
@@ -151,7 +166,7 @@ function Starfield({ count }: { count: number }) {
   const { positions, colors } = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    const palette = [new THREE.Color(ORANGE), new THREE.Color(INDIGO), new THREE.Color(EMERALD), new THREE.Color('#ffffff')];
+    const palette = [new THREE.Color(ORANGE), new THREE.Color(BLUE), new THREE.Color(EMERALD), new THREE.Color(INDIGO)];
     for (let i = 0; i < count; i++) {
       const radius = 7 + Math.random() * 18;
       const theta = Math.random() * Math.PI * 2;
@@ -178,13 +193,12 @@ function Starfield({ count }: { count: number }) {
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.085}
+        size={0.09}
         vertexColors
         transparent
-        opacity={0.95}
+        opacity={0.85}
         sizeAttenuation
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
       />
     </points>
   );
@@ -214,15 +228,14 @@ export default function HeroScene({ reducedMotion = false }: { reducedMotion?: b
 
   const tier = useTier();
   const [contextLost, setContextLost] = useState(false);
-  const starCount = tier === 'high' ? 1200 : 500;
-  const bloom = tier === 'high';
+  const starCount = tier === 'high' ? 900 : 400;
 
   if (!mounted || contextLost) return null;
 
   return (
     <Canvas
       camera={{ position: [0, 0.2, 7], fov: 52 }}
-      dpr={tier === 'high' ? [1, 1.8] : [1, 1.2]}
+      dpr={tier === 'high' ? [1, 1.75] : [1, 1.2]}
       frameloop={reducedMotion ? 'demand' : 'always'}
       gl={{ antialias: tier === 'high', alpha: true, powerPreference: 'high-performance' }}
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
@@ -235,24 +248,15 @@ export default function HeroScene({ reducedMotion = false }: { reducedMotion?: b
     >
       <PointerTracker />
       <CameraRig still={reducedMotion} />
-      <AdaptiveDpr pixelated />
-      <AdaptiveEvents />
 
-      <ambientLight intensity={0.5} />
-      <pointLight position={[5, 5, 5]} intensity={3} color={ORANGE} />
-      <pointLight position={[-6, -3, -4]} intensity={2} color={INDIGO} />
-      <pointLight position={[0, 4, -6]} intensity={1.4} color={EMERALD} />
+      <ambientLight intensity={0.75} />
+      <pointLight position={[5, 5, 5]} intensity={3.2} color={ORANGE} />
+      <pointLight position={[-6, -3, -4]} intensity={2.2} color={BLUE} />
+      <pointLight position={[0, 4, -6]} intensity={1.6} color={EMERALD} />
 
       <Core tier={tier} still={reducedMotion} />
       <Satellites tier={tier} still={reducedMotion} />
       <Starfield count={starCount} />
-
-      {bloom && (
-        <EffectComposer enableNormalPass={false}>
-          <Bloom intensity={1.6} luminanceThreshold={0.15} luminanceSmoothing={0.9} mipmapBlur radius={0.85} />
-          <Vignette eskil={false} offset={0.2} darkness={0.9} />
-        </EffectComposer>
-      )}
     </Canvas>
   );
 }
