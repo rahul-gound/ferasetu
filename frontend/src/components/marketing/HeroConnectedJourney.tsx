@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Smartphone,
   CheckCircle2,
@@ -30,10 +30,32 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
   const legacyToll = Math.round(itemPrice * 0.18);
   const netEarnings = itemPrice;
 
+  // View Mode: Interactive Simulation vs Full Workbench View
+  const [viewMode, setViewMode] = useState<'interactive' | 'workbench'>('interactive');
+
   // Simulation state
   const [simulationStep, setSimulationStep] = useState<'idle' | 'transmitting' | 'settled'>('idle');
   const [orderCount, setOrderCount] = useState<number>(1);
   const [cumulativeSaved, setCumulativeSaved] = useState<number>(legacyToll);
+
+  // 3D Perspective Tilt on Mouse Movement
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    setTilt({
+      x: -(y / rect.height) * 3,
+      y: (x / rect.width) * 3,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+  };
 
   const handleSimulateOrder = () => {
     if (simulationStep === 'transmitting') return;
@@ -80,12 +102,113 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
         </div>
       </div>
 
-      {/* Main Split-Preview Showcase Card (Kombai-Grade Editorial Craft) */}
-      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-white to-slate-50/60 p-5 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+      {/* View Mode Switcher Pills (Tactile & Clean) */}
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setViewMode('interactive')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            viewMode === 'interactive'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          <Zap size={13} className={viewMode === 'interactive' ? 'text-amber-400' : 'text-slate-500'} />
+          <span>Interactive 0% Settlement Circuit</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('workbench')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            viewMode === 'workbench'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          <Store size={13} className={viewMode === 'workbench' ? 'text-blue-400' : 'text-slate-500'} />
+          <span>Real Sovereign Workbench View</span>
+        </button>
+      </div>
+
+      {/* Main 3D Perspective Showcase Stage */}
+      <div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          transform: `perspective(1200px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+          transition: 'transform 0.15s ease-out',
+        }}
+        className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-white to-slate-50/60 p-5 sm:p-8 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden"
+      >
         {/* Subtle Ambient Radial Lighting */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center relative z-10">
+        {viewMode === 'workbench' ? (
+          /* ========================================================== */
+          /* FULL WORKBENCH HARDWARE PRESENTATION                       */
+          /* ========================================================== */
+          <div className="relative z-10 py-2">
+            <div className="rounded-2xl border border-slate-800/10 bg-slate-900 p-2 sm:p-3 shadow-2xl shadow-slate-900/20">
+              {/* Browser / OS Window Bar */}
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-900 rounded-t-xl text-slate-400 text-xs border-b border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+                </div>
+                <div className="flex items-center gap-2 px-4 py-1 rounded-lg bg-slate-800/90 border border-slate-700/60 text-slate-300 font-mono text-[11px] max-w-sm truncate">
+                  <Lock size={11} className="text-emerald-400" />
+                  <span>app.ferasetu.com/dashboard • Encrypted Till Ledger</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Online</span>
+                </div>
+              </div>
+
+              {/* Real FeraSetu Workbench High-Res Visual */}
+              <div className="relative rounded-b-xl overflow-hidden bg-slate-950 aspect-[16/10] max-h-[520px]">
+                <img
+                  src="/hero/dashboard.webp"
+                  alt="FeraSetu sovereign merchant dashboard interface showing sales, inventory, and order settlement"
+                  className="w-full h-full object-cover object-top"
+                  loading="lazy"
+                />
+
+                {/* Floating Telemetry Annotation Badges */}
+                <div className="absolute top-4 left-4 p-3 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white shadow-xl max-w-xs hidden sm:block">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs mb-1">
+                    <CheckCircle2 size={13} />
+                    <span>Direct Bank Deposit Active</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-snug">
+                    0% platform take-rate. All customer card & UPI payments settle directly to your registered bank account.
+                  </p>
+                </div>
+
+                <div className="absolute bottom-4 right-4 p-3 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white shadow-xl max-w-xs hidden sm:block">
+                  <div className="flex items-center gap-1.5 text-blue-400 font-bold text-xs mb-1">
+                    <Sparkles size={13} />
+                    <span>Fero Autonomous Guard Active</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-snug">
+                    Continuously auditing daily run-rates, inventory thresholds, and repeat patron loyalty cohorts.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-500 px-1">
+              <span>Actual FeraSetu Merchant Workspace Interface</span>
+              <span className="font-semibold text-[#0052FF]">Real-time Cryptographic Till Engine</span>
+            </div>
+          </div>
+        ) : (
+          /* ========================================================== */
+          /* INTERACTIVE SIMULATION GRID                                */
+          /* ========================================================== */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center relative z-10">
           {/* ========================================================== */}
           {/* LEFT: Customer Mobile Storefront Experience (Col 1-5)      */}
           {/* ========================================================== */}
@@ -346,6 +469,7 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
             </div>
           </div>
         </div>
+        )}
 
         {/* Bottom Sovereign Guarantee Bar */}
         <div className="mt-6 pt-5 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">

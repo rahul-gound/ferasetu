@@ -28,6 +28,7 @@ import FeroGuardianSection from '../components/marketing/FeroGuardianSection';
 import CommissionCalculatorMatrix from '../components/marketing/CommissionCalculatorMatrix';
 import HowItWorksFeraAIShowcase from '../components/marketing/HowItWorksFeraAIShowcase';
 import CompleteCircuit from '../components/marketing/CompleteCircuit';
+import MerchantStorySpotlight from '../components/marketing/MerchantStorySpotlight';
 import SEO from '../components/SEO';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
@@ -241,6 +242,12 @@ export default function LandingPage() {
 
             </div>
           </section>
+
+
+          {/* ================================================================
+            SECTION 1B — REAL MERCHANT SPOTLIGHT: EMOTIONAL CONNECTION & HUMAN PROOF
+          ================================================================ */}
+          <MerchantStorySpotlight />
 
 
           {/* ================================================================
