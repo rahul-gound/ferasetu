@@ -20,7 +20,7 @@ export default function CompareIndexPage() {
     <PublicLayout>
       <SEOHead
         title="Compare E-Commerce Platforms & Alternatives | FeraSetu"
-        description="Factual, data-driven comparisons of FeraSetu vs Shopify, WooCommerce, BigCommerce, Dukaan, and Wix/Squarespace. 0% platform commission, direct settlements, and serverless edge speed."
+        description="Factual, data-driven comparisons of FeraSetu with Shopify, WooCommerce, BigCommerce, Dukaan, and Wix/Squarespace. 0% platform commission, direct settlements, and serverless edge speed."
         breadcrumbs={breadcrumbs}
       />
 
@@ -91,9 +91,9 @@ export default function CompareIndexPage() {
                       <ComparisonVersusBadge slug={comp.slug} competitorName={comp.competitorName} size={42} />
                     </div>
                   </div>
-                  <h2 className="sr-only">
-                    FeraSetu vs. {comp.competitorName}
-                  </h2>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">
+                    {comp.competitorName} Alternative
+                  </h3>
                   <p className="text-sm text-slate-600 leading-relaxed mb-6">
                     {comp.subheading}
                   </p>

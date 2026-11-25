@@ -207,12 +207,17 @@ function CameraRig({ still }: { still: boolean }) {
 }
 
 export default function HeroScene({ reducedMotion = false }: { reducedMotion?: boolean }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const tier = useTier();
   const [contextLost, setContextLost] = useState(false);
-  const starCount = tier === 'high' ? 1600 : 600;
+  const starCount = tier === 'high' ? 1200 : 500;
   const bloom = tier === 'high';
 
-  if (contextLost) return null;
+  if (!mounted || contextLost) return null;
 
   return (
     <Canvas

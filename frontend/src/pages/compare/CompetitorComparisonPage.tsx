@@ -169,7 +169,7 @@ export default function CompetitorComparisonPage() {
               Architectural &amp; Fee Matrix
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              FeraSetu vs. {data.competitorName}: Side-by-Side Breakdown
+              Side-by-Side Architectural &amp; Fee Breakdown
             </h2>
             <p className="text-sm text-slate-600 mt-2">
               Every detail verified against current public pricing schedules, platform documentation,
