@@ -378,6 +378,8 @@ export default function AIAssistantPage() {
           <div className="input-bar">
             <button 
               onClick={startVoice} 
+              aria-label="Start voice input"
+              title="Start voice input"
               className={`voice-btn ${isListening ? 'active' : ''}`}
               disabled={isLoading}
             >
@@ -395,6 +397,8 @@ export default function AIAssistantPage() {
             />
             <button 
               onClick={handleSend} 
+              aria-label="Send message"
+              title="Send message"
               className={`send-btn ${input.trim() && !isLoading ? 'ready' : ''}`}
               disabled={!input.trim() || isLoading}
             >

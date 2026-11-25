@@ -82,7 +82,7 @@ export default function PublicNavbar() {
               <div className='flex items-center gap-2.5'>
                 <Link
                   to='/dashboard'
-                  className='inline-flex items-center gap-2 rounded-full bg-[#EA580C] px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-orange-500/25 transition-all hover:-translate-y-0.5 hover:bg-[#D9480F] active:translate-y-0.5 active:scale-[0.985] active:shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2'
+                  className='inline-flex items-center gap-2 rounded-xl bg-[#EA580C] px-4 py-2 text-xs sm:text-sm font-semibold text-white transition-colors hover:bg-[#D9480F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
                 >
                   <LayoutDashboard size={15} />
                   <span>{t('nav.dashboard') || 'Dashboard'}</span>
@@ -91,7 +91,7 @@ export default function PublicNavbar() {
                 <button
                   type='button'
                   onClick={() => logout()}
-                  className='inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all active:translate-y-0.5 active:scale-[0.985] active:shadow-inner shadow-xs'
+                  className='inline-flex cursor-pointer items-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors'
                 >
                   Sign Out
                 </button>
@@ -101,14 +101,14 @@ export default function PublicNavbar() {
                 <button
                   type='button'
                   onClick={() => login()}
-                  className='cursor-pointer rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition-all duration-150 hover:text-slate-900 active:scale-[0.985] active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+                  className='cursor-pointer rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
                 >
                   Sign In
                 </button>
                 <button
                   type='button'
                   onClick={() => register()}
-                  className='group inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#EA580C] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-orange-500/20 transition-all duration-150 hover:-translate-y-0.5 hover:bg-[#D9480F] hover:shadow-lg active:translate-y-0.5 active:scale-[0.985] active:bg-[#C2410C] active:shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2'
+                  className='group inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#EA580C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#D9480F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
                 >
                   <span>Bring your business online</span>
                   <ArrowRight size={15} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden='true' />
@@ -175,7 +175,7 @@ export default function PublicNavbar() {
                   <Link
                     to='/dashboard'
                     onClick={() => setMobileMenuOpen(false)}
-                    className='flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-orange-500 text-base font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
+                    className='flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-orange-500 text-base font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
                   >
                     <LayoutDashboard size={18} />
                     <span>{t('nav.dashboard') || 'Dashboard'}</span>
@@ -187,7 +187,7 @@ export default function PublicNavbar() {
                       setMobileMenuOpen(false);
                       logout();
                     }}
-                    className='flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors'
+                    className='flex min-h-[48px] w-full cursor-pointer items-center justify-center whitespace-nowrap rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors'
                   >
                     Sign Out
                   </button>
@@ -200,7 +200,7 @@ export default function PublicNavbar() {
                       setMobileMenuOpen(false);
                       login();
                     }}
-                    className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-slate-50 text-base font-bold text-slate-900 transition-colors hover:bg-slate-100'
+                    className='flex min-h-[52px] w-full cursor-pointer items-center justify-center rounded-xl bg-slate-50 text-base font-semibold text-slate-900 transition-colors hover:bg-slate-100'
                   >
                     Sign In
                   </button>
@@ -210,7 +210,7 @@ export default function PublicNavbar() {
                       setMobileMenuOpen(false);
                       register();
                     }}
-                    className='group flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-orange-500 text-base font-bold text-white shadow-md shadow-orange-500/20 transition-all duration-150 hover:bg-orange-600'
+                    className='group flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 text-base font-semibold text-white transition-colors hover:bg-orange-600'
                   >
                     <span>Bring your business online</span>
                     <ArrowRight size={16} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden='true' />

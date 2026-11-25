@@ -741,7 +741,7 @@ export default function AdminAICreditsPage() {
                 <h3 className="text-base font-black text-slate-900">Credit Pack Purchases</h3>
                 <p className="text-xs text-slate-500 font-medium">Extra AI credit packs purchased by shopkeepers via Cashfree</p>
               </div>
-              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">
+              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full tabular-nums">
                 ₹{(summary.totalPurchaseRevenue || 0).toLocaleString()} Total Earned
               </span>
             </div>
@@ -774,7 +774,7 @@ export default function AdminAICreditsPage() {
                         <td className="py-3.5 px-4 text-center font-bold text-orange-600">
                           +{purchase.credits?.toLocaleString()} credits
                         </td>
-                        <td className="py-3.5 px-4 text-center font-black text-slate-900">
+                        <td className="py-3.5 px-4 text-center font-black text-slate-900 tabular-nums">
                           ₹{purchase.amount}
                         </td>
                         <td className="py-3.5 px-4 text-slate-600 capitalize">

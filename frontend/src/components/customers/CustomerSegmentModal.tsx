@@ -167,26 +167,29 @@ export default function CustomerSegmentModal({
   });
 
   // Apply template helper
-  const applyTemplate = (template: SegmentTemplate) => {
+  const applyTemplate = (template: SegmentTemplate, showToast = true) => {
     setSelectedTemplateId(template.id);
     setName(template.name);
     setDescription(template.description);
     setConjunction(template.conjunction);
     setRules(template.rules.map(r => ({ ...r })));
     setPreviewResult(prev => ({ ...prev, ran: false }));
-    toast.success(`Applied template: "${template.name}"`);
+    if (showToast) {
+      toast.success(`Applied template: "${template.name}"`);
+    }
   };
 
   useEffect(() => {
+    if (!isOpen) return;
     if (initialTemplateId) {
       const found = PRESET_TEMPLATES.find(t => t.id === initialTemplateId);
       if (found) {
-        applyTemplate(found);
+        applyTemplate(found, true);
       }
     } else if (!name) {
       // Default to the prompt's recommended starting segment: "Email subscribers who haven't purchased yet"
       const rec = PRESET_TEMPLATES[0];
-      applyTemplate(rec);
+      applyTemplate(rec, false);
     }
   }, [initialTemplateId, isOpen]);
 

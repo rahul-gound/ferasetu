@@ -150,13 +150,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
 
   const isWebsiteBuilder =
-
     (location.pathname === '/website-builder' ||
-
-      location.pathname.startsWith('/pro-studio') ||
-
-      location.pathname.startsWith('/pro')) &&
-
+      location.pathname === '/pro-studio' ||
+      location.pathname.startsWith('/pro-studio/') ||
+      location.pathname === '/pro' ||
+      location.pathname.startsWith('/pro/')) &&
     !location.pathname.includes('/settings');
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1269,9 +1267,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             <button
               type="button"
               onClick={toggleAssistant}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-95 active:translate-y-0.5 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
                 isAssistantOpen
-                  ? 'border-blue-500 bg-blue-600 text-white shadow-blue-600/20'
+                  ? 'border-blue-500 bg-blue-600 text-white'
                   : 'border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-[#0052FF]'
               }`}
               title="Toggle FeraSetu AI Store Co-pilot"

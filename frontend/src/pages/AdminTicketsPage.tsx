@@ -217,6 +217,8 @@ export default function AdminTicketsPage() {
                   <button 
                     type="submit"
                     disabled={!replyText.trim()}
+                    aria-label="Send reply"
+                    title="Send reply"
                     className="p-3 bg-orange-500 text-white rounded-2xl hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50"
                   >
                     <Send size={20} />

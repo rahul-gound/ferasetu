@@ -137,8 +137,8 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
   return (
     <section
       ref={sectionRef}
-      id="complete-circuit"
-      className="relative bg-slate-50 border-b border-slate-200 overflow-hidden"
+      id="journey"
+      className="relative bg-slate-50 border-b border-slate-200 overflow-hidden scroll-mt-20"
     >
       <div
         className="w-full max-w-[1260px] mx-auto px-4 sm:px-6 py-12 md:py-16 flex flex-col justify-between"
@@ -153,7 +153,7 @@ export default function CompleteCircuit({ demo, onStart }: CompleteCircuitProps)
             One connected workflow from physical shop to returning customer.
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal max-w-xl mx-auto">
-            No messy plugins. No middleman holding your inventory hostage. Four clear stages connect your business to the web.
+            No complex plugins. Direct bank settlement with 0% platform commission. Four clear steps connect your physical counter directly to online buyers.
           </p>
         </div>
 

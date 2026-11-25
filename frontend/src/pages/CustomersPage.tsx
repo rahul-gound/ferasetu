@@ -353,7 +353,7 @@ export default function CustomersPage() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Lifetime Value</span>
             <IndianRupee size={16} className="text-amber-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-[#152238]">
+          <div className="text-2xl sm:text-3xl font-black text-[#152238] tabular-nums">
             ₹{stats.total_revenue.toLocaleString('en-IN')}
           </div>
           <p className="text-[11px] text-[#667085] mt-1">Total revenue generated</p>
@@ -664,7 +664,7 @@ export default function CustomersPage() {
                       </td>
 
                       {/* Total Spent */}
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 tabular-nums">
                         ₹{cust.total_spent.toLocaleString('en-IN')}
                       </td>
 
@@ -762,7 +762,7 @@ export default function CustomersPage() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
                     Lifetime Spend
                   </span>
-                  <span className="text-sm font-black text-slate-900">
+                  <span className="text-sm font-black text-slate-900 tabular-nums">
                     ₹{selectedCustomer.total_spent.toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -828,7 +828,7 @@ export default function CustomersPage() {
                       <div key={ord.id} className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-mono font-bold text-slate-800">#{ord.id.slice(-6).toUpperCase()}</span>
-                          <span className="font-bold text-slate-900">₹{Number(ord.total).toLocaleString('en-IN')}</span>
+                          <span className="font-bold text-slate-900 tabular-nums">₹{Number(ord.total).toLocaleString('en-IN')}</span>
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-slate-500">
                           <span className="capitalize">{ord.status}</span>

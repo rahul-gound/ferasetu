@@ -527,7 +527,7 @@ export default function CreateGiftCardPage() {
                         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 text-sm font-bold text-slate-900 shadow-2xs hover:bg-white transition-all"
                       >
                         <span className="text-emerald-700 font-extrabold">₹</span>
-                        <span>{amount.toLocaleString('en-IN')}</span>
+                        <span className="tabular-nums">{amount.toLocaleString('en-IN')}</span>
                         {idx === 0 && (
                           <span className="text-[10px] text-slate-400 font-normal">(Default)</span>
                         )}
@@ -653,7 +653,7 @@ export default function CreateGiftCardPage() {
                   <div>
                     <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
                       <span>Gift Card Value:</span>
-                      <span className="font-bold text-slate-900">₹{simCardAmount.toLocaleString('en-IN')}</span>
+                      <span className="font-bold text-slate-900 tabular-nums">₹{simCardAmount.toLocaleString('en-IN')}</span>
                     </div>
                     <input
                       type="range"
@@ -674,7 +674,7 @@ export default function CreateGiftCardPage() {
                   <div>
                     <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
                       <span>Friend's Order Total:</span>
-                      <span className="font-bold text-slate-900">₹{simOrderTotal.toLocaleString('en-IN')}</span>
+                      <span className="font-bold text-slate-900 tabular-nums">₹{simOrderTotal.toLocaleString('en-IN')}</span>
                     </div>
                     <input
                       type="range"
@@ -715,23 +715,23 @@ export default function CreateGiftCardPage() {
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between text-slate-600">
                       <span>Gift Card Value:</span>
-                      <span className="font-semibold text-slate-900">₹{simCardAmount.toLocaleString('en-IN')}</span>
+                      <span className="font-semibold text-slate-900 tabular-nums">₹{simCardAmount.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-slate-600">
                       <span>Order Total:</span>
-                      <span className="font-semibold text-slate-900">₹{simOrderTotal.toLocaleString('en-IN')}</span>
+                      <span className="font-semibold text-slate-900 tabular-nums">₹{simOrderTotal.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-emerald-700 font-medium border-t border-slate-200 pt-2">
                       <span>Paid from Gift Card:</span>
-                      <span className="font-bold">-₹{simApplied.toLocaleString('en-IN')}</span>
+                      <span className="font-bold tabular-nums">-₹{simApplied.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-blue-700 font-bold border-t border-slate-200 pt-2">
                       <span>Remaining on Card:</span>
-                      <span>₹{simRemainingCard.toLocaleString('en-IN')}</span>
+                      <span className="tabular-nums">₹{simRemainingCard.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-slate-800 font-bold">
                       <span>Additional Paid via UPI/Cash:</span>
-                      <span>₹{simExtraToPay.toLocaleString('en-IN')}</span>
+                      <span className="tabular-nums">₹{simExtraToPay.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
 

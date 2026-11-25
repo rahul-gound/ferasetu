@@ -206,7 +206,7 @@ export default function SupportPage() {
                    onFocus={(e) => { e.currentTarget.style.borderColor = '#F97316'; e.currentTarget.style.background = '#FFFFFF'; }}
                    onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#F8FAFC'; }}
                   />
-                 <button className="cta-button" type="submit" disabled={!replyText.trim()} style={{ background: replyText.trim() ? '#F97316' : '#CBD5E1', color: '#fff', border: 'none', padding: '14px 22px', borderRadius: '14px', fontWeight: 700, cursor: replyText.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <button className="cta-button" type="submit" aria-label="Send reply" title="Send reply" disabled={!replyText.trim()} style={{ background: replyText.trim() ? '#F97316' : '#CBD5E1', color: '#fff', border: 'none', padding: '14px 22px', borderRadius: '14px', fontWeight: 700, cursor: replyText.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Send size={18} />
                   </button>
                </form>

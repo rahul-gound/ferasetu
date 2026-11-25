@@ -1004,7 +1004,7 @@ export default function AICreditsPage() {
 
                   <h3 className="text-base font-black text-slate-900">{p.label}</h3>
                   <div className="mt-3 flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-slate-900">₹{p.amount}</span>
+                    <span className="text-3xl font-black text-slate-900 tabular-nums">₹{p.amount}</span>
                     <span className="text-xs font-bold text-slate-400">one-time</span>
                   </div>
 

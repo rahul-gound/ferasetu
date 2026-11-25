@@ -336,7 +336,7 @@ export default function WebsiteDesignPage() {
                         <span>Story</span>
                       </nav>
                       <div className="flex items-center gap-2 text-slate-700">
-                        <button type="button" className="p-1 hover:bg-slate-50 rounded">
+                        <button type="button" aria-label="Search catalog" title="Search catalog" className="p-1 hover:bg-slate-50 rounded">
                           <Search size={14} />
                         </button>
                         <div className="relative p-1 hover:bg-slate-50 rounded">

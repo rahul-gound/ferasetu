@@ -251,6 +251,8 @@ export default function SurveyFeedbackPage() {
             />
             <button
               type="submit"
+              aria-label="Send answer"
+              title="Send answer"
               disabled={!activeQuestionId || aiLoading}
               style={{ border: 0, borderRadius: 10, background: '#0f172a', color: '#fff', width: 40, display: 'grid', placeItems: 'center', cursor: 'pointer' }}
             >

@@ -27,6 +27,7 @@ import HeroConnectedJourney from '../components/marketing/HeroConnectedJourney';
 import FeroGuardianSection from '../components/marketing/FeroGuardianSection';
 import CommissionCalculatorMatrix from '../components/marketing/CommissionCalculatorMatrix';
 import HowItWorksFeraAIShowcase from '../components/marketing/HowItWorksFeraAIShowcase';
+import CompleteCircuit from '../components/marketing/CompleteCircuit';
 import SEO from '../components/SEO';
 import { trackCtaClick, trackSectionView, trackSignupStart } from '../lib/analytics/tracker';
 
@@ -158,18 +159,35 @@ export default function LandingPage() {
           ================================================================ */}
           <section
             id="hero"
-            className="relative pt-16 pb-16 md:pt-24 md:pb-28 overflow-hidden bg-white border-b border-slate-200/80 scroll-mt-24"
+            className="relative pt-14 pb-16 md:pt-20 md:pb-24 overflow-hidden bg-white border-b border-slate-200/80 scroll-mt-24"
           >
-            <div className="max-w-[1240px] mx-auto px-4 sm:px-6">
+            {/* Subtle Kombai-Inspired Ambient Radial Glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-blue-50/40 via-orange-50/20 to-transparent blur-3xl pointer-events-none" />
+
+            <div className="max-w-[1240px] mx-auto px-4 sm:px-6 relative z-10">
               
               {/* Main Headline & Core Proposition */}
               <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-12">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-950 tracking-tight leading-[1.08] mb-6">
-                  Your business is yours. The internet should be too.
+                {/* Architectural HUD Eyebrow Badge */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/[0.03] border border-slate-200/80 mb-6 text-xs font-semibold text-slate-800 shadow-2xs">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                  </span>
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">Sovereign Retail Commerce</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-orange-950 font-bold">0% Commission Guaranteed</span>
+                </div>
+
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[62px] font-black text-slate-950 tracking-[-0.03em] leading-[1.08] mb-6">
+                  Your business is yours.{' '}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-slate-800 to-slate-600">
+                    The internet should be too.
+                  </span>
                 </h1>
 
                 <p className="text-lg sm:text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed font-normal">
-                  FeraSetu gives you an independent online store with direct customer orders and instant bank settlement. Built inside is <strong>Fero</strong> — your autonomous 24/7 AI agent that monitors inventory, audits payouts, and advises your next move.
+                  FeraSetu connects your physical shop directly to online buyers with zero intermediary commissions and instant bank settlement. Built inside is <strong>Fero</strong> — your autonomous 24/7 AI agent monitoring stock, auditing payouts, and defending your store.
                 </p>
 
                 {/* Primary Action Row */}
@@ -177,7 +195,7 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => handleStart('hero_primary')}
-                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-full bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer border-t border-white/30 shadow-[0_4px_0_0_#8c2505,0_8px_18px_-2px_rgba(140,37,5,0.35),0_14px_28px_-4px_rgba(234,88,12,0.42),0_4px_8px_-1px_rgba(0,0,0,0.12)] hover:shadow-[0_6px_0_0_#8c2505,0_10px_22px_-2px_rgba(140,37,5,0.4),0_20px_36px_-4px_rgba(234,88,12,0.5),0_6px_12px_-2px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_1px_0_0_#8c2505,inset_0_3px_6px_rgba(0,0,0,0.36),0_2px_6px_rgba(0,0,0,0.12)] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                    className="group w-full sm:w-auto min-h-[52px] px-8 py-3.5 rounded-2xl bg-[#EA580C] hover:bg-[#D9480F] active:bg-[#C2410C] text-white font-bold text-base transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer shadow-[0_2px_4px_rgba(234,88,12,0.16),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_rgba(234,88,12,0.24)] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                   >
                     <span>Bring my business online</span>
                     <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
@@ -185,7 +203,7 @@ export default function LandingPage() {
 
                   <a
                     href="#fero-agent"
-                    className="w-full sm:w-auto min-h-[52px] px-7 py-3.5 rounded-full bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-950 font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_3px_0_0_#e2e8f0,0_4px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_0_0_#cbd5e1,0_6px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_0px_0_0_#cbd5e1,inset_0_1px_3px_rgba(0,0,0,0.05)] select-none"
+                    className="w-full sm:w-auto min-h-[52px] px-7 py-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-950 font-bold text-base transition-all duration-150 flex items-center justify-center gap-2 shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] select-none"
                   >
                     <ShieldCheck size={18} className="text-[#0052FF]" />
                     <span>Store Intelligence</span>
@@ -194,17 +212,17 @@ export default function LandingPage() {
 
                 {/* Trust Invariants */}
                 <div className="text-xs sm:text-sm text-slate-600 font-medium flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
                     <CheckCircle2 size={15} className="text-emerald-600" aria-hidden="true" />
                     <span>{market === 'IN' ? 'Permanent Free Plan' : '14-day trial'}</span>
                   </span>
                   <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                  <span className="inline-flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
                     <CheckCircle2 size={15} className="text-emerald-600" aria-hidden="true" />
                     <span>No credit card to start</span>
                   </span>
                   <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="inline-flex items-center gap-1.5 bg-orange-50/70 px-3 py-1.5 rounded-lg border border-orange-200 text-orange-950 font-semibold">
+                  <span className="inline-flex items-center gap-1.5 bg-orange-50/70 px-3 py-1.5 rounded-xl border border-orange-200 text-orange-950 font-semibold">
                     <ShieldCheck size={15} className="text-orange-600" aria-hidden="true" />
                     <span>0% FeraSetu platform commission</span>
                   </span>
@@ -240,6 +258,16 @@ export default function LandingPage() {
           <HowItWorksFeraAIShowcase
             onStart={() => handleStart('how_it_works_cta')}
             market={market}
+          />
+
+
+          {/* ================================================================
+            SECTION 3B — CONNECTED JOURNEY: 4-STAGE PRODUCT CIRCUIT
+          ================================================================ */}
+          <CompleteCircuit
+            demo={demo}
+            market={market}
+            onStart={() => handleStart('journey_cta')}
           />
 
 

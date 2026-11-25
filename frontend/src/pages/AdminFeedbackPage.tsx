@@ -278,7 +278,11 @@ export default function AdminFeedbackPage() {
                         {new Date(item.created_at).toLocaleDateString()}
                       </span>
                     )}
-                    <button className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors">
+                    <button 
+                      aria-label="View feedback details"
+                      title="View feedback details"
+                      className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                    >
                       <ChevronRight size={18} />
                     </button>
                   </div>
