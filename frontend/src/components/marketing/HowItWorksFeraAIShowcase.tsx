@@ -214,7 +214,8 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
                   </span>
                 </div>
 
-                {/* Copilot Body / Dynamic Response Box */}
+                {/* Copilot Body / Dynamic Response Box with Smooth Animation */}
+                <div key={activeCopilotTask} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {activeCopilotTask === 'inventory' && (
                   <div className="space-y-3 text-xs text-left">
                     <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-slate-300">
@@ -283,6 +284,7 @@ export default function HowItWorksFeraAIShowcase({ onStart, market = 'IN' }: How
                     </div>
                   </div>
                 )}
+                </div>
 
                 <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-400">
                   <span className="flex items-center gap-1">

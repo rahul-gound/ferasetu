@@ -719,10 +719,10 @@ export default function EmailSettingsPage() {
   const activeProvider = settingsData?.activeProvider || 'FERASETU';
   const ferasetuDomain = settingsData?.ferasetuDomain;
   const customDomains = domainsList.filter(d => d.domain_type === 'CUSTOM');
-  const defaultSender = settingsData?.defaultIdentity?.email_address || `orders@${ferasetuDomain?.domain || 'store.ferasetu.com'}`;
+  const defaultSender = settingsData?.defaultIdentity?.email_address || `orders@${ferasetuDomain?.domain || 'store.ferasetu.store'}`;
   const quota = settingsData?.quota || { dailyLimit: 100, sentToday: 0, remainingDaily: 100, extraBalance: 0 };
-  const storeSlug = ferasetuDomain?.domain?.replace('.ferasetu.com', '') || user?.subdomain || 'mystore';
-  const ferasetuSubdomain = ferasetuDomain?.domain || `${storeSlug}.ferasetu.com`;
+  const storeSlug = ferasetuDomain?.domain?.replace('.ferasetu.store', '')?.replace('.ferasetu.com', '') || user?.subdomain || 'mystore';
+  const ferasetuSubdomain = ferasetuDomain?.domain || `${storeSlug}.ferasetu.store`;
   const quotaPercent = Math.min(100, Math.round((quota.sentToday / Math.max(1, quota.dailyLimit)) * 100));
 
   // Eligible domains for adding new aliases (verified or platform)

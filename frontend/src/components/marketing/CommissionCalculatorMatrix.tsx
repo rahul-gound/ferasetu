@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useId, useRef } from 'react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 import {
   ShieldCheck,
   TrendingUp,
@@ -52,6 +56,29 @@ export default function CommissionCalculatorMatrix({ market: propMarket, onStart
     setMonthlySales(defaultSales);
   }, [activeMarket]);
 
+  // Scroll-triggered entrance animation with GSAP ScrollTrigger
+  useEffect(() => {
+    if (!matrixRef.current) return;
+    const anim = gsap.fromTo(
+      matrixRef.current,
+      { y: 24, opacity: 0, scale: 0.96 },
+      {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 0.85,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: matrixRef.current,
+          start: 'top 85%',
+        },
+      }
+    );
+    return () => {
+      anim.kill();
+    };
+  }, []);
+
   // Sequential cascading attraction animation: Row 1 -> Row 2 -> Row 3 -> Row 4
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -80,6 +107,27 @@ export default function CommissionCalculatorMatrix({ market: propMarket, onStart
   const monthlyMarketplaceToll = Math.round(monthlySales * (marketplaceTollRate / 100));
   const annualMarketplaceToll = monthlyMarketplaceToll * 12;
   const annualSaved = annualMarketplaceToll;
+
+  const [displayedSaved, setDisplayedSaved] = useState<number>(annualSaved);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let current = displayedSaved;
+    const target = annualSaved;
+    const update = () => {
+      current += (target - current) * 0.25;
+      if (Math.abs(target - current) < 5) {
+        setDisplayedSaved(target);
+      } else {
+        setDisplayedSaved(current);
+        rafRef.current = requestAnimationFrame(update);
+      }
+    };
+    rafRef.current = requestAnimationFrame(update);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [annualSaved]);
 
   const formatAmount = (val: number) => {
     return currencySymbol + Math.round(val).toLocaleString(locale);
@@ -166,7 +214,7 @@ export default function CommissionCalculatorMatrix({ market: propMarket, onStart
               Annual Money Retained on FeraSetu
             </span>
             <div className="text-3xl sm:text-4xl font-extrabold text-[#0A0F1D] tabular-nums mt-1 mb-2">
-              <span className="text-emerald-600">{formatAmount(annualSaved)}</span>
+              <span className="text-emerald-600 transition-all">{formatAmount(displayedSaved)}</span>
               <span className="text-xs text-slate-500 font-medium block sm:inline sm:ml-1">
                 kept every year
               </span>
@@ -176,14 +224,14 @@ export default function CommissionCalculatorMatrix({ market: propMarket, onStart
             </p>
           </div>
 
-          {/* Primary CTA */}
+          {/* Primary CTA with Tactile 3D Standard */}
           <button
             type="button"
             onClick={onStart}
-            className="group w-full py-4 rounded-full bg-[#0052FF] hover:bg-[#0047E0] active:bg-[#003BB5] text-white font-semibold text-base transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-[0_4px_0_0_#003BB5,0_8px_16px_rgba(0,82,255,0.25)] hover:shadow-[0_5px_0_0_#003BB5,0_12px_20px_rgba(0,82,255,0.3)] hover:-translate-y-0.5 active:translate-y-1 active:shadow-[0_0px_0_0_#003BB5,inset_0_2px_4px_rgba(0,0,0,0.25)]"
+            className="group w-full min-h-[52px] py-3.5 px-6 rounded-2xl bg-[#0052FF] hover:bg-[#0047E0] active:bg-[#003BB5] text-white font-bold text-base transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_4px_rgba(0,82,255,0.16),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_rgba(0,82,255,0.24)] hover:-translate-y-0.5 active:translate-y-0.5 active:scale-[0.985] active:shadow-inner select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             <span>Claim Your 0% Commission Store</span>
-            <ArrowRight size={17} className="transition-transform duration-150 group-hover:translate-x-1" />
+            <ArrowRight size={17} className="transition-transform duration-200 group-hover:translate-x-1" />
           </button>
         </div>
 

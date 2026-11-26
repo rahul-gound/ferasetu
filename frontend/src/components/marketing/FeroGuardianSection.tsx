@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   CheckCircle2,
@@ -13,8 +13,10 @@ import {
   Store,
   ChevronRight,
   ExternalLink,
-  Lock
+  Lock,
+  QrCode
 } from 'lucide-react';
+import { StripeLogo, PayPalLogo, RazorpayLogo, UpiLogo } from '../integrations/IntegrationLogos';
 
 interface FeroAgentMonitorProps {
   onStart: () => void;
@@ -34,6 +36,41 @@ interface AlertItem {
   badge?: string;
 }
 
+interface PaymentProvider {
+  id: string;
+  name: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  tag: string;
+}
+
+function AdyenLogoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <rect width="24" height="24" rx="6" fill="#0ABF53" />
+      <path d="M12 6L6 18H9.5L10.7 15.3H13.3L14.5 18H18L12 6ZM11.3 13.8L12 11.2L12.7 13.8H11.3Z" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+function WorldlineLogoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <rect width="24" height="24" rx="6" fill="#002D62" />
+      <path d="M6 8L8.5 16L11 9L13.5 16L16 8" stroke="#00A3E0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MollieLogoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <rect width="24" height="24" rx="6" fill="#1A1A1A" />
+      <path d="M7 16V10C7 8.5 8 7.5 9.5 7.5C11 7.5 12 8.5 12 10V16M12 10C12 8.5 13 7.5 14.5 7.5C16 7.5 17 8.5 17 10V16" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /**
  * Fero — The Autonomous Store Intelligence & Security Co-pilot of FeraSetu.
  * Embedded directly in every merchant store: continuously monitoring stock levels,
@@ -41,8 +78,41 @@ interface AlertItem {
  */
 export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgentMonitorProps) {
   const isIndia = market === 'IN';
-  const currency = isIndia ? '₹' : '$';
+  const isEU = market === 'EU';
+  const currency = isIndia ? '₹' : isEU ? '€' : '$';
   const [activeTab, setActiveTab] = useState<MonitorTab>('feed');
+
+  // Regional Payment Providers
+  const euProviders: PaymentProvider[] = [
+    { id: 'stripe', name: 'Stripe', subtitle: 'Instant SEPA & Card Settlements', icon: <StripeLogo size={24} />, tag: 'Direct Conduit' },
+    { id: 'adyen', name: 'Adyen', subtitle: 'Pan-European Gateway & Clearing', icon: <AdyenLogoIcon />, tag: 'Direct Conduit' },
+    { id: 'paypal', name: 'PayPal', subtitle: 'One-Touch Global Checkout', icon: <PayPalLogo size={24} />, tag: 'Direct Conduit' },
+    { id: 'worldline', name: 'Worldline', subtitle: 'European Omnichannel Processing', icon: <WorldlineLogoIcon />, tag: 'Direct Conduit' },
+    { id: 'mollie', name: 'Mollie', subtitle: 'iDEAL, Bancontact & Cards', icon: <MollieLogoIcon />, tag: 'Direct Conduit' },
+  ];
+
+  const globalProviders: PaymentProvider[] = [
+    { id: 'stripe', name: 'Stripe', subtitle: 'Multi-Currency Direct Clearing', icon: <StripeLogo size={24} />, tag: 'Direct Conduit' },
+    { id: 'paypal', name: 'PayPal', subtitle: '200+ Countries Global Settlement', icon: <PayPalLogo size={24} />, tag: 'Direct Conduit' },
+  ];
+
+  const indiaProviders: PaymentProvider[] = [
+    { id: 'upi', name: 'Direct Bank UPI & QR', subtitle: '0% Platform Fee · Direct to A/C', icon: <UpiLogo size={24} />, tag: 'Default Native' },
+    { id: 'razorpay', name: 'Razorpay Integration', subtitle: 'Cards, Netbanking & EMI Conduits', icon: <RazorpayLogo size={24} />, tag: 'Optional Gateway' },
+  ];
+
+  const activeProviderList = isIndia ? indiaProviders : isEU ? euProviders : globalProviders;
+  const [providerIndex, setProviderIndex] = useState(0);
+
+  // Cycle active provider every 1.5 seconds (1500ms) with smooth animation
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProviderIndex((prev) => (prev + 1) % activeProviderList.length);
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [activeProviderList.length]);
+
+  const currentProvider = activeProviderList[providerIndex] || activeProviderList[0];
 
   const alerts: Record<MonitorTab, AlertItem[]> = {
     feed: [
@@ -156,8 +226,29 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
             Meet Fero. Built-in store intelligence that protects your margin.
           </h2>
 
+          {/* Regional Header Subtitle with Active Provider Callout */}
           <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl mx-auto">
-            FeraSetu is your independent 0% commission storefront. Fero is the intelligent operations co-pilot built inside: monitoring stock levels, verifying direct bank deposits, and surfacing clear merchant actions.
+            {isIndia ? (
+              <>
+                FeraSetu connects your shop directly with <strong>Direct Bank Deposit via instant UPI & QR</strong> by default, keeping 100% in your hands with zero platform cuts. If you wish, connect Razorpay for additional channels. Built inside is <strong>Fero</strong> — monitoring stock and settlement 24/7.
+              </>
+            ) : isEU ? (
+              <>
+                FeraSetu is your independent 0% commission storefront. You can integrate supported European payment providers including{' '}
+                <span className="inline-flex items-center gap-1 font-bold text-slate-900 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                  {currentProvider.name}
+                </span>{' '}
+                directly into your merchant bank with zero intermediary tolls.
+              </>
+            ) : (
+              <>
+                FeraSetu is your independent 0% commission storefront. You can integrate supported global payment providers including{' '}
+                <span className="inline-flex items-center gap-1 font-bold text-slate-900 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                  {currentProvider.name}
+                </span>{' '}
+                with 0% platform cut and direct account settlements.
+              </>
+            )}
           </p>
         </div>
 
@@ -193,42 +284,57 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
                   </span>
                 </div>
 
-                {/* Direct Bank Settlement Ledger */}
-                <div className="rounded-xl border border-slate-150 bg-slate-50 p-4 mb-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                    <span className="flex items-center gap-1.5 text-slate-700">
-                      <Building2 size={14} className="text-emerald-600" />
-                      Direct Bank Settlement
+                {/* Live Payment Provider Indicator (Cycles every 1.5s) */}
+                <div className="rounded-xl border border-blue-150 bg-blue-50/60 p-3.5 mb-4 transition-all duration-300">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-blue-900 flex items-center gap-1.5">
+                      <Building2 size={13} className="text-blue-600" />
+                      {isIndia ? 'Direct Settlement Channel' : 'Integrated Payment Provider'}
                     </span>
-                    <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded border border-emerald-200">
-                      100% Kept
+                    <span className="text-[10px] font-bold text-blue-800 bg-blue-100/90 px-2 py-0.5 rounded-md border border-blue-200">
+                      {currentProvider.tag}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-blue-100 shadow-2xs">
+                    <div className="shrink-0">
+                      {currentProvider.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <span>{currentProvider.name}</span>
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                          0% Fee
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        {currentProvider.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Authentic Real Workbench UI Photo / Screenshot Container */}
+                <div className="relative rounded-xl border border-slate-200 overflow-hidden mb-4 shadow-xs group">
+                  <img
+                    src="/hero/dashboard.webp"
+                    alt="Real FeraSetu Merchant Counter Register & Settlement Workbench"
+                    className="w-full h-auto object-cover transform transition-transform duration-500 group-hover:scale-[1.02]"
+                    loading="lazy"
+                  />
+                  {/* Subtle Gradient & Status Badges Overlaid on Real Screenshot */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent p-3 pt-6 text-white flex items-end justify-between">
                     <div>
-                      <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tabular-nums">
-                        {currency}{isIndia ? '14,250.00' : '420.00'}
+                      <div className="text-[10px] font-mono text-emerald-300 uppercase tracking-wider font-bold flex items-center gap-1">
+                        <CheckCircle2 size={11} />
+                        100% Reconciled D1 Ledger
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        Direct to HDFC Bank A/C ••4102 via UPI
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-emerald-700">
-                        {currency}0.00 Platform Fee
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        Zero toll deducted
+                      <div className="text-xs font-bold text-white mt-0.5">
+                        {currency}{isIndia ? '14,250.00' : '420.00'} Direct Collected
                       </div>
                     </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-600">
-                    <span>Marketplace commission saved today:</span>
-                    <span className="font-bold text-[#EA580C] tabular-nums">
-                      +{currency}{isIndia ? '2,565.00' : '75.60'}
+                    <span className="text-[10px] font-bold bg-[#EA580C] text-white px-2 py-0.5 rounded-md shadow-xs">
+                      0% Commission
                     </span>
                   </div>
                 </div>
@@ -364,11 +470,12 @@ export default function FeroGuardianSection({ onStart, market = 'IN' }: FeroAgen
               </div>
 
               {/* Feed Card List */}
-              <div className="space-y-3 mb-6 min-h-[220px]">
-                {alerts[activeTab].map((item) => (
+              <div key={activeTab} className="space-y-3 mb-6 min-h-[220px]">
+                {alerts[activeTab].map((item, idx) => (
                   <div
                     key={item.id}
-                    className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-all text-left"
+                    style={{ animationDelay: `${idx * 70}ms` }}
+                    className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-all text-left animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both"
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-2.5">

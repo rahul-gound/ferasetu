@@ -5,8 +5,8 @@
  *
  * Tiers:
  * - Free: ₹0/mo, ₹0/yr (Acquisition tier)
- * - Pro: ₹999/mo, ₹9,990/yr (High-volume scale tier - Most Popular)
- * - Business: ₹399/mo, ₹3,990/yr (Main growth retail tier)
+ * - Pro: ₹399/mo, ₹3,990/yr (Main growth retail tier - Most Popular)
+ * - Business: ₹999/mo, ₹9,990/yr (High-volume scale tier)
  */
 
 // ---------------------------------------------------------------------------
@@ -75,12 +75,12 @@ export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
     yearly: 1990,
     yearlyPerMonth: 165.8,
   },
-  business: {
+  pro: {
     monthly: 399,
     yearly: 3990,
     yearlyPerMonth: 332.5,
   },
-  pro: {
+  business: {
     monthly: 999,
     yearly: 9990,
     yearlyPerMonth: 832.5,
@@ -179,7 +179,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     removeBranding: false,
     prioritySupport: false,
   },
-  business: {
+  pro: {
     products: 500,
     aiCreditsPerMonth: 200,
     storageBytes: 1 * 1024 * 1024 * 1024, // 1 GB
@@ -189,7 +189,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     removeBranding: true,
     prioritySupport: true,
   },
-  pro: {
+  business: {
     products: Infinity,
     aiCreditsPerMonth: 1000,
     storageBytes: 5 * 1024 * 1024 * 1024, // 5 GB
@@ -281,34 +281,14 @@ export const PLANS: PlanDefinition[] = [
   {
     id: 'pro',
     displayName: 'Pro',
-    tagline: 'Complete power and scale for serious merchants.',
-    outcome: 'Unlimited catalog capacity, advanced predictive AI forecasting, multiple staff, and top priority support.',
+    tagline: 'Run and grow your retail business efficiently.',
+    outcome: 'Expand your catalog, track profits, automate stock alerts, and use your FeraSetu AI assistant daily.',
     price: PLAN_PRICES.pro,
     limits: PLAN_LIMITS.pro,
     highlighted: true,
     badge: 'Most Popular',
     ctaText: 'Get Pro',
     ctaHref: '/register?plan=pro',
-    features: [
-      { label: 'Everything in Business', included: true },
-      { label: 'Unlimited products', included: true },
-      { label: '1,000 FeraSetu AI credits/month', included: true },
-      { label: '5GB media & backup storage', included: true },
-      { label: 'Advanced predictive AI & forecasting', included: true },
-      { label: 'Up to 5 staff accounts', included: true },
-      { label: 'Custom domain & white-label store', included: true },
-      { label: 'Dedicated priority support (24/7)', included: true },
-    ],
-  },
-  {
-    id: 'business',
-    displayName: 'Business',
-    tagline: 'Run and grow your retail business efficiently.',
-    outcome: 'Expand your catalog, track profits, automate stock alerts, and use your FeraSetu AI assistant daily.',
-    price: PLAN_PRICES.business,
-    limits: PLAN_LIMITS.business,
-    ctaText: 'Get Business',
-    ctaHref: '/register?plan=business',
     features: [
       { label: 'Everything in Starter', included: true },
       { label: 'Up to 500 products', included: true },
@@ -320,6 +300,26 @@ export const PLANS: PlanDefinition[] = [
       { label: 'Connect custom domain', included: true },
       { label: 'Remove FeraSetu branding', included: true },
       { label: 'Priority WhatsApp & phone support', included: true },
+    ],
+  },
+  {
+    id: 'business',
+    displayName: 'Business',
+    tagline: 'Complete power and scale for serious merchants.',
+    outcome: 'Unlimited catalog capacity, advanced predictive AI forecasting, multiple staff, and top priority support.',
+    price: PLAN_PRICES.business,
+    limits: PLAN_LIMITS.business,
+    ctaText: 'Get Business',
+    ctaHref: '/register?plan=business',
+    features: [
+      { label: 'Everything in Pro', included: true },
+      { label: 'Unlimited products', included: true },
+      { label: '1,000 FeraSetu AI credits/month', included: true },
+      { label: '5GB media & backup storage', included: true },
+      { label: 'Advanced predictive AI & forecasting', included: true },
+      { label: 'Up to 5 staff accounts', included: true },
+      { label: 'Custom domain & white-label store', included: true },
+      { label: 'Dedicated priority support (24/7)', included: true },
     ],
   },
 ];

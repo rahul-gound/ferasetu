@@ -38,9 +38,9 @@ export default function PublicNavbar() {
     <>
       <nav
         aria-label={t('nav.primary')}
-        className='sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70'
+        className='sticky top-0 z-50 w-full overflow-hidden border-b border-slate-200/80 bg-white/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70'
       >
-        <div className='mx-auto flex h-16 sm:h-20 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6'>
+        <div className='mx-auto flex h-16 sm:h-20 w-full max-w-[1280px] items-center justify-between gap-1.5 sm:gap-4 px-2.5 sm:px-6'>
           <Link
             to={getLocalizedLink('/')}
             className='group flex shrink-0 items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2'
@@ -52,7 +52,7 @@ export default function PublicNavbar() {
               width='297'
               height='128'
               fetchPriority='high'
-              className='h-9 sm:h-11 md:h-12 w-auto max-w-[140px] sm:max-w-[175px] md:max-w-[210px] object-contain transition-transform duration-200 group-hover:scale-[1.02]'
+              className='h-7 sm:h-10 md:h-12 w-auto max-w-[95px] xs:max-w-[115px] sm:max-w-[165px] md:max-w-[210px] object-contain transition-transform duration-200 group-hover:scale-[1.02]'
             />
           </Link>
 
@@ -68,7 +68,7 @@ export default function PublicNavbar() {
             ))}
           </div>
 
-          <div className='flex items-center gap-3'>
+          <div className='flex items-center gap-1.5 sm:gap-3 shrink-0'>
             <div className='hidden items-center gap-2 md:flex'>
               <MarketSelector variant='header' />
               <LanguageSelector variant='light' />
@@ -79,19 +79,19 @@ export default function PublicNavbar() {
                 <div className='h-9 w-24 rounded-full bg-slate-100 animate-pulse' />
               </div>
             ) : user ? (
-              <div className='flex items-center gap-2.5'>
+              <div className='flex items-center gap-1 sm:gap-2'>
                 <Link
                   to='/dashboard'
-                  className='inline-flex items-center gap-2 rounded-xl bg-[#EA580C] px-4 py-2 text-xs sm:text-sm font-semibold text-white transition-colors hover:bg-[#D9480F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
+                  className='inline-flex items-center gap-1 sm:gap-1.5 rounded-xl bg-[#EA580C] px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#D9480F] hover:shadow active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 whitespace-nowrap'
                 >
-                  <LayoutDashboard size={15} />
-                  <span>{t('nav.dashboard') || 'Dashboard'}</span>
-                  <ArrowRight size={14} aria-hidden='true' />
+                  <LayoutDashboard size={14} className='shrink-0' />
+                  <span className='font-semibold'>{t('nav.dashboard') || 'Dashboard'}</span>
+                  <ArrowRight size={13} className='hidden sm:inline' aria-hidden='true' />
                 </Link>
                 <button
                   type='button'
                   onClick={() => logout()}
-                  className='inline-flex cursor-pointer items-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors'
+                  className='hidden sm:inline-flex cursor-pointer items-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors'
                 >
                   Sign Out
                 </button>
@@ -119,11 +119,11 @@ export default function PublicNavbar() {
             <button
               type='button'
               onClick={() => setMobileMenuOpen(true)}
-              className='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden'
+              className='flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden'
               aria-label={t('nav.openMenu')}
               aria-expanded={mobileMenuOpen}
             >
-              <Menu size={20} aria-hidden='true' />
+              <Menu size={17} className='sm:w-5 sm:h-5' aria-hidden='true' />
             </button>
           </div>
         </div>
@@ -142,10 +142,10 @@ export default function PublicNavbar() {
             <button
               type='button'
               onClick={() => setMobileMenuOpen(false)}
-              className='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
+              className='flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600'
               aria-label={t('nav.closeMenu')}
             >
-              <X size={20} aria-hidden='true' />
+              <X size={18} aria-hidden='true' />
             </button>
           </div>
 

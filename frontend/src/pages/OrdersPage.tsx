@@ -29,6 +29,7 @@ import {
   type IntelligenceData
 } from '../components/orders/OrderIntelligenceRadar';
 import posthog from '../lib/posthog';
+import { resolveMediaUrl } from '../utils/media';
 
 
 interface OrderItem {
@@ -40,6 +41,9 @@ interface OrderItem {
   price: number;
   unitPriceMinor?: number;
   totalMinor?: number;
+  image?: string;
+  image_url?: string;
+  media_key?: string;
 }
 
 interface Order {
@@ -232,6 +236,8 @@ export default function OrdersPage() {
     },
     staleTime: 60000,
   });
+
+  const productMap = useMemo(() => new Map((products || []).map((p: any) => [p.id, p])), [products]);
 
   const intelligence: IntelligenceData = useMemo(() => {
     if (rawIntelligence && rawIntelligence.summary) {
@@ -569,11 +575,16 @@ export default function OrdersPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{translate('orders')}</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            {orders.length} total orders recorded • 100% direct merchant settlement
-          </p>
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 shadow-xs flex items-center justify-center shrink-0 text-[#0052FF]">
+            <ShoppingCart size={20} strokeWidth={2} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Orders &amp; Counter</h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              {orders.length} total orders recorded • 100% direct merchant settlement
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2.5">
           <button
@@ -1008,22 +1019,55 @@ export default function OrdersPage() {
                         </div>
                       </td>
 
-                      {/* Items Summary */}
+                      {/* Items Summary with Product Thumbnail */}
                       <td className="py-3.5 px-4 align-top">
-                        <div className="flex flex-col gap-0.5 max-w-[200px]">
-                          <span className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                            <Package size={12} className="text-slate-400" />
-                            {order.items_count || order.items?.length || 0} items
-                          </span>
-                          <span
-                            className="text-[11px] text-slate-500 truncate"
-                            title={(order.items || []).map((it: any) => `${it.product_name || it.name || 'Item'} (x${it.quantity})`).join(', ')}
-                          >
-                            {(order.items && order.items.length > 0)
-                              ? order.items.map((it: any) => `${it.product_name || it.name || 'Item'} (x${it.quantity})`).join(', ')
-                              : (order.notes || 'Storefront order')}
-                          </span>
-                        </div>
+                        {(() => {
+                          const items = order.items || [];
+                          const primaryItem = items[0];
+                          const matchedProduct = primaryItem ? productMap.get(primaryItem.product_id || primaryItem.productId || '') : null;
+                          const rawImage = primaryItem?.image_url || primaryItem?.image || primaryItem?.media_key || matchedProduct?.image_url || matchedProduct?.media_key || matchedProduct?.image;
+                          const productThumbnail = resolveMediaUrl(rawImage);
+                          const itemsSummaryText = (items.length > 0)
+                            ? items.map((it: any) => `${it.product_name || it.name || 'Item'} (×${it.quantity})`).join(', ')
+                            : (order.notes || 'Storefront order');
+
+                          return (
+                            <div className="flex items-center gap-2.5 max-w-[260px]">
+                              {/* Product Thumbnail */}
+                              <div className="relative shrink-0 w-9 h-9 rounded-xl overflow-hidden border border-slate-200/90 bg-slate-100 flex items-center justify-center shadow-2xs">
+                                {productThumbnail ? (
+                                  <img
+                                    src={productThumbnail}
+                                    alt={primaryItem?.product_name || primaryItem?.name || 'Product'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-xs font-bold font-mono text-slate-500 uppercase">
+                                    {(primaryItem?.product_name || primaryItem?.name || 'P')[0]}
+                                  </span>
+                                )}
+                                {items.length > 1 && (
+                                  <span className="absolute -bottom-1 -right-1 bg-slate-900 text-white text-[9px] font-bold px-1 rounded-full border border-white shadow-xs">
+                                    +{items.length - 1}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="font-bold text-xs text-slate-800 flex items-center gap-1">
+                                  <Package size={12} className="text-slate-400" />
+                                  {order.items_count || items.length} item{items.length !== 1 ? 's' : ''}
+                                </span>
+                                <span className="text-[11px] text-slate-500 truncate" title={itemsSummaryText}>
+                                  {itemsSummaryText}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Amount */}
@@ -1880,20 +1924,41 @@ export default function OrdersPage() {
                 <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
                   ORDER ITEMS ({selectedOrder.items?.length || 0})
                 </h3>
-                {selectedOrder.items?.map((item, i) => (
-                  <div key={i} style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    padding: '8px 0', borderBottom: i < selectedOrder.items.length - 1 ? '1px solid var(--border)' : 'none',
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{item.product_name || item.name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Qty: {item.quantity} × ₹{item.price.toLocaleString('en-IN')}</div>
+                {selectedOrder.items?.map((item, i) => {
+                  const matchP = productMap.get(item.product_id || item.productId || '');
+                  const rawThumb = item.image_url || item.image || item.media_key || matchP?.image_url || matchP?.media_key || matchP?.image;
+                  const itemThumb = resolveMediaUrl(rawThumb);
+
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 0', borderBottom: i < selectedOrder.items.length - 1 ? '1px solid var(--border)' : 'none',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '38px', height: '38px', borderRadius: '8px', overflow: 'hidden',
+                          border: '1px solid var(--border)', background: 'var(--bg)', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {itemThumb ? (
+                            <img src={itemThumb} alt={item.product_name || item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                              {(item.product_name || item.name || 'P')[0]}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{item.product_name || item.name}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Qty: {item.quantity} × ₹{item.price.toLocaleString('en-IN')}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '14px' }}>
+                        ₹{(item.quantity * item.price).toLocaleString('en-IN')}
+                      </div>
                     </div>
-                    <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '14px' }}>
-                      ₹{(item.quantity * item.price).toLocaleString('en-IN')}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', marginTop: '12px',
                   paddingTop: '12px', borderTop: '2px solid var(--border)',

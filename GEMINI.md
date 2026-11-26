@@ -117,6 +117,23 @@ When the user shares a screenshot or photo of the UI:
   8. *Fair Reciprocity:* Provide educational and operational value before asking for reviews, referrals, or upgrades.
 - **Strict Anti-Pattern Prohibitions:** Zero hidden cancellation, zero holding domains/data hostage, zero fake scarcity/countdowns, zero guilt-tripping copy ("Don't abandon us"), zero fake personalisation or pseudo-human bot messages, zero dark patterns, and zero emotional fluff masking broken functionality.
 
+## 14. Mandatory Domain Architecture Standard: User Work (`ferasetu.store`) vs. Official Work (`ferasetu.com`)
+- **Always Active Domain Invariant:** Every agent, developer, and automated pipeline MUST enforce strict domain role separation between merchant/user workspaces and official FeraSetu corporate operations:
+  1. **User / Merchant Work (`ferasetu.store`):**
+     - **Storefront Hosting & Subdomains:** All merchant stores, subdomains, and live storefront URLs are hosted on and default to `ferasetu.store` (e.g. `{store-slug}.ferasetu.store`).
+     - **Storefront Ingress & CNAME Targets:** Merchant custom domain DNS CNAME configuration points to `shops.ferasetu.store`.
+     - **User / Merchant Email Delivery:** All default merchant transactional sender identities and mail domains use `orders@{store-slug}.ferasetu.store`.
+     - **User Identification & Gateway Placeholders:** Synthetic user IDs and SMS gateway communications map to `{userId}@user.ferasetu.store` and `{phone}@sms.ferasetu.store`.
+     - **Merchant UI, Previews & Examples:** In Website Settings, Builder previews, marketing showcase cards, and demo stores, merchant store links are formatted as `https://{store-slug}.ferasetu.store`.
+  2. **Official Platform Work (`ferasetu.com`):**
+     - **Official Platform Scope Only:** `ferasetu.com` is strictly reserved for official company and infrastructure operations.
+     - **Platform Marketing & App:** The apex domain `https://ferasetu.com`, merchant workbench `app.ferasetu.com`, and login `ferasetu.com/login`.
+     - **Platform APIs & Edge:** API endpoints `https://api.ferasetu.com` and global static asset CDN `https://cdn.ferasetu.com`.
+     - **Official Corporate Email:** Platform operations emails exclusively use `ferasetu.com` (`no-reply@ferasetu.com`, `support@ferasetu.com`, `billing@ferasetu.com`, `security@ferasetu.com`, `privacy@ferasetu.com`).
+     - **Official Platform Properties:** System documentation and status portals (`help.ferasetu.com`, `docs.ferasetu.com`, `status.ferasetu.com`).
+     - **Platform Mail Infrastructure Records:** Central SPF (`v=spf1 include:_spf.ferasetu.com ~all`) and DMARC reporting (`dmarc-reports@ferasetu.com`).
+
+
 
 
 

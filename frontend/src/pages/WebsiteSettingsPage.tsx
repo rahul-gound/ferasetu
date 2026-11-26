@@ -109,7 +109,7 @@ export default function WebsiteSettingsPage() {
         meta_description: defaultDesc,
         keywords: incoming.keywords || 'online store, shopping, local retail, whatsapp orders',
         social_share_image: incoming.social_share_image || user?.logo_url || '',
-        canonical_url: incoming.canonical_url || `https://${storeSlug}.ferasetu.com`,
+        canonical_url: incoming.canonical_url || `https://${storeSlug}.ferasetu.store`,
         maintenance_mode: incoming.maintenance_mode ?? false,
         require_customer_login: incoming.require_customer_login ?? false,
         google_analytics_id: incoming.google_analytics_id || '',
@@ -122,7 +122,7 @@ export default function WebsiteSettingsPage() {
         ...prev,
         meta_title: prev.meta_title || defaultTitle,
         meta_description: prev.meta_description || `Welcome to ${defaultTitle}. Browse our products, enjoy 0% markup, and order directly on WhatsApp.`,
-        canonical_url: prev.canonical_url || `https://${storeSlug}.ferasetu.com`,
+        canonical_url: prev.canonical_url || `https://${storeSlug}.ferasetu.store`,
       }));
     }
   }, [data, user]);
@@ -670,7 +670,7 @@ export default function WebsiteSettingsPage() {
                       {displayTitle}
                     </span>
                     <span className="text-[10px] text-slate-500 truncate leading-tight">
-                      {settings.canonical_url || `https://${storeSlug}.ferasetu.com`}
+                      {settings.canonical_url || `https://${storeSlug}.ferasetu.store`}
                     </span>
                   </div>
                 </div>
@@ -730,7 +730,7 @@ export default function WebsiteSettingsPage() {
                       {displayDesc}
                     </p>
                     <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold pt-1">
-                      {storeSlug}.ferasetu.com
+                      {storeSlug}.ferasetu.store
                     </p>
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export default function WebsiteSettingsPage() {
                 <input
                   type="text"
                   readOnly
-                  value={liveStoreUrl || `https://${storeSlug}.ferasetu.com`}
+                  value={liveStoreUrl || `https://${storeSlug}.ferasetu.store`}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-700 focus:outline-none"
                 />
                 <button

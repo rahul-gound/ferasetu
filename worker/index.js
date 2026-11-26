@@ -744,7 +744,7 @@ export async function requireOrgContext(request, env, minRole = 'staff') {
         await env.DB.prepare(`
           INSERT OR IGNORE INTO shops (id, organization_id, name, store_slug, hostname, status, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
-        `).bind(orgId, orgId, orgName, storeSlug, legacyUser.hostname || `${storeSlug}.ferasetu.com`, now, now).run();
+        `).bind(orgId, orgId, orgName, storeSlug, legacyUser.hostname || `${storeSlug}.ferasetu.store`, now, now).run();
 
         try {
           await env.DB.prepare("UPDATE products SET organization_id = ? WHERE user_id = ? AND organization_id IS NULL").bind(orgId, legacyUser.id).run();
@@ -867,7 +867,7 @@ async function createOrganizationHandler(request, env) {
         role: 'owner',
       },
       store_slug: existingOrg.store_slug,
-      store_url: `https://${existingOrg.store_slug}.ferasetu.com`,
+      store_url: `https://${existingOrg.store_slug}.ferasetu.store`,
     }, 200, {}, request);
   }
 
@@ -885,8 +885,8 @@ async function createOrganizationHandler(request, env) {
           .bind(candidateSub)
           .first();
         if (takenOrg) return true;
-        const takenUser = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ?")
-          .bind(candidateSub, `${candidateSub}.ferasetu.com`)
+        const takenUser = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ? OR hostname = ?")
+          .bind(candidateSub, `${candidateSub}.ferasetu.store`, `${candidateSub}.ferasetu.com`)
           .first();
         return !!takenUser;
       } catch {
@@ -896,7 +896,7 @@ async function createOrganizationHandler(request, env) {
   );
 
   const storeSlug = storefront.subdomain;
-  const hostname = storefront.hostname || `${storeSlug}.ferasetu.com`;
+  const hostname = storefront.hostname || `${storeSlug}.ferasetu.store`;
   const orgId = `org_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
 
@@ -1202,7 +1202,7 @@ async function createOrganizationHandler(request, env) {
         country = excluded.country,
         updated_at = excluded.updated_at
     `).bind(
-      me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, district, state, country, now, now
+      me.$id, me.email || `${me.$id}@user.ferasetu.store`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, district, state, country, now, now
     ).run();
 
     if (body.profile_picture && typeof body.profile_picture === 'string' && body.profile_picture.trim()) {
@@ -1226,7 +1226,7 @@ async function createOrganizationHandler(request, env) {
           state = excluded.state,
           updated_at = excluded.updated_at
       `).bind(
-        me.$id, me.email || `${me.$id}@user.ferasetu.com`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, state, now, now
+        me.$id, me.email || `${me.$id}@user.ferasetu.store`, me.name || name, name, plan, planExpiresAt, market, storeSlug, hostname, city, state, now, now
       ).run();
 
       if (body.profile_picture && typeof body.profile_picture === 'string' && body.profile_picture.trim()) {
@@ -1271,7 +1271,7 @@ async function createOrganizationHandler(request, env) {
 
   // Send Welcome Email to the new merchant from noreply@ferasetu.com
   const userEmail = me.email || '';
-  if (userEmail && userEmail.includes('@') && !userEmail.endsWith('@user.ferasetu.com')) {
+  if (userEmail && userEmail.includes('@') && !userEmail.endsWith('@user.ferasetu.store') && !userEmail.endsWith('@user.ferasetu.com')) {
     try {
       await EmailService.sendNewUserWelcomeEmail(env, {
         email: userEmail,
@@ -1328,7 +1328,7 @@ async function getCurrentOrganizationHandler(request, env) {
       businessType: isService ? 'service' : 'retail',
       category: ctx.organization.category || (isService ? 'coaching' : 'grocery'),
       role: ctx.role,
-      store_url: `https://${ctx.organization.store_slug}.ferasetu.com`,
+      store_url: `https://${ctx.organization.store_slug}.ferasetu.store`,
     }
   }, 200, {}, request);
 }
@@ -1999,7 +1999,7 @@ async function getProfile(request, env) {
     market: member.org_market,
     plan: member.org_plan,
     store_slug: member.store_slug,
-    store_url: `https://${member.store_slug}.ferasetu.com`,
+    store_url: `https://${member.store_slug}.ferasetu.store`,
     address: member.address,
     city: member.city,
     district: member.district,
@@ -2073,7 +2073,7 @@ async function updateProfile(request, env) {
     ? body.email.trim()
     : (me.email && typeof me.email === 'string' && me.email.trim()
       ? me.email.trim()
-      : `${me.$id}@user.ferasetu.com`);
+      : `${me.$id}@user.ferasetu.store`);
 
   if (!existing) {
     // Check if user already exists under the same email
@@ -2102,8 +2102,8 @@ async function updateProfile(request, env) {
             state: body.state,
           },
           async (candidateSub) => {
-            const taken = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ?")
-              .bind(candidateSub, `${candidateSub}.ferasetu.com`)
+            const taken = await env.DB.prepare("SELECT id FROM users WHERE subdomain = ? OR hostname = ? OR hostname = ?")
+              .bind(candidateSub, `${candidateSub}.ferasetu.store`, `${candidateSub}.ferasetu.com`)
               .first();
             return !!taken;
           }
@@ -2114,7 +2114,7 @@ async function updateProfile(request, env) {
         console.warn("Could not generate canonical storefront, falling back:", genErr?.message);
       }
     } else if (subdomain && !hostname) {
-      hostname = `${subdomain}.ferasetu.com`;
+      hostname = `${subdomain}.ferasetu.store`;
     }
 
     const newUser = {
@@ -2204,12 +2204,12 @@ async function updateProfile(request, env) {
     }
 
     // Send Welcome Email to newly registered user
-    if (newUser.email && newUser.email.includes('@') && !newUser.email.endsWith('@user.ferasetu.com')) {
+    if (newUser.email && newUser.email.includes('@') && !newUser.email.endsWith('@user.ferasetu.store') && !newUser.email.endsWith('@user.ferasetu.com')) {
       try {
         await EmailService.sendNewUserWelcomeEmail(env, {
           email: newUser.email,
           name: newUser.name || newUser.business_name,
-          storeUrl: newUser.hostname ? `https://${newUser.hostname}` : `https://${newUser.subdomain}.ferasetu.com`
+          storeUrl: newUser.hostname ? `https://${newUser.hostname}` : `https://${newUser.subdomain}.ferasetu.store`
         });
       } catch (welcomeErr) {
         console.warn("Could not dispatch welcome email on profile creation:", welcomeErr?.message);
@@ -2229,7 +2229,7 @@ async function updateProfile(request, env) {
   }
 
   if (body.subdomain && !body.hostname) {
-    body.hostname = `${body.subdomain}.ferasetu.com`;
+    body.hostname = `${body.subdomain}.ferasetu.store`;
   }
 
   for (const key of allowed) {
@@ -2386,7 +2386,7 @@ async function getReferralsHandler(request, env) {
 
     const referrals = rows.map(row => ({
       id: row.id,
-      storeName: row.business_name || (row.subdomain ? `${row.subdomain}.ferasetu.com` : 'New Store'),
+      storeName: row.business_name || (row.subdomain ? `${row.subdomain}.ferasetu.store` : 'New Store'),
       ownerName: row.owner_name || 'Merchant Partner',
       date: row.created_at ? row.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
       plan: row.plan ? (row.plan.charAt(0).toUpperCase() + row.plan.slice(1)) : 'Free',
@@ -5395,8 +5395,8 @@ const MARKET_PRICING = {
     plans: {
       free: { monthly: 0, yearly: 0 },
       starter: { monthly: 199, yearly: 1990 },
-      business: { monthly: 399, yearly: 3990 },
-      pro: { monthly: 999, yearly: 9990 },
+      pro: { monthly: 399, yearly: 3990 },
+      business: { monthly: 999, yearly: 9990 },
       basic: { monthly: 199, yearly: 1990 },
       growth: { monthly: 399, yearly: 3990 },
       standard: { monthly: 399, yearly: 3990 },
@@ -5412,8 +5412,8 @@ const MARKET_PRICING = {
     plans: {
       starter: { monthly: 19, yearly: 190 },
       growth: { monthly: 39, yearly: 390 },
-      business: { monthly: 39, yearly: 390 },
-      pro: { monthly: 79, yearly: 790 },
+      pro: { monthly: 39, yearly: 390 },
+      business: { monthly: 79, yearly: 790 },
       scale: { monthly: 179, yearly: 1790 },
     },
   },
@@ -5424,8 +5424,8 @@ const MARKET_PRICING = {
     plans: {
       starter: { monthly: 19, yearly: 190 },
       growth: { monthly: 39, yearly: 390 },
-      business: { monthly: 39, yearly: 390 },
-      pro: { monthly: 79, yearly: 790 },
+      pro: { monthly: 39, yearly: 390 },
+      business: { monthly: 79, yearly: 790 },
       scale: { monthly: 179, yearly: 1790 },
     },
   },
@@ -5436,8 +5436,8 @@ const MARKET_PRICING = {
     plans: {
       starter: { monthly: 19, yearly: 190 },
       growth: { monthly: 39, yearly: 390 },
-      business: { monthly: 39, yearly: 390 },
-      pro: { monthly: 79, yearly: 790 },
+      pro: { monthly: 39, yearly: 390 },
+      business: { monthly: 79, yearly: 790 },
       scale: { monthly: 179, yearly: 1790 },
     },
   },
@@ -5448,8 +5448,8 @@ const MARKET_PRICING = {
     plans: {
       starter: { monthly: 19, yearly: 190 },
       growth: { monthly: 39, yearly: 390 },
-      business: { monthly: 39, yearly: 390 },
-      pro: { monthly: 79, yearly: 790 },
+      pro: { monthly: 39, yearly: 390 },
+      business: { monthly: 79, yearly: 790 },
       scale: { monthly: 179, yearly: 1790 },
     },
   },

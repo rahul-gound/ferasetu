@@ -526,7 +526,7 @@ await test('Platform Identity: Platform emails authenticate without merchantId a
 // -----------------------------------------------------------------------------
 // TEST 3: Default Sender Generation (Zero Config)
 // -----------------------------------------------------------------------------
-await test('Default Sender: Automatic provisioning of orders@{merchantSlug}.ferasetu.com', async () => {
+await test('Default Sender: Automatic provisioning of orders@{merchantSlug}.ferasetu.store', async () => {
   const db = createTestDb();
   const env = { DB: db, JWKS: localKeySet, ADMIN_JWT_SECRET: 'test_jwt_key', WORKOS_CLIENT_ID: 'test_client' };
 
@@ -541,8 +541,8 @@ await test('Default Sender: Automatic provisioning of orders@{merchantSlug}.fera
   const data = await res.json();
 
   assert.equal(data.activeProvider, 'FERASETU');
-  assert.equal(data.ferasetuDomain.domain, 'spice-kerala-3.ferasetu.com');
-  assert.equal(data.defaultIdentity.email_address, 'orders@spice-kerala-3.ferasetu.com');
+  assert.equal(data.ferasetuDomain.domain, 'spice-kerala-3.ferasetu.store');
+  assert.equal(data.defaultIdentity.email_address, 'orders@spice-kerala-3.ferasetu.store');
   assert.equal(data.ferasetuDomain.verification_status, 'VERIFIED');
 });
 

@@ -339,14 +339,23 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
           {/* ========================================================== */}
           {/* CENTER: The Direct Bridge Rail (Col 6-7)                   */}
           {/* ========================================================== */}
-          <div className="lg:col-span-2 flex flex-col items-center justify-center py-2 lg:py-0">
+          <div className="lg:col-span-2 flex flex-col items-center justify-center py-2 lg:py-0 relative">
             <div className="relative w-full flex lg:flex-col items-center justify-center gap-3">
-              {/* Direct Route Indicator */}
-              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-lg shadow-slate-900/10 flex flex-col items-center text-center max-w-[150px] w-full">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${
-                  simulationStep === 'transmitting' ? 'bg-amber-500 text-white animate-bounce' : 'bg-emerald-500/20 text-emerald-400'
+              {/* Direct Route Indicator with Animated Settlement Beam */}
+              <div className="relative p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-lg shadow-slate-900/10 flex flex-col items-center text-center max-w-[150px] w-full overflow-hidden">
+                {/* Luminous Animated Beam when transmitting */}
+                {simulationStep === 'transmitting' && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent animate-pulse pointer-events-none" />
+                )}
+
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-1.5 transition-all duration-300 ${
+                  simulationStep === 'transmitting'
+                    ? 'bg-amber-500 text-white scale-110 shadow-lg shadow-amber-500/50'
+                    : simulationStep === 'settled'
+                    ? 'bg-emerald-500 text-white scale-105 shadow-md shadow-emerald-500/30'
+                    : 'bg-emerald-500/20 text-emerald-400'
                 }`}>
-                  <Zap size={18} />
+                  <Zap size={18} className={simulationStep === 'transmitting' ? 'animate-bounce' : ''} />
                 </div>
                 <span className="text-[11px] font-bold text-slate-100">
                   Direct Settlement
@@ -362,7 +371,7 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
               {/* Velocity Pulse Badge */}
               <div className="hidden lg:flex items-center gap-1 text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                 <span>0.8s</span>
-                <ArrowRight size={10} className="text-slate-400" />
+                <ArrowRight size={10} className={`text-slate-400 ${simulationStep === 'transmitting' ? 'text-emerald-600 translate-x-0.5 transition-transform' : ''}`} />
                 <span>Instant</span>
               </div>
             </div>
@@ -425,7 +434,9 @@ export default function HeroConnectedJourney({ market = 'IN', onExplorePlans }: 
                 </div>
 
                 {/* Net Merchant Bank Deposit */}
-                <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-2 font-bold">
+                <div className={`flex justify-between items-center text-sm border-t border-slate-200 pt-2 font-bold transition-all duration-300 ${
+                  simulationStep === 'settled' ? 'bg-emerald-50/70 p-2 rounded-xl border border-emerald-200 ring-2 ring-emerald-400/40' : ''
+                }`}>
                   <div className="flex items-center gap-1.5 text-slate-900">
                     <Building2 size={16} className="text-emerald-600" />
                     <span>Direct Bank Deposit:</span>

@@ -664,40 +664,6 @@ export default function IntegrationsPage() {
               </div>
             </div>
 
-            {/* Inventory Locations Card */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between hover:border-slate-300 transition-all shadow-xs">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#0052FF] flex items-center justify-center">
-                    <Warehouse size={22} />
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Multi-Location Ready
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">
-                    Inventory &amp; Locations
-                  </h3>
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    Multi-Store Stock &amp; Transfers. Sync storefront shelves and godowns in real time with audio AI sidekick.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-4 mt-5 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Godowns &amp; Storefront</span>
-                <Link
-                  to="/inventory-and-locations"
-                  className="min-h-[40px] px-3 py-1.5 text-[#0052FF] font-bold hover:underline inline-flex items-center gap-1"
-                >
-                  <span>Open Inventory</span>
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-
             {/* Staff & Access Card */}
             <div className="p-6 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between hover:border-slate-300 transition-all shadow-xs">
               <div className="space-y-3">

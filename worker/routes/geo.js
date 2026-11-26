@@ -47,16 +47,16 @@ export const REGIONAL_CONFIGS = {
         monthlyCredits: 50,
         isFree: false,
       },
-      business: {
-        id: "business",
-        name: "Business",
+      pro: {
+        id: "pro",
+        name: "Pro",
         price: { monthly: 399, yearly: 3990, yearlyPerMonth: 332 },
         monthlyCredits: 200,
         isFree: false,
       },
-      pro: {
-        id: "pro",
-        name: "Pro",
+      business: {
+        id: "business",
+        name: "Business",
         price: { monthly: 999, yearly: 9990, yearlyPerMonth: 832 },
         monthlyCredits: 1000,
         isFree: false,
@@ -91,16 +91,16 @@ export const REGIONAL_CONFIGS = {
         monthlyCredits: 200,
         isFree: false,
       },
-      business: {
-        id: "business",
-        name: "Business",
+      pro: {
+        id: "pro",
+        name: "Pro",
         price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
-      pro: {
-        id: "pro",
-        name: "Pro",
+      business: {
+        id: "business",
+        name: "Business",
         price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
         isFree: false,
@@ -142,16 +142,16 @@ export const REGIONAL_CONFIGS = {
         monthlyCredits: 200,
         isFree: false,
       },
-      business: {
-        id: "business",
-        name: "Business",
+      pro: {
+        id: "pro",
+        name: "Pro",
         price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
-      pro: {
-        id: "pro",
-        name: "Pro",
+      business: {
+        id: "business",
+        name: "Business",
         price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
         isFree: false,
@@ -193,16 +193,16 @@ export const REGIONAL_CONFIGS = {
         monthlyCredits: 200,
         isFree: false,
       },
-      business: {
-        id: "business",
-        name: "Business",
+      pro: {
+        id: "pro",
+        name: "Pro",
         price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
-      pro: {
-        id: "pro",
-        name: "Pro",
+      business: {
+        id: "business",
+        name: "Business",
         price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
         isFree: false,
@@ -244,16 +244,16 @@ export const REGIONAL_CONFIGS = {
         monthlyCredits: 200,
         isFree: false,
       },
-      business: {
-        id: "business",
-        name: "Business",
+      pro: {
+        id: "pro",
+        name: "Pro",
         price: { monthly: 39, yearly: 390, yearlyPerMonth: 32.5 },
         monthlyCredits: 200,
         isFree: false,
       },
-      pro: {
-        id: "pro",
-        name: "Pro",
+      business: {
+        id: "business",
+        name: "Business",
         price: { monthly: 79, yearly: 790, yearlyPerMonth: 65.8 },
         monthlyCredits: 1000,
         isFree: false,

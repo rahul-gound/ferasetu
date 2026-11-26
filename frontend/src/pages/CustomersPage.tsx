@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -715,9 +716,9 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* Customer Detail Drawer / Modal */}
-      {selectedCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end animate-fadeIn">
+      {/* Customer Detail Drawer / Modal (Portaled to document.body for full-viewport coverage) */}
+      {selectedCustomer && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex justify-end animate-fadeIn">
           <div className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden animate-slideInRight">
             {/* Drawer Header */}
             <div className="p-5 border-b border-[#E5EAF1] flex items-center justify-between">
@@ -847,25 +848,26 @@ export default function CustomersPage() {
               <button
                 type="button"
                 onClick={() => setSelectedCustomer(null)}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black"
+                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black cursor-pointer"
               >
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Add Customer Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+      {/* Add Customer Modal (Portaled to document.body for true full-screen dimming) */}
+      {isAddModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-[#152238]">Add New Customer</h3>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -921,21 +923,22 @@ export default function CustomersPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingCustomer}
-                  className="px-5 py-2.5 rounded-xl bg-[#0052FF] text-white font-bold hover:bg-blue-600 disabled:opacity-50"
+                  className="btn-tactile-primary px-5 py-2.5 rounded-xl bg-[#0052FF] text-white font-bold hover:bg-blue-600 disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {savingCustomer ? 'Adding…' : 'Save Customer'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Customer Segment Builder Modal */}

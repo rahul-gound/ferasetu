@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -219,7 +220,7 @@ export default function FeraSetuUpdatesCenter({
     }
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const filteredAnnouncements = announcements.filter(item => {
     if (filter === 'features') {
@@ -270,11 +271,11 @@ export default function FeraSetuUpdatesCenter({
     }
   };
 
-  return (
+  return createPortal(
     <>
       {/* Mobile Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-sm sm:hidden"
+        className="fixed inset-0 z-[85] bg-slate-950/30 backdrop-blur-sm sm:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -285,7 +286,7 @@ export default function FeraSetuUpdatesCenter({
         role="dialog"
         aria-label="FeraSetu Updates & Messages"
         aria-modal="true"
-        className="fixed inset-x-3 bottom-3 top-auto sm:top-16 sm:bottom-auto sm:right-6 sm:left-auto sm:w-[430px] z-50 flex max-h-[85vh] sm:max-h-[600px] flex-col rounded-2xl border border-[#E5EAF1] bg-white shadow-2xl transition-all duration-200 animate-in fade-in zoom-in-95"
+        className="fixed inset-x-3 top-[68px] sm:top-[72px] sm:right-6 sm:left-auto sm:w-[430px] z-[90] flex max-h-[calc(100vh-88px)] sm:max-h-[600px] flex-col rounded-2xl border border-[#E5EAF1] bg-white shadow-2xl transition-all duration-200 animate-in fade-in zoom-in-95"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#E5EAF1] px-5 py-4 bg-gradient-to-r from-white via-white to-blue-50/30 rounded-t-2xl">
@@ -546,6 +547,7 @@ export default function FeraSetuUpdatesCenter({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 }

@@ -785,7 +785,7 @@ export async function handleAdminRoutes(request, env) {
             COALESCE(u.business_name, w.name, u.name, 'My Shop') as shop_name,
             COALESCE(u.subdomain, 'store') as subdomain,
             u.custom_domain,
-            COALESCE(u.custom_domain, CASE WHEN u.subdomain IS NOT NULL THEN u.subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
+            COALESCE(u.custom_domain, CASE WHEN u.subdomain IS NOT NULL THEN u.subdomain || '.ferasetu.store' ELSE 'store.ferasetu.store' END) as hostname,
             u.name as owner_name,
             u.email as owner_email,
             COALESCE(w.created_at, u.created_at) as created_at,
@@ -808,7 +808,7 @@ export async function handleAdminRoutes(request, env) {
               COALESCE(business_name, name, 'My Shop') as shop_name,
               COALESCE(subdomain, 'store') as subdomain,
               custom_domain,
-              COALESCE(custom_domain, CASE WHEN subdomain IS NOT NULL THEN subdomain || '.ferasetu.com' ELSE 'store.ferasetu.com' END) as hostname,
+              COALESCE(custom_domain, CASE WHEN subdomain IS NOT NULL THEN subdomain || '.ferasetu.store' ELSE 'store.ferasetu.store' END) as hostname,
               name as owner_name,
               email as owner_email,
               created_at,
@@ -884,7 +884,9 @@ export async function handleAdminRoutes(request, env) {
       let subdomain = null;
       let customDomain = null;
 
-      if (clean.endsWith(".ferasetu.com")) {
+      if (clean.endsWith(".ferasetu.store")) {
+        subdomain = clean.replace(/\.ferasetu\.store$/i, "").trim();
+      } else if (clean.endsWith(".ferasetu.com")) {
         subdomain = clean.replace(/\.ferasetu\.com$/i, "").trim();
       } else if (clean.endsWith(".fera-search.tech")) {
         subdomain = clean.replace(/\.fera-search\.tech$/i, "").trim();
@@ -902,7 +904,7 @@ export async function handleAdminRoutes(request, env) {
         subdomain = subdomain.toLowerCase();
         const subCollision = await env.DB.prepare("SELECT id FROM users WHERE LOWER(subdomain) = ? AND id != ?").bind(subdomain, userId).first();
         if (subCollision) {
-          throw new HttpError(`The subdomain '${subdomain}.ferasetu.com' is already registered to another shopkeeper.`, 409);
+          throw new HttpError(`The subdomain '${subdomain}.ferasetu.store' is already registered to another shopkeeper.`, 409);
         }
       }
 
@@ -915,11 +917,11 @@ export async function handleAdminRoutes(request, env) {
       }
 
       const finalSubdomain = subdomain || user.subdomain || 'store';
-      const finalHostname = customDomain || `${finalSubdomain}.ferasetu.com`;
+      const finalHostname = customDomain || `${finalSubdomain}.ferasetu.store`;
       const newUrl = `https://${finalHostname}`;
       const previousUrl = user.custom_domain 
         ? `https://${user.custom_domain}` 
-        : `https://${user.subdomain || 'store'}.ferasetu.com`;
+        : `https://${user.subdomain || 'store'}.ferasetu.store`;
 
       const now = new Date().toISOString();
       const noticePayload = {

@@ -93,7 +93,7 @@ export const COMPARISONS_DATA: Record<string, CompetitorComparisonData> = {
       {
         title: 'All-Inclusive SaaS Pricing',
         description:
-          'Start on the permanent ₹0 Free plan for up to 25 products. Upgrade to Business (₹399/mo) or Pro (₹999/mo) with custom domains and automated GST invoices included.',
+          'Start on the permanent ₹0 Free plan for up to 25 products. Upgrade to Pro (₹399/mo) or Business (₹999/mo) with custom domains and automated GST invoices included.',
         metric: '₹0',
         metricLabel: 'Permanent Free Entry',
       },
@@ -118,7 +118,7 @@ export const COMPARISONS_DATA: Record<string, CompetitorComparisonData> = {
       {
         feature: 'Custom Domain Connection',
         category: 'Merchant Ownership',
-        ferasetu: 'Included in Business tier (₹399/mo) + free subdomain on all plans',
+        ferasetu: 'Included in Pro tier (₹399/mo) + free subdomain on all plans',
         competitor: 'Included on paid plans (~$39/mo min)',
         isFeraAdvantage: true,
         notes: 'Both support custom root and subdomains with automated SSL.',
@@ -210,7 +210,7 @@ export const COMPARISONS_DATA: Record<string, CompetitorComparisonData> = {
       {
         question: 'Can I connect my existing custom domain (e.g. mybrand.com)?',
         answer:
-          'Yes. On FeraSetu Business (₹399/mo) and Pro (₹999/mo) plans, you can connect your existing domain from GoDaddy, Namecheap, Cloudflare, or any registrar. We provision an automated SSL certificate on Cloudflare Edge at zero extra charge.',
+          'Yes. On FeraSetu Pro (₹399/mo) and Business (₹999/mo) plans, you can connect your existing domain from GoDaddy, Namecheap, Cloudflare, or any registrar. We provision an automated SSL certificate on Cloudflare Edge at zero extra charge.',
       },
       {
         question: 'How do WhatsApp cart orders work without paid plugins?',

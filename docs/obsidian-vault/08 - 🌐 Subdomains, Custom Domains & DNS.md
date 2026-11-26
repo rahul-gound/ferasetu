@@ -154,3 +154,15 @@ FeraSetu's Cloudflare Worker natively recognizes and serves merchant storefronts
 - **Zero-D1 Static Asset Proxy:** Requests to fingerprinted static assets (`/assets/*.js`, `/assets/*.css`, etc.) strictly bypass D1 database queries (0 queries) and leverage Cloudflare edge cache (`caches.default`).
 - **Protected Subdomains:** Core platform hostnames (`app`, `www`, `api`, `cdn`, `mail`, `help`, `shops`, `admin`, `status`) are strictly reserved across both domains and cannot be claimed by merchants.
 
+---
+
+## 9. Domain Role Separation Invariant (`ferasetu.store` vs `ferasetu.com`)
+
+An explicit separation of duties governs domain allocation across the FeraSetu ecosystem:
+
+| Domain | Role & Purpose | Scope of Use |
+| :--- | :--- | :--- |
+| **`ferasetu.store`** | **User & Merchant Commerce Work** | - Merchant storefront subdomains (`{store-slug}.ferasetu.store`)<br/>- CNAME ingress point (`shops.ferasetu.store`)<br/>- Merchant transactional email (`orders@{store-slug}.ferasetu.store`)<br/>- Synthetic user accounts (`{userId}@user.ferasetu.store`)<br/>- SMS bridge addresses (`{phone}@sms.ferasetu.store`)<br/>- Live store URL references in merchant dashboards and builder |
+| **`ferasetu.com`** | **Official Platform Operations** | - Official platform marketing portal (`https://ferasetu.com`)<br/>- Merchant web application (`app.ferasetu.com`, `/login`, `/dashboard`)<br/>- Core edge API cluster (`api.ferasetu.com`)<br/>- Global CDN assets gateway (`cdn.ferasetu.com`)<br/>- Official corporate email (`support@ferasetu.com`, `billing@ferasetu.com`, `security@ferasetu.com`, `no-reply@ferasetu.com`)<br/>- Official platform properties (`help.ferasetu.com`, `docs.ferasetu.com`, `status.ferasetu.com`)<br/>- Central SPF / DMARC platform reporting infrastructure |
+
+

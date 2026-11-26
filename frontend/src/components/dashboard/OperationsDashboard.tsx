@@ -55,6 +55,7 @@ import SettlementModal from './SettlementModal';
 import PrinterStatusModal from './PrinterStatusModal';
 import QuickStockModal from './QuickStockModal';
 import FeroMascot from '../ui/FeroMascot';
+import { resolveMediaUrl } from '../../utils/media';
 
 // ============================================================================
 // TYPES
@@ -67,6 +68,9 @@ export interface RealOrderItem {
   name?: string;
   quantity: number;
   price: number;
+  image?: string;
+  image_url?: string;
+  media_key?: string;
 }
 
 export interface RealOrder {
@@ -93,6 +97,9 @@ export interface RealProduct {
   stock_quantity: number;
   category?: string;
   is_active?: boolean | number;
+  image_url?: string;
+  media_key?: string;
+  image?: string;
 }
 
 export interface OperationsDashboardProps {
@@ -179,6 +186,9 @@ export default function OperationsDashboard({
   onUpdateStock,
 }: OperationsDashboardProps) {
   const navigate = useNavigate();
+
+  // Fast product image and metadata lookup
+  const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   // ── States ────────────────────────────────────────────────────────────────
   const [localOrders, setLocalOrders] = useState<RealOrder[]>(orders);
@@ -943,7 +953,7 @@ export default function OperationsDashboard({
   // ── LOADING SKELETON ──────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] p-6 space-y-6 max-w-7xl mx-auto animate-pulse">
+      <div className="min-h-full bg-[#F8FAFC] dark:bg-[#090D16] p-4 sm:p-6 space-y-6 max-w-7xl mx-auto animate-pulse rounded-2xl">
         <div className="h-20 bg-slate-200 dark:bg-slate-800 rounded-xl" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -957,12 +967,12 @@ export default function OperationsDashboard({
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-200 ${
-        isDarkMode ? 'dark bg-[#090D16] text-[#E2E8F0]' : 'bg-[#F8FAFC] text-[#0F172A]'
+      className={`min-h-full transition-colors duration-200 ${
+        isDarkMode ? 'dark bg-[#090D16] text-[#E2E8F0] rounded-2xl' : 'text-[#0F172A]'
       }`}
     >
       {/* ── Main Container ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
 
         {/* ── SITE CHANGED NOTIFICATION BANNER (ADMIN UPDATED WEBSITE URL) ── */}
         {siteChangedNotice && (
@@ -1037,7 +1047,7 @@ export default function OperationsDashboard({
               </div>
             </div>
             <Link
-              to="/settings"
+              to="/website-settings"
               className="shrink-0 font-semibold underline text-amber-800 dark:text-amber-300 hover:text-amber-900"
             >
               Configure Live Account →
@@ -1238,7 +1248,7 @@ export default function OperationsDashboard({
                       <span>Inventory Transfers</span>
                     </Link>
                     <Link
-                      to="/settings"
+                      to="/website-settings"
                       onClick={() => setToolsMenuOpen(false)}
                       className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
                     >
@@ -1246,7 +1256,7 @@ export default function OperationsDashboard({
                       <span>Store Settings</span>
                     </Link>
                     <Link
-                      to="/referrals"
+                      to="/refer-earn"
                       onClick={() => setToolsMenuOpen(false)}
                       className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
                     >
@@ -1309,31 +1319,35 @@ export default function OperationsDashboard({
         {/* RECONCILED METRIC CARDS GRID (13 METRICS RECONCILED IN 6 CARDS)    */}
         {/* ================================================================== */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
-          {/* Card 1: Gross & Net Sales (Single Focal KPI Card per Kombai Tidewell/Hollis) */}
+          {/* Card 1: Gross & Net Sales (Primary Hero Financial Metric) */}
           <div
-            className="rounded-2xl bg-gradient-to-br from-[#0052FF] to-[#003BB5] text-white p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 shadow-[0_6px_20px_rgba(0,82,255,0.22)] hover:shadow-[0_10px_28px_rgba(0,82,255,0.3)]"
+            className={`rounded-2xl border p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+              isDarkMode
+                ? 'bg-gradient-to-br from-blue-900/60 to-slate-900 border-blue-500/30 text-white shadow-[0_4px_20px_rgba(0,82,255,0.25)]'
+                : 'bg-white border-blue-200/90 shadow-[0_4px_16px_rgba(0,82,255,0.08)] ring-1 ring-blue-500/10'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-100">
+              <span className={`text-[11px] font-mono font-bold uppercase tracking-wider ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                 Net Sales
               </span>
               <span
-                className="text-blue-200 hover:text-white cursor-help"
+                className={`${isDarkMode ? 'text-blue-300 hover:text-white' : 'text-blue-400 hover:text-blue-600'} cursor-help`}
                 title="Net Sales = Gross Sales minus Refunds. Reconciled in real time from canonical order records."
               >
                 <Info size={13} />
               </span>
             </div>
             <div className="my-2.5">
-              <div className="text-2xl sm:text-[26px] font-bold font-display tracking-tight text-white font-mono-tabular flex items-baseline">
-                <span className="text-base font-medium text-blue-200 mr-0.5">₹</span>
+              <div className={`text-2xl sm:text-[28px] font-extrabold tracking-tight tabular-nums flex items-baseline ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                <span className={`text-lg font-medium mr-1 ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>₹</span>
                 <span>{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
               </div>
-              <div className="text-[11px] text-blue-100/90 font-semibold font-mono-tabular truncate mt-0.5">
+              <div className={`text-[11px] font-semibold tabular-nums truncate mt-0.5 ${isDarkMode ? 'text-blue-200/80' : 'text-slate-500'}`}>
                 Gross: {formatInr(metrics.grossSales)} • Refunds: {formatInr(metrics.refunds)}
               </div>
             </div>
-            <div className="text-[10px] text-emerald-200 font-semibold flex items-center gap-1 pt-2 border-t border-white/15">
+            <div className={`text-[10px] font-semibold flex items-center gap-1 pt-2 border-t ${isDarkMode ? 'text-emerald-300 border-white/10' : 'text-emerald-600 border-slate-100'}`}>
               <CheckCircle2 size={11} />
               <span>Live D1 Ledger · 0% Fee</span>
             </div>
@@ -1341,14 +1355,14 @@ export default function OperationsDashboard({
 
           {/* Card 2: Number of Orders & Breakdown */}
           <div
-            className={`rounded-2xl border border-t-[3px] border-t-indigo-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+            className={`rounded-2xl border p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
+                ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-white border-slate-200/90 shadow-[0_1px_4px_rgba(15,23,42,0.03)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.05)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Total Orders
               </span>
               <span
@@ -1374,14 +1388,14 @@ export default function OperationsDashboard({
 
           {/* Card 3: Average Basket & Peak Rush */}
           <div
-            className={`rounded-2xl border border-t-[3px] border-t-sky-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+            className={`rounded-2xl border p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
+                ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-white border-slate-200/90 shadow-[0_1px_4px_rgba(15,23,42,0.03)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.05)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Avg Basket
               </span>
               <span
@@ -1408,14 +1422,14 @@ export default function OperationsDashboard({
 
           {/* Card 4: Settled & Pending Payments */}
           <div
-            className={`rounded-2xl border border-t-[3px] border-t-emerald-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+            className={`rounded-2xl border p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
+                ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-white border-slate-200/90 shadow-[0_1px_4px_rgba(15,23,42,0.03)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.05)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Settled Payments
               </span>
               <span
@@ -1442,14 +1456,14 @@ export default function OperationsDashboard({
 
           {/* Card 5: Store Visits & Conversion */}
           <div
-            className={`rounded-2xl border border-t-[3px] border-t-violet-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+            className={`rounded-2xl border p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
+                ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-white border-slate-200/90 shadow-[0_1px_4px_rgba(15,23,42,0.03)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.05)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Conversion Rate
               </span>
               <span
@@ -1475,14 +1489,14 @@ export default function OperationsDashboard({
 
           {/* Card 6: Settlement Balance & Settle Action */}
           <div
-            className={`rounded-2xl border border-t-[3px] border-t-amber-500 p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+            className={`rounded-2xl border p-4 sm:p-4.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
               isDarkMode
-                ? 'bg-gradient-to-b from-[#0F1623] to-[#0A0F1D] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                : 'bg-gradient-to-b from-white to-slate-50/60 border-slate-200/90 shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'
+                ? 'bg-[#0F1623] border-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                : 'bg-white border-slate-200/90 shadow-[0_1px_4px_rgba(15,23,42,0.03)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.05)]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Ready to Sweep
               </span>
               <span
@@ -2391,6 +2405,12 @@ export default function OperationsDashboard({
                     const isPendingPrep = (order.status || '').toLowerCase() === 'pending' ||
                                           (order.status || '').toLowerCase() === 'confirmed';
 
+                    // Resolve primary product image added by shopkeeper
+                    const primaryItem = items[0];
+                    const matchedProduct = primaryItem ? productMap.get(primaryItem.product_id || primaryItem.productId || '') : null;
+                    const rawImage = primaryItem?.image_url || primaryItem?.image || primaryItem?.media_key || matchedProduct?.image_url || matchedProduct?.media_key || matchedProduct?.image;
+                    const productThumbnail = resolveMediaUrl(rawImage);
+
                     return (
                       <tr
                         key={order.id}
@@ -2421,13 +2441,40 @@ export default function OperationsDashboard({
                           </div>
                         </td>
 
-                        {/* Real Line Items */}
-                        <td className="py-3.5 px-4 max-w-[240px]">
-                          <div className="text-slate-700 dark:text-slate-300 truncate" title={itemsSummary}>
-                            {itemsSummary || 'Standard order items'}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono-tabular">
-                            {items.length} item{items.length !== 1 ? 's' : ''}
+                        {/* Real Line Items with Product Image */}
+                        <td className="py-3.5 px-4 max-w-[280px]">
+                          <div className="flex items-center gap-2.5">
+                            {/* Product Image Thumbnail */}
+                            <div className="relative shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-slate-200/90 dark:border-white/10 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-2xs">
+                              {productThumbnail ? (
+                                <img
+                                  src={productThumbnail}
+                                  alt={primaryItem?.product_name || primaryItem?.name || 'Product'}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-xs font-bold font-mono text-slate-500 uppercase">
+                                  {(primaryItem?.product_name || primaryItem?.name || 'P')[0]}
+                                </span>
+                              )}
+                              {items.length > 1 && (
+                                <span className="absolute -bottom-1 -right-1 bg-slate-900 text-white text-[9px] font-bold px-1 rounded-full border border-white dark:border-slate-800 shadow-xs">
+                                  +{items.length - 1}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="text-slate-800 dark:text-slate-200 font-medium truncate" title={itemsSummary}>
+                                {itemsSummary || 'Standard order items'}
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono-tabular">
+                                {items.length} item{items.length !== 1 ? 's' : ''}
+                              </div>
+                            </div>
                           </div>
                         </td>
 
@@ -2659,21 +2706,45 @@ export default function OperationsDashboard({
                   Ordered Items ({inspectedOrder.items?.length || 0})
                 </span>
                 <div className="divide-y divide-slate-100 dark:divide-white/5">
-                  {(inspectedOrder.items || []).map((item, idx) => (
-                    <div key={idx} className="py-2 flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-slate-800 dark:text-slate-200">
-                          {item.product_name || item.name || 'Product'}
+                  {(inspectedOrder.items || []).map((item, idx) => {
+                    const matchedProd = productMap.get(item.product_id || item.productId || '');
+                    const rawItemImg = item.image_url || item.image || item.media_key || matchedProd?.image_url || matchedProd?.media_key || matchedProd?.image;
+                    const itemThumbnail = resolveMediaUrl(rawItemImg);
+
+                    return (
+                      <div key={idx} className="py-2.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200/90 dark:border-white/10 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center shadow-2xs">
+                            {itemThumbnail ? (
+                              <img
+                                src={itemThumbnail}
+                                alt={item.product_name || item.name || 'Product'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-xs font-bold font-mono text-slate-500 uppercase">
+                                {(item.product_name || item.name || 'P')[0]}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate">
+                              {item.product_name || item.name || 'Product'}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono-tabular">
+                              Qty: {item.quantity} × {formatInr(item.price)}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono-tabular">
-                          Qty: {item.quantity} × {formatInr(item.price)}
+                        <div className="font-bold font-mono-tabular shrink-0 text-slate-900 dark:text-white">
+                          {formatInr(item.quantity * item.price)}
                         </div>
                       </div>
-                      <div className="font-bold font-mono-tabular">
-                        {formatInr(item.quantity * item.price)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

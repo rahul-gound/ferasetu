@@ -16,6 +16,7 @@ import {
 
 export const PLATFORM_TENANT_ID = 'ferasetu-platform';
 export const PLATFORM_DOMAIN = 'ferasetu.com';
+export const USER_EMAIL_DOMAIN = 'ferasetu.store';
 
 export const ALLOWED_PLATFORM_SENDERS = new Set([
   'no-reply@ferasetu.com',
@@ -255,7 +256,7 @@ async function buildMerchantBranding(db, organizationId) {
     logoUrl: shop?.logo_url || org?.logo_url || null,
     primaryColor: shop?.primary_color || org?.primary_color || null,
     secondaryColor: shop?.secondary_color || org?.secondary_color || null,
-    storeUrl: shop?.store_url || org?.store_url || `https://${organizationId}.ferasetu.com`,
+    storeUrl: shop?.store_url || org?.store_url || `https://${organizationId}.ferasetu.store`,
     supportEmail: org?.support_email || null,
   };
 }
@@ -295,8 +296,8 @@ async function resolveMerchantSender(db, organizationId, storeSlug, orgName) {
     return { from: defaultIdentity.email_address, fallbackApplied: customDomain ? true : false, fallbackReason: customDomain ? 'CUSTOM_DOMAIN_UNVERIFIED' : null };
   }
 
-  // Fallback to auto-generated
-  const autoFrom = `orders@${storeSlug}.ferasetu.com`;
+  // Fallback to auto-generated (user store email uses ferasetu.store)
+  const autoFrom = `orders@${storeSlug}.${USER_EMAIL_DOMAIN}`;
   return { from: autoFrom, fallbackApplied: true, fallbackReason: 'AUTO_PROVISIONED' };
 }
 
@@ -308,7 +309,7 @@ export async function ensureMerchantEmailProvisioning(db, organizationId, storeS
 
   const now = new Date().toISOString();
   const slug = String(storeSlug).trim().toLowerCase();
-  const merchantDomain = `${slug}.${PLATFORM_DOMAIN}`;
+  const merchantDomain = `${slug}.${USER_EMAIL_DOMAIN}`;
   const defaultSenderEmail = `orders@${merchantDomain}`;
 
   // 1. Check or create email_domains record
@@ -1463,7 +1464,7 @@ export class EmailService {
         }
       }
 
-      if (!ownerEmail || !ownerEmail.includes('@') || ownerEmail.endsWith('@user.ferasetu.com')) {
+      if (!ownerEmail || !ownerEmail.includes('@') || ownerEmail.endsWith('@user.ferasetu.store') || ownerEmail.endsWith('@user.ferasetu.com')) {
         console.warn('[EmailService] First order congratulatory email: owner email not found for org', organizationId);
         return null;
       }

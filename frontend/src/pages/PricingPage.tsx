@@ -97,7 +97,7 @@ export default function PricingPage() {
     : `Pricing — FeraSetu | ${config.trialDays}-Day Free Trial for Independent Businesses`;
 
   const pageDescription = isIndia
-    ? 'Start your online store for ₹0. Upgrade to Pro (₹999/mo) or Business (₹399/mo) as your catalog grows. Zero commissions, no hidden fees.'
+    ? 'Start your online store for ₹0. Upgrade to Pro (₹399/mo) or Business (₹999/mo) as your catalog grows. Zero commissions, no hidden fees.'
     : `Start your 14-day free trial on FeraSetu. ${config.symbol}${config.plans.pro.monthly}/mo for Pro, ${config.symbol}${config.plans.business.monthly}/mo for Business. Zero marketplace commissions and proactive AI assistance built-in.`;
 
   const trustSignals = isIndia

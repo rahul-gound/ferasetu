@@ -3,8 +3,8 @@
 // Mirror of the server canonical generator for client-side formatting,
 // local-mock offline database, and display helpers.
 
-export const DEFAULT_BASE_DOMAIN = 'ferasetu.com';
-export const SUPPORTED_BASE_DOMAINS = ['ferasetu.com', 'ferasetu.store', 'fera-search.tech'];
+export const DEFAULT_BASE_DOMAIN = 'ferasetu.store';
+export const SUPPORTED_BASE_DOMAINS = ['ferasetu.store', 'ferasetu.com', 'fera-search.tech'];
 
 export interface StorefrontInput {
   shopName: string;
@@ -308,10 +308,10 @@ export function getStorefrontUrl(user?: {
     return `https://${hn}`;
   }
   if (user.subdomain) {
-    return `https://${user.subdomain}.ferasetu.com`;
+    return `https://${user.subdomain}.ferasetu.store`;
   }
   if (user.organization?.store_slug) {
-    return `https://${user.organization.store_slug}.ferasetu.com`;
+    return `https://${user.organization.store_slug}.ferasetu.store`;
   }
   if (user.business_name || user.name) {
     const canonical = generateCanonicalStorefront({

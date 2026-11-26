@@ -197,7 +197,7 @@ function userPublicData(user: LocalUser) {
   const { password, password_hash, password_salt, ...safeUser } = user;
   return {
     ...safeUser,
-    hostname: safeUser.hostname || (safeUser.subdomain ? `${safeUser.subdomain}.ferasetu.com` : undefined),
+    hostname: safeUser.hostname || (safeUser.subdomain ? `${safeUser.subdomain}.ferasetu.store` : undefined),
   };
 }
 
@@ -579,7 +579,7 @@ async function localGet(url: string) {
       meta_description: 'Welcome to our official online store. Explore our full catalog with 0% platform markup, fast local delivery, and direct WhatsApp ordering.',
       keywords: 'online store, kirana, fresh products, fast delivery, local retail',
       social_share_image: '',
-      canonical_url: `https://${slug}.ferasetu.com`,
+      canonical_url: `https://${slug}.ferasetu.store`,
       maintenance_mode: false,
       require_customer_login: false,
       google_analytics_id: '',
@@ -591,7 +591,7 @@ async function localGet(url: string) {
       settings: { ...defaults, ...saved },
       website_id: website?.id || null,
       is_published: website ? Boolean(website.is_published) : false,
-      store_url: `https://${slug}.ferasetu.com`,
+      store_url: `https://${slug}.ferasetu.store`,
     }));
   }
 
@@ -1199,13 +1199,13 @@ async function localGet(url: string) {
       activeProvider,
       defaultIdentity: {
         id: 'ident_default',
-        email_address: `orders@${slug}.ferasetu.com`,
+        email_address: `orders@${slug}.ferasetu.store`,
         display_name: user?.business_name || user?.name || 'Store',
         is_default: 1
       },
       ferasetuDomain: {
         id: 'dom_default',
-        domain: `${slug}.ferasetu.com`,
+        domain: `${slug}.ferasetu.store`,
         domain_type: 'FERASETU_MERCHANT',
         verification_status: 'VERIFIED'
       },
@@ -1227,7 +1227,7 @@ async function localGet(url: string) {
     const storedDomains = JSON.parse(localStorage.getItem('fera_local_email_domains') || '[]');
     const defaultDom = {
       id: 'dom_default',
-      domain: `${slug}.ferasetu.com`,
+      domain: `${slug}.ferasetu.store`,
       domain_type: 'FERASETU_MERCHANT',
       verification_status: 'VERIFIED'
     };
@@ -1260,10 +1260,10 @@ async function localGet(url: string) {
       identities: [
         {
           id: 'ident_default',
-          email_address: `orders@${slug}.ferasetu.com`,
+          email_address: `orders@${slug}.ferasetu.store`,
           display_name: user?.business_name || user?.name || 'Store',
           is_default: 1,
-          domain: `${slug}.ferasetu.com`,
+          domain: `${slug}.ferasetu.store`,
           status: 'ACTIVE'
         }
       ]

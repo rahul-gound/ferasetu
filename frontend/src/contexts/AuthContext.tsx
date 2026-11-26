@@ -199,11 +199,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // WorkOS has settled. Now check the result.
       if (!workosUser) {
-        authLog('AUTH_SESSION_MISSING', 'Using local dev bypass profile');
+        if (IS_DEV) {
+          authLog('AUTH_SESSION_MISSING', 'Using local dev bypass profile (DEV only)');
+          if (mounted) {
+            setProfile(DEV_MOCK_USER);
+            localStorage.setItem('fera_user', JSON.stringify(DEV_MOCK_USER));
+            setProfileError(null);
+            setIsProfileLoading(false);
+            initialLoadDoneRef.current = true;
+          }
+          return;
+        }
+        // Production: strictly require WorkOS authentication
+        authLog('AUTH_SESSION_MISSING', 'Unauthenticated — WorkOS login required');
         if (mounted) {
-          // LOCAL DEV BYPASS: avoid login/signup, allow direct dashboard access
-          setProfile(DEV_MOCK_USER);
-          localStorage.setItem('fera_user', JSON.stringify(DEV_MOCK_USER));
+          setProfile(null);
+          localStorage.removeItem('fera_user');
           setProfileError(null);
           setIsProfileLoading(false);
           initialLoadDoneRef.current = true;
@@ -511,7 +522,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // authenticated vs unauthenticated.
   const authStatus: AuthStatus = useMemo(() => {
     if (isWorkOSLoading || isProfileLoading) return 'loading';
-    if (profile && (workosUser || profile.id === DEV_MOCK_USER.id)) return 'authenticated';
+    if (profile && (workosUser || (IS_DEV && profile.id === DEV_MOCK_USER.id))) return 'authenticated';
     if (profileError && profile) return 'authenticated'; // fallback profile, allow through
     if (profileError) return 'error';
     return 'unauthenticated';

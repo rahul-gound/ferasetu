@@ -54,7 +54,7 @@ export default function PublicFooter() {
               </li>
               <li>
                 <a
-                  href="/#evidence"
+                  href="/#how-it-works"
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
                   How It Works
@@ -70,7 +70,7 @@ export default function PublicFooter() {
               </li>
               <li>
                 <a
-                  href="/#transparency"
+                  href="/#comparison"
                   className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
                 >
                   Transparency Matrix

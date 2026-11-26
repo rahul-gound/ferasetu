@@ -356,16 +356,20 @@ export default function ProductsPage() {
     <div className="flex flex-col w-full gap-6 pb-12 font-sans text-slate-900 min-h-full">
       {/* 1. Header Bar */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-[28px] font-black text-slate-900 tracking-tight m-0">
-              {translate('products')}
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-[#0052FF] border border-blue-200 text-xs font-bold">
-              SKU Register
-            </span>
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 shadow-xs flex items-center justify-center shrink-0 text-[#0052FF]">
+            <Package size={20} strokeWidth={2} />
           </div>
-          <p className="text-sm text-slate-600 mt-1 font-normal m-0">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl sm:text-[28px] font-black text-slate-900 tracking-tight m-0">
+                Products &amp; Stock
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-[#0052FF] border border-blue-200 text-xs font-bold">
+                SKU Register
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 mt-0.5 font-normal m-0">
             Manage your inventory, pricing, variants, and storefront visibility
             {productLimit !== Infinity && (
               <span className="text-slate-500">
@@ -373,7 +377,8 @@ export default function ProductsPage() {
                 • {products.length} of {productLimit} slots used
               </span>
             )}
-          </p>
+            </p>
+          </div>
         </div>
 
         {/* Action Buttons */}
@@ -783,7 +788,7 @@ export default function ProductsPage() {
                 },
               }}
               onGenerateWithAi={() => {
-                navigate('/ai?intent=add_sample_products');
+                navigate('/ferasetu-ai');
               }}
               aiPromptLabel="Generate Catalog with Fera AI"
               trustAnchor="100% of product pricing, margins, and photos belong directly to you."

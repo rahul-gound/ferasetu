@@ -10,8 +10,8 @@
 // - No leading or trailing hyphens
 // - Supports Unicode/Indian-language transliteration & state abbreviations
 
-export const DEFAULT_BASE_DOMAIN = "ferasetu.com";
-export const SUPPORTED_BASE_DOMAINS = ["ferasetu.com", "ferasetu.store", "fera-search.tech"];
+export const DEFAULT_BASE_DOMAIN = "ferasetu.store";
+export const SUPPORTED_BASE_DOMAINS = ["ferasetu.store", "ferasetu.com", "fera-search.tech"];
 
 export const RESERVED_SUBDOMAINS = new Set([
   "api",

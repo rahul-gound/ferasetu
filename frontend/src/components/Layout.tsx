@@ -72,8 +72,6 @@ import {
 
   CreditCard,
 
-  Warehouse,
-
   ShieldCheck,
 
   Megaphone,
@@ -352,9 +350,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     { path: '/website-builder', icon: <Globe size={17} />, label: 'Website Builder' },
   ], [totalOrdersCount, totalCustomersCount]);
 
-  // ── Categorized Drawer 1: Store Tools & Inventory ──
+  // ── Categorized Drawer 1: Store Tools & Domains ──
   const toolsNavItems: NavItem[] = useMemo(() => [
-    { path: '/inventory-and-locations', icon: <Warehouse size={17} />, label: 'Inventory & Locations' },
     { path: '/domains', icon: <Globe size={17} />, label: 'Domains & DNS' },
     { path: '/dashboard/discounts', icon: <Tag size={17} />, label: 'Discounts & Coupons' },
   ], []);
@@ -486,11 +483,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
     if (slug && !isSyntheticUserIdentifier(slug)) {
 
-      return `${slug}.ferasetu.com`;
+      return `${slug}.ferasetu.store`;
 
     }
 
-    return 'mystore.ferasetu.com';
+    return 'mystore.ferasetu.store';
 
   }, [user?.hostname, user?.organization?.store_slug, user?.subdomain]);
 
@@ -736,46 +733,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
           return (
             <div className="flex flex-col gap-1">
-              {/* Daily Anchors (Always Prominent - Hick's Law) */}
+              {/* Daily Anchors & Core Store Links */}
               <div className="flex flex-col gap-0.5">
                 {dailyNavItems.map(renderItem)}
+                {toolsNavItems.map(renderItem)}
               </div>
-
-              {/* Drawer 1: Store Tools */}
-              {isCollapsed ? (
-                <>
-                  <div className="my-1 border-t border-[#E5EAF1]/70 mx-2" />
-                  <div className="flex flex-col gap-0.5">
-                    {toolsNavItems.map(renderItem)}
-                  </div>
-                </>
-              ) : (
-                <div className="mt-1 pt-1.5 border-t border-[#E5EAF1]/60">
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('tools')}
-                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider text-[#8A94A6] uppercase hover:text-[#152238] hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    <span>Store Tools</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-semibold text-[#8A94A6] bg-slate-100 px-1.5 py-0.2 rounded">
-                        {toolsNavItems.length}
-                      </span>
-                      <ChevronDown
-                        size={13}
-                        className={`transition-transform duration-200 ${
-                          openSections.tools ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </div>
-                  </button>
-                  {openSections.tools && (
-                    <div className="mt-0.5 flex flex-col gap-0.5 pl-1">
-                      {toolsNavItems.map(renderItem)}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Drawer 2: Finance & Growth */}
               {isCollapsed ? (
@@ -1561,7 +1523,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
               ? 'flex-1 min-h-0 overflow-hidden bg-white p-0'
 
-              : 'flex-1 min-h-0 overflow-y-auto bg-[#F6F8FC] p-3.5 sm:p-6 lg:p-8'
+              : 'flex-1 min-h-0 overflow-y-auto overscroll-y-contain bg-[#F6F8FC] p-3.5 sm:p-6 lg:p-8'
 
           }
 

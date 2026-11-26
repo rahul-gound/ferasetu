@@ -55,7 +55,13 @@ const WebsiteDesignPage = lazy(() => import('./pages/WebsiteDesignPage'));
 const DomainsPage = lazy(() => import('./pages/DomainsPage'));
 const MarketingSeoPage = lazy(() => import('./pages/MarketingSeoPage'));
 const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
-const InventoryLocationsPage = lazy(() => import('./pages/InventoryLocationsPage'));
+// Optional Multi-Location Inventory Module (Deferred / Enterprise Scaling)
+// Disabled by default in standard Cloudflare deployments to keep bundle lightweight and reduce merchant cognitive load.
+// See abandant-page.md for instructions on re-enabling when multi-location scaling is required.
+const ENABLE_INVENTORY_LOCATIONS = import.meta.env.VITE_ENABLE_INVENTORY_LOCATIONS === 'true';
+const InventoryLocationsPage = ENABLE_INVENTORY_LOCATIONS
+  ? lazy(() => import('./pages/InventoryLocationsPage'))
+  : null;
 const StaffPage = lazy(() => import('./pages/StaffPage'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
 const SurveyFeedbackPage = lazy(() => import('./pages/SurveyFeedbackPage'));
@@ -96,6 +102,9 @@ const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 
 // Onboarding Wizard Page — multi-tenant merchant organization setup
 const OnboardingWizardPage = lazy(() => import('./pages/OnboardingWizardPage'));
+
+// Domain Buy or Renew Page
+const DomainBuyOrRenewPage = lazy(() => import('./pages/DomainBuyOrRenewPage'));
 
 // 404 Not Found Page — lazy load
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
@@ -257,14 +266,25 @@ function AppRoutes() {
           <Route path="/website-and-design" element={<WebsiteDesignPage />} />
           <Route path="/website/design" element={<Navigate to="/website-design" replace />} />
           <Route path="/domains" element={<DomainsPage />} />
+          <Route path="/domains/buy-or-renew" element={<DomainBuyOrRenewPage />} />
           <Route path="/marketing-and-seo" element={<MarketingSeoPage />} />
           <Route path="/marketing-seo" element={<Navigate to="/marketing-and-seo" replace />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/integrations-hub" element={<Navigate to="/integrations" replace />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/operations/payments" element={<Navigate to="/payments" replace />} />
-          <Route path="/inventory-and-locations" element={<InventoryLocationsPage />} />
-          <Route path="/inventory-locations" element={<Navigate to="/inventory-and-locations" replace />} />
+          {/* Optional Multi-Location Inventory & Godown route (redirects to /products when disabled) */}
+          {ENABLE_INVENTORY_LOCATIONS && InventoryLocationsPage ? (
+            <>
+              <Route path="/inventory-and-locations" element={<InventoryLocationsPage />} />
+              <Route path="/inventory-locations" element={<Navigate to="/inventory-and-locations" replace />} />
+            </>
+          ) : (
+            <>
+              <Route path="/inventory-and-locations" element={<Navigate to="/products" replace />} />
+              <Route path="/inventory-locations" element={<Navigate to="/products" replace />} />
+            </>
+          )}
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/operations/staff" element={<Navigate to="/staff" replace />} />
           <Route path="/pro-studio" element={<Navigate to="/website-builder" replace />} />

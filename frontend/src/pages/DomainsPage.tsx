@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -29,10 +30,11 @@ interface DomainItem {
 
 export default function DomainsPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'connect' | 'register' | 'diagnostics'>('diagnostics');
-  const [searchDomainQuery, setSearchDomainQuery] = useState('');
-  const [searchingDomain, setSearchingDomain] = useState(false);
-  const [searchResult, setSearchResult] = useState<any | null>(null);
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [connectDomainInput, setConnectDomainInput] = useState('');
+  const [connectingDomain, setConnectingDomain] = useState(false);
+  const [connectDetection, setConnectDetection] = useState<any | null>(null);
+  const [connectedDomainId, setConnectedDomainId] = useState<string | null>(null);
   const [copiedCname, setCopiedCname] = useState(false);
   const [isAuditing, setIsAuditing] = useState(false);
   const [isVerifyingDns, setIsVerifyingDns] = useState(false);
@@ -158,21 +160,55 @@ export default function DomainsPage() {
     }, 600);
   };
 
-  const handleSearchDomain = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!searchDomainQuery.trim()) return;
-    setSearchingDomain(true);
-    setTimeout(() => {
-      setSearchingDomain(false);
-      const clean = searchDomainQuery.toLowerCase().replace(/[^a-z0-9-]/g, '');
-      setSearchResult({
-        domain: `${clean}.in`,
-        available: true,
-        priceInr: 599,
-        wholesalePriceInr: 599,
-        extension: '.in',
-      });
-    }, 800);
+  const handleOneClickConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = connectDomainInput
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/\/.*$/, '');
+    if (!cleaned || !cleaned.includes('.')) {
+      toast.error('Please enter a valid domain name (e.g. myshop.com).');
+      return;
+    }
+
+    setConnectingDomain(true);
+    setConnectDetection(null);
+
+    try {
+      // Connect domain & detect DNS provider for 1-click redirect
+      const res = await api.post('/domains/connect', { domain: cleaned });
+      const detection = res.data?.detection || null;
+      setConnectedDomainId(res.data?.domain?.id || null);
+      setConnectDetection(detection);
+      navigator.clipboard?.writeText('shops.ferasetu.store').catch(() => {});
+
+      const redirectUrl = detection?.provider?.connectUrl || detection?.provider?.dnsConsoleUrl;
+      if (redirectUrl) {
+        toast.success(`Detected ${detection.provider.name}. Opening 1-Click DNS setup...`);
+        window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        toast.success('Domain registered in workspace. Use the DNS record below to finish connecting.');
+      }
+    } catch {
+      // Fallback to public provider detection endpoint if connect endpoint is unavailable
+      try {
+        const detectRes = await api.get(`/domains/detect-provider?domain=${encodeURIComponent(cleaned)}`);
+        setConnectDetection(detectRes.data);
+        navigator.clipboard?.writeText('shops.ferasetu.store').catch(() => {});
+        const redirectUrl = detectRes.data?.provider?.connectUrl || detectRes.data?.provider?.dnsConsoleUrl;
+        if (redirectUrl) {
+          toast.success(`Detected ${detectRes.data.provider.name}. Opening 1-Click DNS setup...`);
+          window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          toast.success('DNS instructions ready. Copy the CNAME record below.');
+        }
+      } catch {
+        toast.error('Could not detect DNS provider for that domain. Please check the domain spelling.');
+      }
+    } finally {
+      setConnectingDomain(false);
+    }
   };
 
   return (
@@ -212,46 +248,27 @@ export default function DomainsPage() {
           </div>
         </div>
 
-        {/* Sub-navigation Tabs */}
-        <div className="flex items-center gap-1.5 border-b border-slate-200/80 text-xs font-bold overflow-x-auto pb-1 scrollbar-none">
+        {/* Primary Domain Actions: Buy/Renew & 1-Click Connect Existing */}
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <Link
+            to="/domains/buy-or-renew"
+            className="btn-tactile-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#D9480F] text-white text-xs sm:text-sm font-bold shadow-xs transition-all min-h-[44px]"
+          >
+            <Search size={15} />
+            <span>Buy or Renew Domain</span>
+            <ArrowRight size={14} />
+          </Link>
+
           <button
             type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-              activeTab === 'overview' ? 'text-blue-700 bg-blue-50/70 border border-blue-200/70' : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={() => {
+              setConnectDetection(null);
+              setConnectModalOpen(true);
+            }}
+            className="btn-tactile-ghost inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer min-h-[44px]"
           >
-            Overview & Ledger
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('connect')}
-            className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-              activeTab === 'connect' ? 'text-blue-700 bg-blue-50/70 border border-blue-200/70' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Connect Existing
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('register')}
-            className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-              activeTab === 'register' ? 'text-blue-700 bg-blue-50/70 border border-blue-200/70' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Find & Register
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('diagnostics')}
-            className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'diagnostics' ? 'text-blue-700 bg-blue-50/70 border border-blue-200/70' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Diagnostics & AI</span>
-            <span className="px-1.5 py-0.2 rounded text-[9px] font-black tracking-wider uppercase bg-blue-600 text-white">
-              PRO
-            </span>
+            <Zap size={15} className="text-[#0052FF]" />
+            <span>Connect Existing Domain (1-Click)</span>
           </button>
         </div>
       </div>
@@ -702,63 +719,132 @@ export default function DomainsPage() {
         </div>
       </div>
 
-      {/* ── Find & Register Domain Tab Panel ── */}
-      {activeTab === 'register' && (
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
-          <div>
-            <h2 className="text-base font-extrabold text-slate-900">Find & Register Custom Domain</h2>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Search and register permanent web addresses directly at wholesale ICANN pricing with zero renewal markups.
-            </p>
-          </div>
-
-          <form onSubmit={handleSearchDomain} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchDomainQuery}
-                onChange={e => setSearchDomainQuery(e.target.value)}
-                placeholder="Search domain name (e.g. vasairoasters.in)..."
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
+      {/* ── One-Click Connect Existing Domain Modal ── */}
+      {connectModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="connect-domain-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setConnectModalOpen(false);
+          }}
+        >
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 relative">
             <button
-              type="submit"
-              disabled={searchingDomain}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+              type="button"
+              onClick={() => setConnectModalOpen(false)}
+              aria-label="Close modal"
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
-              {searchingDomain ? 'Checking…' : 'Check Availability'}
+              <X size={18} />
             </button>
-          </form>
 
-          {searchResult && (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-sm text-slate-900">{searchResult.domain}</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-emerald-900">
-                    Available
-                  </span>
-                </div>
-                <p className="text-xs text-emerald-800 mt-0.5 font-medium">
-                  Direct wholesale registration • 1-Click DNS auto-configuration to your store.
-                </p>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[#0052FF] text-[11px] font-bold mb-2">
+                <Zap size={12} />
+                <span>1-Click Domain Connect</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="font-black text-sm text-slate-900 tabular-nums">
-                  ₹{searchResult.priceInr} / yr
-                </span>
+              <h2 id="connect-domain-modal-title" className="text-lg font-extrabold text-slate-900">
+                Connect Your Existing Domain
+              </h2>
+              <p className="text-xs text-slate-600 mt-1">
+                Enter your domain name. FeraSetu detects your DNS provider (GoDaddy, Namecheap, Cloudflare, IONOS, Hostinger) and redirects you straight to confirm the DNS record in one click.
+              </p>
+            </div>
+
+            <form onSubmit={handleOneClickConnect} className="space-y-3">
+              <div>
+                <label htmlFor="connect-domain-input" className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Your Domain Name
+                </label>
+                <input
+                  id="connect-domain-input"
+                  type="text"
+                  value={connectDomainInput}
+                  onChange={(e) => setConnectDomainInput(e.target.value)}
+                  placeholder="e.g. myshop.com or store.in"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-1">
                 <button
                   type="button"
-                  onClick={() => toast.success(`Proceeding to checkout for ${searchResult.domain}`)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  onClick={() => setConnectModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer"
                 >
-                  Register
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={connectingDomain}
+                  className="btn-tactile-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0052FF] hover:bg-[#0045d8] text-white text-xs font-bold cursor-pointer disabled:opacity-60"
+                >
+                  {connectingDomain ? <RefreshCw size={14} className="animate-spin" /> : <ExternalLink size={14} />}
+                  <span>{connectingDomain ? 'Detecting Provider...' : 'Connect & Open Provider DNS (1-Click)'}</span>
                 </button>
               </div>
-            </div>
-          )}
+            </form>
+
+            {connectDetection && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-extrabold text-slate-900">
+                    Detected Provider: {connectDetection.provider?.name || 'Custom DNS'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    CNAME Copied
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {connectDetection.provider?.instructions || 'Point your domain CNAME record to shops.ferasetu.store.'}
+                </p>
+                <div className="p-2.5 rounded-lg bg-white border border-slate-200 font-mono text-[11px] text-slate-800 flex items-center justify-between">
+                  <span>CNAME · @ / www → <strong>shops.ferasetu.store</strong></span>
+                  <button
+                    type="button"
+                    onClick={handleCopyCname}
+                    className="text-[#0052FF] font-bold hover:underline cursor-pointer"
+                  >
+                    {copiedCname ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {(connectDetection.provider?.connectUrl || connectDetection.provider?.dnsConsoleUrl) && (
+                    <a
+                      href={connectDetection.provider.connectUrl || connectDetection.provider.dnsConsoleUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#EA580C] hover:bg-[#D9480F] text-white text-xs font-bold"
+                    >
+                      <ExternalLink size={13} />
+                      <span>{connectDetection.provider.actionLabel || 'Open Provider DNS (1-Click)'}</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (connectedDomainId) {
+                        try {
+                          await api.post(`/domains/${connectedDomainId}/verify`);
+                          toast.success('DNS verification check triggered!');
+                        } catch {
+                          handleVerifyDns();
+                        }
+                      } else {
+                        handleVerifyDns();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-xs font-bold text-slate-800 cursor-pointer"
+                  >
+                    <CheckCircle2 size={13} className="text-emerald-600" />
+                    <span>Verify DNS Now</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

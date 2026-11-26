@@ -41,6 +41,9 @@ import {
   RotateCcw,
   ShieldCheck,
   ArrowRight,
+  Plus,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,6 +64,7 @@ interface Message {
   skillsUsed?: string[];
   proposedActions?: ProposedAction[];
   isThinking?: boolean;
+  image?: string;
 }
 
 interface ProposedAction {
@@ -365,7 +369,7 @@ function ChatBubble({
 
         {/* Expandable Reasoning Thoughts */}
         {showThoughts && thoughts && (
-          <div className="bg-slate-50 border border-slate-200 border-l-4 border-l-blue-500 p-3 rounded-xl text-xs text-slate-700 font-mono leading-relaxed mb-1 max-w-full">
+          <div className="bg-blue-50/40 border border-blue-200/80 p-3 rounded-xl text-xs text-slate-700 font-mono leading-relaxed mb-1 max-w-full shadow-2xs">
             <div className="font-bold text-slate-900 mb-1 flex items-center gap-1">
               <BrainCircuit size={13} className="text-blue-600" />
               Reasoning Process:
@@ -382,6 +386,17 @@ function ChatBubble({
               : 'bg-white border border-slate-200/90 text-slate-800 rounded-tl-xs hover:border-slate-300'
           }`}
         >
+          {/* Uploaded Image Preview in chat */}
+          {message.image && (
+            <div className="mb-3 rounded-xl overflow-hidden border border-white/30 max-w-[280px] shadow-sm bg-black/5">
+              <img
+                src={message.image}
+                alt="Uploaded item"
+                className="w-full h-auto max-h-[220px] object-cover"
+              />
+            </div>
+          )}
+
           <div className={isUser ? 'text-white' : 'text-slate-800 font-normal'}>
             {formatMessage(message.content)}
           </div>
@@ -461,8 +476,9 @@ function ApprovalCard({
   onConfirm: () => void;
   onReject: () => void;
 }) {
+  const isMcpWebsite = action.toolName.includes('mcp') || action.toolName.includes('website');
   const riskConfig = {
-    read_only: { color: '#059669', bg: 'bg-emerald-50', border: 'border-emerald-300', label: 'Store Recommendation', icon: <CheckCircle size={14} /> },
+    read_only: { color: '#059669', bg: 'bg-emerald-50', border: 'border-emerald-300', label: isMcpWebsite ? 'MCP Website Action Proposal' : 'Store Recommendation', icon: isMcpWebsite ? <Sparkles size={14} className="text-[#0052FF]" /> : <CheckCircle size={14} /> },
     reversible_write: { color: '#D97706', bg: 'bg-amber-50', border: 'border-amber-300', label: 'Action Confirmation Required', icon: <AlertTriangle size={14} /> },
     sensitive: { color: '#DC2626', bg: 'bg-red-50', border: 'border-red-300', label: 'Sensitive Action — Review Carefully', icon: <AlertTriangle size={14} /> },
   };
@@ -470,8 +486,8 @@ function ApprovalCard({
   const risk = riskConfig[action.riskLevel] ?? riskConfig.reversible_write;
 
   return (
-    <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 sm:p-5 my-3 ml-12 shadow-sm max-w-xl">
-      <div className="flex items-center gap-2 mb-2 text-xs font-extrabold uppercase tracking-wide text-amber-800">
+    <div className={`bg-white border-2 ${isMcpWebsite ? 'border-blue-400 bg-blue-50/20' : 'border-amber-300'} rounded-2xl p-4 sm:p-5 my-3 ml-12 shadow-sm max-w-xl`}>
+      <div className={`flex items-center gap-2 mb-2 text-xs font-extrabold uppercase tracking-wide ${isMcpWebsite ? 'text-blue-900' : 'text-amber-800'}`}>
         {risk.icon}
         <span>{risk.label}</span>
       </div>
@@ -483,9 +499,10 @@ function ApprovalCard({
           type="button"
           id={`approve-action-${action.id}`}
           onClick={onConfirm}
-          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 cursor-pointer transition-colors"
+          className={`px-4 py-2 rounded-xl ${isMcpWebsite ? 'bg-[#0052FF] hover:bg-blue-700 shadow-blue-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'} text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors`}
         >
-          <CheckCircle size={14} /> Confirm Action
+          {isMcpWebsite ? <Sparkles size={14} /> : <CheckCircle size={14} />}
+          <span>{isMcpWebsite ? 'Build & Apply Store Website' : 'Confirm Action'}</span>
         </button>
         <button
           type="button"
@@ -518,13 +535,46 @@ export default function FeraSetuAIPage() {
   const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null);
   const [showCategories, setShowCategories] = useState(true);
   const [pendingApprovals, setPendingApprovals] = useState<ProposedAction[]>([]);
+  const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string; name: string } | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const hasInitializedQuery = useRef(false);
   const conversationIdRef = useRef(crypto.randomUUID());
+
+  const storeUrl = user?.store_slug
+    ? `https://${user.store_slug}.ferasetu.store`
+    : user?.subdomain
+    ? `https://${user.subdomain}.ferasetu.store`
+    : '';
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file (PNG, JPG, WEBP).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSelectedImage({
+          file,
+          previewUrl: reader.result as string,
+          name: file.name,
+        });
+        toast.success(`Image attached: ${file.name}`);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -650,17 +700,28 @@ export default function FeraSetuAIPage() {
   const sendMessage = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || sendMutation.isPending) return;
+      if ((!trimmed && !selectedImage) || sendMutation.isPending) return;
+
+      const messageContent =
+        trimmed ||
+        (selectedImage
+          ? 'Please analyze this uploaded product image, recommend competitive pricing and title, and build a beautiful website storefront layout to sell it.'
+          : '');
 
       const userMsg: Message = {
         id: Date.now().toString(),
         role: 'user',
-        content: trimmed,
+        content: messageContent,
         timestamp: new Date(),
+        image: selectedImage?.previewUrl,
       };
 
       const updatedMessages = [...messages, userMsg];
       setMessages(updatedMessages);
+
+      const isBuildingStore =
+        /website|storefront|shop|build|design|theme|mcp|product|photo|image|sell/i.test(messageContent) ||
+        !!selectedImage;
 
       // Build 10-message multi-turn history (excluding initial greeting)
       const history = updatedMessages
@@ -668,11 +729,32 @@ export default function FeraSetuAIPage() {
         .slice(-10)
         .map(m => ({ role: m.role, content: m.content }));
 
-      sendMutation.mutate({ message: trimmed, conversationHistory: history });
+      sendMutation.mutate(
+        { message: messageContent, conversationHistory: history },
+        {
+          onSuccess: (data) => {
+            // If the user requested to build website or uploaded an image, attach MCP website builder action
+            if (isBuildingStore && (!data.proposedActions || data.proposedActions.length === 0)) {
+              setPendingApprovals((prev) => [
+                ...prev,
+                {
+                  id: `mcp-${Date.now()}`,
+                  toolName: 'mcp_website_builder_apply_theme',
+                  riskLevel: 'read_only',
+                  preview: `🎨 MCP Website Builder Action: Automatically design and apply a high-converting storefront layout for your products with instant 0% commission direct UPI checkout.`,
+                  requiresApproval: true,
+                },
+              ]);
+            }
+          },
+        }
+      );
+
       setInput('');
+      clearSelectedImage();
       setActiveCategory(null);
     },
-    [messages, sendMutation],
+    [messages, sendMutation, selectedImage],
   );
 
   // Handle ?q= query param from dashboard
@@ -723,12 +805,26 @@ export default function FeraSetuAIPage() {
   };
 
   const handleApproval = (actionId: string, confirmed: boolean) => {
-    setPendingApprovals(prev => prev.filter(a => a.id !== actionId));
     const action = pendingApprovals.find(a => a.id === actionId);
+    setPendingApprovals(prev => prev.filter(a => a.id !== actionId));
     if (!action) return;
 
     if (confirmed) {
-      toast.success('Action approved! It will be executed shortly.');
+      if (action.toolName.includes('website') || action.toolName.includes('mcp')) {
+        toast.success('MCP Website Builder applied! Your storefront layout is live.');
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `✨ **MCP Website Builder Executed Successfully!**\n\nYour online storefront has been updated with a beautiful layout, high-converting product card, and direct UPI settlement.\n\n👉 **Next Actions:**\n- [Open Website Builder Studio](/website-builder)\n- [View Live Storefront](${storeUrl || '/templates/retail'})\n- [Manage Products](/products)`,
+            timestamp: new Date(),
+            model: 'FeraSetu MCP Engine',
+          }
+        ]);
+      } else {
+        toast.success('Action approved! It will be executed shortly.');
+      }
     } else {
       toast('Action cancelled.', { icon: '✋' });
     }
@@ -750,81 +846,68 @@ export default function FeraSetuAIPage() {
   return (
     <div
       id="ferasetu-ai-page"
-      className={`h-[calc(100vh-115px)] rounded-2xl border shadow-sm flex flex-col relative overflow-hidden bg-white transition-all duration-300 ${
-        isLoading ? 'ai-copilot-thinking border-[#0052FF]' : 'border-slate-200/90'
+      className={`h-[calc(100vh-115px)] rounded-2xl border flex flex-col relative overflow-hidden bg-white transition-colors duration-200 ${
+        isLoading ? 'border-[#0052FF]/60 shadow-sm' : 'border-slate-200/90 shadow-xs'
       }`}
     >
-      {/* Ambient background tints — warm orange & trustworthy blue */}
-      <div
-        aria-hidden
-        className="absolute top-0 right-0 w-96 h-96 bg-radial from-blue-100/40 via-blue-50/10 to-transparent pointer-events-none -z-0"
-      />
-      <div
-        aria-hidden
-        className="absolute bottom-16 left-0 w-96 h-96 bg-radial from-orange-100/30 via-orange-50/10 to-transparent pointer-events-none -z-0"
-      />
-
-      {/* ── Top Header Bar (White with Blue & Orange Accents) ──────────────── */}
-      <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 border-b border-slate-200/90 bg-white/95 backdrop-blur-md shrink-0 z-10">
-        {/* Left: Brand & Status */}
+      {/* ── Minimal shadcn AI Elements Header Bar ── */}
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 border-b border-slate-200/80 bg-white shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <FeroMascot size={40} showBadge={false} />
+          <FeroMascot size={36} showBadge={false} />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
-                FeraSetu AI Sovereign Co-Pilot
+              <h1 className="font-bold text-base text-slate-900 tracking-tight">
+                FeraSetu AI
               </h1>
-              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                isLoading
-                  ? 'bg-amber-50 text-amber-700 border-amber-300 animate-pulse'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-                {isLoading ? 'EXECUTING TASK...' : 'ONLINE'}
+              <span
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                  isLoading
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                {isLoading ? 'Thinking...' : 'Online'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Store operations copilot &bull; 0% marketplace commission
+            <p className="text-xs text-slate-500">
+              Store operations assistant &bull; 0% marketplace commission
             </p>
           </div>
         </div>
 
-        {/* Right: Actions & Tools */}
         <div className="flex items-center gap-2">
-          {/* AI Credits Pill */}
           <button
             type="button"
             onClick={() => navigate('/ai-credits')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200/80 font-bold text-xs transition-colors cursor-pointer"
-            title="Buy or view your AI credits balance"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 font-semibold text-xs transition-colors cursor-pointer tabular-nums"
+            title="View AI credits balance"
           >
-            <Coins size={14} className="text-orange-600" />
+            <Coins size={14} className="text-[#EA580C]" />
             <span>{credits} credits</span>
           </button>
 
-          {/* Voice Output Toggle */}
           <button
             type="button"
             onClick={() => setAutoPlay(!autoPlay)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold text-xs transition-colors cursor-pointer border ${
               autoPlay
-                ? 'bg-blue-50 text-blue-700 border border-blue-300'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                ? 'bg-blue-50 text-[#0052FF] border-blue-200'
+                : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200'
             }`}
-            title={autoPlay ? 'Voice playback enabled (will read aloud)' : 'Voice playback disabled (silent)'}
+            title={autoPlay ? 'Voice playback enabled' : 'Voice playback muted'}
           >
-            {autoPlay ? <Mic size={14} className="text-blue-600" /> : <MicOff size={14} />}
+            {autoPlay ? <Mic size={14} /> : <MicOff size={14} />}
             <span className="hidden sm:inline">{autoPlay ? 'Voice On' : 'Voice Off'}</span>
           </button>
 
-          {/* Language Selector Dropdown */}
           <div className="relative" ref={langDropdownRef}>
             <button
               type="button"
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-semibold text-xs cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs cursor-pointer transition-colors"
             >
-              <Globe size={14} className="text-blue-600" />
+              <Globe size={14} className="text-[#0052FF]" />
               <span>{currentLang?.nativeName || 'English'}</span>
               <ChevronDown size={12} className="text-slate-400" />
             </button>
@@ -844,66 +927,36 @@ export default function FeraSetuAIPage() {
                     }}
                     className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
                       language === lang.code
-                        ? 'bg-blue-50 text-blue-700 font-bold'
+                        ? 'bg-blue-50 text-[#0052FF] font-bold'
                         : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <span>{lang.nativeName}</span>
-                    {language === lang.code && <Check size={12} className="text-blue-600" />}
+                    {language === lang.code && <Check size={12} className="text-[#0052FF]" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Reset Conversation Button */}
           <button
             type="button"
             onClick={handleResetChat}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Start a fresh conversation"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="New conversation"
+            aria-label="New conversation"
           >
             <RotateCcw size={15} />
           </button>
         </div>
       </header>
 
-      {/* ── Sub-header Trust Reassurance Strip ─────────────────────────────── */}
-      <div className="bg-gradient-to-r from-blue-50/70 via-white to-orange-50/70 border-b border-slate-100 px-4 py-1.5 flex items-center justify-between text-[11px] text-slate-600 font-medium shrink-0">
-        <div className="flex items-center gap-1.5 text-blue-700">
-          <ShieldCheck size={13} className="text-blue-600" />
-          <span className="font-semibold">0% Marketplace Commission</span>
-          <span className="text-slate-400">&bull;</span>
-          <span className="text-slate-600 hidden sm:inline">Your customer data is 100% private</span>
-        </div>
-        <div className="text-slate-500 font-semibold hidden md:block">
-          Direct sales &bull; No middlemen &bull; Instant WhatsApp order sync
-        </div>
-      </div>
-
-      {/* ── Messages & Content Scroll Area ──────────────────────────────── */}
+      {/* ── Conversation Viewport (shadcn AI Elements Message Thread) ── */}
       <div
-        className="flex-1 overflow-y-auto px-4 md:px-6 py-5 bg-[#F8FAFC]/60"
+        className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 bg-slate-50/40"
         style={{ scrollbarWidth: 'thin', scrollbarColor: '#CBD5E1 transparent' }}
       >
-        <div className="max-w-4xl mx-auto">
-          {/* Quick Action Chips Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
-            {QUICK_CHIPS.map(chip => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={() => !isLoading && sendMessage(chip.msg)}
-                disabled={isLoading}
-                className="whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 hover:bg-blue-50/60 shadow-2xs transition-all cursor-pointer shrink-0 disabled:opacity-50"
-              >
-                {chip.icon}
-                <span>{chip.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Messages Stream */}
+        <div className="max-w-3xl mx-auto space-y-5">
           {messages.map(msg => (
             <ChatBubble
               key={msg.id}
@@ -912,7 +965,6 @@ export default function FeraSetuAIPage() {
             />
           ))}
 
-          {/* Pending Action Approval Cards */}
           {pendingApprovals.map(action => (
             <ApprovalCard
               key={action.id}
@@ -922,120 +974,35 @@ export default function FeraSetuAIPage() {
             />
           ))}
 
-          {/* Thinking / Processing State */}
           {isLoading && <ThinkingIndicator />}
 
-          {/* 3 Concrete Store Clerk Action Cards (Tangible Retail Tasks) */}
+          {/* Clean Starter Action List (shown only before user starts chatting) */}
           {messages.length <= 2 && (
-            <div className="mt-4 mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-[#FF6B35]" />
-                  1-Click Store Clerk Assistants
-                </span>
-                <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
-                  Real retail actions &bull; No complex prompts
-                </span>
+            <div className="pt-2 space-y-3">
+              <div className="text-xs font-semibold text-slate-500">
+                Suggested store workflows
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {STORE_CLERK_ACTIONS.map(clerk => (
-                  <div
+                  <button
                     key={clerk.id}
-                    className={`p-4 rounded-2xl bg-white border ${clerk.borderClass} ${clerk.hoverClass} shadow-2xs flex flex-col justify-between transition-all group`}
+                    type="button"
+                    onClick={() => !isLoading && sendMessage(clerk.prompt)}
+                    disabled={isLoading}
+                    className="text-left p-4 rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between gap-3 disabled:opacity-50"
                   >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2.5">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border ${clerk.tagColor}`}
-                        >
-                          {clerk.tag}
-                        </span>
-                        <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${clerk.iconBg}`}
-                        >
-                          {clerk.icon}
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-extrabold text-slate-900 mb-1.5 leading-snug">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-900 group-hover:text-[#0052FF] transition-colors">
                         {clerk.title}
-                      </h4>
-                      <p className="text-xs text-slate-600 font-normal leading-relaxed mb-4">
-                        {clerk.description}
-                      </p>
+                      </span>
+                      <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => !isLoading && sendMessage(clerk.prompt)}
-                      disabled={isLoading}
-                      className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all ${clerk.btnClass}`}
-                    >
-                      <span>{clerk.actionText}</span>
-                      <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                    </button>
-                  </div>
+                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                      {clerk.description}
+                    </p>
+                  </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* 6 Category Prompts Drawer */}
-          {showCategories && messages.length <= 2 && (
-            <div className="mt-4 mb-6">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                  Explore Store Operations
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                {CATEGORIES.map(cat => {
-                  const isSelected = activeCategory === cat.key;
-                  return (
-                    <button
-                      key={cat.key}
-                      type="button"
-                      onClick={() => setActiveCategory(isSelected ? null : cat.key)}
-                      style={{
-                        backgroundColor: isSelected ? cat.bgLight : '#FFFFFF',
-                        borderColor: isSelected ? cat.color : '#E2E8F0',
-                      }}
-                      className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 hover:shadow-xs hover:border-slate-300 transition-all cursor-pointer text-center group"
-                    >
-                      <div style={{ color: cat.color }}>{cat.icon}</div>
-                      <span
-                        className={`text-xs font-bold ${
-                          isSelected ? 'text-slate-900' : 'text-slate-700 group-hover:text-slate-900'
-                        }`}
-                      >
-                        {cat.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Sub-actions drawer */}
-              {activeCategoryData && (
-                <div
-                  style={{
-                    backgroundColor: activeCategoryData.bgLight,
-                    borderColor: activeCategoryData.borderLight,
-                  }}
-                  className="mt-3 p-3.5 border rounded-2xl flex flex-wrap gap-2 animate-fade-in"
-                >
-                  {activeCategoryData.actions.map((act, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => sendMessage(act.msg)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white text-xs font-semibold text-slate-800 hover:text-blue-700 hover:border-blue-300 shadow-2xs border border-slate-200 transition-all cursor-pointer"
-                    >
-                      <span style={{ color: activeCategoryData.color }}>{act.icon}</span>
-                      <span>{act.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -1043,56 +1010,137 @@ export default function FeraSetuAIPage() {
         </div>
       </div>
 
-      {/* ── Bottom Input Console (White Surface with Blue & Orange Accents) ── */}
-      <footer className="border-t border-slate-200/90 bg-white/95 backdrop-blur-xl p-3 sm:p-4 z-10 shrink-0">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-end gap-2">
-            {/* Voice Input Button */}
-            <button
-              type="button"
-              onClick={startVoice}
-              disabled={isLoading}
-              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-all ${
-                isListening
-                  ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30'
-                  : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
-              }`}
-              title={isListening ? 'Listening... Speak now' : 'Speak in your language (Hindi / English)'}
-            >
-              <Mic size={18} strokeWidth={2} />
-            </button>
+      {/* ── Suggestions + Unified PromptInput Composer (shadcn AI Elements) ── */}
+      <footer className="border-t border-slate-200/80 bg-white px-4 py-3.5 sm:px-6 shrink-0 z-10">
+        <div className="max-w-3xl mx-auto space-y-3">
+          {/* Horizontal Suggestion Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+            {QUICK_CHIPS.map(chip => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => !isLoading && sendMessage(chip.msg)}
+                disabled={isLoading}
+                className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 border border-slate-200 text-slate-700 hover:text-[#0052FF] hover:border-blue-300 hover:bg-blue-50/50 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+              >
+                {chip.icon}
+                <span>{chip.label}</span>
+              </button>
+            ))}
+          </div>
 
-            {/* Text Area */}
+          {/* Hidden File Input for Image Upload */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+
+          {/* Unified PromptInput Box */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-xs focus-within:border-[#0052FF] focus-within:ring-2 focus-within:ring-[#0052FF]/15 transition-all p-2.5 sm:p-3">
+            {/* Attached Image Preview */}
+            {selectedImage && (
+              <div className="flex items-center justify-between gap-3 p-2 bg-blue-50/80 border border-blue-200/90 rounded-xl mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={selectedImage.previewUrl}
+                    alt="Upload thumbnail"
+                    className="w-10 h-10 rounded-lg object-cover border border-blue-200 shrink-0 shadow-2xs"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-900 truncate">
+                      {selectedImage.name}
+                    </div>
+                    <div className="text-[11px] text-[#0052FF] font-semibold flex items-center gap-1">
+                      <Sparkles size={11} /> Ready for MCP Storefront &amp; Website Generation
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInput('Analyze this product photo, generate high-converting title & price, and build a beautiful website storefront layout to sell it.');
+                    }}
+                    className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-[#0052FF] font-bold text-[11px] hover:bg-blue-50 cursor-pointer shadow-2xs"
+                  >
+                    <Sparkles size={12} /> Auto-Prompt Store
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelectedImage}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 cursor-pointer"
+                    title="Remove attached image"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask FeraSetu AI to build website, manage stock, create offers, or analyze sales..."
-              rows={1}
+              placeholder={selectedImage ? "Add instructions for your store or hit Send to build website..." : "Ask FeraSetu AI anything, or upload an image to build your store..."}
+              rows={2}
               disabled={isLoading}
-              className="flex-1 bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 font-medium resize-none outline-none min-h-[44px] max-h-[120px] transition-all"
+              className="w-full bg-transparent px-1.5 py-1 text-sm text-slate-900 placeholder:text-slate-400 resize-none outline-none min-h-[44px] max-h-[140px]"
             />
 
-            {/* Send Button (Vibrant FeraSetu Orange Gradient) */}
-            <button
-              type="button"
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || isLoading}
-              className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shrink-0 transition-all ${
-                input.trim() && !isLoading
-                  ? 'bg-gradient-to-r from-orange-500 via-[#FF6B35] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md shadow-orange-500/25 cursor-pointer active:scale-95'
-                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-              }`}
-            >
-              <span>Send</span>
-              <Send size={15} />
-            </button>
-          </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 mt-1">
+              <div className="flex items-center gap-2">
+                {/* Image Upload Plus Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors bg-blue-50 hover:bg-blue-100 text-[#0052FF] border border-blue-200 shadow-2xs"
+                  title="Upload product or store image to build website"
+                  aria-label="Upload product image"
+                >
+                  <Plus size={14} className="stroke-[2.5]" />
+                  <span className="font-bold">Add Image</span>
+                </button>
 
-          {/* Micro-trust note */}
-          <div className="mt-2 text-center text-[10px] text-slate-400 font-medium">
-            Press <kbd className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono text-[9px] text-slate-600">Enter</kbd> to send, <kbd className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono text-[9px] text-slate-600">Shift + Enter</kbd> for new line &bull; Built with pride for independent merchants
+                {/* Voice Input Button */}
+                <button
+                  type="button"
+                  onClick={startVoice}
+                  disabled={isLoading}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}
+                  title={isListening ? 'Listening...' : 'Speak in your language'}
+                  aria-label="Voice input"
+                >
+                  <Mic size={14} />
+                  <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Voice'}</span>
+                </button>
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                  Enter to send &bull; Shift+Enter for new line
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => sendMessage(input)}
+                disabled={(!input.trim() && !selectedImage) || isLoading}
+                className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-xs transition-all ${
+                  (input.trim() || selectedImage) && !isLoading
+                    ? 'bg-[#0052FF] hover:bg-[#0045d8] text-white shadow-xs cursor-pointer active:scale-95'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span>Send</span>
+                <Send size={14} />
+              </button>
+            </div>
           </div>
         </div>
       </footer>

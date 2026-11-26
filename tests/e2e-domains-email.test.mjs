@@ -771,7 +771,7 @@ class AiEmailAssistantService {
 // FEATURE 1: FeraSetu Mail Default Experience (5 tests)
 // -----------------------------------------------------------------------------
 
-test('T1.1.1: FeraSetu Mail: Automatic lazy provisioning of orders@{slug}.ferasetu.com on merchant first visit', async () => {
+test('T1.1.1: FeraSetu Mail: Automatic lazy provisioning of orders@{slug}.ferasetu.store on merchant first visit', async () => {
   const db = createTestDb();
   const env = { DB: db, JWKS: localKeySet, ADMIN_JWT_SECRET: 'test_jwt_key', WORKOS_CLIENT_ID: 'test_client' };
 
@@ -787,8 +787,8 @@ test('T1.1.1: FeraSetu Mail: Automatic lazy provisioning of orders@{slug}.ferase
   const data = await res.json();
 
   assert.equal(data.activeProvider, 'FERASETU');
-  assert.equal(data.ferasetuDomain.domain, 'spice-kerala-3.ferasetu.com');
-  assert.equal(data.defaultIdentity.email_address, 'orders@spice-kerala-3.ferasetu.com');
+  assert.equal(data.ferasetuDomain.domain, 'spice-kerala-3.ferasetu.store');
+  assert.equal(data.defaultIdentity.email_address, 'orders@spice-kerala-3.ferasetu.store');
   assert.equal(data.defaultIdentity.is_default, 1);
 });
 
@@ -2116,8 +2116,8 @@ test('T4.1: Real-World Scenario 1: Complete Merchant Lifecycle from Onboarding t
   const settings = await settingsRes.json();
 
   assert.equal(settings.activeProvider, 'FERASETU');
-  assert.equal(settings.ferasetuDomain.domain, 'kirana-pune-4.ferasetu.com');
-  assert.equal(settings.defaultIdentity.email_address, 'orders@kirana-pune-4.ferasetu.com');
+  assert.equal(settings.ferasetuDomain.domain, 'kirana-pune-4.ferasetu.store');
+  assert.equal(settings.defaultIdentity.email_address, 'orders@kirana-pune-4.ferasetu.store');
 
   // ---------------------------------------------------------------------------
   // Step 2: Merchant searches for custom domain punebazaar.in & checks authoritative price

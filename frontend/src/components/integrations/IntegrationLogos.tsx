@@ -571,31 +571,132 @@ export const INTEGRATION_LOGOS: Record<string, React.FC<LogoProps>> = {
 };
 
 /**
- * Universal logo getter with fallback
+ * Official Domain Mapping for Real Brand Favicons (Google S2 Favicon CDN)
+ */
+const SERVICE_FAVICON_DOMAINS: Record<string, string> = {
+  'cashfree': 'cashfree.com',
+  'cashfree-pg': 'cashfree.com',
+  'razorpay': 'razorpay.com',
+  'razorpay-pg': 'razorpay.com',
+  'phonepe': 'phonepe.com',
+  'phonepe-pg': 'phonepe.com',
+  'google-pay': 'pay.google.com',
+  'gpay': 'pay.google.com',
+  'paytm': 'paytm.com',
+  'paytm-pg': 'paytm.com',
+  'stripe': 'stripe.com',
+  'stripe-pg': 'stripe.com',
+  'paypal': 'paypal.com',
+  'paypal-pg': 'paypal.com',
+  'payu-pg': 'payu.in',
+  'pinelabs-pg': 'pinelabs.com',
+  'upi': 'npci.org.in',
+  'offline-cod': 'npci.org.in',
+  'wa-baileys': 'whatsapp.com',
+  'whatsapp': 'whatsapp.com',
+  'whatsapp-cloud-api': 'whatsapp.com',
+  'gupshup-enterprise': 'gupshup.io',
+  'telegram': 'telegram.org',
+  'telegram-bot': 'telegram.org',
+  'twilio': 'twilio.com',
+  'twilio-sms': 'twilio.com',
+  'shiprocket': 'shiprocket.in',
+  'shiprocket-logistics': 'shiprocket.in',
+  'delhivery': 'delhivery.com',
+  'delhivery-direct': 'delhivery.com',
+  'porter': 'porter.in',
+  'porter-hyperlocal': 'porter.in',
+  'dunzo': 'dunzo.com',
+  'dunzo-shadowfax': 'shadowfax.in',
+  'bluedart': 'bluedart.com',
+  'bluedart-apex': 'bluedart.com',
+  'bluedart-dhl': 'dhl.com',
+  'dtdc-express': 'dtdc.in',
+  'tally': 'tallysolutions.com',
+  'tally-erp': 'tallysolutions.com',
+  'zoho': 'zoho.com',
+  'zoho-books': 'zoho.com',
+  'marg-erp': 'margcompusoft.com',
+  'quickbooks': 'quickbooks.intuit.com',
+  'notion': 'notion.so',
+  'notion-mcp': 'notion.so',
+  'google-sheets': 'sheets.google.com',
+  'sheets': 'sheets.google.com',
+  'slack': 'slack.com',
+  'zapier-make': 'zapier.com',
+  'stitch': 'stitch.withgoogle.com',
+  'stitch-mcp': 'stitch.withgoogle.com',
+  'fera-ai': 'ferasetu.com',
+};
+
+function RealFaviconBadge({
+  domain,
+  alt,
+  size = 40,
+  className = '',
+  fallback,
+}: {
+  domain: string;
+  alt: string;
+  size?: number;
+  className?: string;
+  fallback: React.ReactNode;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  if (failed) return <>{fallback}</>;
+
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className={`rounded-xl bg-white border border-slate-200/90 flex items-center justify-center shrink-0 shadow-xs p-1.5 overflow-hidden ${className}`}
+    >
+      <img
+        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`}
+        alt={alt}
+        width={size}
+        height={size}
+        className="w-full h-full object-contain rounded-md"
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+/**
+ * Universal logo getter with real official favicon & SVG fallback
  */
 export function getIntegrationLogo(serviceId: string, size = 40, className = ''): React.ReactNode {
   const normalized = serviceId.toLowerCase().trim();
   const Component = INTEGRATION_LOGOS[normalized];
-  if (Component) {
-    return <Component size={size} className={className} />;
+  const fallbackNode = Component ? (
+    <Component size={size} className={className} />
+  ) : normalized.includes('pay') || normalized.includes('card') || normalized.includes('upi') ? (
+    <UpiLogo size={size} className={className} />
+  ) : normalized.includes('ship') || normalized.includes('track') || normalized.includes('delivery') ? (
+    <ShiprocketLogo size={size} className={className} />
+  ) : normalized.includes('mail') || normalized.includes('smtp') ? (
+    <SmtpEmailLogo size={size} className={className} />
+  ) : normalized.includes('chat') || normalized.includes('message') ? (
+    <WhatsAppLogo size={size} className={className} />
+  ) : normalized.includes('ai') || normalized.includes('bot') ? (
+    <FeraAiLogo size={size} className={className} />
+  ) : (
+    <CashfreeLogo size={size} className={className} />
+  );
+
+  const faviconDomain = SERVICE_FAVICON_DOMAINS[normalized];
+  if (faviconDomain) {
+    return (
+      <RealFaviconBadge
+        domain={faviconDomain}
+        alt={serviceId}
+        size={size}
+        className={className}
+        fallback={fallbackNode}
+      />
+    );
   }
 
-  // Fallback icon based on keywords
-  if (normalized.includes('pay') || normalized.includes('card') || normalized.includes('upi')) {
-    return <UpiLogo size={size} className={className} />;
-  }
-  if (normalized.includes('ship') || normalized.includes('track') || normalized.includes('delivery')) {
-    return <ShiprocketLogo size={size} className={className} />;
-  }
-  if (normalized.includes('mail') || normalized.includes('smtp')) {
-    return <SmtpEmailLogo size={size} className={className} />;
-  }
-  if (normalized.includes('chat') || normalized.includes('message')) {
-    return <WhatsAppLogo size={size} className={className} />;
-  }
-  if (normalized.includes('ai') || normalized.includes('bot')) {
-    return <FeraAiLogo size={size} className={className} />;
-  }
-
-  return <CashfreeLogo size={size} className={className} />;
+  return fallbackNode;
 }
